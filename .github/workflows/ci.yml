@@ -1,0 +1,20 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --locked && cargo test --locked
+      - run: sh scripts/check-deps.sh
+      - run: sh scripts/secret-scan.sh
+      - run: sh scripts/e2e-local.sh
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: sudo apt-get update && sudo apt-get install -y clang lld
+      - run: rustup target add wasm32-unknown-unknown && cargo install --locked wasm-bindgen-cli --version 0.2.100
+      - run: sh scripts/wasm-check.sh
