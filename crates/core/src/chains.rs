@@ -1,11 +1,17 @@
 //! Data-driven chain table: how a secp256k1 / ed25519 key becomes an address
 //! on each chain. Adding a chain = adding a row (plus an encoder if it is new).
 //! Encodings only; all primitives come from rust-bitcoin / secp256k1 / sha3 / ed25519-dalek.
+#[cfg(feature = "secrets")]
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv};
-use bitcoin::hashes::{hash160, sha512, Hash, HashEngine, Hmac, HmacEngine};
-use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};
+use bitcoin::hashes::{hash160, Hash};
+#[cfg(feature = "secrets")]
+use bitcoin::hashes::{sha512, HashEngine, Hmac, HmacEngine};
+use bitcoin::secp256k1::{PublicKey, Secp256k1};
+#[cfg(feature = "secrets")]
+use bitcoin::secp256k1::{All, SecretKey};
 use bitcoin::bech32::{self, Hrp};
 use sha3::{Digest, Keccak256};
+#[cfg(feature = "secrets")]
 use std::str::FromStr;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -32,6 +38,7 @@ pub const CHAINS: &[Chain] = &[
 ];
 pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.name == name) }
 
+#[cfg(feature = "secrets")]
 pub struct Row { pub chain: &'static str, pub kind: &'static str, pub path: String, pub address: String, pub secret_field: &'static str, pub secret: String }
 
 fn b58check(payload: &[u8]) -> String { bitcoin::base58::encode_check(payload) }
@@ -44,6 +51,7 @@ pub fn xrp_b58check(payload: &[u8]) -> String {
 fn h160(b: &[u8]) -> [u8; 20] { hash160::Hash::hash(b).to_byte_array() }
 fn ver(v: u8, b: &[u8]) -> Vec<u8> { let mut x = vec![v]; x.extend_from_slice(b); x }
 
+#[cfg(feature = "secrets")]
 pub fn wif(version: u8, sk: &SecretKey, compressed: bool) -> String {
     let mut p = ver(version, &sk.secret_bytes());
     if compressed { p.push(1) }
@@ -57,42 +65,58 @@ pub(crate) fn keccak_addr20(pk: &PublicKey) -> [u8; 20] {
     h[12..].try_into().unwrap()
 }
 
-/// Address rows for one secp256k1 key on one chain. `kinds` = which script types
-/// (None = all the chain supports). `uncompressed` adds legacy uncompressed p2pkh.
-pub fn secp_rows(c: &Chain, path: &str, sk: &SecretKey, uncompressed: bool, secp: &Secp256k1<All>) -> Vec<Row> {
-    let pk = PublicKey::from_secret_key(secp, sk);
-    let hex = crate::hex_enc(sk.secret_bytes());
-    let row = |kind, address: String, secret_field, secret: String| Row { chain: c.name, kind, path: path.to_string(), address, secret_field, secret };
+/// Public address row: no key material. This is what default (secrets-off) builds produce.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AddrRow { pub chain: &'static str, pub kind: &'static str, pub path: String, pub address: String }
+
+/// Address rows for one secp256k1 PUBLIC key on one chain (all script types the chain
+/// supports). `uncompressed` adds legacy uncompressed p2pkh.
+pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Vec<AddrRow> {
+    let row = |kind, address: String| AddrRow { chain: c.name, kind, path: path.to_string(), address };
     match c.enc {
-        Enc::Utxo { p2pkh, p2sh, hrp, wif: wv, taproot } => {
+        Enc::Utxo { p2pkh, p2sh, hrp, taproot, .. } => {
             let cpk = pk.serialize();
-            let mut v = vec![row("p2pkh", b58check(&ver(p2pkh, &h160(&cpk))), "wif", wif(wv, sk, true))];
-            if uncompressed {
-                v.push(row("p2pkh-uncompressed", b58check(&ver(p2pkh, &h160(&pk.serialize_uncompressed()))), "wif", wif(wv, sk, false)));
-            }
+            let mut v = vec![row("p2pkh", b58check(&ver(p2pkh, &h160(&cpk))))];
+            if uncompressed { v.push(row("p2pkh-uncompressed", b58check(&ver(p2pkh, &h160(&pk.serialize_uncompressed()))))) }
             if let Some(h) = hrp {
                 let mut redeem = vec![0u8, 20]; redeem.extend_from_slice(&h160(&cpk));
-                v.push(row("p2sh-p2wpkh", b58check(&ver(p2sh, &h160(&redeem))), "wif", wif(wv, sk, true)));
-                v.push(row("p2wpkh", segwit_v0(h, &h160(&cpk)), "wif", wif(wv, sk, true)));
+                v.push(row("p2sh-p2wpkh", b58check(&ver(p2sh, &h160(&redeem)))));
+                v.push(row("p2wpkh", segwit_v0(h, &h160(&cpk))));
             }
             if taproot {
-                let a = bitcoin::Address::p2tr(secp, pk.x_only_public_key().0, None, bitcoin::Network::Bitcoin);
-                v.push(row("p2tr", a.to_string(), "wif", wif(wv, sk, true)));
+                let secp = Secp256k1::verification_only();
+                v.push(row("p2tr", bitcoin::Address::p2tr(&secp, pk.x_only_public_key().0, None, bitcoin::Network::Bitcoin).to_string()));
             }
             v
         }
-        Enc::Eth => vec![row("eth", crate::eth_address(sk, secp), "private_key", hex)],
-        Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(&pk))), "private_key", hex)],
-        Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))), "private_key", hex)],
+        Enc::Eth => vec![row("eth", crate::eth_address_from_pubkey(&pk.serialize_uncompressed()))],
+        Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
+        Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Sol => vec![],
     }
 }
+/// Solana address of a 32-byte ed25519 public key (base58).
+pub fn sol_address(pubkey: &[u8; 32]) -> String { bitcoin::base58::encode(pubkey) }
+
+/// Address rows plus the private key, for one secp256k1 key. Feature `secrets` only.
+#[cfg(feature = "secrets")]
+pub fn secp_rows(c: &Chain, path: &str, sk: &SecretKey, uncompressed: bool, secp: &Secp256k1<All>) -> Vec<Row> {
+    let pk = PublicKey::from_secret_key(secp, sk);
+    pub_rows(c, path, &pk, uncompressed).into_iter().map(|r| {
+        let (secret_field, secret) = match c.enc {
+            Enc::Utxo { wif: wv, .. } => ("wif", wif(wv, sk, r.kind != "p2pkh-uncompressed")),
+            _ => ("private_key", crate::hex_enc(sk.secret_bytes())),
+        };
+        Row { chain: r.chain, kind: r.kind, path: r.path, address: r.address, secret_field, secret }
+    }).collect()
+}
 /// Script-type -> BIP purpose for UTXO chains.
+#[cfg(feature = "secrets")]
 fn purpose(kind: &str) -> u32 { match kind { "p2sh-p2wpkh" => 49, "p2wpkh" => 84, "p2tr" => 86, _ => 44 } }
 
 /// ed25519 key from a 32-byte seed: (address = base58 pubkey, secret = base58(seed||pub), the
 /// 64-byte keypair format Solana wallets import).
-#[cfg(feature = "ed25519")]
+#[cfg(all(feature = "ed25519", feature = "secrets"))]
 pub fn sol_row(path: &str, seed: &[u8; 32]) -> Row {
     let sk = ed25519_dalek::SigningKey::from_bytes(seed);
     let pubk = sk.verifying_key().to_bytes();
@@ -102,6 +126,7 @@ pub fn sol_row(path: &str, seed: &[u8; 32]) -> Row {
     Row { chain: "sol", kind: "sol", path: path.into(), address: bitcoin::base58::encode(&pubk), secret_field: "private_key", secret }
 }
 /// SLIP-0010 ed25519 derivation (hardened only) from a BIP39 seed.
+#[cfg(feature = "secrets")]
 pub fn slip10_ed25519(seed: &[u8], path: &[u32]) -> [u8; 32] {
     let mut e = HmacEngine::<sha512::Hash>::new(b"ed25519 seed");
     e.input(seed);
@@ -115,6 +140,7 @@ pub fn slip10_ed25519(seed: &[u8], path: &[u32]) -> [u8; 32] {
 }
 
 /// Standard per-chain rows from a BIP32 master key (secp256k1 chains) for i < count.
+#[cfg(feature = "secrets")]
 pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>) -> Vec<Row> {
     let kinds: &[&str] = match c.enc {
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
@@ -137,12 +163,12 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
     out
 }
 /// Solana rows from a BIP39 seed (64 bytes): m/44'/501'/i'/0'.
-#[cfg(feature = "ed25519")]
+#[cfg(all(feature = "ed25519", feature = "secrets"))]
 pub fn derive_sol(seed: &[u8], count: u32) -> Vec<Row> {
     (0..count).map(|i| sol_row(&format!("m/44'/501'/{i}'/0'"), &slip10_ed25519(seed, &[44, 501, i, 0]))).collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secrets"))]
 mod tests {
     use super::*;
     // Known-answer tests. All keys are public textbook values (private key 1) or the public
@@ -164,7 +190,7 @@ mod tests {
         assert_eq!(xrp_b58check(&one), "rrrrrrrrrrrrrrrrrrrrBZbvji");
     }
 }
-#[cfg(test)]
+#[cfg(all(test, feature = "secrets"))]
 mod kat_key_one {
     use super::*;
     // Private key 1 (textbook value): BIP173 p2wpkh vector and Tron/XRP/LTC/DOGE encodings.
@@ -215,4 +241,19 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
     if b[0] == p2pkh { let mut s = vec![0x76, 0xa9, 0x14]; s.extend(h); s.extend([0x88, 0xac]); Some(s) }
     else if b[0] == p2sh { let mut s = vec![0xa9, 0x14]; s.extend(h); s.push(0x87); Some(s) }
     else { None }
+}
+
+#[cfg(test)]
+mod pub_kat {
+    use super::*;
+    // Public key of private key 1 = generator G (textbook value); no secret involved.
+    #[test] fn generator_addresses() {
+        let g = PublicKey::from_slice(&crate::hex_dec("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798").unwrap()).unwrap();
+        let r = pub_rows(chain("btc").unwrap(), "", &g, true);
+        assert_eq!(r[0].address, "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH");
+        assert_eq!(r[1].address, "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm");
+        assert_eq!(r.iter().find(|r| r.kind == "p2wpkh").unwrap().address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+        assert_eq!(pub_rows(chain("eth").unwrap(), "", &g, false)[0].address, "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf");
+        assert_eq!(pub_rows(chain("tron").unwrap(), "", &g, false)[0].address, "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC");
+    }
 }

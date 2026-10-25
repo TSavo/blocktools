@@ -8,6 +8,7 @@ const EIP155_SIGNED: &str = "f86c098504a817c800825208943535353535353535353535353
 const E1559_ETH: &str = "02f873010984773594008506fc23ac00825208943535353535353535353535353535353535353535880de0b6b3a764000080c080a02b03b67e070f45175ce9d07c4512720168bd468a24edb6997977a53d48c87a12a0733d775fdd689d306e08ac8ab399f34b5a0253b47ed81b8bf2d2a6ea607fcac7";
 const E1559_ERC20: &str = "02f8b28189808506fc23ac0085174876e80082fde8942791bca1f2de4661ed88a30c99a7a9449aa8417480b844a9059cbb000000000000000000000000353535353535353535353535353535353535353500000000000000000000000000000000000000000000000000000000000f4240c001a00b680ddc04089de962005498e7315b5c0417988270f426d7e766432f3b8c92f1a04870483a2ce3a985cde71917cb97811deb5e6e53ac9d907d3901f21cf298cc0e";
 const SENDER: &str = "0x9d8A62f656a8d1615C1294fd71e9CFb3E4855A4F";
+#[cfg(feature = "secrets")]
 fn test_key() -> secp256k1::SecretKey { secp256k1::SecretKey::from_slice(&[0x46; 32]).unwrap() }
 fn h(s: &str) -> Vec<u8> { blocktools_core::hex_dec(s).unwrap() }
 
@@ -20,19 +21,24 @@ fn h(s: &str) -> Vec<u8> { blocktools_core::hex_dec(s).unwrap() }
     assert_eq!(d.inputs[0].address.as_deref(), Some(SENDER));
     assert!(d.signed && d.warnings.is_empty(), "{:?}", d.warnings);
     // re-signing the unsigned form reproduces the exact signed bytes (RFC6979)
+    #[allow(unused_mut)]
     let mut u = Tx::parse(&t.encode_unsigned()).unwrap();
     assert!(u.sig.is_none());
-    u.sign(&test_key()).unwrap();
-    assert_eq!(blocktools_core::hex_enc(u.encode_signed().unwrap()), EIP155_SIGNED);
+    #[cfg(feature = "secrets")] {
+        u.sign(&test_key()).unwrap();
+        assert_eq!(blocktools_core::hex_enc(u.encode_signed().unwrap()), EIP155_SIGNED);
+    }
 }
 #[test] fn eip1559_cross_checked_with_eth_account() {
     for (raw, cid) in [(E1559_ETH, 1), (E1559_ERC20, 137)] {
         let t = Tx::parse(&h(raw)).unwrap();
         assert_eq!(t.chain_id, Some(cid));
         assert_eq!(decode(raw, "btc").unwrap().inputs[0].address.as_deref(), Some(SENDER));
-        let mut u = Tx::parse(&t.encode_unsigned()).unwrap();
-        u.sign(&test_key()).unwrap();
-        assert_eq!(blocktools_core::hex_enc(u.encode_signed().unwrap()), raw);
+        #[cfg(feature = "secrets")] {
+            let mut u = Tx::parse(&t.encode_unsigned()).unwrap();
+            u.sign(&test_key()).unwrap();
+            assert_eq!(blocktools_core::hex_enc(u.encode_signed().unwrap()), raw);
+        }
     }
     let d = decode(E1559_ERC20, "btc").unwrap();
     let j = &d.json_lines()[0];
@@ -47,6 +53,7 @@ fn h(s: &str) -> Vec<u8> { blocktools_core::hex_dec(s).unwrap() }
     t.sig = None; t.chain_id = None;
     let d = decode_bytes(&t.encode_unsigned(), "btc").unwrap();
     assert!(d.warnings.contains(&"no_chain_id") && d.warnings.contains(&"unsigned"));
+    #[cfg(feature = "secrets")]
     assert_eq!(t.sign(&test_key()), Err("refuse_no_chain_id"));
     t.chain_id = Some(1); t.data = evm::transfer_calldata(&[0x35; 20], 5);
     t.data[..4].copy_from_slice(&evm::APPROVE); t.data[36..].fill(0xff);

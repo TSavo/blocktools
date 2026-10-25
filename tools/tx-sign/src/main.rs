@@ -8,7 +8,7 @@
 //! {"signed_tx": hex[, "psbt": finalized base64]}. Without a terminal, or with the wrong code, nothing is printed except "aborted".
 //! Default fee cap: 100000 sats (UTXO) / 0.01 ETH (EVM); raise it with --max-fee.
 use bitcoin::psbt::Psbt;
-use bitcoin::secp256k1::{Secp256k1, SecretKey};
+use bitcoin::secp256k1::Secp256k1;
 use blocktools_tx::policy::{self, check, Policy};
 use serde_json::json;
 use std::io::{BufRead, Read};
@@ -17,17 +17,6 @@ use zeroize::Zeroizing;
 fn out(status: &str, extra: serde_json::Value) -> ! {
     let mut v = json!({"tool":"tx-sign","status":status}); v.as_object_mut().unwrap().extend(extra.as_object().cloned().unwrap_or_default());
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
-}
-fn key(s: &str) -> Option<SecretKey> {
-    let s = s.trim();
-    let tok: Zeroizing<String> = Zeroizing::new(match serde_json::from_str::<serde_json::Value>(s) {
-        Ok(v) if v.is_object() => ["wif", "private_key", "key", "secret"].iter().find_map(|k| v[*k].as_str().map(String::from))?,
-        _ => s.to_string(),
-    });
-    if let Ok(k) = bitcoin::PrivateKey::from_wif(&tok) { return Some(k.inner) }
-    let h = tok.strip_prefix("0x").unwrap_or(&tok);
-    if h.len() == 64 { return SecretKey::from_slice(&Zeroizing::new(blocktools_core::hex_dec(h)?)).ok() }
-    None
 }
 fn main() {
     blocktools_io::help("tx-sign --tx FILE --expect-to ADDR [...] [--max-fee N] < keys   (asks for a code on the terminal)");
@@ -58,7 +47,7 @@ fn main() {
         let l = Zeroizing::new(l);
         if l.trim().is_empty() { continue }
         if keys.len() >= 10_000 { bad("too_many_keys") }
-        keys.push(key(&l).unwrap_or_else(|| bad("unreadable key line")));
+        keys.push(blocktools_secrets::keys::parse_key_line(&l).unwrap_or_else(|| bad("unreadable key line")));
     }
     if keys.is_empty() { bad("no keys on stdin") }
     let secp = Secp256k1::new();

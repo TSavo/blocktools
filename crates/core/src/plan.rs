@@ -107,3 +107,101 @@ pub fn parse_range(s: &str) -> Option<Vec<u32>> {
     }
     if v.is_empty() || v.len() > 1_000_000 { None } else { Some(v) }
 }
+
+/// A full derivation plan from flags: specs (chain, kind, template) and ranges. No key material.
+pub struct Opts {
+    /// Plain `derive` (no --preset/--path/--purpose): chains + compression choice, so Electrum
+    /// masters get Electrum paths automatically.
+    pub auto: Option<(Vec<&'static Chain>, Option<String>)>,
+    pub specs: Vec<Spec>, pub ranges: Ranges, pub index_set: bool,
+    /// --match FILE (the CLI reads it; the library never opens files).
+    pub match_file: Option<String>,
+    pub gap: Option<u32>, pub explain: bool, pub only_uncompressed: bool,
+}
+/// Build a plan from `derive` flags (argv without the program name). `--help` and
+/// `--list-presets` are the CLI's business and are rejected here. Public parameters only.
+pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
+    let (mut chains_sel, mut preset_name, mut types, mut purposes, mut paths) = (Vec::<&'static Chain>::new(), "common".to_string(), None::<Vec<String>>, None::<Vec<u32>>, Vec::<String>::new());
+    let (mut coin, mut account, mut change, mut index, mut comp, mut curve) = (None, None, None, None, None::<&str>, None::<String>);
+    let (mut match_file, mut gap, mut explain) = (None::<String>, None, false);
+    let mut i = 0;
+    while i < a.len() {
+        let flag = a[i].as_str();
+        let val = || a.get(i + 1).cloned().ok_or("bad_input");
+        let mut takes = true;
+        match flag {
+            "--explain" => { explain = true; takes = false }
+            "--compressed" | "--uncompressed" | "--both" => { comp = Some(&flag[2..]); takes = false }
+            "--chain" => for n in val()?.split(',') {
+                if n == "all" { chains_sel.extend(chains::CHAINS.iter()) } else { chains_sel.push(chains::chain(n).ok_or("unsupported")?) } },
+            "--preset" => { preset_name = val()?; if !PRESETS.iter().any(|p| p.0 == preset_name) { return Err("unsupported") } }
+            "--address-type" => types = Some(val()?.split(',').map(|t| match t { "evm" => "eth", "solana" => "sol", x => x }.to_string()).collect()),
+            "--purpose" => purposes = Some(val()?.split(',').map(|p| p.parse().ok().filter(|n: &u32| *n < 1 << 31).ok_or("bad_input")).collect::<Result<Vec<_>, _>>()?),
+            "--path" => { let t = val()?; if !template_ok(&t) { return Err("bad_input") } paths.push(t) }
+            "--coin-type" => coin = Some(val()?.parse::<u32>().ok().filter(|n| *n < 1 << 31).ok_or("bad_input")?),
+            "--account" => account = Some(parse_range(&val()?).ok_or("bad_input")?),
+            "--change" => change = Some(parse_range(&val()?).ok_or("bad_input")?),
+            "--index" => index = Some(parse_range(&val()?).ok_or("bad_input")?),
+            "--count" => { let n: u32 = val()?.parse().ok().filter(|n| (1..=1_000_000).contains(n)).ok_or("bad_input")?; index = Some((0..n).collect()) }
+            "--curve" => curve = Some(val()?),
+            "--match" => match_file = Some(val()?),
+            "--gap-limit" => gap = Some(val()?.parse::<u32>().ok().filter(|n| (1..=100_000).contains(n)).ok_or("bad_input")?),
+            _ => return Err("bad_input"),
+        }
+        i += if takes { 2 } else { 1 };
+    }
+    if types.as_ref().map_or(false, |t| t.iter().any(|t| t == "ton")) { return Err("unsupported") }
+    if types.as_ref().map_or(false, |t| t.iter().any(|t| !ADDRESS_TYPES.contains(&t.as_str()))) { return Err("bad_input") }
+    if chains_sel.is_empty() { chains_sel = vec![chains::chain("btc").unwrap(), chains::chain("eth").unwrap()] }
+    let mut specs = if purposes.is_some() || !paths.is_empty() {
+        let mut t = paths.clone();
+        for p in purposes.iter().flatten() { t.push(format!("m/{p}'/{{coin}}'/{{account}}'/{{change}}/{{i}}")) }
+        let mut v = Vec::new();
+        for &c in &chains_sel { for k in kinds_of(c) {
+            if types.as_ref().map_or(false, |ts| !ts.iter().any(|x| x == k)) { continue }
+            for tt in &t { v.push(sp(c, k, tt, false)) }
+        } }
+        v
+    } else {
+        let mut v = preset(&preset_name, &chains_sel).unwrap();
+        if let Some(ts) = &types { v.retain(|s| ts.iter().any(|x| x == s.kind) || (s.kind == "p2pkh" && ts.iter().any(|x| x == "p2pkh-uncompressed"))) }
+        v
+    };
+    for s in &mut specs {
+        if let Some(c) = coin { s.coin = c }
+        match comp { Some("compressed") => s.uncompressed = false, Some("both") | Some("uncompressed") => s.uncompressed = s.kind == "p2pkh", _ => {} }
+        if types.as_ref().map_or(false, |t| t.iter().any(|x| x == "p2pkh-uncompressed")) && s.kind == "p2pkh" { s.uncompressed = true }
+    }
+    if comp == Some("uncompressed") { specs.retain(|s| s.kind == "p2pkh") }
+    match curve.as_deref() { Some("ed25519") => specs.retain(|s| s.chain.enc == Enc::Sol), Some("secp256k1") => specs.retain(|s| s.chain.enc != Enc::Sol), None => {}, _ => return Err("bad_input") }
+    if specs.is_empty() { return Err("no_candidates") }
+    let (pa, pc) = preset_ranges(&preset_name);
+    let index_set = index.is_some();
+    let ranges = Ranges { account: account.unwrap_or(pa), change: change.unwrap_or(pc), index: index.unwrap_or_default() };
+    if gap.is_some() && match_file.is_none() { return Err("bad_input") }
+    // Plain `derive` (no --preset/--path/--purpose): Electrum masters get Electrum paths.
+    let explicit = a.iter().any(|x| x == "--preset" || x == "--path" || x == "--purpose");
+    let auto = (!explicit).then(|| (chains_sel.clone(), comp.map(|c| c.to_string())));
+    let only_uncompressed = comp == Some("uncompressed");
+    Ok(Opts { auto, specs, ranges, index_set, match_file, gap, explain, only_uncompressed })
+}
+/// Normalise an address for matching (EVM hex is case-insensitive).
+pub fn norm(a: &str) -> String { if a.starts_with("0x") { a.to_ascii_lowercase() } else { a.to_string() } }
+pub fn indices(o: &Opts, s: &Spec) -> Vec<u32> { if o.index_set { o.ranges.index.clone() } else { (0..s.chain.default_count).collect() } }
+/// Does the template vary with {account} / {change}? If not, iterate them once.
+pub fn axis(t: &str, ph: &str, v: &[u32]) -> Vec<u32> { if t.contains(ph) { v.to_vec() } else { vec![0] } }
+
+/// One line of `derive --explain`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExplainRow { pub chain: &'static str, pub kind: String, pub template: String, pub path: String, pub count: u64 }
+/// The plan as rows (first path of each family and how many paths it covers). No keys.
+pub fn explain(o: &Opts) -> Vec<ExplainRow> {
+    o.specs.iter().map(|s| {
+        let (acc, ch) = (axis(&s.template, "{account}", &o.ranges.account), axis(&s.template, "{change}", &o.ranges.change));
+        let idx = indices(o, s);
+        let count = (acc.len() * ch.len() * idx.len()) as u64;
+        let path = expand(&s.template, s, acc[0], ch[0], idx[0]).unwrap_or_default();
+        let kind = if s.uncompressed && s.kind == "p2pkh" { "p2pkh,p2pkh-uncompressed".into() } else { s.kind.to_string() };
+        ExplainRow { chain: s.chain.name, kind, template: s.template.clone(), path, count }
+    }).collect()
+}

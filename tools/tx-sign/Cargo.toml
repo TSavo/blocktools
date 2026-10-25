@@ -5,10 +5,11 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools tx-sign: sign after a human-typed confirmation code. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-tx = { path = "../../crates/tx" }
+blocktools-tx = { path = "../../crates/tx", features = ["secrets"] }
+blocktools-secrets = { path = "../../crates/secrets", features = ["keys"] }
 blocktools-io = { path = "../../crates/io" }
 serde_json.workspace = true
-blocktools-core = { path = "../../crates/core" }
+blocktools-core = { path = "../../crates/core", features = ["secrets"] }
 blocktools-tty = { path = "../../crates/tty" }
 bitcoin.workspace = true
 zeroize.workspace = true

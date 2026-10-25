@@ -2,8 +2,10 @@ arrayvec
 bip39
 bitcoin_hashes
 blocktools-io
+blocktools-secrets
 hex-conservative
 serde
 serde_core
 tinyvec
 unicode-normalization
+zeroize

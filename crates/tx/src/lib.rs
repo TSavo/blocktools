@@ -5,6 +5,8 @@
 pub mod build;
 pub mod evm;
 pub mod policy;
+/// Signing (takes private keys). Feature `secrets` only.
+#[cfg(feature = "secrets")]
 pub mod sign;
 pub mod rlp;
 use bitcoin::consensus::deserialize;

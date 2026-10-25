@@ -2,7 +2,9 @@
 //! Primitives: Keccak-256 (sha3 crate) and secp256k1 (recoverable ECDSA). Nothing hand-rolled.
 use crate::rlp::{self, Rlp};
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{Message, Secp256k1, SecretKey};
+use secp256k1::{Message, Secp256k1};
+#[cfg(feature = "secrets")]
+use secp256k1::SecretKey;
 use sha3::{Digest, Keccak256};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -112,7 +114,8 @@ impl Tx {
         let h = Keccak256::digest(&pk.serialize_uncompressed()[1..]);
         let mut a = [0; 20]; a.copy_from_slice(&h[12..]); Some(a)
     }
-    /// Sign in place (RFC6979 deterministic nonce, low-s, from secp256k1).
+    /// Sign in place. Feature `secrets` only. (RFC6979 deterministic nonce, low-s, from secp256k1).
+    #[cfg(feature = "secrets")]
     pub fn sign(&mut self, sk: &SecretKey) -> Result<(), &'static str> {
         if self.chain_id.is_none() { return Err("refuse_no_chain_id") }
         let sig = Secp256k1::signing_only().sign_ecdsa_recoverable(&Message::from_digest(self.sighash()), sk);

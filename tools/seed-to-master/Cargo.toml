@@ -7,9 +7,7 @@ description = "blocktools seed-to-master. DANGEROUS: use at your own risk. Code 
 [dependencies]
 blocktools-tty = { path = "../../crates/tty" }
 blocktools-io = { path = "../../crates/io" }
-bip39.workspace = true
-bitcoin.workspace = true
-serde_json.workspace = true
+blocktools-secrets = { path = "../../crates/secrets", features = ["seed"] }
+blocktools-core = { path = "../../crates/core" }
 zeroize.workspace = true
-pbkdf2.workspace = true
-sha2.workspace = true
+serde_json.workspace = true

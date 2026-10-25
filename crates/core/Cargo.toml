@@ -12,3 +12,5 @@ ed25519-dalek = { workspace = true, optional = true }
 [features]
 # Solana / ed25519 addresses. Off by default so dat-read & co. stay small.
 ed25519 = ["dep:ed25519-dalek"]
+# APIs that take or emit private keys (WIF/hex rows, xprv derivation). Off by default.
+secrets = []

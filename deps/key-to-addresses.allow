@@ -8,6 +8,7 @@ bitcoin_hashes
 block-buffer
 blocktools-core
 blocktools-io
+blocktools-secrets
 cfg-if
 cpufeatures
 crypto-common

@@ -6,8 +6,5 @@ license.workspace = true
 description = "blocktools dat-read. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
 blocktools-io = { path = "../../crates/io" }
-blocktools-core = { path = "../../crates/core" }
-bitcoin.workspace = true
-aes.workspace = true
-cbc.workspace = true
+blocktools-secrets = { path = "../../crates/secrets", features = ["dat"] }
 zeroize.workspace = true

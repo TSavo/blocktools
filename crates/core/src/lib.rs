@@ -1,14 +1,21 @@
 //! Shared, dependency-light helpers for the blocktools tools that touch Bitcoin /
 //! Ethereum keys. One crypto family (rust-bitcoin + secp256k1) plus sha3 for
 //! Keccak. No hand-rolled primitives.
+//! Default build: public inputs only (addresses, plans, xpub derivation). Anything that
+//! takes or emits a private key is behind the `secrets` feature.
+#[cfg(feature = "secrets")]
 use bitcoin::bip32::{DerivationPath, Xpriv};
+#[cfg(feature = "secrets")]
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};
+#[cfg(feature = "secrets")]
 use bitcoin::{Address, CompressedPublicKey, Network, PrivateKey};
 use sha3::{Digest, Keccak256};
 pub mod chains;
 pub mod plan;
 pub mod validate;
 pub mod b64;
+pub mod xpub;
+#[cfg(feature = "secrets")]
 use std::str::FromStr;
 
 pub fn hex_enc(b: impl AsRef<[u8]>) -> String {
@@ -20,6 +27,7 @@ pub fn hex_dec(s: &str) -> Option<Vec<u8>> {
     (0..s.len()).step_by(2).map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok()).collect()
 }
 
+#[cfg(feature = "secrets")]
 /// EIP-55 checksummed Ethereum address from a secp256k1 secret key.
 pub fn eth_address(sk: &SecretKey, secp: &Secp256k1<All>) -> String {
     let pk = PublicKey::from_secret_key(secp, sk).serialize_uncompressed();
@@ -35,11 +43,13 @@ pub fn eth_address_from_pubkey(uncompressed_pk: &[u8]) -> String {
     format!("0x{s}")
 }
 
+#[cfg(feature = "secrets")]
 pub struct Row { pub kind: &'static str, pub path: String, pub address: String, pub secret: String }
 
 pub const ACCOUNT_KINDS: [(&str, u32, u32); 5] =
     [("p2pkh", 44, 0), ("p2sh-p2wpkh", 49, 0), ("p2wpkh", 84, 0), ("p2tr", 86, 0), ("eth", 44, 60)];
 
+#[cfg(feature = "secrets")]
 /// Given a BIP32 master key, derive the standard external-chain addresses.
 pub fn derive_from_master(master: &Xpriv, count: u32) -> Vec<Row> {
     let secp = Secp256k1::new();
@@ -54,6 +64,7 @@ pub fn derive_from_master(master: &Xpriv, count: u32) -> Vec<Row> {
     rows
 }
 
+#[cfg(feature = "secrets")]
 pub fn row_for(kind: &'static str, path: String, sk: &SecretKey, secp: &Secp256k1<All>) -> Row {
     let (address, secret) = if kind == "eth" {
         (eth_address(sk, secp), hex_enc(sk.secret_bytes()))
@@ -70,6 +81,7 @@ pub fn row_for(kind: &'static str, path: String, sk: &SecretKey, secp: &Secp256k
     Row { kind, path, address, secret }
 }
 
+#[cfg(feature = "secrets")]
 /// Address rows for a bare key (legacy wallets): compressed keys get
 /// p2pkh, p2sh-p2wpkh and p2wpkh; uncompressed keys only p2pkh (uncompressed WIF).
 pub fn key_rows(sk: &SecretKey, compressed: bool) -> Vec<Row> {
@@ -86,6 +98,7 @@ pub fn kind_name(k: &str) -> Option<&'static str> {
     ACCOUNT_KINDS.iter().map(|x| x.0).find(|x| *x == k)
 }
 
+#[cfg(feature = "secrets")]
 /// Derive from an account-level key that sits at `path` (e.g. m/84'/0'/0'):
 /// rows for `path/branch/i`, i < count, of one address kind.
 pub fn derive_account(acct: &Xpriv, kind: &'static str, path: &str, branch: u32, count: u32) -> Vec<Row> {

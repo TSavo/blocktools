@@ -161,6 +161,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-secrets"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "bip39",
+ "bitcoin",
+ "blocktools-core",
+ "blocktools-schema",
+ "cbc",
+ "ctr",
+ "pbkdf2",
+ "scrypt",
+ "serde_json",
+ "sha2",
+ "sha3",
+ "zeroize",
+]
+
+[[package]]
 name = "blocktools-tty"
 version = "0.1.0"
 dependencies = [
@@ -279,11 +298,8 @@ dependencies = [
 name = "dat-read"
 version = "0.1.0"
 dependencies = [
- "aes",
- "bitcoin",
- "blocktools-core",
  "blocktools-io",
- "cbc",
+ "blocktools-secrets",
  "zeroize",
 ]
 
@@ -301,11 +317,10 @@ dependencies = [
 name = "derive"
 version = "0.1.0"
 dependencies = [
- "bip39",
  "bitcoin",
  "blocktools-core",
  "blocktools-io",
- "blocktools-schema",
+ "blocktools-secrets",
  "serde_json",
  "zeroize",
 ]
@@ -440,9 +455,9 @@ dependencies = [
 name = "key-to-addresses"
 version = "0.1.0"
 dependencies = [
- "bitcoin",
  "blocktools-core",
  "blocktools-io",
+ "blocktools-secrets",
  "serde_json",
  "zeroize",
 ]
@@ -451,16 +466,10 @@ dependencies = [
 name = "keystore-open"
 version = "0.1.0"
 dependencies = [
- "aes",
  "blocktools-io",
+ "blocktools-secrets",
  "blocktools-tty",
- "ctr",
- "pbkdf2",
- "scrypt",
- "secp256k1",
  "serde_json",
- "sha2",
- "sha3",
  "zeroize",
 ]
 
@@ -662,21 +671,20 @@ dependencies = [
 name = "seed-repair"
 version = "0.1.0"
 dependencies = [
- "bip39",
  "blocktools-io",
+ "blocktools-secrets",
+ "zeroize",
 ]
 
 [[package]]
 name = "seed-to-master"
 version = "0.1.0"
 dependencies = [
- "bip39",
- "bitcoin",
+ "blocktools-core",
  "blocktools-io",
+ "blocktools-secrets",
  "blocktools-tty",
- "pbkdf2",
  "serde_json",
- "sha2",
  "zeroize",
 ]
 
@@ -848,6 +856,7 @@ dependencies = [
  "bitcoin",
  "blocktools-core",
  "blocktools-io",
+ "blocktools-secrets",
  "blocktools-tty",
  "blocktools-tx",
  "serde_json",

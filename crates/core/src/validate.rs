@@ -69,7 +69,7 @@ pub fn hex_to_tron(h: &str) -> Result<String, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::bip32::{ChildNumber, Xpriv, Xpub};
+    use bitcoin::bip32::{ChildNumber, Xpub};
     use bitcoin::secp256k1::Secp256k1;
     use std::str::FromStr;
     const ROOT: &str = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu";
@@ -77,9 +77,12 @@ mod tests {
     // Prior-art KATs: docs/prior-art-crypto-plugins.md §5.
     #[test] fn tron_kats() {
         let s = Secp256k1::new();
-        let rows = chains::derive_chain(&Xpriv::from_str(ROOT).unwrap(), chains::chain("tron").unwrap(), 2, &s);
-        assert_eq!(rows[0].address, "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH");
-        assert_eq!(rows[1].address, "TSeJkUh4Qv67VNFwY8LaAxERygNdy6NQZK");
+        #[cfg(feature = "secrets")] {
+            let rows = chains::derive_chain(&bitcoin::bip32::Xpriv::from_str(ROOT).unwrap(), chains::chain("tron").unwrap(), 2, &s);
+            assert_eq!(rows[0].address, "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH");
+            assert_eq!(rows[1].address, "TSeJkUh4Qv67VNFwY8LaAxERygNdy6NQZK");
+        }
+        let _ = ROOT;
         let x = Xpub::from_str("xpub6BnqJwdqnXEZdkynN5CsrYZr3MULY933SdLrswFfKPDFandTXPQDWY225FveTPUJXS8D91Ddp7FEfaGrvVxuMBGQsyoBYRLu6VMB3Ni2H2Z").unwrap();
         let pk = x.derive_pub(&s, &[ChildNumber::from(0), ChildNumber::from(0)]).unwrap().public_key;
         let mut p = vec![0x41]; p.extend(chains::keccak_addr20(&pk));
@@ -136,7 +139,7 @@ mod tests {
         assert_eq!(validate("sol", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"), Ok(AddrKind::Sol));
         for n in [0usize, 20, 33] { assert_eq!(validate("sol", &base58::encode(&vec![7u8; n])).err(), Some(if n == 0 { "bad length" } else { "32-byte" })) }
     }
-    #[cfg(feature = "ed25519")]
+    #[cfg(all(feature = "ed25519", feature = "secrets"))]
     #[test] fn solana_key1() {
         let mut sk = [0u8; 32]; sk[31] = 1;
         let r = chains::sol_row("", &sk);

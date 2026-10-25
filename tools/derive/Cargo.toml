@@ -5,11 +5,9 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools derive. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-core = { path = "../../crates/core", features = ["ed25519"] }
+blocktools-io = { path = "../../crates/io" }
+blocktools-secrets = { path = "../../crates/secrets", features = ["walk", "ed25519"] }
+blocktools-core = { path = "../../crates/core" }
 bitcoin.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true
-blocktools-io = { path = "../../crates/io" }
-[dev-dependencies]
-blocktools-schema = { path = "../../crates/schema" }
-bip39.workspace = true
