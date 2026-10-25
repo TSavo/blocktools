@@ -8,6 +8,7 @@ jobs:
       - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
       - run: sh scripts/check-deps.sh
       - run: sh scripts/hygiene-check.sh
+      - run: sh scripts/prepush-check.sh
       - run: sh scripts/docs-check.sh
       - run: sh scripts/secret-scan.sh
       - run: sh scripts/fetch-fixtures.sh

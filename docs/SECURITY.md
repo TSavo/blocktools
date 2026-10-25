@@ -139,3 +139,9 @@ remaining `|| true` / `|| :` must carry an `# allow-true: reason` comment on the
 scripts/hygiene-check.sh fails otherwise. The audit found two real swallowed errors: secret-scan's
 `xargs grep 2>/dev/null || true` (now `git grep`, fatal on error) and an e2e tx-broadcast no-tty
 check whose result was discarded (its stdin was also overridden; now asserted).
+
+### Explicit staging (review G, 2026-10-25)
+Nothing stages with `git add -A`. Changes are staged by path; scripts/verify-and-push.sh never
+stages and runs scripts/prepush-check.sh before testing and again before committing. It fails on
+untracked non-ignored files, unstaged edits to tracked files, any tracked binary, and any tracked
+file over 2 MB. CI runs it too. Local hook: `git config core.hooksPath .githooks` (.githooks/pre-push).
