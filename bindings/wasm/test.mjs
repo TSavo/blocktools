@@ -121,3 +121,16 @@ console.log('wasm grs ok');
   assert.deepEqual(JSON.parse(bt.solVerifyTx(L, JSON.stringify({to: USDC}))).failures.sort(), ['recipient_not_paid', 'unexpected_recipient:' + O].sort());
   console.log('wasm solana ok');
 }
+{ // CashAddr (spec vectors) + address <-> script
+  assert.equal(bt.cashAddrToLegacy('bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a'), '1BpEi6DfDAUFd7GtittLSdBeYJvcoaVggu');
+  assert.equal(bt.legacyToCashAddr('3CWFddi6m4ndiGyKqzYvsFYagqDLPVMTzC', ''), 'bitcoincash:ppm2qsznhks23z7629mms6s4cwef74vcwvn0h829pq');
+  assert.deepEqual(JSON.parse(bt.cashAddrDecode('bchtest:pr6m7j9njldwwzlg9v7v53unlr4jkmx6eyvwc0uz5t')), {prefix: 'bchtest', type: 'p2sh', hash: 'f5bf48b397dae70be82b3cca4793f8eb2b6cdac9'});
+  assert.equal(bt.cashAddrEncode('bitcoincash', 'p2pkh', 'f5bf48b397dae70be82b3cca4793f8eb2b6cdac9'), 'bitcoincash:qr6m7j9njldwwzlg9v7v53unlr4jkmx6eylep8ekg2');
+  assert.throws(() => bt.cashAddrDecode('bitcoincash:qr6m7j9njldwwzlg9v7v53unlr4jkmx6eylep8ekg3'));
+  const s = bt.addressToScript('bch', 'qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a');
+  assert.equal(s, '76a91476a04053bda0a88bda5177b86a15c3b29f55987388ac');
+  assert.deepEqual(JSON.parse(bt.scriptToAddress('bch', s)), {kind: 'p2pkh', address: '1BpEi6DfDAUFd7GtittLSdBeYJvcoaVggu'});
+  assert.equal(bt.addressToScript('btc', 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'), '0014751e76e8199196d454941c45d1b3a323f1433bd6');
+  assert.equal(bt.scriptToAddress('btc', '6a0568656c6c6f'), 'null');
+  console.log('wasm cashaddr ok');
+}

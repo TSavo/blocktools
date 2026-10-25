@@ -224,3 +224,4 @@ pub mod derive {
 pub mod check;
 pub mod substrate;
 pub mod sol;
+pub mod cashaddr;

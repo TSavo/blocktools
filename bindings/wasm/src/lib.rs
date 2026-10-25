@@ -230,3 +230,33 @@ pub fn sol_verify_tx(raw: &str, expect_json: &str) -> Result<String, JsError> {
     let e: serde_json::Value = if expect_json.trim().is_empty() { json!({}) } else { serde_json::from_str(expect_json).map_err(|_| err("bad_expect"))? };
     Ok(sol::verify_tx(&sol_raw(raw)?, &e).map_err(err)?.to_string())
 }
+
+// ---- CashAddr / address <-> script (public data) ----
+use blocktools::cashaddr;
+fn ca_type(t: u8) -> serde_json::Value { match t { 0 => json!("p2pkh"), 1 => json!("p2sh"), n => json!(n) } }
+/// Decode a CashAddr (prefix optional, default "bitcoincash"). Returns {prefix, type:"p2pkh"|"p2sh"|<n>, hash}.
+#[wasm_bindgen(js_name = cashAddrDecode)]
+pub fn cash_addr_decode(addr: &str) -> Result<String, JsError> {
+    let (p, t, h) = cashaddr::decode(addr, "bitcoincash").map_err(err)?;
+    Ok(json!({"prefix": p, "type": ca_type(t), "hash": blocktools::hex_enc(h)}).to_string())
+}
+/// Encode a CashAddr. `kind` "p2pkh" | "p2sh"; `hash_hex` 20 (or 24..64 spec sizes) bytes.
+#[wasm_bindgen(js_name = cashAddrEncode)]
+pub fn cash_addr_encode(prefix: &str, kind: &str, hash_hex: &str) -> Result<String, JsError> {
+    let t = match kind { "p2pkh" => 0, "p2sh" => 1, _ => return Err(err("bad_type")) };
+    cashaddr::encode(prefix, t, &hx(hash_hex)?).map_err(err)
+}
+/// CashAddr -> legacy base58 address.
+#[wasm_bindgen(js_name = cashAddrToLegacy)]
+pub fn cash_addr_to_legacy(addr: &str) -> Result<String, JsError> { cashaddr::to_legacy(addr).map_err(err) }
+/// Legacy base58 BCH address -> CashAddr with `prefix` ("" = bitcoincash).
+#[wasm_bindgen(js_name = legacyToCashAddr)]
+pub fn legacy_to_cash_addr(addr: &str, prefix: &str) -> Result<String, JsError> { cashaddr::from_legacy(addr, if prefix.is_empty() { "bitcoincash" } else { prefix }).map_err(err) }
+/// Output script (hex) paying `addr` on UTXO `chain` (bch also takes CashAddr). Throws unknown_chain / bad_address.
+#[wasm_bindgen(js_name = addressToScript)]
+pub fn address_to_script(chain: &str, addr: &str) -> Result<String, JsError> { Ok(blocktools::hex_enc(cashaddr::address_to_script(chain, addr).map_err(err)?)) }
+/// Standard output script -> {kind, address}, or null for non-standard scripts.
+#[wasm_bindgen(js_name = scriptToAddress)]
+pub fn script_to_address(chain: &str, script_hex: &str) -> Result<String, JsError> {
+    Ok(match cashaddr::script_to_address(chain, &hx(script_hex)?).map_err(err)? { Some((k, a)) => json!({"kind": k, "address": a}), None => json!(null) }.to_string())
+}
