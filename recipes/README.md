@@ -44,6 +44,7 @@ and see addresses and signed transactions only.
 | Old coins (PPC, NMC, FTC, NVC, CLAM, BLK, RDD, ...) | ✅ | ✗ | ✗ | [chain-old-coins.md](chain-old-coins.md) |
 | Tron | ✅ | ✗ | ✗ | [chain-tron.md](chain-tron.md) |
 | Solana | ✅ | ✗ | ✗ | [chain-solana.md](chain-solana.md) |
+| Cosmos Hub | ✅ | ✗ | ✗ | [chain-cosmos.md](chain-cosmos.md) |
 | Stellar | ✅ | ✗ | ✗ | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | view-only request | ✗ (design) | [monero.md](monero.md) |
 

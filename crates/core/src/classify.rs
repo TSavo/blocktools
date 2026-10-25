@@ -51,7 +51,7 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
 }
 
 fn line(l: &str, n: u64) -> Row {
-    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm"] {
+    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
@@ -98,6 +98,7 @@ mod t {
         assert_eq!(c("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"), "address");
         assert_eq!(c("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"), "address");
         assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6"), "address");
+        assert_eq!(c("cosmos1jhg0e7s6gn44tfc5k37kr04sznyhedtc9rzys5"), "address");
         assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ7"), "unknown");
         assert_eq!(c("xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V"), "xpub");
         assert_eq!(c(r#"{"version":3,"crypto":{}}"#), "keystore_v3");
