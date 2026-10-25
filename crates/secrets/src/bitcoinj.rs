@@ -53,7 +53,7 @@ fn int(f: &[(u64, V<'_>)], n: u64) -> Option<u64> { f.iter().find_map(|(k, v)| m
 fn utf16be(pw: &str) -> Zeroizing<Vec<u8>> { Zeroizing::new(pw.encode_utf16().flat_map(|c| c.to_be_bytes()).collect()) }
 fn scrypt32(pw: &[u8], salt: &[u8], n: u64, r: u64, p: u64) -> Result<Zeroizing<[u8; 32]>, &'static str> {
     if !n.is_power_of_two() || n < 2 || n > 1 << 20 || r == 0 || r > 32 || p == 0 || p > 16 { return Err("unsupported") }
-    let params = scrypt::Params::new(n.trailing_zeros() as u8, r as u32, p as u32, 32).map_err(|_| "unsupported")?;
+    let params = scrypt::Params::new(n.trailing_zeros() as u8, r as u32, p as u32).map_err(|_| "unsupported")?;
     let mut k = Zeroizing::new([0u8; 32]);
     scrypt::scrypt(pw, salt, &params, &mut k[..]).map_err(|_| "unsupported")?;
     Ok(k)

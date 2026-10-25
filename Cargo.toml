@@ -16,7 +16,7 @@ bip39 = { version = "2.1", default-features = false, features = ["std"] }
 bitcoin = { version = "0.32", default-features = false, features = ["std"] }
 secp256k1 = { version = "0.29", default-features = false, features = ["std"] }
 sha3 = { version = "0.10", default-features = false }
-scrypt = { version = "0.11", default-features = false }
+scrypt = { version = "0.12", default-features = false }
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 sha2 = { version = "0.10", default-features = false }
 groestl = { version = "0.10", default-features = false }

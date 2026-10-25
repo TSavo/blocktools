@@ -1,9 +1,10 @@
 #!/bin/sh
 # utxo-fetch + tx-broadcast against scripts/mock-chain.py on 127.0.0.1 ONLY. Throwaway key 1.
 set -eu
+. scripts/e2e-only/portable.sh
 B=${BIN:-target/release}; T=$(mktemp -d)
 python3 scripts/mock-chain.py $T/port $T/log $T/exp >/dev/null 2>&1 & M=$!
-trap 'kill $M 2>/dev/null; rm -rf "$T"' EXIT
+trap 'kill $M 2>/dev/null || true; rm -rf "$T"' EXIT
 while [ ! -s $T/port ]; do sleep 0.1; done; U=http://127.0.0.1:$(cat $T/port)
 f() { echo "FAIL $1"; exit 1; }
 W=bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4; D=bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
@@ -19,7 +20,7 @@ $B/tx-build --chain btc --utxos $T/u --to $D --sweep --fee-rate 5 > $T/p
 python3 scripts/e2e-only/tty-drive.py right $T/k $T/s $PWD/$B/tx-sign --tx $T/p --expect-to $D >/dev/null
 $B/tx-decode < $T/s | python3 -c 'import json,sys;print([json.loads(l) for l in sys.stdin if "txid" in l][0]["txid"])' > $T/exp
 ! $B/tx-broadcast --chain btc --url $U < $T/p | grep -q '"status":"ok"' && echo "ok   tx-broadcast refuses unsigned" || f unsigned
-setsid $B/tx-broadcast --chain btc --url $U < $T/s </dev/null | grep -q aborted 2>/dev/null || true
+nosid $B/tx-broadcast --chain btc --url $U < $T/s </dev/null | grep -q aborted 2>/dev/null || true
 : > $T/log; python3 scripts/e2e-only/tty-drive.py wrong $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U >/dev/null || true
 grep -q aborted $T/o && [ ! -s $T/log ] && echo "ok   tx-broadcast wrong code -> nothing sent" || f wrong
 python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U > $T/tty

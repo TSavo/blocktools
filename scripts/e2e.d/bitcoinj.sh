@@ -7,6 +7,8 @@ set -eu
 B=${BIN:-target/release}; F=fixtures/external; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 f() { echo "FAIL $1"; exit 1; }
 [ -f $F/mbhd.wallet.aes ] || { echo "skip bitcoinj (no fixtures)"; exit 0; }
+. scripts/e2e-only/portable.sh
+have_pymod cryptography || { echo "skip bitcoinj (python3 module cryptography not installed: pip install cryptography)"; exit 0; }
 python3 - $F "$T" <<'PY' || f "expected addresses"
 import hashlib, sys
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes

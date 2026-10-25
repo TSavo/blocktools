@@ -1,8 +1,11 @@
+. scripts/e2e-only/portable.sh
 # shellcheck shell=bash
 # recipes/recover.sh end to end, one dummy input per type, against scripts/mock-chain.py on
 # 127.0.0.1 only. A pty (tty-drive.py) types BOTH confirmation codes (sign, then broadcast).
 # Sourced by e2e-local.sh ($B, $T set). Every key here is a public test vector.
 R=$T/rec; mkdir -p "$R"; D=bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
+. scripts/e2e-only/portable.sh
+have_pymod cryptography || { echo "skip recover (fixtures need python3 module cryptography: pip install cryptography)"; exit 0; }
 python3 scripts/make-fixtures.py "$R" >/dev/null
 : > "$R/funded"; MOCK_FUNDED="$R/funded" python3 scripts/mock-chain.py "$R/port" "$R/log" "$R/noexp" >/dev/null 2>&1 & RM=$!
 while [ ! -s "$R/port" ]; do sleep 0.1; done; RU=http://127.0.0.1:$(cat "$R/port")
@@ -51,7 +54,7 @@ if [ $rc = 3 ] && grep -q '"address":"44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjt
 # Monero view-only scan input: written to a new 0600 file, view key never on stdout/stderr, no overwrite
 VK=$(grep -o 'view_secret\[..\]), "[0-9a-f]*' crates/monero/tests/kat.rs | grep -o '[0-9a-f]\{64\}')
 "$B/xmr-keys" --scan-out "$R/xmr-scan.json" --restore-height 100 < "$R/xmr-seed.txt" > "$R/xs.out" 2> "$R/xs.err"
-if [ "$(stat -c %a "$R/xmr-scan.json")" = 600 ] && grep -q '"method":"generate_from_keys"' "$R/xmr-scan.json" && grep -q "\"viewkey\":\"$VK\"" "$R/xmr-scan.json" \
+if [ "$(fmode "$R/xmr-scan.json")" = 600 ] && grep -q '"method":"generate_from_keys"' "$R/xmr-scan.json" && grep -q "\"viewkey\":\"$VK\"" "$R/xmr-scan.json" \
    && grep -q '"restore_height":100' "$R/xmr-scan.json" && ! grep -q spendkey "$R/xmr-scan.json" && ! grep -q "$VK" "$R/xs.out" "$R/xs.err"; then
   echo "ok  xmr-keys --scan-out: view-only generate_from_keys request, 0600, view key only in file"
 else echo "FAIL xmr-keys --scan-out"; exit 1; fi

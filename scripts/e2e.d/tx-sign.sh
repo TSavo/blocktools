@@ -1,6 +1,7 @@
 #!/bin/sh
 # build -> decode -> verify -> sign (pty types the code) -> decode, with throwaway key 1 only.
 set -eu
+. scripts/e2e-only/portable.sh
 f() { echo "FAIL $1"; exit 1; }
 B=${BIN:-target/release}; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 D=bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3; TID=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -17,13 +18,13 @@ $B/tx-verify --expect-to $D < $T/p >/dev/null && echo "ok   tx-verify accepts ex
 ! $B/tx-verify --expect-to 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH < $T/p >/dev/null && echo "ok   tx-verify rejects wrong destination" || f verify2
 $B/tx-sign --tx $T/p < $T/k | grep -q "expect-to" && echo "ok   tx-sign requires --expect-to" || f expect
 $B/tx-sign --tx $T/p --expect-to $D --max-fee 1000 < $T/k | grep -q fee_above_cap && echo "ok   tx-sign fee cap" || f cap
-setsid $B/tx-sign --tx $T/p --expect-to $D < $T/k | grep -q aborted && echo "ok   tx-sign refuses without terminal" || f notty
+nosid $B/tx-sign --tx $T/p --expect-to $D < $T/k | grep -q aborted && echo "ok   tx-sign refuses without terminal" || f notty
 python3 scripts/e2e-only/tty-drive.py wrong $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D >/dev/null || true
 grep -q aborted $T/o && ! grep -q signed_tx $T/o && echo "ok   tx-sign wrong code -> nothing signed" || f wrong
 # Terminal pinning: a pin made in one pty session refuses a code typed from a fresh pty (the
 # agent-spawned-pty case). Limit: an agent that can write the pin file can re-pin; see SECURITY.md.
 BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right /dev/null $T/pinout $PWD/$B/sealed-run pin-tty > /dev/null
-grep -q pinned $T/pinout && [ "$(stat -c %a $T/pin 2>/dev/null || stat -f %Lp $T/pin)" = 600 ] || f pin
+grep -q pinned $T/pinout && [ "$(fmode $T/pin)" = 600 ] || f pin
 BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D > $T/tty.pin || true
 grep -q tty_session_not_pinned $T/tty.pin && ! grep -q signed_tx $T/o && echo "ok   pinned terminal: code from another pty session refused" || f pinrefuse
 BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right /dev/null $T/o2 $PWD/$B/sealed-run human "derive --help" > /dev/null || true

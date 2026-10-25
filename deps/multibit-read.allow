@@ -15,14 +15,17 @@ blocktools-secrets
 cbc
 cfg-if
 cipher
+cmov
 cpufeatures
 crypto-common
+ctutils
 digest
 generic-array
 groestl
 hex-conservative
 hex_lit
 hmac
+hybrid-array
 inout
 keccak
 md-5

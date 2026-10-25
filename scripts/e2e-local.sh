@@ -2,6 +2,7 @@
 # Local (no Docker) end-to-end checks of the agent boundary.
 # Only public test vectors / throwaway self-made fixtures are used.
 set -eu
+. scripts/e2e-only/portable.sh
 B="$PWD/target/release"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 # Secret VALUES (field names may appear: redact keeps them with a "[REDACTED]" placeholder).
 LEAK='"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret)":"[^[]|xprv[1-9A-Za-z]{20}|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"|[1-9A-HJ-NP-Za-km-z]{60,}'
@@ -25,8 +26,9 @@ echo "$SEED" | boundary half '"tool":"seed-to-master"' 'seed-repair | seed-to-ma
 "$B/sealed-run" agent 'sh -c id' | grep -q unsupported && echo "ok  sealed-run refuses sh"
 "$B/sealed-run" agent 'derive ; id' | grep -q bad_input && echo "ok  sealed-run refuses shell syntax"
 # 5. human mode without a terminal refuses
-if setsid "$B/sealed-run" human 'seed-repair' </dev/null 2>/dev/null | grep -q bad_input; then echo "ok  human mode refuses without tty"; else echo "FAIL human no-tty"; exit 1; fi
+if nosid "$B/sealed-run" human 'seed-repair' </dev/null 2>/dev/null | grep -q bad_input; then echo "ok  human mode refuses without tty"; else echo "FAIL human no-tty"; exit 1; fi
 grep -q '"wif":"\[REDACTED\]"' "$T/seed.jsonl" && echo "ok  placeholders: secret fields labelled, values gone"
 # extra checks appended by later milestones
-for f in scripts/e2e.d/*.sh; do [ -f "$f" ] && . "$f"; done
+# Each script in a subshell, so one script's "skip ...; exit 0" does not end the whole suite.
+for f in scripts/e2e.d/*.sh; do [ -f "$f" ] || continue; set +e; ( B=target/release; set -e; . "$f" ); rc=$?; set -e; [ $rc = 0 ] || { echo "FAIL $f (rc=$rc)"; exit 1; }; done
 echo "e2e: all ok"

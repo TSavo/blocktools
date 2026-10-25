@@ -9,7 +9,8 @@
 > not a substitute for your own review. See [docs/SECURITY.md](SECURITY.md).
 
 ## What is tested (measured 2026-10-24, box, `cargo test --release` + `make e2e`)
-* 36 Rust unit tests pass, 0 fail. 17 end-to-end checks pass (`scripts/e2e-local.sh`).
+* Test counts are not written here (they went stale): `scripts/verify-and-push.sh` and CI run the whole
+  workspace test suite and `scripts/e2e-local.sh`, and every push must be green.
 * Known-answer vectors: BIP39/BIP32 "abandon…about" root; BIP44/49/84/86 BTC;
   ETH (EIP-55); LTC, DOGE, Tron (indices 0/1 and xpub parity TDTk…), XRP (incl.
   ACCOUNT_ZERO), Solana (SLIP-10 and ed25519 key 1); private key 1 in every
@@ -82,10 +83,10 @@ The real control is still the human reading the summary on a terminal the agent 
 
 `keystore-open` used per-knob caps (p ≤ 4) that rejected the Web3 spec's own scrypt vector (p=8). It now
 bounds what matters: memory 128·N·r ≤ 256 MiB and work N·r·p ≤ 2^24 (8x geth standard), checked with
-overflow-safe arithmetic before any allocation. The RustCrypto `scrypt` crate also refuses N ≥ 2^(16r)
-(RFC 7914), which the spec vector (N=2^18, r=1) violates; those parameters use an in-tree RFC 7914
-implementation that is tested against the crate and RFC 7914 vector 2. Tests: spec vector (p=8),
-geth --lightkdf (N=4096, r=8, p=6), bounds, hostile 8 GiB request refused.
+overflow-safe arithmetic before any allocation. All scrypt goes through the RustCrypto `scrypt` crate (>= 0.12, which dropped the RFC 7914
+N < 2^(16r) erratum check, so the spec vector N=2^18, r=1 works); there is no in-tree KDF or cipher code.
+Tests: spec vector (p=8),
+geth --lightkdf (N=4096, r=8, p=6), RFC 7914 vector 2 through the crate, bounds, hostile 8 GiB request refused.
 
 ## EVM verification defaults (security review 2026-10-25)
 
@@ -110,3 +111,13 @@ GitHub Actions are pinned by commit SHA; release publishing is a separate job in
 runs with `LC_ALL=C` and reads members from `cargo metadata --locked`. The 28 Python wheels (23.8 MB) once
 committed at the repo root are removed going forward and `*.whl` is ignored; they remain in git history
 (no rewrite). `scripts/hygiene-check.sh` (gate and CI) fails on unpinned actions or tracked build artifacts.
+
+## Docs-versus-code checks and portable e2e (security review 2026-10-25)
+
+`scripts/docs-check.sh` (gate and CI) fails if a tool under `tools/` is undocumented, a built tool is called
+"planned", a hand-written test count appears in README/DESIGN/SECURITY, a host-side network tool
+(utxo-fetch, tx-broadcast, xmr-wallet) is in the sealed image or the sealed-run allowlist, or in-tree scrypt
+reappears undisclosed. `scripts/e2e-local.sh` runs on Linux and macOS: `scripts/e2e-only/portable.sh`
+replaces `setsid` (Python `os.setsid` fallback) and `stat -c` (BSD `stat -f`); checks whose fixtures need
+the Python `cryptography` module (dat-read, recover, bitcoinj) print `skip ... pip install cryptography`
+instead of failing. Each e2e.d script now runs in its own subshell, so one script's skip no longer ends the suite.

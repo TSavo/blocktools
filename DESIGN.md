@@ -143,7 +143,7 @@ seed-version check PBKDF2(entropy, "TON seed version", 390)[0]==0, key = PBKDF2(
 seed", 100000)[..32] ed25519. Address = sha256 cell hash of the wallet v4r2 StateInit (code hash
 feb5ff68..., depth 7; data seqno 0, subwallet 698983191, pubkey, empty plugins), base64url with tag
 0x51/0x11 and CRC16-XModem. BIP39-valid phrases are never treated as TON. KAT: tonsdk-generated test phrase.
-Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
+Planned: old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 
 ## 5. Passwords and passphrases
@@ -200,8 +200,11 @@ Values are zeroized after use (`zeroize`).
 
 Each utility depends on as few crates as possible: ideally one cryptography
 library and little else. Non-crypto helpers (hex encoding, output JSON lines,
-address/path validators, leak scanner) are plain std code. Crypto primitives are
-never hand-rolled. `scripts/check-deps.sh` (also run in the Docker build) fails
+address/path validators, leak scanner) are plain std code. Crypto primitives (hashes,
+ciphers, KDFs such as scrypt/PBKDF2, curves, signatures) are never hand-rolled: they come from
+RustCrypto / secp256k1 / dalek crates. In-tree code only composes them as a wallet format
+specifies (e.g. Armory ROMix over SHA-512, Electrum seed-version HMAC) and each composition is
+pinned by known-answer tests. `scripts/check-deps.sh` (also run in the Docker build) fails
 if any crate's dependency tree gains a crate not listed in `deps/<crate>.allow`.
 
 Measured with `cargo tree -e normal` (unique crates excluding the crate itself):
@@ -300,8 +303,7 @@ produces an invalid signature; the PSBT check still applies to them.
 
 **Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host
 builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with a chain id,
-or EIP-1559 type 2). Tron (protobuf with energy/bandwidth) is planned. Multisig is planned,
-but not soon.
+or EIP-1559 type 2). Tron txs are decoded (wasm `tronDecodeTx`); a Tron builder is not built yet. Multisig is not built.
 
 **tx-decode** (`crates/tx` library plus the thin `tools/tx-decode`, **built**). The input
 format is auto-detected: hex or base64, a raw Bitcoin tx, a PSBT, EVM RLP, or a JSON line
@@ -327,7 +329,7 @@ amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value 
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.
 
-**tx-build** (planned, next). Offline and file-driven: UTXOs, nonce and gas/fee rates are
+**tx-build** (**built**). Offline and file-driven: UTXOs, nonce and gas/fee rates are
 input files, never fetched. Modes: `--sweep`, `--send AMOUNT`, `--fee-rate`, `--rbf`,
 `--consolidate`, `--dust-limit`. Output: a PSBT, or unsigned EVM legacy/1559. ERC-20 sweeps
 are two transactions: an explicit, separately confirmed gas top-up from a funding address,
@@ -507,8 +509,8 @@ Every CLI enables what it needs explicitly; `check-deps.sh` fails if `blocktools
 `blocktools-core` or `blocktools-tx` with default features reach `blocktools-secrets`, bip39,
 scrypt, pbkdf2, aes/cbc/ctr, or any network crate. KATs: `crates/blocktools/tests/public.rs`
 (default features) and `tests/secrets.rs` (`required-features = ["secrets"]`) call the library
-directly; per-module KATs live beside the code. Not yet in the library: `classify`, Electrum
-wallet files, MultiBit, Armory (planned items; see ROADMAP).
+directly; per-module KATs live beside the code. `classify` lives in `blocktools-core::classify`; Electrum, MultiBit/bitcoinj and Armory wallet readers live in
+`blocktools-secrets` (features `electrum`, `multibit`, `armory`), not in the default-feature facade.
 
 ### WebAssembly / npm (L4b, 2026-10-24)
 
