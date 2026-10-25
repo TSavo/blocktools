@@ -71,7 +71,7 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 
 `validateAddress`, `listChains` (all rows, including unverified ones), `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx`.
 
-Account payments (xlm, algo, atom, ton, ada) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
+Account payments (xlm, algo, atom, ton, ada, dot) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
 the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.
 
 ## Chain rows

@@ -216,6 +216,8 @@ dependencies = [
  "blocktools-core",
  "curve25519-dalek",
  "ed25519-dalek",
+ "rand_core",
+ "schnorrkel",
  "secp256k1",
  "sha2",
  "zeroize",

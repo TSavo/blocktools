@@ -149,3 +149,28 @@ fn ada_matches_pycardano() {
         assert!(t.min_fee() <= t.fee);
     }
 }
+
+/// Polkadot Asset Hub: call + signing payload + whole signed extrinsic == py-substrate-interface 1.7.11
+/// (metadata-driven, spec 2005000 / tx 15), abandon..about sr25519 -> //Bob. Not an official vector: UNVERIFIED.
+#[test]
+fn dot_assethub_matches_substrate_interface() {
+    use blocktools_acct::dot::*;
+    let mini = blocktools_core::chains::substrate_mini_secret("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "").unwrap();
+    let from = parse_address("13KVd4f2a4S5pLp4gTTFezyXdPWx27vQ9vS6xBXJ9yWVd7xo").unwrap();
+    let to = parse_address("14E5nqKAp3oAJcmzgZhUD2RcptBeUBScxKHgJKU4HPNcKVf3").unwrap();
+    let mut t = Transfer { from, to, kind: Kind::Pay(12345678901), era: None, nonce: 7, tip: 0, spec: SPEC, tx_version: TX_VERSION, genesis: GENESIS, sig: None };
+    assert_eq!(hex(&t.call()), "0a03008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4807351cdcdf02");
+    assert_eq!(hex(&t.signing_payload()), "0a03008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4807351cdcdf02001c00000008981e000f00000068d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f68d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f00");
+    let si = unhex("4502840066933bd1f37070ef87bd1198af3dacceb095237f803f3d32b173e6b425ed797201bedf4fd243e535a51089084da5dc43716f9d6e8fb97ab2df8b9fe28c0d2d097e9a5a92a760252d3730ebaba89fc5f6bc6097728bbe7782883da512683dff8e8d001c0000000a03008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4807351cdcdf02");
+    let d = Transfer::decode(&si, SPEC, TX_VERSION, GENESIS, None).unwrap();
+    assert!(d.verify(), "substrate-interface signature verifies");
+    assert_eq!(d.encode(), si);
+    t.sign(&mini).unwrap(); assert!(t.verify()); assert_eq!(Transfer { sig: None, ..t.clone() }, Transfer { sig: None, ..d.clone() });
+    let mut s = Transfer { kind: Kind::Sweep, ..t.clone() }; s.sig = None;
+    assert_eq!(hex(&s.signing_payload()), "0a04008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4800001c00000008981e000f00000068d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f68d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f00");
+    let si2 = unhex("3102840066933bd1f37070ef87bd1198af3dacceb095237f803f3d32b173e6b425ed79720190e23a4694704560c2adb4840dea5edee372800845b33dcb853252fd69bb066c4f573eb88d5914b5feb69bccd820e1bbd4affd10467f02ec2b89a533927c8885001c0000000a04008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4800");
+    assert!(Transfer::decode(&si2, SPEC, TX_VERSION, GENESIS, None).unwrap().verify());
+    assert_eq!(hex(&era_bytes(&Some((64, 12345678, [0; 32])))), "e500");
+    let mut w = t.clone(); w.nonce = 8; assert!(!w.verify());
+    assert!(t.clone().sign(&[1; 32]).is_err());
+}

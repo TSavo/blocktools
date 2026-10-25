@@ -45,5 +45,11 @@ grep -q '"signed":"84a400828258201ca4b3296f0b31b9f584e06c4dfc59119ecc408ba039504
 "$B/acct-tx" decode --chain ada < "$X/ada-s.json" | grep -q '"signature_valid":true' || { echo "FAIL acct ada signed decode"; exit 1; }
 "$B/acct-tx" sign --chain ada --tx "$X/au2.json" --expect-to $AS < "$X/ada.key" | grep -q destination_mismatch || { echo "FAIL acct ada expect-to"; exit 1; }
 "$B/acct-tx" build --chain ada --from $AS --to $AD --utxo 87dac51506d06652be02110bd1e34c2156faa5fa37253dc885da93b840b4bdec#1:5000000 --amount 1500000 --fee 100 --ttl 1 | grep -q fee_below_size_minimum || { echo "FAIL acct ada min fee"; exit 1; }
-if grep -rqF -e "$(cat "$X/ada.key")" -e "$(cat "$X/atom.key")" -e "$(cat "$X/xlm.key")" -e "$(cat "$X/algo.key")" "$X"/*.json "$X"/t*; then echo "LEAK acct key in output"; exit 1; fi
-echo "ok  acct-tx: xlm payment + algo close-to + atom MsgSend (== cosmjs) + ton v4r2 (== tonsdk) + ada (== pycardano) built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"
+DS=13KVd4f2a4S5pLp4gTTFezyXdPWx27vQ9vS6xBXJ9yWVd7xo; DD=14E5nqKAp3oAJcmzgZhUD2RcptBeUBScxKHgJKU4HPNcKVf3
+printf '%s\n' "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | "$B/key-to-addresses" --chain dot | head -1 | sed 's/.*"private_key":"\(0x[0-9a-f]*\)".*/\1/' > "$X/dot.key"
+"$B/acct-tx" build --chain dot --from $DS --to $DD --amount 12345678901 --nonce 7 --block-number 22273316 --block-hash 88f4f46ebfaa624519daaa82d9f52ffbf0045df9bb7c032d964a1f195e178043 > "$X/du.json" 2>/dev/null
+python3 scripts/tty-drive.py right "$X/dot.key" "$X/dot-s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain dot --tx "$X/du.json" --expect-to $DD > "$X/t-dot" 2>&1
+"$B/acct-tx" decode --chain dot < "$X/dot-s.json" | grep '"signature_valid":true' | grep -q '"amount_planck":"12345678901"' || { echo "FAIL acct dot signed decode"; cat "$X/t-dot"; exit 1; }
+"$B/acct-tx" sign --chain dot --tx "$X/du.json" --expect-to $DS < "$X/dot.key" | grep -q destination_mismatch || { echo "FAIL acct dot expect-to"; exit 1; }
+if grep -rqF -e "$(cat "$X/dot.key")" -e "$(cat "$X/ada.key")" -e "$(cat "$X/atom.key")" -e "$(cat "$X/xlm.key")" -e "$(cat "$X/algo.key")" "$X"/*.json "$X"/t*; then echo "LEAK acct key in output"; exit 1; fi
+echo "ok  acct-tx: xlm payment + algo close-to + atom MsgSend (== cosmjs) + ton v4r2 (== tonsdk) + ada (== pycardano) + dot (UNVERIFIED, payload == substrate-interface) built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"

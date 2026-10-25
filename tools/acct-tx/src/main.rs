@@ -9,13 +9,15 @@
 //!                 (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the --to form)
 //! acct-tx build   --chain ada  --from addr1.. --to addr1.. --utxo TXID#IX:LOVELACE [--utxo ..] (--amount LOVELACE | --sweep) --fee LOVELACE --ttl SLOT
 //!                 (ADA-only legacy outputs, change back to --from; hex CBOR like cardano-cli; UTXOs carrying native assets must not be used)
+//! acct-tx build   --chain dot  --from 1.. --to 1.. (--amount PLANCK | --sweep) --nonce N --block-number N --block-hash HEX [--period 64]
+//!                 [--spec V --tx-version V] [--tip PLANCK]   (Polkadot Asset Hub Balances; UNVERIFIED layout, see recipes/chain-polkadot.md)
 //! acct-tx decode  --chain C [--testnet] < unsigned-or-signed (JSON from build/sign, or bare base64)
 //! acct-tx sign    --chain C --tx FILE --expect-to ADDR [--testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
-//!   (ada: 128-hex extended payment key kL||kR as printed by recover; ton: 24 TON words or 64-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
+//!   (dot: 0x-hex mini-secret as printed by recover, or the 12/24-word mnemonic; ada: 128-hex extended payment key kL||kR as printed by recover; ton: 24 TON words or 64-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
 //!   shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
 //! --sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
 //!          algo = amount 0 + close-to (sends everything and closes the account; fails while ASAs are opted in).
-use blocktools_acct::{ada, algo, atom, fmt_units, ton, xlm};
+use blocktools_acct::{ada, algo, dot, atom, fmt_units, ton, xlm};
 use blocktools_core::b64;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -101,6 +103,32 @@ fn ton_describe(t: &ton::Transfer, pk: Option<&[u8; 32]>) -> Value {
 fn ton_read(s: &str) -> (ton::Transfer, Option<[u8; 32]>) {
     let pk = serde_json::from_str::<Value>(s).ok().and_then(|v| v["pubkey"].as_str().map(|p| unhex(p).try_into().unwrap_or_else(|_| fail("pubkey_must_be_32_bytes"))));
     (ton::Transfer::decode(&read_tx(s)).unwrap_or_else(|e| fail(e)), pk)
+}
+
+fn dot_describe(t: &dot::Transfer) -> Value {
+    let mut w = vec![];
+    if t.spec != dot::SPEC || t.tx_version != dot::TX_VERSION { w.push("runtime_version_differs_from_tested (2005000/15): extension layout unchecked; the node rejects a wrong layout (BadProof), funds are not at risk") }
+    if let dot::Kind::Pay(v) = t.kind { if v < dot::ED { w.push("amount_below_existential_deposit (0.01 DOT): fails if the destination account is new") } }
+    if t.era.is_none() { w.push("immortal: valid until nonce is used; prefer a mortal era") }
+    json!({"chain":"dot","type":match t.kind { dot::Kind::Pay(_) => "transfer_keep_alive", dot::Kind::Sweep => "sweep (transfer_all, reaps the account)" },"from":dot::address(&t.from),"to":dot::address(&t.to),
+        "amount_planck":match t.kind { dot::Kind::Pay(v) => Some(v.to_string()), _ => None },"amount_str":match t.kind { dot::Kind::Pay(v) => Some(fmt_units(v, dot::DECIMALS)), _ => None },
+        "fee_str":format!("runtime-computed (tip {})", fmt_units(t.tip, dot::DECIMALS)),"nonce":t.nonce,"spec":t.spec,"tx_version":t.tx_version,"network":"Polkadot Asset Hub",
+        "genesis":hex(&t.genesis),"era":t.era.map(|e| json!({"period":e.0,"block_number":e.1,"block_hash":hex(&e.2)})),"signed":t.sig.is_some(),"signature_valid":t.sig.map(|_| t.verify()),
+        "extrinsic_hash":t.sig.map(|_| hex(&t.hash())),"verified":false,"warnings":w})
+}
+fn dot_read(s: &str) -> dot::Transfer {
+    let v: Value = serde_json::from_str(s).unwrap_or_else(|_| fail("dot needs the JSON from build/sign"));
+    let h = v["signed"].as_str().or(v["unsigned"].as_str()).unwrap_or_else(|| fail("missing tx"));
+    let n = |k: &str| v[k].as_u64().unwrap_or_else(|| fail("missing runtime fields"));
+    let era = v["era"].as_object().map(|e| (e["block_number"].as_u64().unwrap_or_else(|| fail("bad era")), *hex32(e["block_hash"].as_str().unwrap_or_else(|| fail("bad era")))));
+    let mut t = dot::Transfer::decode(&unhex(h.trim_start_matches("0x")), n("spec") as u32, n("tx_version") as u32, *hex32(v["genesis"].as_str().unwrap_or_else(|| fail("missing genesis"))), era).unwrap_or_else(|e| fail(e));
+    if let (Some(e), Some(p)) = (&mut t.era, v["era"]["period"].as_u64()) { if e.0 != p { fail("era period mismatch") } }
+    if v["signed"].is_null() { t.sig = None }
+    t
+}
+fn dot_json(t: &dot::Transfer, key: &str) -> Value {
+    json!({"chain":"dot",key:format!("0x{}", hex(&t.encode())),"spec":t.spec,"tx_version":t.tx_version,"genesis":hex(&t.genesis),
+        "era":t.era.map(|e| json!({"period":e.0,"block_number":e.1,"block_hash":hex(&e.2)}))})
 }
 
 fn all<'a>(a: &'a [String], k: &str) -> Vec<&'a str> { a.windows(2).filter(|w| w[0] == k).map(|w| w[1].as_str()).collect() }
@@ -208,6 +236,20 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             println!("{}", json!({"chain":"ada","unsigned":hex(&t.encode()),"from":from,"input_lovelace":total.to_string(),"summary":d}));
         }
+        (Some("build"), "dot") => {
+            let from = dot::parse_address(req(&a, "--from")).unwrap_or_else(|e| fail(e)); let to = dot::parse_address(req(&a, "--to")).unwrap_or_else(|e| fail(e));
+            if from == to { fail("destination_is_source") }
+            let kind = if flag(&a, "--sweep") { dot::Kind::Sweep } else { dot::Kind::Pay(num(&a, "--amount").unwrap_or_else(|| fail("missing --amount or --sweep"))) };
+            let era = if flag(&a, "--immortal") { None } else {
+                let p: u64 = num(&a, "--period").unwrap_or(64); if !(4..=65536).contains(&p) || !p.is_power_of_two() { fail("period_must_be_power_of_two_4..65536") }
+                Some((p, num(&a, "--block-number").unwrap_or_else(|| fail("missing --block-number (or --immortal)")), *hex32(req(&a, "--block-hash").trim_start_matches("0x")))) };
+            let t = dot::Transfer { from, to, kind, era, nonce: num(&a, "--nonce").unwrap_or_else(|| fail("missing --nonce")), tip: num(&a, "--tip").unwrap_or(0),
+                spec: num(&a, "--spec").unwrap_or(dot::SPEC), tx_version: num(&a, "--tx-version").unwrap_or(dot::TX_VERSION), genesis: dot::GENESIS, sig: None };
+            let d = dot_describe(&t);
+            for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
+            let mut o = dot_json(&t, "unsigned"); o["summary"] = d; println!("{o}");
+        }
+        (Some("decode"), "dot") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); println!("{}", dot_describe(&dot_read(&s))) }
         (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); println!("{}", ada_describe(&t, f.as_deref(), i)) }
         (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); println!("{}", ton_describe(&t, pk.as_ref())) }
         (Some("keys"), "atom") => {
@@ -240,7 +282,7 @@ fn main() {
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
-            let b = if c == "atom" || c == "ton" || c == "ada" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
+            let b = if c == "atom" || c == "ton" || c == "ada" || c == "dot" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
             let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
             let (d, out): (Value, Box<dyn FnOnce() -> Value>) = match c {
                 "xlm" => {
@@ -264,6 +306,13 @@ fn main() {
                     let k = hex32(&secret);
                     (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
                         json!({"status":"ok","chain":"atom","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":atom::Send::txid(&r)}) }))
+                }
+                "dot" => {
+                    let mut t = dot_read(&raw);
+                    let d = dot_describe(&t);
+                    if dot::parse_address(want).ok() != Some(t.to) { fail("destination_mismatch") }
+                    let k = if secret.split_whitespace().count() >= 12 { blocktools_core::chains::substrate_mini_secret(secret.trim(), "").unwrap_or_else(|e| fail(e)) } else { hex32(secret.trim().trim_start_matches("0x")) };
+                    (d, Box::new(move || { t.sign(&k).unwrap_or_else(|e| fail(e)); let mut o = dot_json(&t, "signed"); o["status"] = json!("ok"); o["extrinsic_hash"] = json!(hex(&t.hash())); o }))
                 }
                 "ada" => {
                     let (mut t, from, total) = ada_read(&raw);
@@ -295,6 +344,6 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             println!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton|ada (see source header)"); std::process::exit(2) }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton|ada|dot (see source header)"); std::process::exit(2) }
     }
 }

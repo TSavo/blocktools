@@ -33,7 +33,7 @@ fn main() {
     let vchain = if chain == "eth" { "eth" } else { chain.as_str() };
     for x in &addrs { if blocktools_core::validate::validate(vchain, x).is_err() { die("invalid address for chain") } }
     if chain == "ada" { return ada(url.as_deref().unwrap_or("https://api.koios.rest/api/v1"), &addrs) }
-    if chain == "xlm" || chain == "algo" || chain == "atom" || chain == "ton" { return acct(&chain, url.as_deref(), &addrs) }
+    if chain == "xlm" || chain == "algo" || chain == "atom" || chain == "ton" || chain == "dot" { return acct(&chain, url.as_deref(), &addrs) }
     if chain == "eth" { return eth(url.as_deref().unwrap_or("https://ethereum-rpc.publicnode.com"), &addrs) }
     let base = url.unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(), _ => die("--url ESPLORA_BASE required for this chain") });
     let base = base.trim_end_matches('/');
@@ -95,6 +95,26 @@ fn get_json(u: &str) -> Value { serde_json::from_slice(&blocktools_net::get(u).u
 fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
     if addrs.len() != 1 { die("give exactly one address") }
     let ad = &addrs[0];
+    if chain == "dot" {
+        let node = url.unwrap_or("https://polkadot-asset-hub-rpc.polkadot.io");
+        let r = |m: &str, p: Value| blocktools_net::rpc(node, m, p).unwrap_or_else(|e| die(&e));
+        let pk = blocktools_core::chains::ss58_decode(0, ad).unwrap_or_else(|e| die(e));
+        // System.Account key = twox128("System") ++ twox128("Account") ++ blake2_128(pk) ++ pk
+        let mut k = "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9".to_string();
+        for b in blocktools_core::blake2b::blake2b(16, &[0; 16], &pk).iter().chain(pk.iter()) { k.push_str(&format!("{b:02x}")) }
+        let info = r("state_getStorage", json!([k]));
+        let free = info.as_str().map(|h| h.trim_start_matches("0x")).filter(|h| h.len() >= 64).map(|h| { let mut b = [0u8; 16]; for i in 0..16 { b[i] = u8::from_str_radix(&h[32 + 2 * i..34 + 2 * i], 16).unwrap_or_else(|_| die("bad account info")) } u128::from_le_bytes(b) }).unwrap_or(0);
+        let nonce = r("system_accountNextIndex", json!([ad]));
+        let ver = r("state_getRuntimeVersion", json!([]));
+        let head = r("chain_getFinalizedHead", json!([]));
+        let hdr = r("chain_getHeader", json!([head]));
+        let num = u64::from_str_radix(hdr["number"].as_str().unwrap_or("0x0").trim_start_matches("0x"), 16).unwrap_or_else(|_| die("bad header"));
+        let mut w = vec![];
+        if ver["specVersion"] != json!(2005000) || ver["transactionVersion"] != json!(15) { w.push("runtime_differs_from_tested_2005000/15: acct-tx dot layout unchecked for this runtime") }
+        println!("{}", json!({"chain":"dot","network":"Polkadot Asset Hub","address":ad,"free_planck":free.to_string(),"nonce":nonce,"spec":ver["specVersion"],"tx_version":ver["transactionVersion"],
+            "block_number":num,"block_hash":head,"warnings":w,"source":node}));
+        return
+    }
     if chain == "ton" {
         let node = url.unwrap_or("https://toncenter.com/api/v2").trim_end_matches('/');
         let v = get_json(&format!("{node}/getWalletInformation?address={ad}"));

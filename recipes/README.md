@@ -50,7 +50,7 @@ and see addresses and signed transactions only.
 | Cardano | ✅ (Shelley base, Icarus) | ✅ utxo-fetch (Koios, host-side) | ✅ ADA-only payment/sweep (acct-tx, TTY confirm) | [chain-cardano.md](chain-cardano.md) |
 | Zcash shielded (Sapling) | ✅ (address + viewing key) | ✗ | ✗ | [zcash-shielded.md](zcash-shielded.md) |
 | TON | ✅ (wallet v4r2) | ✅ utxo-fetch (host-side, manual) | ✅ v4r2 transfer/sweep (acct-tx, TTY confirm) | [chain-ton.md](chain-ton.md) |
-| Polkadot | ✅ (root sr25519) | ✗ | ✗ | [chain-polkadot.md](chain-polkadot.md) |
+| Polkadot | ✅ (root sr25519) | ✅ utxo-fetch (Asset Hub RPC, host-side) | ⚠️ UNVERIFIED Asset Hub transfer/sweep (acct-tx, TTY confirm) | [chain-polkadot.md](chain-polkadot.md) |
 | Stellar | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ Payment / AccountMerge (acct-tx, TTY confirm) | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | ✅ xmr-wallet scan (stagenet) | ✅ xmr-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
 
