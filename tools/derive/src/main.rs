@@ -1,6 +1,8 @@
 //! derive: BIP32 master key -> child keys and addresses across BIP44/49/84/86
 //! and Ethereum m/44'/60'. stdin JSON lines {"xprv":"...","candidate":N}
-//! (as printed by seed-to-master). Output CONTAINS SECRETS ("wif"/"private_key").
+//! (as printed by seed-to-master: a master key -> all standard kinds), or
+//! {"xprv","kind","path","branch"?} (an account-level key, as printed by dat-read:
+//! derives path/branch/i for that kind; both branches 0 and 1 if branch is absent). Output CONTAINS SECRETS ("wif"/"private_key").
 use bitcoin::bip32::Xpriv;
 use std::io::{BufRead, Read};
 use std::str::FromStr;
@@ -23,11 +25,23 @@ fn main() {
     for line in std::io::stdin().lock().take(16 << 20).lines().map_while(Result::ok) {
         let line = Zeroizing::new(line);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
-        let Some(x) = v.get("xprv").and_then(|m| m.as_str()) else { continue };
+        let Some(x) = v.get("xprv").and_then(|m| m.as_str()) else {
+            // Already a leaf key with its address (e.g. a legacy key from dat-read): pass through.
+            if v.get("address").is_some() && v.get("status").and_then(|s| s.as_str()) == Some("ok") { println!("{}", line.as_str()); n += 1; }
+            continue
+        };
         let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
         let Ok(master) = Xpriv::from_str(x) else {
             println!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#); continue };
-        for r in kr_core::derive_from_master(&master, count) {
+        // Account-level key (from dat-read etc.): {"xprv","kind","path","branch"?}.
+        let rows = match (v.get("kind").and_then(|k| k.as_str()).and_then(kr_core::kind_name), v.get("path").and_then(|p| p.as_str())) {
+            (Some(kind), Some(path)) if path.len() < 128 => {
+                let branches: Vec<u32> = match v.get("branch").and_then(|b| b.as_u64()) { Some(b) if b < 1 << 31 => vec![b as u32], _ => vec![0, 1] };
+                branches.iter().flat_map(|b| kr_core::derive_account(&master, kind, path, *b, count)).collect()
+            }
+            _ => kr_core::derive_from_master(&master, count),
+        };
+        for r in rows {
             let key = if r.kind == "eth" { "private_key" } else { "wif" };
             println!(r#"{{"tool":"derive","status":"ok","candidate":{cand},"kind":"{}","path":"{}","address":"{}","{key}":"{}"}}"#, r.kind, r.path, r.address, r.secret);
             n += 1;

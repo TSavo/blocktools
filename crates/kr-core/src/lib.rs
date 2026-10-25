@@ -66,6 +66,33 @@ pub fn row_for(kind: &'static str, path: String, sk: &SecretKey, secp: &Secp256k
     Row { kind, path, address, secret }
 }
 
+/// Address rows for a bare key (legacy wallets): compressed keys get
+/// p2pkh, p2sh-p2wpkh and p2wpkh; uncompressed keys only p2pkh (uncompressed WIF).
+pub fn key_rows(sk: &SecretKey, compressed: bool) -> Vec<Row> {
+    let secp = Secp256k1::new();
+    if !compressed {
+        let pk = PrivateKey { compressed: false, network: Network::Bitcoin.into(), inner: *sk };
+        let a = Address::p2pkh(pk.public_key(&secp), Network::Bitcoin);
+        return vec![Row { kind: "p2pkh", path: String::new(), address: a.to_string(), secret: pk.to_wif() }];
+    }
+    ["p2pkh", "p2sh-p2wpkh", "p2wpkh"].iter().map(|k| row_for(k, String::new(), sk, &secp)).collect()
+}
+
+pub fn kind_name(k: &str) -> Option<&'static str> {
+    ACCOUNT_KINDS.iter().map(|x| x.0).find(|x| *x == k)
+}
+
+/// Derive from an account-level key that sits at `path` (e.g. m/84'/0'/0'):
+/// rows for `path/branch/i`, i < count, of one address kind.
+pub fn derive_account(acct: &Xpriv, kind: &'static str, path: &str, branch: u32, count: u32) -> Vec<Row> {
+    let secp = Secp256k1::new();
+    (0..count).map(|i| {
+        let rel = DerivationPath::from_str(&format!("m/{branch}/{i}")).unwrap();
+        let xk = acct.derive_priv(&secp, &rel).unwrap();
+        row_for(kind, format!("{path}/{branch}/{i}"), &xk.private_key, &secp)
+    }).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

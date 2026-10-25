@@ -17,3 +17,4 @@ UTC--*
 *.psbt
 *.hex
 .env*
+/fixtures/external/

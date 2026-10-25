@@ -1,0 +1,11 @@
+[package]
+name = "dat-read"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+kr-core = { path = "../../crates/kr-core" }
+bitcoin.workspace = true
+aes.workspace = true
+cbc.workspace = true
+zeroize.workspace = true

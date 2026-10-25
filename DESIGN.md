@@ -83,7 +83,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | `kr-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
 | `kr-redact` | raw lines | public lines only | 1 ✅ |
-| `walletdat-read` | Bitcoin Core `wallet.dat` (BDB/SQLite, bounded own parser, no libdb) | keys, addresses | 2 |
+| `dat-read` | Bitcoin Core `wallet.dat` (BDB/SQLite, bounded own parser, no libdb) | account xprvs + bare keys | done (M2) |
 | `electrum-open`, `multibit-open`, `armory-open` | respective formats | keys, addresses | 2 |
 | `utxo-match` | addresses + UTXO JSON file (from host) | matched address/amount | 2 |
 | `tx-verify` | unsigned PSBT/tx file | plain summary: inputs, outputs, fee, change | 2 |

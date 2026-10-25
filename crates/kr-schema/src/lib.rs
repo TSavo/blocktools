@@ -8,7 +8,7 @@ pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
     "bad_input", "wrong_password", "unsupported", "error", "done",
 ];
-pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run"];
+pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run", "kr-cat", "dat-read"];
 pub const KINDS: &[&str] = &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth"];
 
 const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -47,7 +47,7 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "kind" => s.map_or(false, |s| KINDS.contains(&s)),
         "address" => s.map_or(false, is_address),
         "path" => s.map_or(false, is_path),
-        "candidate" | "count" | "index" | "changed_words" | "line" => small_uint(v),
+        "candidate" | "count" | "index" | "changed_words" | "line" | "branch" => small_uint(v),
         _ => return None,
     })
 }

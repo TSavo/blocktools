@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/kr-schema", "crates/kr-core", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open"]
+members = ["crates/kr-schema", "crates/kr-core", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open", "tools/dat-read"]
 
 [workspace.package]
 version = "0.1.0"
@@ -18,6 +18,7 @@ scrypt = { version = "0.11", default-features = false }
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 sha2 = { version = "0.10", default-features = false }
 aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
 ctr = "0.9"
 
 [profile.release]
