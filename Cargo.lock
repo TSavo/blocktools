@@ -1544,6 +1544,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "xmr-wallet"
+version = "0.1.0"
+dependencies = [
+ "blocktools-monero",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
 name = "xpub-addresses"
 version = "0.1.0"
 dependencies = [
