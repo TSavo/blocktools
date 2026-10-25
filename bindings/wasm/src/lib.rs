@@ -64,12 +64,15 @@ pub fn decode_tx(input: &str, chain: &str) -> Result<String, JsError> {
 #[wasm_bindgen(js_name = describeTx)]
 pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx::decode(input, chain).map_err(err)?.text()) }
 
-/// tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "".
+/// tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (EVM: the
+/// tx-sign default 0.01 ETH; UTXO: no cap). `allow_value_with_token` (default false) accepts ETH value
+/// alongside ERC-20 transfer calldata.
 #[wasm_bindgen(js_name = verifyTx)]
-pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool) -> Result<String, JsError> {
+#[allow(clippy::too_many_arguments)]
+pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>) -> Result<String, JsError> {
     let d = tx::decode(input, chain).map_err(err)?;
-    let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
-    let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings };
+    let max_fee = if max_fee.is_empty() { d.evm.as_ref().map(|_| blocktools::tx::policy::default_max_fee(&d)) } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
+    let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false) };
     let f = check(&d, &p);
     Ok(json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings}).to_string())
 }

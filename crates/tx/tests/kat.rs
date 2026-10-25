@@ -103,3 +103,23 @@ fn build_evm_plans() {
     let tok = build_evm(&EvmPlan { amount: EvmAmount::Token { token: [0x22; 20], amount: 5 }, priority_fee: None, ..p }).unwrap();
     assert_eq!((tok.gas, tok.value, tok.to, tok.data.len()), (100_000, 0, Some([0x22; 20]), 68));
 }
+
+/// Security review 2026-10-25: ETH value next to ERC-20 transfer calldata fails unless allowed;
+/// EVM default fee cap is tx-sign's 0.01 ETH.
+#[test] fn evm_value_with_token_and_default_cap() {
+    use blocktools_tx::policy::{check, default_max_fee, Policy, DEFAULT_MAX_FEE_WEI};
+    let mut t = Tx::parse(&h(E1559_ERC20)).unwrap();
+    let unsigned = |t: &Tx| blocktools_core::hex_enc(t.encode_unsigned());
+    let to = blocktools_tx::addr(&evm::token_call(&t.data).unwrap().to);
+    let pol = Policy { expect_to: vec![to], max_fee: Some(DEFAULT_MAX_FEE_WEI), ..Default::default() };
+    let d = decode(&unsigned(&t), "eth").unwrap();
+    assert_eq!(default_max_fee(&d), DEFAULT_MAX_FEE_WEI);
+    assert!(check(&d, &pol).is_empty(), "{:?}", check(&d, &pol));
+    t.value = 1_000_000_000_000_000_000;
+    let d = decode(&unsigned(&t), "eth").unwrap();
+    assert!(check(&d, &pol).contains(&"eth_value_with_token_call"));
+    let r = check(&d, &Policy { allow_value_with_token: true, ..pol.clone() }); assert!(r.is_empty(), "{r:?} {:?}", d.warnings);
+    t.value = 0; t.max_fee_per_gas = DEFAULT_MAX_FEE_WEI / t.gas as u128 + 1;
+    let d = decode(&unsigned(&t), "eth").unwrap();
+    assert!(check(&d, &pol).contains(&"fee_above_cap"));
+}

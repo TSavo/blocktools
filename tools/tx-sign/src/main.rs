@@ -1,6 +1,6 @@
 //! tx-sign: sign ONE transaction after a human reads its summary and types a code on /dev/tty.
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
-//!           [--chain-id N] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings]  < keys
+//!           [--chain-id N] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token]  < keys
 //! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
@@ -33,8 +33,8 @@ fn main() {
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
         max_fee: Some(one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee")))
-            .unwrap_or(if d.evm.is_some() { policy::DEFAULT_MAX_FEE_WEI } else { policy::DEFAULT_MAX_FEE_SATS })),
-        allow_warnings: a.iter().any(|x| x == "--allow-warnings") };
+            .unwrap_or(policy::default_max_fee(&d))),
+        allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token") };
     if p.expect_to.is_empty() { bad("--expect-to ADDR is required (destination assertion)") }
     for e in p.expect_to.iter().chain(&p.change) {
         let c = if d.evm.is_some() { "eth" } else { chain.as_str() };

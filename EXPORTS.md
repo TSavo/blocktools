@@ -98,6 +98,11 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 
 `validateAddress`, `listChains` (all rows, including unverified ones), `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx`.
 
+`verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null): string`
+returns `{"ok":bool,"failures":[..],"warnings":[..]}`. Since 2026-10-25: `max_fee` "" on EVM means the tx-sign default
+(0.01 ETH = 10^16 wei, failure `fee_above_cap`); UTXO "" is still uncapped. A nonzero ETH `value` alongside ERC-20
+`transfer` calldata fails with `eth_value_with_token_call` unless `allow_value_with_token` is true (CLI: `--allow-value-with-token`).
+
 Account payments (xlm, algo, atom, ton, ada, dot) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
 the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.
 

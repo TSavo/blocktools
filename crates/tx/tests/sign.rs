@@ -79,7 +79,7 @@ fn every_signature_verifies() {
     use bitcoin::sighash::{EcdsaSighashType, Prevouts, SighashCache};
     let c = blocktools_core::chains::chain("btc").unwrap();
     let addrs = ["bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN", "bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9"];
-    let tid = "b".repeat(64);
+    let _tid = "b".repeat(64);
     let utxos: String = addrs.iter().enumerate().map(|(i, a)| common::line(c, i as u32, 10000 * (i as u64 + 1), a)).collect();
     let u = build::parse_utxos(c, &utxos).unwrap();
     let mut p = build::build_btc(c, u, &build::BtcPlan { to: addrs[4].into(), send: None, change: None, fee_rate: 3, rbf: false, dust: 546, op_return: None, locktime: 0 }).unwrap();

@@ -15,9 +15,15 @@ pub struct Policy {
     /// sats (UTXO) or wei (EVM: gas * max fee per gas)
     pub max_fee: Option<u128>,
     pub allow_warnings: bool,
+    /// EVM: accept a nonzero native `value` alongside token-transfer calldata (normally a mistake: the
+    /// ETH goes to the token contract, usually unrecoverable).
+    pub allow_value_with_token: bool,
 }
 
 fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
+
+/// Fee cap tx-sign uses when `--max-fee` is not given; tx-verify and wasm verifyTx apply it to EVM too.
+pub fn default_max_fee(d: &Decoded) -> u128 { if d.evm.is_some() { DEFAULT_MAX_FEE_WEI } else { DEFAULT_MAX_FEE_SATS } }
 
 pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
@@ -30,7 +36,10 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
         match (p.chain_id, t.chain_id) { (Some(a), Some(b)) if a != b => f.push("chain_id_mismatch"), (Some(_), None) => f.push("no_chain_id"), _ => {} }
         if t.chain_id.is_none() { f.push("no_replay_protection") }
         let dest = match crate::evm::token_call(&t.data) {
-            Some(tc) if tc.method == "transfer" => Some(crate::addr(&tc.to)),
+            Some(tc) if tc.method == "transfer" => {
+                if t.value > 0 && !p.allow_value_with_token { f.push("eth_value_with_token_call") }
+                Some(crate::addr(&tc.to))
+            }
             Some(_) => { f.push("token_call_not_transfer"); None }
             None if !t.data.is_empty() => { f.push("unknown_contract_call"); None }
             None => t.to.map(|a| crate::addr(&a)),

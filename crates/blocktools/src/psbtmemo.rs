@@ -1,8 +1,8 @@
 //! Unsigned PSBT with an optional OP_RETURN memo (THORChain inbound style). Output order is
 //! VOUT0 = `to` (vault), VOUT1 = change (when above dust), last = `OP_RETURN <memo>`, per THORChain's
 //! "Sending Transactions" UTXO checklist (dev.thorchain.org/concepts/sending-transactions.html):
-//! vault as VOUT0, change to VIN0 in a subsequent output (e.g. VOUT1), memo OP_RETURN typically VOUT2. Built on blocktools-tx `build_btc`, then the memo output is inserted and the fee re-checked.
-use bitcoin::{Amount, ScriptBuf, TxOut};
+//! vault as VOUT0, change to VIN0 in a subsequent output (e.g. VOUT1), memo OP_RETURN typically VOUT2. Built on blocktools-tx `build_btc` with the memo as `op_return`, so coin selection pays for it.
+
 use blocktools_core::chains;
 use blocktools_tx::build::{self, BtcPlan};
 use serde_json::{json, Value};

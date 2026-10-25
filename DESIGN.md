@@ -333,12 +333,13 @@ input files, never fetched. Modes: `--sweep`, `--send AMOUNT`, `--fee-rate`, `--
 are two transactions: an explicit, separately confirmed gas top-up from a funding address,
 then the token `transfer`.
 
-**tx-verify** (planned) reuses `blocktools-tx` and checks the decoded tx against expectations:
+**tx-verify** reuses `blocktools-tx` and checks the decoded tx against expectations:
 outputs equal the expected addresses, change goes to a derived address, the chain id is
 right, the fee and fee percentage are under caps, and no unknown outputs exist. Any failure
-gives a non-zero exit.
+gives a non-zero exit. EVM: the default total-fee cap is tx-sign's (0.01 ETH) and ETH value next to
+ERC-20 transfer calldata fails (`eth_value_with_token_call`) unless `--allow-value-with-token`.
 
-**tx-sign** (planned) reads keys on stdin and the tx on a second stdin line or `--tx FILE`.
+**tx-sign** reads keys on stdin and the tx on a second stdin line or `--tx FILE`.
 It then:
 1. decodes the tx with `blocktools-tx` and **prints the tx-decode `--text` summary on /dev/tty**;
 2. refuses if the fee exceeds `--max-fee` (a default cap guards against typo burns) or if
