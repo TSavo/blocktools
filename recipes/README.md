@@ -23,6 +23,7 @@ and see addresses and signed transactions only.
 | 12–24 word BIP39 phrase (typos ok) | [input-seed-phrase.md](input-seed-phrase.md) | built, tested |
 | Electrum seed / wallet file | [input-electrum.md](input-electrum.md) | built, tested; Electrum 1.x not built |
 | Bitcoin Core / old-client `wallet.dat` | [input-wallet-dat.md](input-wallet-dat.md) | built, tested; real altcoin-client file untested |
+| Armory `.wallet` | [input-armory.md](input-armory.md) | built, tested on one public test wallet |
 | MultiBit Classic `.key` | [input-multibit.md](input-multibit.md) | built, tested; MultiBit HD / bitcoinj `.wallet` built, tested on public test wallets |
 | Raw key (hex, WIF, base58, base64) | [input-raw-key.md](input-raw-key.md) | built, tested |
 | Ethereum keystore JSON | [input-keystore.md](input-keystore.md) | built, tested |

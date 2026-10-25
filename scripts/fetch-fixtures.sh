@@ -30,4 +30,8 @@ d1a67482ec75853b1cb84c4d8c4d65c3a3b7535dc15d8441121c3d1db79503ae multibit.wallet
 ae67c31362bb46ce54cd81d905f386a3161875d3679d765a2c9eda1907cda2e6 bitcoinj-wallet.wallet
 05406a8604202edd7cae85530137542df38b99084d300d8defcbb8948f513f68 mbhd.wallet.aes
 LIST
+# Armory (dropped from the 3rdIteration fork): the original gurnec/btcrecover test wallet.
+G=https://raw.githubusercontent.com/gurnec/btcrecover/master/btcrecover/test/test-wallets
+[ -f "$D/armory-wallet.wallet" ] || curl -sSfL "$G/armory-wallet.wallet" -o "$D/armory-wallet.wallet"
+echo "a831ed76dcc53e7b32887e68d5dd4553c848ab9cfcc1c41056468ff83567fa9c  $D/armory-wallet.wallet" | sha256sum -c --quiet - || { echo "HASH MISMATCH armory-wallet.wallet"; rm -f "$D/armory-wallet.wallet"; exit 1; }
 echo "fixtures ok: $(ls "$D" | wc -l) files in $D"

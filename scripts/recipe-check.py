@@ -52,10 +52,10 @@ shutil.copy("crates/tx/tests/vectors/block170.hex", os.path.join(IN, "block170.h
 w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
 for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"), ("fixtures/external/electrum-wallet", "electrum1-wallet"),
                  ("fixtures/external/multibit.wallet.bitcoinj.encrypted", "bitcoinj.wallet"), ("fixtures/external/multibit.wallet.bitcoinj.clear", "bitcoinj-clear.wallet"),
-                 ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat")]:
+                 ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat"), ("fixtures/external/armory-wallet.wallet", "armory.wallet")]:
     if os.path.exists(src): shutil.copy(src, os.path.join(IN, dst))
 for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"),
-             ("multibit.pw", "btcr-test-password"), ("empty.pw", "")]:
+             ("multibit.pw", "btcr-test-password"), ("armory.pw", "btcr-test-password"), ("empty.pw", "")]:
     w(SEC, n, p)
 secret_values = [open(os.path.join(IN, f)).read().strip() for f in ("seed.txt", "electrum-seed.txt", "key.hex", "key.wif", "xrp-seed.txt", "xmr-seed.txt", "xlm-mnemonic.txt", "xlm-seed.txt", "atom-mnemonic.txt", "algo-mnemonic.txt", "dot-mnemonic.txt", "ton-mnemonic.txt", "ada-mnemonic.txt")]
 LEAK = re.compile(r'"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret|view_secret|spend_secret)":"[^\[]|xprv[1-9A-Za-z]{20}|abandon|illness spike|special sign fit|advice pudding|caution juice|elbow ramp|"S[A-Z2-7]{55}"')
