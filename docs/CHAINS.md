@@ -107,3 +107,31 @@ wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed
 
 Every non-segwit input needs `prev_tx`: P2PKH on every chain including the fork-id chains BCH/BSV/BTG (their sighash commits the amount, but blocktools checks by script type and does not sign fork-id), GRS and PoS-nTime. Only zec is exempt (ZIP-243/244 amounts via `zec_prevouts`).
 - 2026-10-25: `buildPsbtWithMemo` defaults to non-RBF (0xffffffff); optional trailing `rbf` arg.
+
+## Chain quirks and their known-answer vectors (2026-10-25)
+
+Every way a chain departs from plain Bitcoin is listed here with at least one independent
+known-answer test (KAT): a vector from another implementation, a spec, or real chain data, never
+only our own output. `crates/tx/tests/quirks.rs` parses this table and fails if a row has no KAT,
+names a test that does not exist, or lacks a source, and if a chain with a quirk in code
+(`pos::layout`, the zec path, single-SHA-256 GRS digests) has no row. Add the vector with the quirk.
+
+<!-- quirks:begin -->
+| quirk | chains | KAT (tests file::fn) | vector source |
+|---|---|---|---|
+| groestl-single-sha256-bip143 | grs | grs.rs::bip143_single_sha256_vectors | groestlcoinjs-lib test/fixtures/transaction.json hashForWitnessV0 (data/grs_witness_v0.txt) |
+| groestl-single-sha256-legacy | grs | grs.rs::mainnet_signatures_verify_under_single_sha256 | Groestlcoin mainnet txs, api.blockchair.com raw/transaction (data/grs_mainnet.txt) |
+| pos-ntime-after-version | ppc nvc clam | pos.rs::mainnet_txids_and_signatures | PPC raw hex from Blockbook; NVC/CLAM from chainz.cryptoid.info JSON, txid-checked (data/pos_mainnet.txt) |
+| pos-ntime-after-locktime | rdd | pos.rs::mainnet_txids_and_signatures | RDD mainnet raw hex from Blockbook (data/pos_mainnet.txt) |
+| blk-bitcoin-layout | blk | pos.rs::blackcoin_is_bitcoin_layout | Blackcoin mainnet txs (data/pos_mainnet.txt `blk` rows) |
+| zcash-v5-zip244 | zec | zcash.rs::zip244_vectors | zcash-test-vectors zip_0244.json (data/zec_zip244.txt) |
+| zcash-v4-zip243 | zec | zcash.rs::zip243_vectors | zcash-test-vectors zip_0243.json (data/zec_zip243.txt) |
+| zcash-envelope-mainnet | zec | zcash.rs::mainnet_txs | zec mainnet txs, api.blockchair.com raw/transaction (data/zec_mainnet.txt) |
+| zcash-blake2b-personal | zec | zcash.rs::blake2b_matches_hashlib | Python hashlib.blake2b with person= |
+| p2sh-wrapped-segwit | btc ltc | sign.rs::bip143_p2sh_p2wpkh_byte_exact | BIP143 P2SH-P2WPKH example |
+| p2sh-bare-amount-uncommitted | btc ltc | sign.rs::bare_p2sh_is_not_amount_committed | BIP143 vs legacy sighash definitions (amount in BIP143 preimage only) |
+| evm-eip155-chain-id | eth bsc polygon avax | kat.rs::eip155_example | EIP-155 spec example |
+| qrk-5-decimals-legacy | qrk | qrk.rs::qrk_mainnet_txs_are_bitcoin_legacy | chainz.cryptoid.info tx.raw.dws, txid-checked (data/qrk_mainnet.txt) |
+| qtum-legacy | qtum | qtum.rs::qtum_mainnet_txs_are_bitcoin_legacy | qtum.info api raw-tx (data/qtum_mainnet.txt) |
+| wdc-legacy | wdc | wdc.rs::wdc_mainnet_txs_are_bitcoin_legacy | chainz.cryptoid.info tx.raw.dws (data/wdc_mainnet.txt) |
+<!-- quirks:end -->
