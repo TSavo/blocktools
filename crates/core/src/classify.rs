@@ -64,7 +64,7 @@ fn line(l: &str, n: u64) -> Row {
     if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && (base58::decode_check(l).is_ok() || crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l).is_ok()) {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
-    if ["xprv", "yprv", "zprv", "tprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
+    if ["xprv", "yprv", "zprv", "tprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
     if let Ok(b) = base58::decode_check(l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && [0x80, 0xb0, 0x9e, 0xef].contains(&b[0]) { return row("wif", n, l.as_bytes()) } }
     if let Ok(b) = crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && b[0] == 0x80 { return Row { chain: Some("grs"), ..row("wif", n, l.as_bytes()) } } }
     let h = l.strip_prefix("0x").unwrap_or(l);

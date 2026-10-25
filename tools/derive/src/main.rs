@@ -3,6 +3,7 @@
 //! see --explain), which is then walked for each master key on stdin.
 //! Secrets arrive ONLY on stdin; flags carry public parameters only. Run --help.
 //! Output CONTAINS SECRETS ("wif"/"private_key") unless --explain/--list-presets.
+//! Master keys: {"xprv"} lines; SLIP-132 yprv/zprv/Yprv/Zprv (testnet uprv/vprv/Uprv/Vprv) are the same key and accepted.
 use bitcoin::bip32::Xpriv;
 use blocktools_core::chains::Row;
 use blocktools_core::plan::{self, norm, Opts};
@@ -68,7 +69,7 @@ fn main() {
             continue
         };
         let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
-        let Ok(master) = Xpriv::from_str(x) else { outln!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#); continue };
+        let Some(master) = slip132_prv(x).and_then(|x| Xpriv::from_str(&x).ok()) else { outln!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#); continue };
         let mut seen: HashSet<(String, &'static str, &'static str)> = HashSet::new();
         let mut emit = |r: &Row| {
             if !seen.insert((r.path.clone(), r.chain, r.kind)) { return false }
@@ -91,4 +92,35 @@ fn main() {
     }
     if match_set.is_some() && n == 0 { outln!(r#"{{"tool":"derive","status":"no_candidates","count":{tried}}}"#) }
     outln!(r#"{{"tool":"derive","status":"done","count":{n}}}"#);
+}
+
+/// SLIP-132 private versions (yprv/zprv/Yprv/Zprv, testnet uprv/vprv/Uprv/Vprv) carry the same key
+/// as an xprv/tprv; swap the version bytes. Script type still comes from --address-type / the walk.
+fn slip132_prv(x: &str) -> Option<Zeroizing<String>> {
+    let x = x.trim();
+    let v: [u8; 4] = match x.get(..4)? {
+        "xprv" | "tprv" => return Some(Zeroizing::new(x.to_string())),
+        "yprv" | "zprv" | "Yprv" | "Zprv" => [0x04, 0x88, 0xad, 0xe4],
+        "uprv" | "vprv" | "Uprv" | "Vprv" => [0x04, 0x35, 0x83, 0x94],
+        _ => return None,
+    };
+    let mut b = Zeroizing::new(bitcoin::base58::decode_check(x).ok()?);
+    if b.len() != 78 { return None }
+    b[..4].copy_from_slice(&v);
+    Some(Zeroizing::new(bitcoin::base58::encode_check(&b)))
+}
+
+#[cfg(test)]
+mod tests {
+    /// BIP84 test vector (mnemonic "abandon x11 about", public): its zprv root is the same key as
+    /// the BIP32 xprv root. Compared, never printed.
+    #[test] fn zprv_is_xprv_with_other_version() {
+        const ZPRV: &str = "zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPvG6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5";
+        const XPRV: &str = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu";
+        assert!(super::slip132_prv(ZPRV).unwrap().as_str() == XPRV);
+        assert!(super::slip132_prv(XPRV).unwrap().as_str() == XPRV);
+        assert!(super::slip132_prv("zpub6jftahH18ngZxLmXaKw3GSZzZsszmt9WqedkyZdezFtWRFBZqsQH5hyUmb4pCEeZGmVfQuP5bedXTB8is6fTv19U1GQRyQUKQGUTzyHACMF").is_none());
+        let mut bad = ZPRV.to_string(); bad.pop(); bad.push('6');
+        assert!(super::slip132_prv(&bad).is_none());
+    }
 }
