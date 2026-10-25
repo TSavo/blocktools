@@ -74,3 +74,12 @@ What it does NOT stop:
 
 It only helps when the agent runs as a different user (or in a container) that can't write the pin.
 The real control is still the human reading the summary on a terminal the agent does not drive.
+
+## Keystore KDF bounds (security review 2026-10-25)
+
+`keystore-open` used per-knob caps (p ≤ 4) that rejected the Web3 spec's own scrypt vector (p=8). It now
+bounds what matters: memory 128·N·r ≤ 256 MiB and work N·r·p ≤ 2^24 (8x geth standard), checked with
+overflow-safe arithmetic before any allocation. The RustCrypto `scrypt` crate also refuses N ≥ 2^(16r)
+(RFC 7914), which the spec vector (N=2^18, r=1) violates; those parameters use an in-tree RFC 7914
+implementation that is tested against the crate and RFC 7914 vector 2. Tests: spec vector (p=8),
+geth --lightkdf (N=4096, r=8, p=6), bounds, hostile 8 GiB request refused.
