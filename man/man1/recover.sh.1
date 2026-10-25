@@ -1,0 +1,29 @@
+.TH RECOVER.SH 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+recover.sh \- unknown wallet file to sweep, with human confirmation at each step
+.SH SYNOPSIS
+.nf
+recover.sh FILE DEST [\-\-chain C] [\-\-goal addresses|balance|sweep] [\-\-url ESPLORA|RPC] [\-\-fee\-rate N] [\-\-count N] [\-\-chain\-id N] [\-\-password\-file F]
+.fi
+.SH DESCRIPTION
+recover.sh: unknown wallet file \-> classify \-> right reader \-> funded addresses \-> sweep
+transaction to DEST \-> human confirms signing \-> human confirms broadcast.
+.PP
+The front door for every recipe in recipes/README.md. \-\-goal addresses prints public addresses
+only (DEST is ignored, pass \-), balance also asks the chain, sweep (default) builds, signs, sends.
+\-\-chain picks the chain for seeds and raw keys (default btc). Sweep is automated for btc, ltc, doge
+(UTXO) and eth; every other chain stops after the addresses (exit 3) and names its builder + recipe.
+.IP \(bu 2
+Secrets never touch the disk or this script's variables: keys() re\-runs the reader
+pipeline each time it is needed and pipes straight into the next tool (redact or tx\-sign).
+.IP \(bu 2
+Only public data is stored in $W: addresses, UTXOs, the unsigned PSBT, the signed tx.
+.IP \(bu 2
+tx\-sign and tx\-broadcast each print the decoded transaction on /dev/tty and wait for a
+typed code. Nothing is signed or sent without it.
+.IP \(bu 2
+Wallet passwords come from \-\-password\-file (first line), read by the tool, not by bash.
+.IP \(bu 2
+Bitcoin, except an Ethereum keystore, which sweeps ETH (\-\-rpc URL, \-\-chain\-id N).
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

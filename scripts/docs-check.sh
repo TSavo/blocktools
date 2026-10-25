@@ -24,5 +24,7 @@ done
 # 5. "never hand-rolled" claims must not coexist with in-tree crypto unless SECURITY.md lists it
 if grep -qiE 'never hand-roll' $D && grep -q 'fn scrypt_raw' crates/secrets/src/keystore.rs && ! grep -q 'scrypt_raw' docs/SECURITY.md; then
   echo "FAIL in-tree scrypt_raw not disclosed in SECURITY.md"; rc=1; fi
+# 6. man pages are generated from --help + doc headers and must be current (needs release binaries)
+python3 scripts/gen-man.py --check || rc=1
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc

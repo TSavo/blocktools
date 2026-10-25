@@ -1,0 +1,19 @@
+.TH REDACT 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+redact \- stdin raw JSON lines (may contain secrets) \-> stdout public lines
+.SH SYNOPSIS
+.nf
+redact: JSON lines in \-> schema\-checked, secrets replaced by [REDACTED], leak\-checked lines out
+.fi
+.SH DESCRIPTION
+This is the only process whose stdout is connected to the agent.
+.SH WARNING
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+.br
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+.br
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+.br
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

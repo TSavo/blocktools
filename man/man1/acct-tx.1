@@ -1,0 +1,52 @@
+.TH ACCT\-TX 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+acct\-tx \- account\-model payments for xlm, algo and atom. Encoded transactions are base64 (each chain's native form)
+.SH SYNOPSIS
+.nf
+usage: acct\-tx keys|build|decode|sign \-\-chain xlm|algo|atom|ton|ada|dot (see source header)
+.fi
+.SH DESCRIPTION
+Balance / sequence / rounds come from the host\-side `utxo\-fetch \-\-chain xlm|algo ADDR` (this tool has no network).
+acct\-tx build   \-\-chain xlm  \-\-from G.. \-\-to G.. (\-\-amount STROOPS | \-\-sweep) \-\-fee STROOPS \-\-seq N [\-\-memo\-id N|\-\-memo\-text T] [\-\-max\-time UNIX] [\-\-testnet]
+acct\-tx build   \-\-chain algo \-\-from A.. \-\-to A.. (\-\-amount MICROALGO | \-\-sweep) \-\-fee MICROALGO \-\-first\-round N [\-\-last\-round N] [\-\-note T]
+acct\-tx keys    \-\-chain atom < hex\-private\-key                    \-> {"address","pubkey"} (public only; build needs \-\-pubkey)
+acct\-tx build   \-\-chain atom \-\-from cosmos1.. \-\-pubkey HEX33 \-\-to cosmos1.. (\-\-amount UATOM | \-\-sweep \-\-balance UATOM) \-\-fee UATOM
+.nf
+.RS 2
+                \-\-gas N \-\-sequence N \-\-account\-number N [\-\-chain\-id cosmoshub\-4] [\-\-memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
+.RE
+.fi
+acct\-tx build   \-\-chain ton  \-\-from UQ.. \-\-to EQ..|UQ.. (\-\-amount NANOTON | \-\-sweep) \-\-seqno N \-\-valid\-until UNIX [\-\-comment T]
+.nf
+.RS 2
+                (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the \-\-to form)
+.RE
+.fi
+acct\-tx build   \-\-chain ada  \-\-from addr1.. \-\-to addr1.. \-\-utxo TXID#IX:LOVELACE [\-\-utxo ..] (\-\-amount LOVELACE | \-\-sweep) \-\-fee LOVELACE \-\-ttl SLOT
+.nf
+.RS 2
+                (ADA\-only legacy outputs, change back to \-\-from; hex CBOR like cardano\-cli; UTXOs carrying native assets must not be used)
+.RE
+.fi
+acct\-tx build   \-\-chain dot  \-\-from 1.. \-\-to 1.. (\-\-amount PLANCK | \-\-sweep) \-\-nonce N \-\-block\-number N \-\-block\-hash HEX [\-\-period 64]
+.nf
+.RS 2
+                [\-\-spec V \-\-tx\-version V] [\-\-tip PLANCK]   (Polkadot Asset Hub Balances; UNVERIFIED layout, see recipes/chain\-polkadot.md)
+.RE
+.fi
+acct\-tx decode  \-\-chain C [\-\-testnet] < unsigned\-or\-signed (JSON from build/sign, or bare base64)
+acct\-tx sign    \-\-chain C \-\-tx FILE \-\-expect\-to ADDR [\-\-testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
+.nf
+.RS 2
+  (dot: 0x\-hex mini\-secret as printed by recover, or the 12/24\-word mnemonic; ada: 128\-hex extended payment key kL||kR as printed by recover; ton: 24 TON words or 64\-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
+  shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
+.RE
+.fi
+\-\-sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
+.nf
+.RS 2
+         algo = amount 0 + close\-to (sends everything and closes the account; fails while ASAs are opted in).
+.RE
+.fi
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

@@ -26,6 +26,10 @@ Status: image built and sealed run verified on Battleaxe (18.2 MB; network off, 
 
 Tools: `seed-repair`, `seed-to-master`, `derive`, `keystore-open`, `redact`, `sealed-run`, `read-file`, `dat-read`.
 
+Manual pages for every tool, `recover.sh` and the wrapper are in `man/` (`man -l man/man7/blocktools.7`).
+They are generated from `--help` and the doc headers by `scripts/gen-man.py`, and CI fails if they are stale.
+Offline policy files for tx-verify and tx-sign are described in [docs/POLICY.md](docs/POLICY.md).
+
 ### Bitcoin Core wallet.dat
 
 `dat-read` reads legacy (Berkeley DB) and descriptor (SQLite) `wallet.dat` with its own

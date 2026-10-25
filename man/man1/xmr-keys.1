@@ -1,0 +1,14 @@
+.TH XMR\-KEYS 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+xmr\-keys \- xmr\-keys [\-\-net main|stage|test] [\-\-scan\-out FILE [\-\-restore\-height N]] < seed
+.SH SYNOPSIS
+.nf
+{"error":"monero_seed_needs_25_words"}
+.fi
+.SH DESCRIPTION
+stdout: one JSON line of PUBLIC data (address, public spend/view keys).
+\-\-scan\-out writes a monero\-wallet\-rpc `generate_from_keys` request for a VIEW\-ONLY wallet
+(address + private view key, no spend key) to FILE, created new with mode 0600. The view key
+is secret (it reveals incoming funds), so it never goes to stdout or stderr.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

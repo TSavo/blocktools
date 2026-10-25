@@ -1,0 +1,18 @@
+.TH ZEC\-SAPLING 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+zec\-sapling \- zec\-sapling [\-\-count N] [\-\-unified] [\-\-viewkey\-out FILE] < BIP39 mnemonic
+.SH SYNOPSIS
+.nf
+{"error":"bad_mnemonic"}
+.fi
+.SH DESCRIPTION
+\-\-unified also emits, per account, the ZIP\-316 unified address (orchard + sapling + p2pkh, all
+at the account's first valid Sapling diversifier index j, as zcashd/librustzcash do) and the
+transparent t1 address at m/44'/133'/i'/0/j. Orchard keys: ZIP\-32 m/32'/133'/i' (orchard crate).
+Zcash Sapling (ZIP\-32): seed = BIP39(mnemonic, ""), account i = m/32'/133'/i', default
+(first valid diversifier) payment address, encoded bech32 "zs". stdout: PUBLIC rows only.
+\-\-viewkey\-out writes the accounts' extended full viewing keys (bech32 "zxviews", secret:
+they reveal all incoming and outgoing funds, but cannot spend) to FILE, new, mode 0600.
+The spending key is never output.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

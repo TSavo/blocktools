@@ -1,0 +1,35 @@
+.TH TX\-BUILD 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+tx\-build \- build an UNSIGNED transaction offline from files and flags. Never touches the network
+.SH SYNOPSIS
+.nf
+tx\-build \-\-chain btc|ltc|doge|eth ... (see \-\-help in source docs / recipes) \-> unsigned PSBT or EVM tx
+.fi
+.SH DESCRIPTION
+UTXO chains \-> {"psbt": base64}; EVM \-> {"unsigned_tx": hex}. Pipe the result to tx\-decode.
+.nf
+.RS 2
+  tx\-build \-\-chain btc|ltc|doge \-\-utxos FILE \-\-to ADDR (\-\-sweep | \-\-consolidate | \-\-send SATS \-\-change ADDR)
+           \-\-fee\-rate SAT_PER_VB [\-\-rbf] [\-\-dust\-limit 546] [\-\-locktime N]
+  tx\-build \-\-chain ppc|nvc|clam|rdd \-\-utxos FILE \-\-to ADDR \-\-sweep \-\-fee\-rate UNITS_PER_BYTE [\-\-time UNIX]
+           \-> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
+  tx\-build \-\-chain zec \-\-utxos FILE \-\-to t1... \-\-sweep [\-\-fee\-rate N] [\-\-branch\-id HEX] [\-\-expiry\-height H]
+           \-> {"unsigned_tx": hex, "zec_prevouts": [...], "branch_id"} (transparent v5, ZIP\-244; fee >= ZIP\-317)
+  tx\-build \-\-chain eth \-\-chain\-id N [\-\-account FILE] [\-\-nonce N] [\-\-gas N] \-\-max\-fee\-per\-gas WEI
+           [\-\-priority\-fee WEI | \-\-legacy] \-\-to ADDR (\-\-send WEI | \-\-sweep [\-\-balance WEI] | \-\-topup GAS_UNITS
+           | \-\-token CONTRACT \-\-token\-amount UNITS)
+.RE
+.fi
+\-\-account FILE is one JSON object with any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
+(utxo\-fetch writes it); flags override it. ERC\-20 sends need native gas at the old address:
+build the gas top\-up first with \-\-topup GAS_UNITS from a funded address.
+.SH WARNING
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+.br
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+.br
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+.br
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

@@ -1,0 +1,19 @@
+.TH XRP\-TX 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+xrp\-tx \- xrp\-tx keys   < family\-seed                       \-> {"chain":"xrp","algo","address","x_address","public"} (public only)
+.SH SYNOPSIS
+.nf
+usage: xrp\-tx keys|build|decode|sign (see source header)
+.fi
+.SH DESCRIPTION
+xrp\-tx build  \-\-account r.. \-\-to r..|X.. (\-\-amount DROPS | \-\-sweep \-\-balance DROPS [\-\-reserve DROPS])
+.nf
+.RS 2
+              \-\-fee DROPS \-\-sequence N [\-\-last\-ledger N] [\-\-destination\-tag N]   \-> {"unsigned":HEX,"warnings":[..]}
+.RE
+.fi
+xrp\-tx decode < HEX                               \-> decoded JSON
+xrp\-tx sign   \-\-tx FILE \-\-expect\-to r..|X..  < family\-seed \-> {"status":"ok","tx_blob","hash"} after a typed code on /dev/tty
+The destination tag matters: exchanges credit deposits by tag, and a payment without it is usually lost to you.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

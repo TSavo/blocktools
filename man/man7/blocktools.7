@@ -1,0 +1,91 @@
+.TH BLOCKTOOLS 7 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+blocktools \- offline wallet recovery, inspection and signing tools
+.SH DESCRIPTION
+Small tools joined by JSON lines on stdin and stdout. Readers turn wallet files into keys, derive and key\-to\-addresses turn keys into addresses, tx\-build/tx\-verify/tx\-sign/tx\-broadcast move funds. Every signature and broadcast waits for a code typed on the terminal.
+.PP
+Run anything that touches secrets inside ./blocktools run (sealed, offline). Policy files: docs/POLICY.md. Supported chains: docs/CHAINS.md.
+.SH TOOLS
+.TP
+\fBacct\-tx\fR(1)
+account\-model payments for xlm, algo and atom. Encoded transactions are base64 (each chain's native form)
+.TP
+\fBarmory\-read\fR(1)
+Armory (PyBtcWallet) `.wallet` \-> {"wif","chain_index"} per stored address
+.TP
+\fBclassify\fR(1)
+unknown wallet material \-> public JSON lines, one per item:
+.TP
+\fBdat\-read\fR(1)
+Bitcoin Core wallet.dat (legacy Berkeley DB or SQLite descriptor
+.TP
+\fBderive\fR(1)
+master key \-> child keys and addresses. A Swiss Army knife for "which path
+.TP
+\fBelectrum\-read\fR(1)
+Electrum wallet file (JSON, optionally field\-encrypted) \-> its seed phrase
+.TP
+\fBkey\-to\-addresses\fR(1)
+one raw 32\-byte private key per line \-> addresses on every chain in the
+.TP
+\fBkeystore\-open\fR(1)
+Ethereum Web3 Secret Storage v3 JSON + password \-> address
+.TP
+\fBmultibit\-read\fR(1)
+MultiBit Classic .key export, bitcoinj/MultiBit Classic `.wallet` protobuf, or
+.TP
+\fBread\-file\fR(1)
+concatenate files to stdout (like cat), std only. Exists so the
+.TP
+\fBredact\fR(1)
+stdin raw JSON lines (may contain secrets) \-> stdout public lines
+.TP
+\fBsealed\-run\fR(1)
+the agent\-facing boundary. Runs a pipeline of blocktools tools
+.TP
+\fBseed\-repair\fR(1)
+read a (possibly mistyped) BIP39 phrase, print checksum\-valid
+.TP
+\fBseed\-to\-master\fR(1)
+seed phrase (+ optional passphrase) \-> BIP32 master key(s)
+.TP
+\fBtx\-broadcast\fR(1)
+tx\-broadcast (HOST\-SIDE, network): send ONE already\-signed transaction, after the human reads
+.TP
+\fBtx\-build\fR(1)
+build an UNSIGNED transaction offline from files and flags. Never touches the network
+.TP
+\fBtx\-decode\fR(1)
+one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
+.TP
+\fBtx\-sign\fR(1)
+sign ONE transaction after a human reads its summary and types a code on /dev/tty
+.TP
+\fBtx\-verify\fR(1)
+check a transaction (stdin; any format tx\-decode reads) against what you expect
+.TP
+\fButxo\-fetch\fR(1)
+utxo\-fetch (HOST\-SIDE, network): public chain data for addresses \-> files tx\-build reads
+.TP
+\fBxmr\-keys\fR(1)
+xmr\-keys [\-\-net main|stage|test] [\-\-scan\-out FILE [\-\-restore\-height N]] < seed
+.TP
+\fBxmr\-wallet\fR(1)
+host\-side driver for a LOCAL monero\-wallet\-rpc (loopback only; never runs in the sealed image)
+.TP
+\fBxpub\-addresses\fR(1)
+extended public key (xpub/ypub/zpub/tpub..., stdin, one per line) \-> watch\-only
+.TP
+\fBxrp\-tx\fR(1)
+xrp\-tx keys   < family\-seed                       \-> {"chain":"xrp","algo","address","x_address","public"} (public only)
+.TP
+\fBzec\-sapling\fR(1)
+zec\-sapling [\-\-count N] [\-\-unified] [\-\-viewkey\-out FILE] < BIP39 mnemonic
+.TP
+\fBrecover.sh\fR(1)
+unknown wallet file to sweep, with human confirmation at each step
+.TP
+\fBblocktools\fR(1)
+host wrapper that runs a pipeline in the sealed container
+.SH SEE ALSO
+README.md, DESIGN.md, EXPORTS.md, docs/SECURITY.md, docs/ROADMAP\-PARITY.md

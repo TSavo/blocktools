@@ -1,0 +1,15 @@
+.TH BLOCKTOOLS 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+blocktools \- host wrapper that runs a pipeline in the sealed container
+.SH SYNOPSIS
+.nf
+\&./blocktools run    '<pipeline>'   # agent\-safe: prints only addresses/paths/statuses
+\&./blocktools reveal '<pipeline>'   # human only: needs a TTY + typed code, prints keys
+\&./blocktools build
+.fi
+.SH DESCRIPTION
+Thin host\-side wrapper. Runs a blocktools pipeline in a sealed container.
+Inputs: $BLOCKTOOLS_IN (default ./in) mounted read\-only at /in.
+Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read\-only at /secrets.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md
