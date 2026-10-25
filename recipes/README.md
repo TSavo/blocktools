@@ -38,7 +38,7 @@ and see addresses and signed transactions only.
 |---|---|---|---|---|
 | Bitcoin | ✅ | ✅ | ✅ | [chain-bitcoin.md](chain-bitcoin.md) |
 | Litecoin, Dogecoin | ✅ | ✅ | ✅ (mock chain only) | [chain-litecoin-dogecoin.md](chain-litecoin-dogecoin.md) |
-| Groestlcoin | ✅ | ✅ (Groestl-checksum xpub; untested on a real wallet) | ✅ (e2e, no live network; p2tr address only) | [chain-groestlcoin.md](chain-groestlcoin.md) |
+| Groestlcoin | ✅ (incl. Groestl-checksum xpub, grs1p; real-wallet xpub untested) | ✗ | ✅ (e2e, no live network; p2tr spend refused) | [chain-groestlcoin.md](chain-groestlcoin.md) |
 | Ethereum / EVM | ✅ | ✅ | ✅ ETH, ERC-20 | [chain-ethereum.md](chain-ethereum.md) |
 | XRP | ✅ | manual | ✅ Payment (xrp-tx) | [xrp.md](xrp.md) |
 | Qtum | ✅ | ✗ | ✗ | [chain-qtum.md](chain-qtum.md) |
