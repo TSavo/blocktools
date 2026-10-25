@@ -76,3 +76,7 @@ WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid 
 ## Groestlcoin extended keys and taproot (2026-10-25)
 
 GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `--chain grs` (vectors: Groestlcoin/eclair commit f52fbf9, 4 tpub pairs). GRS rows include `p2tr` (grs1p…, BIP341 vector); spending GRS taproot inputs is refused. Untested: real Electrum-GRS mainnet xpub, any mainnet grs1p.
+
+## Monero (2026-10-25)
+
+Scan and sweep: host tool `xmr-wallet` over a loopback monero-wallet-rpc. 2026-10-25 stagenet run (Mac, official monero v0.18.5.4 binaries, SHA-256 checked against the published hashes.txt): faucet 0.5 XMR seen by `xmr-wallet scan` (unlocked 500000000000 at height 2236134); `xmr-wallet sweep --relay` planned amount 499969620000 + fee 30380000 = unlocked, relayed tx bb300227e8e6c418fe7d825ac432d79abc2d4b943d99e053eabfba3c8197a96d (in a public stagenet node's pool); a view-only `scan` of the destination wallet shows that amount incoming (pool). The TTY confirm was answered by an `expect` script standing in for a human. Untested: mainnet, confirmation of that tx at the time of writing, Polyseed/13-word/non-English seeds, subaddresses.

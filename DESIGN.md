@@ -614,3 +614,7 @@ Zcash Sapling (tools/zec-sapling): BIP39 seed -> ZIP-32 Sapling master -> m/32'/
 payment address (zs1, bech32, 78 chars). Spending keys never leave the process; --viewkey-out FILE writes
 zxviews extended full viewing keys to a new 0600 file. KATs: zcash ZIP-32 sapling_zip32_hard vectors and
 sapling_key_components (pk_d). Orchard/unified addresses, scanning and spending are not built.
+
+## Monero scan/sweep (2026-10-25)
+
+`tools/xmr-wallet` drives the user's own monero-wallet-rpc on loopback only (URLs other than 127.0.0.1 are refused) and never runs in the sealed image. Seed and view key travel only in the HTTP body to loopback. Sweep: restore, refresh, `sweep_all` with do_not_relay, check destination network and amount + fee == unlocked, print the plan; `--relay` additionally requires a 6-digit code typed at /dev/tty, then `relay_tx`. 2026-10-25 stagenet run (Mac, official monero v0.18.5.4 binaries, SHA-256 checked against the published hashes.txt): faucet 0.5 XMR seen by `xmr-wallet scan` (unlocked 500000000000 at height 2236134); `xmr-wallet sweep --relay` planned amount 499969620000 + fee 30380000 = unlocked, relayed tx bb300227e8e6c418fe7d825ac432d79abc2d4b943d99e053eabfba3c8197a96d (in a public stagenet node's pool); a view-only `scan` of the destination wallet shows that amount incoming (pool). The TTY confirm was answered by an `expect` script standing in for a human. Untested: mainnet, confirmation of that tx at the time of writing, Polyseed/13-word/non-English seeds, subaddresses.

@@ -3,8 +3,8 @@
 XS="adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy"
 TO=$(printf '%s\n' "$XS" | "$B/xmr-keys" --net stage | sed 's/.*"address":"\([^"]*\)".*/\1/')
 printf '%s\n' "$XS" | "$B/xmr-keys" --net stage --scan-out "$T/xw-req.json" --restore-height 2236100 >/dev/null 2>&1
-P=$((38000 + $$ % 1000)); ADDR=$TO python3 scripts/mock/wallet-rpc.py $P "$T/xw.log" ok & MP=$!
-P2=$((P + 1)); python3 scripts/mock/wallet-rpc.py $P2 "$T/xw2.log" bad & MP2=$!
+P=$((38000 + $$ % 1000)); ADDR=$TO python3 scripts/mock/xmr-rpc-mock.py $P "$T/xw.log" ok & MP=$!
+P2=$((P + 1)); python3 scripts/mock/xmr-rpc-mock.py $P2 "$T/xw2.log" bad & MP2=$!
 sleep 1
 s=$("$B/xmr-wallet" scan --rpc http://127.0.0.1:$P --scan-req "$T/xw-req.json" 2>&1)
 w=$(printf '%s\n' "$XS" | "$B/xmr-wallet" sweep --rpc http://127.0.0.1:$P --net stage --to "$TO" 2>&1)

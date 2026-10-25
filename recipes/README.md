@@ -30,7 +30,7 @@ and see addresses and signed transactions only.
 | XRP family seed (`s...`, `sEd...`) | [xrp.md](xrp.md) | built, tested |
 | Algorand 25-word mnemonic | [chain-algorand.md](chain-algorand.md) | addresses only, tested |
 | Stellar secret (`S...`) | [chain-stellar.md](chain-stellar.md) | addresses only, tested |
-| Monero 25 words | [monero.md](monero.md) | keys/address built; scan, sweep not built |
+| Monero 25 words | [monero.md](monero.md) | keys/address; scan + sweep via host `xmr-wallet` (stagenet-tested) |
 | Don't know | [input-unknown.md](input-unknown.md) | classify |
 
 ## By chain
@@ -52,7 +52,7 @@ and see addresses and signed transactions only.
 | TON | ✅ (wallet v4r2) | ✗ | ✗ | [chain-ton.md](chain-ton.md) |
 | Polkadot | ✅ (root sr25519) | ✗ | ✗ | [chain-polkadot.md](chain-polkadot.md) |
 | Stellar | ✅ | ✗ | ✗ | [chain-stellar.md](chain-stellar.md) |
-| Monero | ✅ | view-only request | ✗ (design) | [monero.md](monero.md) |
+| Monero | ✅ | ✅ xmr-wallet scan (stagenet) | ✅ xmr-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
 
 ## By goal
 | Goal | Recipe |
