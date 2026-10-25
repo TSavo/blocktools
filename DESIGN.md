@@ -588,3 +588,8 @@ Explorer JSON (chainz) reports block time, not tx time; the vectors' nTime was r
 ## bitcoinj / MultiBit HD
 
 `blocktools-secrets::bitcoinj` (feature `multibit`, tool `multibit-read`) reads bitcoinj wallet protobufs (cleartext or scrypt+AES-256-CBC, UTF-16BE password bytes) and MultiBit HD `mbhd.wallet.aes` (outer scrypt with the fixed MBHD salt, AES-256-CBC with the fixed IV a344391f538311b329548616c489723e, measured by recovering it from the btcrecover test file). Every decrypted key must reproduce its stored public key, and an HD seed must reproduce the stored root key; otherwise the result is `wrong_password`, never a key. HD wallets output the master xprv; MultiBit HD accounts are at m/0'. Measured on the btcrecover public wallets: the encrypted MultiBit wallet's key equals btcrecover's published WIF; the other two bitcoinj wallets match their stored public keys; the MBHD xprv derives the stored m/0'/0/0 and m/0'/0/1 keys. Untested: wallets written by other bitcoinj versions, watching/married wallets, testnet ids (refused), wallets with a bitcoinj passphrase on the seed, Armory (no independent vector fetched).
+
+Zcash Sapling (tools/zec-sapling): BIP39 seed -> ZIP-32 Sapling master -> m/32'/133'/i' -> default
+payment address (zs1, bech32, 78 chars). Spending keys never leave the process; --viewkey-out FILE writes
+zxviews extended full viewing keys to a new 0600 file. KATs: zcash ZIP-32 sapling_zip32_hard vectors and
+sapling_key_components (pk_d). Orchard/unified addresses, scanning and spending are not built.

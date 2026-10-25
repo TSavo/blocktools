@@ -51,3 +51,5 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | wdc | WDC | 0 | 49 | 05 | — | 201 | sha256d | 8 | — | legacy | no | cryptoid chainz.cryptoid.info |
 | anc | ANC | 0 | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |
+
+Zcash Sapling: `zec-sapling` CLI (ZIP-32, m/32'/133'/i', zs1 default address, optional 0600 viewing-key file). No spend/scan.

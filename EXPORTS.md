@@ -42,7 +42,7 @@ Tx formats:
 - `legacy`: Bitcoin format, including segwit where the chain has it.
 - `forkid` (BCH/BSV/BTG): the unsigned bytes are the same as legacy, but the signer must use SIGHASH_FORKID with the input amounts, which the PSBT carries. Only the unsigned build is done here.
 - `pos-ntime` (PPC/NVC/CLAM/RDD): built as raw tx + `pos_prevouts` (no PSBT exists for this format), only via `buildUnsignedSweepAt` with an explicit tx time; `buildUnsignedSweep` throws `pos_ntime_needs_time` on wasm. P2PKH inputs only. POT is still refused (no vector). BLK was reclassified to `legacy`: its mainnet v2 txs have no nTime (measured).
-- `zcash-v5`: ZEC is address-only for now.
+- `zcash-v5`: ZEC is address-only for now. Sapling (zs1) addresses come from the CLI tool `zec-sapling` only; no wasm export.
 - `unknown` (QRK): not built.
 - `legacy-sha256` (GRS): Bitcoin serialization, but the txid and the legacy/BIP143 signature hashes use single SHA-256, and base58 uses a Groestl-512 double-hash checksum (`checksum: "groestl512d"`). Vectors: groestlcoinjs-lib (addresses, bip32), Electrum-GRS (WIF), and real GRS mainnet txs whose signatures verify only under our single-SHA-256 sighash. `deriveFromXpub` takes Bitcoin-checksummed xpubs only; Groestl-checksummed GRS xpubs are NOT supported. Taproot is off for GRS.
 
