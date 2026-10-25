@@ -1,0 +1,13 @@
+arrayvec
+bip39
+bitcoin_hashes
+hex-conservative
+itoa
+kr-schema
+memchr
+serde
+serde_core
+serde_json
+tinyvec
+unicode-normalization
+zmij

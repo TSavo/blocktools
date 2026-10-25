@@ -1,0 +1,17 @@
+# Public test vectors and pinned digests allowed in the tree (one per line; '#' lines are notes).
+# BIP32 root of BIP39 "abandon x11 about", empty passphrase (public test vector)
+xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu
+# WIF of m/84'/0'/0'/0/0 of the same public vector
+KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d
+# WIF examples from the Bitcoin wiki (public)
+5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ
+5KQNQrchLtW4bXRQ2ZQhgNDZnHVaAw9vP3pvWNaYT5RzmWJbuyR
+# Web3 Secret Storage v3 spec vector (ethereum.org): private key
+7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d
+# Docker base image digests
+4ec3fedc5eff0bc1ca3ce0e2abbd7190585627eb2b3eedc25e0bf0712b209cd7
+d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+# Web3 v3 spec vector: ciphertext, salt, mac
+5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46
+ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd
+517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2

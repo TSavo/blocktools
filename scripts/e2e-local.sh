@@ -1,16 +1,30 @@
 #!/bin/sh
-# Local (no Docker) check of the agent boundary using only the public BIP39 test vector.
+# Local (no Docker) end-to-end checks of the agent boundary.
+# Only public test vectors / throwaway self-made fixtures are used.
 set -eu
-B=target/release; T=$(mktemp -d)
-echo "abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot" > "$T/seed.txt"
-$B/seed-repair < "$T/seed.txt" | $B/derive --count 2 | $B/kr-redact > "$T/agent.jsonl"
-grep -q bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu "$T/agent.jsonl"
-if grep -Eq 'wif|private_key|mnemonic|abandon|[0-9a-fA-F]{64}' "$T/agent.jsonl"; then echo "LEAK"; exit 1; fi
-echo "e2e ok: $(wc -l < "$T/agent.jsonl") public lines, no secrets"; rm -rf "$T"
-# Same check through the real boundary script (container/kr-run agent).
-T=$(mktemp -d)
-echo "abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot" \
-  | PATH="$PWD/$B:$PATH" sh container/kr-run agent 'seed-repair | derive --count 1' > "$T/agent.jsonl"
-grep -q bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu "$T/agent.jsonl"
-if grep -Eq 'wif|private_key|mnemonic|abandon|[0-9a-fA-F]{64}' "$T/agent.jsonl"; then echo "LEAK via kr-run"; exit 1; fi
-echo "kr-run ok: $(wc -l < "$T/agent.jsonl") public lines"; rm -rf "$T"
+B="$PWD/target/release"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+LEAK='wif|private_key|mnemonic|xprv|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"'
+# boundary <name> <expect-substring> <pipeline>   (stdin = data)
+boundary() {
+  "$B/kr-run" agent "$3" > "$T/$1.jsonl"
+  grep -q -- "$2" "$T/$1.jsonl" || { echo "FAIL $1: missing $2"; cat "$T/$1.jsonl"; exit 1; }
+  if grep -Eq "$LEAK" "$T/$1.jsonl"; then echo "LEAK in $1"; exit 1; fi
+  echo "ok  $1: $(wc -l < "$T/$1.jsonl") public lines, no secrets"
+}
+SEED="abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot"
+# 1. raw tools DO print secrets (control)
+echo "$SEED" | "$B/seed-repair" | "$B/seed-to-master" | "$B/derive" --count 1 > "$T/raw.jsonl"
+grep -q '"wif"' "$T/raw.jsonl" || { echo "FAIL raw control"; exit 1; }
+echo "ok  raw control: tools print keys ($(grep -c wif "$T/raw.jsonl") wif lines)"
+# 2. full pipe through the boundary
+echo "$SEED" | boundary seed 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu' 'seed-repair | seed-to-master | derive --count 2'
+# 3. half pipe (stops at master key) - boundary must drop the xprv line
+echo "$SEED" | boundary half '"tool":"seed-to-master"' 'seed-repair | seed-to-master'
+# 4. boundary refuses non-allowlisted programs / shell syntax
+"$B/kr-run" agent 'sh -c id' | grep -q unsupported && echo "ok  kr-run refuses sh"
+"$B/kr-run" agent 'derive ; id' | grep -q bad_input && echo "ok  kr-run refuses shell syntax"
+# 5. human mode without a terminal refuses
+if setsid "$B/kr-run" human 'seed-repair' </dev/null 2>/dev/null | grep -q bad_input; then echo "ok  human mode refuses without tty"; else echo "FAIL human no-tty"; exit 1; fi
+# extra checks appended by later milestones
+for f in scripts/e2e.d/*.sh; do [ -f "$f" ] && . "$f"; done
+echo "e2e: all ok"

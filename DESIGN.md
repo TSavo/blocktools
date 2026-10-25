@@ -18,13 +18,18 @@ The rule that **the agent never sees secrets** is enforced at one boundary:
 host (agent)                         sealed container (--network none)
 -----------                          ---------------------------------
 ./keyrescue run '<pipeline>'  --->   kr-run agent '<pipeline>'
-                                       sh -c pipeline 2>/dev/null
-                                         | kr-redact               ---> stdout to the agent
+                                       runs tool | tool | tool itself (NO shell),
+                                       tool stderr -> null, last stdout -> redactor
+                                                                   ---> stdout to the agent
 ./keyrescue reveal '<pipeline>' -->  kr-run human: needs a TTY + typed one-time code,
    (T at a terminal)                   writes raw output to /dev/tty only
 ```
 
-* `kr-redact` is the only process whose stdout reaches the agent. It keeps only
+* `kr-run` is a Rust program, not a shell script. It parses `a args [< file] | b args`
+  (whitespace tokens, shell metacharacters rejected), runs only allowlisted tools that sit
+  next to it, with an empty environment, and applies the `kr-redact` filter in-process.
+  The reference image has no shell at all, so there is nothing to inject into.
+* The redactor (`kr-redact` / in `kr-run`) is the only thing whose output reaches the agent. It keeps only
   allowlisted fields, each with a strict validator (§3). A line that fails any
   check is dropped completely. It ends with a summary line (kept/dropped counts).
 * Tool stderr is discarded. Raw output is never written to disk, not even tmpfs.
@@ -72,7 +77,10 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | tool | in | out (raw, may contain secrets) | phase |
 |---|---|---|---|
 | `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
-| `derive` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{kind, path, address, wif / private_key}` | 1 ✅ |
+| `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
+| `derive` | stdin JSON lines `{xprv, candidate}` | `{kind, path, address, wif / private_key}` | ✅ |
+| `kr-cat` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |
+| `kr-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
 | `kr-redact` | raw lines | public lines only | 1 ✅ |
 | `walletdat-read` | Bitcoin Core `wallet.dat` (BDB/SQLite, bounded own parser, no libdb) | keys, addresses | 2 |
@@ -81,7 +89,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | `tx-verify` | unsigned PSBT/tx file | plain summary: inputs, outputs, fee, change | 2 |
 | `tx-sign` | PSBT + key stream + confirmation | signed raw tx hex | 2 |
 
-Composition example (in the container): `seed-repair < /in/seed.txt | derive --count 5`.
+Composition example (in the container): `seed-repair < /in/seed.txt | seed-to-master | derive --count 5`.
 
 **seed-repair algorithm (phase 1):** lengths 12/15/18/21/24. Unknown words → words
 within edit distance 2 or sharing the 4-letter prefix (BIP39 words are unique by
@@ -90,7 +98,7 @@ BIP39 checksum is valid. If every word is known but the checksum fails, it tries
 adjacent swaps, then each single-word substitution. Phase 2: missing word
 positions and wordlists in other languages.
 
-**derive paths:** m/44'/0'/0'/0/i, m/49'…, m/84'…, m/86'… (BIP86 taproot), and
+**derive paths** (from the master key): m/44'/0'/0'/0/i, m/49'…, m/84'…, m/86'… (BIP86 taproot), and
 m/44'/60'/0'/0/i (ETH, EIP-55). Phase 2: change chain, more accounts,
 Electrum-seed derivation, custom paths.
 
@@ -98,8 +106,8 @@ Electrum-seed derivation, custom paths.
 
 Passwords and passphrases arrive on **stdin**, as data in the stream. The human
 puts them in `$KR_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
-git-ignored), and the pipeline's shell feeds them in, e.g.
-`cat /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
+git-ignored), and the pipeline feeds them in, e.g.
+`kr-cat /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
 opens a named file. The only other source is `keystore-open --password-tty`, a
 prompt to the human on `/dev/tty`. Nothing is ever read from argv or env.
 Values are zeroized after use (`zeroize`).
@@ -114,7 +122,7 @@ Values are zeroized after use (`zeroize`).
 2. **stdin and stdout only.** Secrets and outputs travel only through stdin and
    stdout: never environment variables, never file names, never argv. Output is
    always on stdout. Files reach a tool only via shell redirection
-   (`< /in/x`, `cat a b |`) in the pipeline script. The tool sees a stream,
+   (`< /in/x`, `kr-cat a b |`) in the pipeline script. The tool sees a stream,
    not a path. argv carries only non-secret options (`--count 5`).
 3. **A half-complete pipe leaks secrets. A complete pipe emits only the intended output.**
    Complete pipe: `wallet file → master key → derived key → signed transaction`.
@@ -137,10 +145,10 @@ Values are zeroized after use (`zeroize`).
 | `keystore-open` | ✅ stdin only: line 1 = password, rest = keystore (`--in`, `--password-file` removed) |
 | `kr-run` agent mode | ✅ no longer tees raw output to a tmpfs file; tool stderr is discarded |
 | **Deviation:** `keystore-open --password-tty` | Reads the password from `/dev/tty`, a human side channel, not stdin. Kept for typing passwords that are never stored. To decide: keep, or require stdin only (human pipes `cat /dev/tty` themselves). |
-| **Deviation:** `derive` emits a `wif`/`private_key` per address | That is a half-complete pipe by design today. Planned split: `seed-to-master` (mnemonic → master xprv), `derive` (xprv → child keys + addresses), `tx-sign` (keys + PSBT → signed tx). |
+| Split done | `seed-to-master` (phrase → master xprv) and `derive` (xprv → child keys + addresses). `derive` output is still a half-complete pipe; `tx-sign` completes it. |
 | **Deviation:** `kr-run`/`keyrescue` take the pipeline script via argv | The script is agent-written public text, never a secret. Alternative: feed the script on stdin. |
 | **Deviation:** passwords staged as files in `/secrets` | The human stores them, and the tool still receives them via stdin. Alternative: a dedicated fd (e.g. `3< /secrets/pw`) if mixing with data on stdin proves awkward. |
-| Naming | `derive` is generic. Planned names: `dat-read`, `keystore-open`, `seed-repair`, `seed-to-master`, `derive`, `tx-verify`, `tx-sign`. |
+| `kr-cat` takes file names in argv | Paths are public; the file *contents* go to stdout. This replaces shell `cat` in the shell-less image. |
 
 ## 5b. Minimal dependencies
 
@@ -155,7 +163,10 @@ Measured with `cargo tree -e normal` (unique crates excluding the crate itself):
 | crate | before: direct / total | after: direct / total | direct deps now |
 |---|---|---|---|
 | seed-repair | 12 / 52 | 1 / 8 | bip39 |
-| derive | 12 / 52 | 5 / 28 | bip39, bitcoin, sha3, zeroize, serde_json |
+| seed-to-master | (new) | 4 / 21 | bip39, bitcoin, zeroize, serde_json |
+| derive | 12 / 52 | 4 / 25 | kr-core (bitcoin, sha3, zeroize), serde_json — no bip39 any more |
+| kr-run | (new) | 1 / 13 | kr-schema |
+| kr-cat | (new) | 0 / 0 | std only |
 | keystore-open | 12 / 52 | 9 / 27 | secp256k1, sha3, scrypt, pbkdf2, sha2, aes, ctr, zeroize, serde_json |
 | kr-schema | 4 / 21 | 2 / 12 | bip39 (wordlist), serde_json |
 | kr-redact | 2 / 22 | 2 / 13 | kr-schema, serde_json |
@@ -206,8 +217,10 @@ as files in `in/` and lines from `kr-redact`.
 
 ## 8. Build and run
 
-* `Dockerfile`: two stages pinned by digest (rust:1.85-alpine → alpine:3.20),
-  static musl binaries, tests run during build, non-root user, network tools removed.
+* `Dockerfile`: build stage `rust:1.85-alpine3.20` pinned by digest (allowlist check, tests,
+  build, then `file` on every binary — the build fails unless each is statically linked).
+  Runtime stage is `FROM scratch`: only the static tools in `/kr`. No shell, no busybox,
+  no wget, no libc, no `/etc`.
 * `./keyrescue build | run '<pipeline>' | reveal '<pipeline>'`, plus `make recover`
   and `make reveal` for one-command use.
 
@@ -226,8 +239,8 @@ runtime image is 18.2 MB. Under the full sealing flags:
 
 Not yet exercised: `./keyrescue` itself (its `-v`-style bind mounts resolve on the Docker *host*, so
 with a remote context like Battleaxe, `in/` and `secrets/` must exist there; the test above fed data on stdin),
-and `reveal` with a real TTY. Note: busybox still contains a `wget` applet (symlinks removed only);
-harmless with `--network none`, but a distroless/scratch runtime would drop it.
+and `reveal` with a real TTY. (The alpine runtime measured above was replaced by `scratch` afterwards; see the
+newest verified-status section.)
 
 ## 9. Out of scope
 

@@ -8,7 +8,7 @@ pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
     "bad_input", "wrong_password", "unsupported", "error", "done",
 ];
-pub const TOOLS: &[&str] = &["seed-repair", "derive", "keystore-open", "kr-redact"];
+pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run"];
 pub const KINDS: &[&str] = &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth"];
 
 const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";

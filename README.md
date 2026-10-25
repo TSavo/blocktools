@@ -15,7 +15,7 @@ make reveal                       # human at a terminal: shows keys after typed 
 
 Status: image built and sealed run verified on Battleaxe (18.2 MB; network off, read-only rootfs, no leaks in agent output). `./keyrescue reveal` and phase-2 tools are not yet tested. See DESIGN.md "Verified status".
 
-Tools: `seed-repair`, `derive`, `keystore-open`, `kr-redact` (phase 1).
+Tools: `seed-repair`, `seed-to-master`, `derive`, `keystore-open`, `kr-redact`, `kr-run`, `kr-cat`.
 Tools read stdin and write stdout only (see DESIGN.md "Pipe principles").
 Dev: `cargo test --release && sh scripts/e2e-local.sh`.
 

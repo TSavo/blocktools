@@ -1,7 +1,6 @@
 arrayvec
 base58ck
 bech32
-bip39
 bitcoin
 bitcoin-io
 bitcoin-units
@@ -14,15 +13,13 @@ hex-conservative
 hex_lit
 itoa
 keccak
+kr-core
 memchr
 secp256k1
 secp256k1-sys
-serde
 serde_core
 serde_json
 sha3
-tinyvec
 typenum
-unicode-normalization
 zeroize
 zmij

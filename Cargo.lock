@@ -173,10 +173,9 @@ dependencies = [
 name = "derive"
 version = "0.1.0"
 dependencies = [
- "bip39",
  "bitcoin",
+ "kr-core",
  "serde_json",
- "sha3",
  "zeroize",
 ]
 
@@ -280,11 +279,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "kr-cat"
+version = "0.1.0"
+
+[[package]]
+name = "kr-core"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "sha3",
+ "zeroize",
+]
+
+[[package]]
 name = "kr-redact"
 version = "0.1.0"
 dependencies = [
  "kr-schema",
  "serde_json",
+]
+
+[[package]]
+name = "kr-run"
+version = "0.1.0"
+dependencies = [
+ "kr-schema",
 ]
 
 [[package]]
@@ -379,6 +398,16 @@ name = "seed-repair"
 version = "0.1.0"
 dependencies = [
  "bip39",
+]
+
+[[package]]
+name = "seed-to-master"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "bitcoin",
+ "serde_json",
+ "zeroize",
 ]
 
 [[package]]
