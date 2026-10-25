@@ -99,6 +99,10 @@ assert.equal(bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'zec'), 't1
 assert.equal(bt.addressValidate('zec', 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), 'P2pkh');
 const P = JSON.parse(bt.chainParams()); const pr = n => P.find(r => r.name === n);
 assert.equal(pr('ppc').decimals, 6); assert.equal(pr('btg').forkid, 79); assert.equal(pr('dash').sweep_build, true);
+assert.equal(pr('atom').hrp, 'cosmos'); assert.equal(pr('wdc').slip44, null); assert.equal(pr('bch').sweep_build, true); assert.equal(pr('eth').sweep_build, false);
+{ const T = JSON.parse(bt.chainTable()); const tr = n => T.find(c => c.name === n);
+  assert.equal(tr('bch').buildable, pr('bch').sweep_build); assert.equal(tr('eth').buildable, pr('eth').sweep_build);
+  assert.equal(tr('wdc').coin_type, null); assert.equal(tr('wdc').buildable, false); }
 const dashA = bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'dash');
 const sw = JSON.parse(bt.buildUnsignedSweep('dash', '{"txid":"75213284b51c45476cd7ac67386452786f8016f547ed064af04905af96e25bd5","vout":0,"amount":100000,"address":"XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE","prev_tx":"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff020101ffffffff01a0860100000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000"}', dashA, 10));
 assert.equal(sw.fee, '1930'); assert.equal(sw.tx_format, 'legacy');

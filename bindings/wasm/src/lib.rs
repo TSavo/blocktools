@@ -148,7 +148,7 @@ pub fn tron_build_transfer(plan: &str) -> Result<String, JsError> {
 pub fn version() -> String { blocktools::VERSION.to_string() }
 
 fn row(c: &chains::Chain) -> serde_json::Value {
-    json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
+    json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.slip44(), "verified": c.verified,
            "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
 }
 /// Verified (supported) chains: JSON [{name,ticker,title,slip44,verified:true,sources:[{name,url,api,checked}]}].

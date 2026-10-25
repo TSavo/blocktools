@@ -150,3 +150,23 @@ fn utxo(c: &str) -> String {
         assert!(build_unsigned_sweep(c, &common::line(chains::chain(c).unwrap(), 0, 100000, a), a, 10).is_ok(), "{c}");
     }
 }
+
+#[test] fn table_params_no_drift() {
+    // chainTable.buildable / coin_type / hrp must match chainParams.sweep_build / slip44 / hrp.
+    let table: Vec<serde_json::Value> = serde_json::from_str(&chains::table_json()).unwrap();
+    let params = address::params_json().as_array().unwrap().clone();
+    for c in chains::CHAINS {
+        let t = table.iter().find(|r| r["name"] == c.name).unwrap_or_else(|| panic!("table missing {}", c.name));
+        let p = params.iter().find(|r| r["name"] == c.name).unwrap_or_else(|| panic!("params missing {}", c.name));
+        assert_eq!(t["buildable"], p["sweep_build"], "{} buildable vs sweep_build", c.name);
+        assert_eq!(t["coin_type"], p["slip44"], "{} coin_type vs slip44", c.name);
+        // hrp: table embeds it only for utxo/cosmos encodings; params always has the key.
+        if let Some(h) = t.get("hrp") { assert_eq!(h, &p["hrp"], "{} hrp", c.name); }
+        else { assert!(p["hrp"].is_null(), "{} params hrp should be null when table omits it", c.name); }
+        // And both equal Chain::tx_format / slip44.
+        assert_eq!(p["sweep_build"], c.tx_format().1, "{} vs Chain::tx_format", c.name);
+        assert_eq!(p["slip44"], serde_json::json!(c.slip44()), "{} vs Chain::slip44", c.name);
+    }
+    assert_eq!(address::params_json().as_array().unwrap().iter().find(|r| r["name"] == "atom").unwrap()["hrp"], "cosmos");
+    assert!(address::params_json().as_array().unwrap().iter().find(|r| r["name"] == "wdc").unwrap()["slip44"].is_null());
+}

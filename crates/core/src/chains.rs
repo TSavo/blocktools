@@ -53,7 +53,8 @@ impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
     pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
     /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
     pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Ada | Enc::Ton | Enc::Xmr | Enc::Ss58 { .. }) } }
-impl Sign { /// tx-build / tx-sign build and sign this scheme.
+impl Sign { /// tx-build CLI can sign this scheme without a special layout (legacy / single-SHA).
+    /// Not the chain-table `buildable` / chainParams `sweep_build` bit — that is `Chain::tx_format`.
     pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
 #[derive(Clone, Copy, Debug)]
@@ -61,7 +62,8 @@ pub struct Source { pub name: &'static str, pub url: &'static str, pub api: &'st
 #[derive(Clone, Copy, Debug)]
 pub struct Chain {
     pub name: &'static str, pub ticker: &'static str, pub title: &'static str,
-    /// SLIP-44 coin type (BIP44 path). Rows with no SLIP-44 entry are `verified: false`.
+    /// SLIP-44 coin type (BIP44 path). Use `slip44()` for JSON: None when no registry entry
+    /// (wdc/anc keep a placeholder 0 here only so path templates still compile; they are unverified).
     pub coin: u32, pub enc: Enc, pub default_count: u32, pub sign: Sign,
     /// true = every parameter checked against the coin's own source (chainparams/base58.h) and
     /// SLIP-44, and an independent known-answer test passes. false rows are never "supported".
@@ -133,7 +135,31 @@ pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes: hand
 /// WIF and extended keys (groestlcoin src/base58.cpp, hash.h `HashGroestl`); everyone else sha256d.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Ck { Sha256d, Groestl }
-impl Chain { pub fn ck(&self) -> Ck { if self.name == "grs" { Ck::Groestl } else { Ck::Sha256d } } }
+impl Chain {
+    pub fn ck(&self) -> Ck { if self.name == "grs" { Ck::Groestl } else { Ck::Sha256d } }
+    /// SLIP-44 coin type for exports. `None` when the registry has no entry (not the same as BTC's 0).
+    pub fn slip44(&self) -> Option<u32> {
+        match self.name { "wdc" | "anc" => None, _ => Some(self.coin) }
+    }
+    /// PoS nTime layouts that `build_unsigned_sweep` / `pos::layout` cover (measured).
+    const POS_SWEEP: &'static [&'static str] = &["ppc", "nvc", "clam", "rdd"];
+    /// Unsigned-sweep format and whether a builder accepts this chain.
+    /// Rule for `buildable` / `sweep_build`: true only when an unsigned-sweep builder exists
+    /// and is covered by a test (verified UTXO standard/forkid/sha256-single, or PosTime with a
+    /// listed layout). EVM and account-family are false here (they use other builders). Zcash
+    /// transparent is outside CHAINS and handled by the facade.
+    pub fn tx_format(&self) -> (&'static str, bool) {
+        match (self.enc, self.sign) {
+            (Enc::Utxo { .. }, Sign::Standard) => ("legacy", self.verified),
+            (Enc::Utxo { .. }, Sign::ForkId(_)) => ("forkid", self.verified),
+            (Enc::Utxo { .. }, Sign::PosTime) => ("pos-ntime", self.verified && Self::POS_SWEEP.contains(&self.name)),
+            (Enc::Utxo { .. }, Sign::Unknown) => ("unknown", false),
+            (Enc::Utxo { .. }, Sign::Sha256Single) => ("legacy-sha256", self.verified),
+            (Enc::Eth, _) => ("evm", false),
+            _ => ("account", false),
+        }
+    }
+}
 fn groestl4(b: &[u8]) -> [u8; 4] {
     use groestl::{Digest as _, Groestl512};
     let h = Groestl512::digest(Groestl512::digest(b));
@@ -862,7 +888,7 @@ fn js(s: &str) -> String {
     o.push('"'); o
 }
 /// One chain as a JSON object: name, ticker, title, SLIP-44 coin type, curve, address encoding
-/// (with its version bytes / hrp), signer kind, whether tx-build signs it, verified, source.
+/// (with its version bytes / hrp), signer kind, whether unsigned-sweep builds it (`buildable` = `Chain::tx_format().1`), verified, source.
 /// Public data only (no keys). Used by the `chain-table` tool, wasm `chainTable` and the C ABI.
 pub fn chain_json(c: &Chain) -> String {
     let curve = match c.enc { Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton => "ed25519", Enc::Ada => "ed25519-bip32", Enc::Ss58 { .. } => "sr25519", Enc::Xmr => "ed25519-monero", _ => "secp256k1" };
@@ -873,8 +899,11 @@ pub fn chain_json(c: &Chain) -> String {
         e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", _ => "xmr" }, String::new()),
     };
     let sign = match c.sign { Sign::Standard => "standard".to_string(), Sign::ForkId(f) => format!("forkid:{f}"), Sign::PosTime => "pos_time".into(), Sign::Unknown => if matches!(c.enc, Enc::Utxo { .. }) { "none".into() } else { "account_family".into() }, Sign::Sha256Single => "sha256_single".into() };
-    format!("{{\"name\":{},\"ticker\":{},\"title\":{},\"coin_type\":{},\"curve\":\"{curve}\",\"encoding\":\"{enc}\"{extra},\"native_seed\":{},\"sign\":\"{sign}\",\"buildable\":{},\"default_count\":{},\"verified\":{},\"source\":{}}}",
-        js(c.name), js(c.ticker), js(c.title), c.coin, c.enc.native_seed(), c.sign.buildable(), c.default_count, c.verified, js(c.source))
+
+    let coin = c.slip44().map_or("null".into(), |n| n.to_string());
+    let (_, buildable) = c.tx_format();
+    format!("{{\"name\":{},\"ticker\":{},\"title\":{},\"coin_type\":{coin},\"curve\":\"{curve}\",\"encoding\":\"{enc}\"{extra},\"native_seed\":{},\"sign\":\"{sign}\",\"buildable\":{buildable},\"default_count\":{},\"verified\":{},\"source\":{}}}",
+        js(c.name), js(c.ticker), js(c.title), c.enc.native_seed(), c.default_count, c.verified, js(c.source))
 }
 /// The whole registry as a JSON array (see `chain_json`).
 pub fn table_json() -> String { format!("[{}]", CHAINS.iter().map(chain_json).collect::<Vec<_>>().join(",")) }
@@ -890,6 +919,14 @@ mod table_tests {
         assert!(btc.starts_with("{\"name\":\"btc\",\"ticker\":\"BTC\",\"title\":\"Bitcoin\",\"coin_type\":0,\"curve\":\"secp256k1\",\"encoding\":\"utxo\",\"p2pkh\":0,\"p2sh\":5,\"wif\":128,\"hrp\":\"bc\",\"taproot\":true"), "{btc}");
         assert!(super::chain_json(super::chain("bch").unwrap()).contains("\"sign\":\"forkid:0\""));
         assert!(super::chain_json(super::chain("atom").unwrap()).contains("\"hrp\":\"cosmos\""));
-        assert!(super::chain_json(super::chain("ton").unwrap()).contains("\\\"TON default seed\\\""));
+                assert!(super::chain_json(super::chain("ton").unwrap()).contains("\\\"TON default seed\\\""));
+        // buildable == sweep rule; forkid/pos true; eth/wdc false; no-SLIP44 -> null coin_type
+        assert!(super::chain_json(super::chain("bch").unwrap()).contains("\"buildable\":true"));
+        assert!(super::chain_json(super::chain("nvc").unwrap()).contains("\"buildable\":true"));
+        assert!(super::chain_json(super::chain("eth").unwrap()).contains("\"buildable\":false"));
+        assert!(super::chain_json(super::chain("wdc").unwrap()).contains("\"buildable\":false"));
+        assert!(super::chain_json(super::chain("wdc").unwrap()).contains("\"coin_type\":null"));
+        assert!(super::chain_json(super::chain("anc").unwrap()).contains("\"coin_type\":null"));
+        assert_eq!(super::chain("btc").unwrap().slip44(), Some(0));
     }
 }

@@ -106,15 +106,7 @@ pub mod address {
     /// Unsigned transaction format a row uses, and whether `tx::build_unsigned_sweep` supports it.
     pub fn tx_format(chain: &str) -> (&'static str, bool) {
         match chains::chain(chain) {
-            Some(c) => match (c.enc, c.sign) {
-                (Enc::Utxo { .. }, Sign::Standard) => ("legacy", c.verified),
-                (Enc::Utxo { .. }, Sign::ForkId(_)) => ("forkid", c.verified),
-                (Enc::Utxo { .. }, Sign::PosTime) => ("pos-ntime", c.verified && blocktools_tx::pos::layout(c.name).is_some()),
-                (Enc::Utxo { .. }, Sign::Unknown) => ("unknown", false),
-                (Enc::Utxo { .. }, Sign::Sha256Single) => ("legacy-sha256", c.verified),
-                (Enc::Eth, _) => ("evm", false), // EVM builds go through tx::build::build_evm, not the sweep
-                _ => ("account", false),
-            },
+            Some(c) => c.tx_format(), // single source with chainTable.buildable
             None if chain == "zec" => ("zcash-v5", true),
             None => ("unknown", false),
         }
@@ -125,10 +117,14 @@ pub mod address {
     pub fn params_json() -> serde_json::Value {
         use serde_json::json;
         let mut rows: Vec<serde_json::Value> = chains::CHAINS.iter().map(|c| {
-            let (fmt, sweep) = tx_format(c.name);
-            let (p2pkh, p2sh, hrp, wif) = match c.enc { Enc::Utxo { p2pkh, p2sh, hrp, wif, .. } => (json!([p2pkh]), json!([p2sh]), json!(hrp), json!(wif)), _ => (json!(null), json!(null), json!(null), json!(null)) };
+            let (fmt, sweep) = c.tx_format();
+            let (p2pkh, p2sh, hrp, wif) = match c.enc {
+                Enc::Utxo { p2pkh, p2sh, hrp, wif, .. } => (json!([p2pkh]), json!([p2sh]), json!(hrp), json!(wif)),
+                Enc::Cosmos { hrp } => (json!(null), json!(null), json!(hrp), json!(null)),
+                _ => (json!(null), json!(null), json!(null), json!(null)),
+            };
             let forkid = match c.sign { Sign::ForkId(f) => json!(f), _ => json!(null) };
-            json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
+            json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.slip44(), "verified": c.verified,
                    "p2pkh": p2pkh, "p2sh": p2sh, "hrp": hrp, "wif": wif, "checksum": if matches!(c.enc, Enc::Utxo{..}) { json!(if c.ck() == chains::Ck::Groestl { "groestl512d" } else { "sha256d" }) } else { json!(null) },
                    "decimals": decimals(c.name), "forkid": forkid, "tx_format": fmt, "sweep_build": sweep,
                    "fee_warn": fee_warn_json(c.name),
