@@ -63,6 +63,10 @@ subprocess.run([sys.executable, "scripts/make-fixtures.py", IN], check=True, std
 shutil.copy(os.path.join(IN, "descriptor-encrypted.sqlite"), os.path.join(IN, "wallet.dat"))
 shutil.copy("crates/tx/tests/vectors/block170.hex", os.path.join(IN, "block170.hex"))
 w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
+# Public BIP39 test vector with one word dropped (position 5) and with the last word unknown ("?").
+w(IN, "seed-missing.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+w(IN, "seed-unknown.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ?")
+w(IN, "targets-eth.txt", "0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
 for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"), ("fixtures/external/electrum-wallet", "electrum1-wallet"),
                  ("fixtures/external/multibit.wallet.bitcoinj.encrypted", "bitcoinj.wallet"), ("fixtures/external/multibit.wallet.bitcoinj.clear", "bitcoinj-clear.wallet"),
                  ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat"), ("fixtures/external/armory-wallet.wallet", "armory.wallet")]:

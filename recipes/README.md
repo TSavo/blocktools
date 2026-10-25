@@ -21,6 +21,8 @@ and see addresses and signed transactions only.
 | You have | Recipe | Status |
 |---|---|---|
 | 12–24 word BIP39 phrase (typos ok) | [input-seed-phrase.md](input-seed-phrase.md) | built, tested |
+| BIP39 phrase with one word missing (`?` or 11/14/17/20/23 words) | [offline-recovery-guide.md](offline-recovery-guide.md) | built, tested |
+| Offline guide: seed/key → EVM, Tron, BTC, LTC, DOGE | [offline-recovery-guide.md](offline-recovery-guide.md) | built, tested |
 | Electrum seed / wallet file | [input-electrum.md](input-electrum.md) | built, tested; Electrum 1.x not built |
 | Bitcoin Core / old-client `wallet.dat` | [input-wallet-dat.md](input-wallet-dat.md) | built, tested; real altcoin-client file untested |
 | Armory `.wallet` | [input-armory.md](input-armory.md) | built, tested on one public test wallet |

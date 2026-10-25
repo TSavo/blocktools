@@ -20,6 +20,7 @@ pub fn lev(a: &str, b: &str) -> usize {
 /// Candidate words for one token, best first. Known words map to themselves.
 pub fn word_candidates(tok: &str) -> Vec<&'static str> {
     let wl = Language::English.word_list();
+    if tok == "?" { return wl.to_vec(); }
     if let Some(i) = Language::English.find_word(tok) { return vec![wl[i as usize]]; }
     let mut c: Vec<(usize, &'static str)> = wl.iter()
         .filter_map(|w| {
@@ -33,6 +34,21 @@ pub fn word_candidates(tok: &str) -> Vec<&'static str> {
 
 fn valid(words: &[&str]) -> bool {
     Mnemonic::parse_in_normalized(Language::English, &words.join(" ")).is_ok()
+}
+
+/// Like `repair`, plus missing words: a `?` token is an unknown word (all 2048 tried), and a phrase one
+/// word short (11, 14, 17, 20, 23) is retried with `?` at every position. Results are deduplicated.
+pub fn repair_missing(tokens: &[String], max_out: usize) -> Result<Vec<(Vec<&'static str>, usize)>, &'static str> {
+    if ![11, 14, 17, 20, 23].contains(&tokens.len()) { return repair(tokens, max_out); }
+    let mut out: Vec<(Vec<&'static str>, usize)> = Vec::new();
+    for pos in 0..=tokens.len() {
+        let mut t = tokens.to_vec(); t.insert(pos, "?".into());
+        for r in repair(&t, max_out)? {
+            if !out.iter().any(|o| o.0 == r.0) { out.push(r) }
+            if out.len() >= max_out { return Ok(out) }
+        }
+    }
+    Ok(out)
 }
 
 /// Returns checksum-valid phrases (as word vectors) and how many words changed.
@@ -93,6 +109,15 @@ mod repair_tests {
         // last word replaced by a valid-but-wrong word -> checksum search must find "about"
         let r = repair(&t("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"), 5000).unwrap();
         assert!(r.iter().any(|(w, _)| w.join(" ") == V));
+    }
+    #[test] fn missing_word_any_position() {
+        let w: Vec<String> = V.split(' ').map(String::from).collect();
+        let mut short = w.clone(); short.remove(4);
+        let r = repair_missing(&short, 5000).unwrap();
+        assert!(r.iter().any(|(x, _)| x.join(" ") == V));
+        let mut q = w.clone(); q[11] = "?".into();
+        let r = repair_missing(&q, 5000).unwrap();
+        assert!(r.iter().any(|(x, _)| x.join(" ") == V));
     }
     #[test] fn bad_len() { assert_eq!(repair(&t("abandon about"), 1).unwrap_err(), "bad_input"); }
 }
