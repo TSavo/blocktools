@@ -7,3 +7,4 @@ license.workspace = true
 bitcoin.workspace = true
 sha3.workspace = true
 zeroize.workspace = true
+ed25519-dalek.workspace = true

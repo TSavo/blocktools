@@ -1,0 +1,11 @@
+[package]
+name = "key-to-addresses"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+kr-io = { path = "../../crates/kr-io" }
+kr-core = { path = "../../crates/kr-core" }
+bitcoin.workspace = true
+serde_json.workspace = true
+zeroize.workspace = true

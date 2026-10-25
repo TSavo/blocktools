@@ -11,10 +11,10 @@ use std::process::{Child, Command, Stdio};
 const ALLOWED: &[&str] = &[
     "seed-repair", "seed-to-master", "derive", "keystore-open", "kr-cat", "kr-redact",
     "dat-read", "electrum-read", "multibit-read", "armory-read",
-    "tx-verify", "tx-sign", "tx-build-sweep",
+    "tx-verify", "tx-sign", "tx-build-sweep", "key-to-addresses", "classify",
 ];
 
-fn out(status: &str) -> ! { println!(r#"{{"tool":"kr-run","status":"{status}"}}"#); std::process::exit(2) }
+fn out(status: &str) -> ! { kr_io::outln!(r#"{{"tool":"kr-run","status":"{status}"}}"#); std::process::exit(2) }
 
 pub struct Stage { pub prog: String, pub args: Vec<String>, pub input: Option<String> }
 
@@ -101,7 +101,7 @@ fn main() {
             if ans.trim() != code { let _ = writeln!(tty, "aborted"); out("error"); }
             let ch = spawn(&stages, Stdio::from(tty)).unwrap_or_else(|e| out(e));
             for mut c in ch { let _ = c.wait(); }
-            println!(r#"{{"tool":"kr-run","status":"done"}}"#);
+            kr_io::outln!(r#"{{"tool":"kr-run","status":"done"}}"#);
         }
         _ => out("bad_input"),
     }

@@ -18,7 +18,7 @@ use zeroize::Zeroizing;
 type Dec = cbc::Decryptor<aes::Aes256>;
 const T: &str = "dat-read";
 
-fn status(s: &str) { println!(r#"{{"tool":"{T}","status":"{s}"}}"#); }
+fn status(s: &str) { kr_io::outln!(r#"{{"tool":"{T}","status":"{s}"}}"#); }
 fn die(s: &str) -> ! { status(s); std::process::exit(2) }
 
 /// Bitcoin CompactSize-prefixed byte vector.
@@ -165,7 +165,7 @@ fn main() {
                 let Ok(dp) = bitcoin::bip32::DerivationPath::from_str(&format!("m/{}", steps.join("/"))) else { continue };
                 let Ok(a) = x.derive_priv(&secp, &dp) else { continue }; a };
             let br = branch.map(|b| format!(r#","branch":{b}"#)).unwrap_or_default();
-            println!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{kind}","path":"{path}"{br},"xprv":"{x}"}}"#);
+            kr_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{kind}","path":"{path}"{br},"xprv":"{x}"}}"#);
             used.push(pk); n += 1;
         }
     }
@@ -174,9 +174,9 @@ fn main() {
         if used.contains(pk) { continue; }
         let Ok(sk) = SecretKey::from_slice(&s[..]) else { continue };
         for r in kr_core::key_rows(&sk, pk.len() == 33) {
-            println!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{}","address":"{}","wif":"{}"}}"#, r.kind, r.address, r.secret);
+            kr_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{}","address":"{}","wif":"{}"}}"#, r.kind, r.address, r.secret);
         }
         n += 1;
     }
-    println!(r#"{{"tool":"{T}","status":"done","count":{n}}}"#);
+    kr_io::outln!(r#"{{"tool":"{T}","status":"done","count":{n}}}"#);
 }

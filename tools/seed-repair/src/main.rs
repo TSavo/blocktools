@@ -85,25 +85,25 @@ fn main() {
     while i < args.len() {
         match args[i].as_str() {
             "--max" => { max_out = args.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or(1000); i += 1; }
-            _ => { println!(r#"{{"tool":"seed-repair","status":"bad_input"}}"#); std::process::exit(2); }
+            _ => { kr_io::outln!(r#"{{"tool":"seed-repair","status":"bad_input"}}"#); std::process::exit(2); }
         }
         i += 1;
     }
     let mut raw = Vec::new();
     // Pipe principle: the phrase arrives on stdin only, never via argv/env/file name.
     let res = std::io::stdin().take(MAX_INPUT).read_to_end(&mut raw);
-    if res.is_err() { println!(r#"{{"tool":"seed-repair","status":"bad_input"}}"#); std::process::exit(2); }
+    if res.is_err() { kr_io::outln!(r#"{{"tool":"seed-repair","status":"bad_input"}}"#); std::process::exit(2); }
     let text = String::from_utf8_lossy(&raw).to_lowercase();
     let tokens: Vec<String> = text.split(|c: char| !c.is_ascii_lowercase()).filter(|t| !t.is_empty() && t.len() <= 16).map(String::from).collect();
     match repair(&tokens, max_out) {
         Ok(v) => {
             for (n, (w, c)) in v.iter().enumerate() {
                 // Words come from the BIP39 wordlist (a-z only), so no JSON escaping is needed.
-                println!(r#"{{"tool":"seed-repair","status":"checksum_ok","candidate":{n},"changed_words":{c},"mnemonic":"{}"}}"#, w.join(" "));
+                kr_io::outln!(r#"{{"tool":"seed-repair","status":"checksum_ok","candidate":{n},"changed_words":{c},"mnemonic":"{}"}}"#, w.join(" "));
             }
-            println!(r#"{{"tool":"seed-repair","status":"{}","count":{}}}"#, if v.is_empty() {"no_candidates"} else {"done"}, v.len());
+            kr_io::outln!(r#"{{"tool":"seed-repair","status":"{}","count":{}}}"#, if v.is_empty() {"no_candidates"} else {"done"}, v.len());
         }
-        Err(s) => { println!(r#"{{"tool":"seed-repair","status":"{s}","count":0}}"#); std::process::exit(1); }
+        Err(s) => { kr_io::outln!(r#"{{"tool":"seed-repair","status":"{s}","count":0}}"#); std::process::exit(1); }
     }
 }
 

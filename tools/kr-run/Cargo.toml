@@ -4,4 +4,5 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 [dependencies]
+kr-io = { path = "../../crates/kr-io" }
 kr-schema = { path = "../../crates/kr-schema" }

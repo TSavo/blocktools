@@ -23,13 +23,14 @@ fn main() {
             Ok(mn) => {
                 let seed = Zeroizing::new(mn.to_seed_normalized(&passphrase));
                 let master = Xpriv::new_master(Network::Bitcoin, &seed[..]).expect("seed");
-                println!(r#"{{"tool":"seed-to-master","status":"ok","candidate":{cand},"xprv":"{}"}}"#, master);
+                let hex = Zeroizing::new(seed.iter().map(|b| format!("{b:02x}")).collect::<String>());
+                kr_io::outln!(r#"{{"tool":"seed-to-master","status":"ok","candidate":{cand},"scheme":"bip39","xprv":"{}","seed":"{}"}}"#, master, hex.as_str());
                 n += 1;
             }
-            Err(_) => println!(r#"{{"tool":"seed-to-master","status":"checksum_fail","candidate":{cand}}}"#),
+            Err(_) => kr_io::outln!(r#"{{"tool":"seed-to-master","status":"checksum_fail","candidate":{cand}}}"#),
         }
     }
-    println!(r#"{{"tool":"seed-to-master","status":"done","count":{n}}}"#);
+    kr_io::outln!(r#"{{"tool":"seed-to-master","status":"done","count":{n}}}"#);
 }
 
 #[cfg(test)]

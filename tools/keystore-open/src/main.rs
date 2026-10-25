@@ -70,7 +70,7 @@ fn eth_address(k: &[u8; 32]) -> Result<String, &'static str> {
     Ok(format!("0x{}", a.chars().zip(ch.chars()).map(|(c, k)| if k.to_digit(16).unwrap() >= 8 { c.to_ascii_uppercase() } else { c }).collect::<String>()))
 }
 
-fn st(s: &str) -> ! { println!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
+fn st(s: &str) -> ! { kr_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
 
 fn read_tty_password() -> Zeroizing<String> {
     // Prompt the HUMAN on the controlling terminal; never stdin/argv/env.
@@ -95,7 +95,7 @@ fn main() {
         (Zeroizing::new(p.trim_end_matches('\r').to_string()), rest)
     };
     match open(json, pw.as_bytes()).and_then(|k| Ok((eth_address(&k)?, hex_enc(&k[..])))) {
-        Ok((addr, k)) => println!(r#"{{"tool":"keystore-open","status":"ok","kind":"eth","address":"{addr}","private_key":"{k}"}}"#),
+        Ok((addr, k)) => kr_io::outln!(r#"{{"tool":"keystore-open","status":"ok","kind":"eth","address":"{addr}","private_key":"{k}"}}"#),
         Err(e) => st(e),
     }
 }

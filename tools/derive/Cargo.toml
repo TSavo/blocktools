@@ -8,3 +8,7 @@ kr-core = { path = "../../crates/kr-core" }
 bitcoin.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true
+kr-io = { path = "../../crates/kr-io" }
+[dev-dependencies]
+kr-schema = { path = "../../crates/kr-schema" }
+bip39.workspace = true

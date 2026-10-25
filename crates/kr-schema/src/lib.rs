@@ -8,18 +8,28 @@ pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
     "bad_input", "wrong_password", "unsupported", "error", "done",
 ];
-pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run", "kr-cat", "dat-read"];
-pub const KINDS: &[&str] = &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth"];
+pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run", "kr-cat", "dat-read",
+    "key-to-addresses", "classify", "tx-verify", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read"];
+pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol"];
+pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-old"];
+/// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
+/// that a key exists (and which kind), never its value.
+pub const SECRET_FIELDS: &[&str] = &["wif", "private_key", "xprv", "seed", "mnemonic", "passphrase", "password", "secret", "signed_tx_secret"];
+pub const PLACEHOLDER: &str = "[REDACTED]";
 
 const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const BECH: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 fn all_in(s: &str, set: &str) -> bool { s.chars().all(|c| set.contains(c)) }
 fn is_b58(c: char) -> bool { B58.contains(c) }
 
+/// Address shapes: base58 (btc/ltc/doge/tron/xrp 25-35 chars; sol 32-44 is only accepted with
+/// "chain":"sol", see redact_line), bech32 bc1/ltc1, 0x+40 hex.
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
-    ((s.starts_with('1') || s.starts_with('3')) && (26..=35).contains(&n) && all_in(s, B58))
+    ((25..=44).contains(&n) && all_in(s, B58))
         || (s.starts_with("bc1") && (42..=62).contains(&n) && all_in(&s[3..], BECH))
+        || (s.starts_with("ltc1") && (43..=63).contains(&n) && all_in(&s[4..], BECH))
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
 pub fn is_path(s: &str) -> bool {
@@ -45,6 +55,9 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "tool" => s.map_or(false, |s| TOOLS.contains(&s)),
         "status" => s.map_or(false, |s| STATUSES.contains(&s)),
         "kind" => s.map_or(false, |s| KINDS.contains(&s)),
+        "chain" => s.map_or(false, |s| CHAINS.contains(&s)),
+        "scheme" => s.map_or(false, |s| SCHEMES.contains(&s)),
+        k if SECRET_FIELDS.contains(&k) => return None, // replaced by a placeholder in redact_line
         "address" => s.map_or(false, is_address),
         "path" => s.map_or(false, is_path),
         "candidate" | "count" | "index" | "changed_words" | "line" | "branch" => small_uint(v),
@@ -62,6 +75,10 @@ pub fn looks_secret(text: &str) -> bool {
         if !cur.is_empty() { out.push(cur) } out
     };
     if run(&|c: char| c.is_ascii_hexdigit()).iter().any(|r| r.len() >= 64) { return true; }
+    // Long base58 tokens that are not addresses (e.g. a 64-byte ed25519 keypair, 88 chars).
+    for tok in text.split(|c: char| !c.is_ascii_alphanumeric()) {
+        if tok.len() >= 45 && all_in(tok, B58) && !is_address(tok) { return true; }
+    }
     for r in run(&is_b58) {
         if r.len() >= 24 && ["xprv", "yprv", "zprv", "tprv", "uprv", "vprv"].iter().any(|p| r.contains(p)) { return true; }
         // WIF-shaped: 51-52 base58 chars starting 5/9/K/L/c.
@@ -83,6 +100,7 @@ pub fn redact_line(raw: &str) -> Option<String> {
     let obj = v.as_object()?;
     let mut out = Map::new();
     for (k, val) in obj {
+        if SECRET_FIELDS.contains(&k.as_str()) { out.insert(k.clone(), Value::String(PLACEHOLDER.into())); continue; }
         match validate(k, val) {
             Some(true) => { out.insert(k.clone(), val.clone()); }
             Some(false) => return None,
@@ -90,6 +108,10 @@ pub fn redact_line(raw: &str) -> Option<String> {
         }
     }
     if !out.contains_key("status") { return None; }
+    // A 32-44 char base58 "address" is only plausible for Solana (a base58 32-byte key has the same shape).
+    if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
+        if a.len() > 35 && all_in(a, B58) && out.get("chain").and_then(|c| c.as_str()) != Some("sol") { return None; }
+    }
     let line = serde_json::to_string(&Value::Object(out)).ok()?;
     if line.len() > 512 || looks_secret(&line) { return None; }
     Some(line)
@@ -102,13 +124,13 @@ mod tests {
     #[test] fn passes_public() {
         let l = r#"{"tool":"derive","status":"ok","kind":"p2wpkh","path":"m/84'/0'/0'/0/0","address":"bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu","wif":"KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d"}"#;
         let o = redact_line(l).unwrap();
-        assert!(!o.contains("wif") && o.contains("bc1q"));
+        assert!(o.contains(r#""wif":"[REDACTED]""#) && o.contains("bc1q") && !o.contains("KyZp"));
     }
     #[test] fn drops_secret_fields() {
         for l in [
             format!(r#"{{"status":"ok","mnemonic":"{MN}"}}"#),
             r#"{"status":"ok","private_key":"1ab2"}"#.to_string(),
-        ] { let o = redact_line(&l).unwrap(); assert_eq!(o, r#"{"status":"ok"}"#); }
+        ] { let o = redact_line(&l).unwrap(); assert!(o.contains("[REDACTED]") && !o.contains("abandon") && !o.contains("1ab2"), "{o}"); }
     }
     // All key-like strings below are public test vectors / textbook examples, not real keys.
     #[test] fn rejects_secret_smuggled_in_allowed_field() {
@@ -122,6 +144,13 @@ mod tests {
             r#"{"tool":"derive"}"#.into(),
         ];
         for c in cases { assert!(redact_line(&c).is_none(), "leaked: {c}"); }
+    }
+    #[test] fn sol_shape_only_with_chain_sol() {
+        let a = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"; // public vector address
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"sol","address":"{a}"}}"#)).is_some());
+        assert!(redact_line(&format!(r#"{{"status":"ok","address":"{a}"}}"#)).is_none());
+        // 88-char base58 (keypair-shaped, made of public-vector address twice) anywhere -> dropped
+        assert!(looks_secret(&format!("{a}{a}")));
     }
     #[test] fn scanner() {
         assert!(looks_secret(MN));

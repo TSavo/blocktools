@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 [dependencies]
+kr-io = { path = "../../crates/kr-io" }
 kr-core = { path = "../../crates/kr-core" }
 bitcoin.workspace = true
 aes.workspace = true

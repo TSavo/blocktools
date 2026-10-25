@@ -3,7 +3,8 @@
 # Only public test vectors / throwaway self-made fixtures are used.
 set -eu
 B="$PWD/target/release"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-LEAK='wif|private_key|mnemonic|xprv|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"'
+# Secret VALUES (field names may appear: kr-redact keeps them with a "[REDACTED]" placeholder).
+LEAK='"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret)":"[^[]|xprv[1-9A-Za-z]{20}|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"|[1-9A-HJ-NP-Za-km-z]{60,}'
 # boundary <name> <expect-substring> <pipeline>   (stdin = data)
 boundary() {
   "$B/kr-run" agent "$3" > "$T/$1.jsonl"
@@ -14,7 +15,7 @@ boundary() {
 SEED="abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot"
 # 1. raw tools DO print secrets (control)
 echo "$SEED" | "$B/seed-repair" | "$B/seed-to-master" | "$B/derive" --count 1 > "$T/raw.jsonl"
-grep -q '"wif"' "$T/raw.jsonl" || { echo "FAIL raw control"; exit 1; }
+grep -Eq '"wif":"[KL5]' "$T/raw.jsonl" || { echo "FAIL raw control"; exit 1; }
 echo "ok  raw control: tools print keys ($(grep -c wif "$T/raw.jsonl") wif lines)"
 # 2. full pipe through the boundary
 echo "$SEED" | boundary seed 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu' 'seed-repair | seed-to-master | derive --count 2'
@@ -25,6 +26,7 @@ echo "$SEED" | boundary half '"tool":"seed-to-master"' 'seed-repair | seed-to-ma
 "$B/kr-run" agent 'derive ; id' | grep -q bad_input && echo "ok  kr-run refuses shell syntax"
 # 5. human mode without a terminal refuses
 if setsid "$B/kr-run" human 'seed-repair' </dev/null 2>/dev/null | grep -q bad_input; then echo "ok  human mode refuses without tty"; else echo "FAIL human no-tty"; exit 1; fi
+grep -q '"wif":"\[REDACTED\]"' "$T/seed.jsonl" && echo "ok  placeholders: secret fields labelled, values gone"
 # extra checks appended by later milestones
 for f in scripts/e2e.d/*.sh; do [ -f "$f" ] && . "$f"; done
 echo "e2e: all ok"
