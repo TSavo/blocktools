@@ -1,5 +1,6 @@
 block-buffer
 blocktools-monero
+blocktools-tty
 cfg-if
 cpufeatures
 crypto-common
@@ -9,6 +10,7 @@ digest
 generic-array
 itoa
 keccak
+libc
 memchr
 proc-macro2
 quote

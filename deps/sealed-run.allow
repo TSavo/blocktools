@@ -3,12 +3,15 @@ bip39
 bitcoin_hashes
 blocktools-io
 blocktools-schema
+blocktools-tty
 hex-conservative
 itoa
+libc
 memchr
 serde
 serde_core
 serde_json
 tinyvec
 unicode-normalization
+zeroize
 zmij

@@ -12,7 +12,7 @@ rec() {
   echo "$3" > "$R/funded"; : > "$R/log"; printf '%s\n' "${4:-}" > "$R/pw"
   dst=$D; ch=${5:-btc}; case $3 in 0x*) dst=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF ;; esac
   case $ch in ltc) dst=LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ ;; doge) dst=DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE ;; esac
-  BIN=$B python3 scripts/tty-drive.py right /dev/null "$R/$1.out" "$PWD/recipes/recover.sh" "$2" "$dst" \
+  BIN=$B python3 scripts/e2e-only/tty-drive.py right /dev/null "$R/$1.out" "$PWD/recipes/recover.sh" "$2" "$dst" \
     --url "$RU" --count 2 --chain "$ch" --password-file "$R/pw" > "$R/$1.tty" 2>&1 || { echo "FAIL recover $1"; cat "$R/$1.tty" "$R/$1.out"; exit 1; }
   if ! grep -q '"status":"ok"' "$R/$1.out" || [ "$(grep -Ec '^/tx |eth_sendRawTransaction' "$R/log")" != 1 ]; then echo "FAIL recover $1: not broadcast once"; cat "$R/$1.out"; exit 1; fi
   # txids are public 64-hex: strip them; then nothing key-shaped may remain in stdout or on the terminal
@@ -41,7 +41,7 @@ echo bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu > "$R/addr.txt"; : > "$R/log"
 if BIN=$B recipes/recover.sh "$R/addr.txt" $D --url "$RU" 2>/dev/null; then echo "FAIL recover address"; exit 1; fi
 [ ! -s "$R/log" ] && echo "ok  recover address: watch-only, refused (exit 3), nothing sent"
 echo bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu > "$R/funded"
-BIN=$B python3 scripts/tty-drive.py wrong /dev/null "$R/w.out" "$PWD/recipes/recover.sh" "$R/seed.txt" $D --url "$RU" > "$R/w.tty" 2>&1 || true
+BIN=$B python3 scripts/e2e-only/tty-drive.py wrong /dev/null "$R/w.out" "$PWD/recipes/recover.sh" "$R/seed.txt" $D --url "$RU" > "$R/w.tty" 2>&1 || true
 if [ ! -s "$R/log" ] && grep -q aborted "$R/w.tty"; then echo "ok  recover wrong code: aborted at tx-sign, nothing sent"; else echo "FAIL recover wrong"; exit 1; fi
 kill $RM 2>/dev/null; wait $RM 2>/dev/null || true
 # Monero (public monero-python test seed): classify -> xmr-keys prints the public address, then stops (exit 3)

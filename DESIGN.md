@@ -57,7 +57,7 @@ host (agent)                         sealed container (--network none)
 | Persistence of secrets on disk | Only tmpfs is writable; inputs mounted read-only; `--log-driver none` |
 | Blind signing / tampered unsigned tx | `tx-verify` decodes inside the container; human confirms on the TTY (§6) |
 | Password in agent context, argv or env | Passwords come only from a read-only file in `/secrets` or a `/dev/tty` prompt |
-| Agent runs `reveal` | `reveal` needs a real TTY and a random code typed by the human; agent shells have no TTY |
+| Agent runs `reveal` | `reveal` needs a controlling terminal and a random typed code. **Residual risk:** an agent that can spawn a pty can satisfy this (scripts/e2e-only/tty-drive.py does). Optional terminal pinning (`sealed-run pin-tty`) refuses other sessions but is defeated by a same-user agent that rewrites the pin; see SECURITY.md |
 
 Out of reach: a compromised Docker host (Battleaxe) or kernel, or a human who
 pastes keys into chat.

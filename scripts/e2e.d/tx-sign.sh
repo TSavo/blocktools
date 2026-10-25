@@ -18,8 +18,16 @@ $B/tx-verify --expect-to $D < $T/p >/dev/null && echo "ok   tx-verify accepts ex
 $B/tx-sign --tx $T/p < $T/k | grep -q "expect-to" && echo "ok   tx-sign requires --expect-to" || f expect
 $B/tx-sign --tx $T/p --expect-to $D --max-fee 1000 < $T/k | grep -q fee_above_cap && echo "ok   tx-sign fee cap" || f cap
 setsid $B/tx-sign --tx $T/p --expect-to $D < $T/k | grep -q aborted && echo "ok   tx-sign refuses without terminal" || f notty
-python3 scripts/tty-drive.py wrong $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D >/dev/null || true
+python3 scripts/e2e-only/tty-drive.py wrong $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D >/dev/null || true
 grep -q aborted $T/o && ! grep -q signed_tx $T/o && echo "ok   tx-sign wrong code -> nothing signed" || f wrong
-python3 scripts/tty-drive.py right $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D > $T/tty
+# Terminal pinning: a pin made in one pty session refuses a code typed from a fresh pty (the
+# agent-spawned-pty case). Limit: an agent that can write the pin file can re-pin; see SECURITY.md.
+BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right /dev/null $T/pinout $PWD/$B/sealed-run pin-tty > /dev/null
+grep -q pinned $T/pinout && [ "$(stat -c %a $T/pin 2>/dev/null || stat -f %Lp $T/pin)" = 600 ] || f pin
+BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D > $T/tty.pin || true
+grep -q tty_session_not_pinned $T/tty.pin && ! grep -q signed_tx $T/o && echo "ok   pinned terminal: code from another pty session refused" || f pinrefuse
+BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right /dev/null $T/o2 $PWD/$B/sealed-run human "derive --help" > /dev/null || true
+grep -q tty_session_not_pinned $T/o2 && echo "ok   pinned terminal: sealed-run human refused from another session" || f pinhuman
+python3 scripts/e2e-only/tty-drive.py right $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D > $T/tty
 grep -q "TRANSACTION (btc psbt, SIGNED)" $T/tty && grep -q "Checks passed" $T/tty || f summary
 $B/tx-decode --text < $T/o | grep -q "SIGNED" && $B/tx-verify --expect-to $D < $T/o >/dev/null && echo "ok   tx-sign right code -> signed, decodes, re-verifies" || f sign

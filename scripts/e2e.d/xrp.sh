@@ -10,9 +10,9 @@ echo sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r > "$X/ed.seed"; echo sp5fghtJtpUorTwvof1NpD
   --sweep --balance 30000000 --fee 12 --sequence 7 --last-ledger 9000000 > "$X/u.json" 2> "$X/u.err"
 grep -q '"destination_tag":11747' "$X/u.json" && ! grep -q destination_tag_missing "$X/u.err" || { echo "FAIL xrp build tag"; cat "$X/u.json"; exit 1; }
 "$B/xrp-tx" build --account rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD --to r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59 --amount 1 --fee 12 --sequence 7 2>&1 >/dev/null | grep -q "WARNING destination_tag_missing" || { echo "FAIL xrp tag warning"; exit 1; }
-python3 scripts/tty-drive.py wrong "$X/ed.seed" "$X/s0.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t0" 2>&1 || true
+python3 scripts/e2e-only/tty-drive.py wrong "$X/ed.seed" "$X/s0.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t0" 2>&1 || true
 grep -q '"status":"aborted"' "$X/s0.json" || { echo "FAIL xrp wrong code must abort"; cat "$X/s0.json"; exit 1; }
-python3 scripts/tty-drive.py right "$X/ed.seed" "$X/s.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t" 2>&1
+python3 scripts/e2e-only/tty-drive.py right "$X/ed.seed" "$X/s.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t" 2>&1
 grep -q '"status":"ok"' "$X/s.json" || { echo "FAIL xrp sign"; cat "$X/s.json" "$X/t"; exit 1; }
 "$B/xrp-tx" decode < "$X/s.json" | grep -q '"signature_valid":true' || { echo "FAIL xrp signed decode"; exit 1; }
 "$B/xrp-tx" sign --tx "$X/u.json" --expect-to r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59 < "$X/secp.seed" | grep -q key_does_not_match_account || { echo "FAIL xrp wrong key accepted"; exit 1; }

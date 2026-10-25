@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Test helper: run a command with a real controlling terminal (pty) and answer the
+"""E2E ONLY. Never install or ship this; it is not a blocktools tool.
+It is also the proof of a residual risk: any process that can fork a pty can read the
+confirmation code and type it, so /dev/tty alone does not prove a human (SECURITY.md).
+Test helper: run a command with a real controlling terminal (pty) and answer the
 confirmation prompt. stdin <- IN file, stdout -> OUT file; the pty carries only the prompt.
 usage: tty-drive.py right|wrong IN OUT cmd args...   prints the terminal transcript."""
 import os, pty, re, sys

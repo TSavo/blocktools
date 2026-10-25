@@ -54,6 +54,7 @@ fn code() -> String {
     format!("{:06}", u32::from_le_bytes(b) % 1_000_000)
 }
 fn tty_confirm(summary: &str) -> bool {
+    if let Err(e) = blocktools_tty::pin_check() { eprintln!("refused: {e}"); return false }
     let mut t = match std::fs::OpenOptions::new().read(true).write(true).open("/dev/tty") { Ok(t) => t, Err(_) => return false };
     let c = code();
     let _ = write!(t, "{summary}\nType {c} to broadcast, anything else aborts: ");

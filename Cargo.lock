@@ -1238,6 +1238,7 @@ version = "0.1.0"
 dependencies = [
  "blocktools-io",
  "blocktools-schema",
+ "blocktools-tty",
 ]
 
 [[package]]
@@ -1690,6 +1691,7 @@ name = "xmr-wallet"
 version = "0.1.0"
 dependencies = [
  "blocktools-monero",
+ "blocktools-tty",
  "serde_json",
  "zeroize",
 ]

@@ -51,6 +51,7 @@ pub fn code() -> Option<String> {
 /// Returns false on any mismatch / no terminal. Never reads from stdin.
 pub fn confirm(summary: &str) -> bool {
     let (Some(mut tty), Some(c)) = (open(), code()) else { return false };
+    if let Err(e) = pin_check() { let _ = writeln!(tty, "refused: {e} (see SECURITY.md, terminal pinning)"); return false }
     let _ = write!(tty, "{summary}\nType the code {c} to confirm (anything else aborts): ");
     let mut ans = Vec::new();
     let mut b = [0u8; 1];
@@ -60,7 +61,67 @@ pub fn confirm(summary: &str) -> bool {
     ok
 }
 
+// ---- Terminal pinning (partial mitigation, see SECURITY.md) ----
+// A process that owns a pty (e.g. an agent running Python's pty.fork) can read the code and type it:
+// /dev/tty alone does not prove a human. Pinning records the human's terminal session (session id +
+// controlling-tty device) once; while a pin exists, confirm() refuses from any other session, so a
+// freshly spawned pty does not pass. Limits: anyone who can write or delete the pin file (same Unix
+// user) or inject into the pinned terminal itself (TIOCSTI, ptrace, tmux/screen send-keys) defeats it.
+
+/// (session id, controlling tty device number) of this process. Linux only (reads /proc); None elsewhere.
+pub fn session() -> Option<(i64, u64)> {
+    // SAFETY: getsid(0) has no memory effects.
+    let sid = unsafe { libc::getsid(0) } as i64;
+    let st = std::fs::read_to_string("/proc/self/stat").ok()?;
+    let f: Vec<&str> = st.rsplit_once(')')?.1.split_whitespace().collect();
+    let tty: u64 = f.get(4)?.parse().ok()?; // field 7 tty_nr (fields after comm: state ppid pgrp session tty_nr)
+    if sid <= 0 || tty == 0 { return None }
+    Some((sid, tty))
+}
+/// Pin files: the account's home from the password database (not $HOME, which a caller controls)
+/// and, additionally, $BLOCKTOOLS_TTY_PIN. An env var can add a pin but never remove one.
+pub fn pin_paths() -> Vec<std::path::PathBuf> {
+    let mut v = vec![];
+    // SAFETY: getpwuid returns a pointer into static storage or null; copied out immediately.
+    unsafe {
+        let pw = libc::getpwuid(libc::getuid());
+        if !pw.is_null() && !(*pw).pw_dir.is_null() {
+            let d = std::ffi::CStr::from_ptr((*pw).pw_dir).to_string_lossy().into_owned();
+            v.push(std::path::Path::new(&d).join(".config/blocktools/tty-pin"));
+        }
+    }
+    if let Some(e) = std::env::var_os("BLOCKTOOLS_TTY_PIN") { v.push(e.into()) }
+    v
+}
+pub fn pin_matches(pin: &str, cur: Option<(i64, u64)>) -> bool {
+    let mut it = pin.split_whitespace().map(|x| x.parse::<i64>());
+    match (it.next(), it.next(), cur) { (Some(Ok(s)), Some(Ok(t)), Some((cs, ct))) => s == cs && t as u64 == ct, _ => false }
+}
+/// Ok when no pin exists, or every existing pin names this session. Fails closed on unreadable pins.
+pub fn pin_check() -> Result<(), &'static str> {
+    for p in pin_paths() {
+        if !p.exists() { continue }
+        let s = std::fs::read_to_string(&p).map_err(|_| "tty_pin_unreadable")?;
+        if !pin_matches(&s, session()) { return Err("tty_session_not_pinned") }
+    }
+    Ok(())
+}
+/// Record this terminal session as the only one confirm() accepts (after a typed code). Mode 0600.
+pub fn pin_here(path: &std::path::Path) -> Result<(), &'static str> {
+    let (sid, tty) = session().ok_or("no_controlling_tty_session")?;
+    if !confirm(&format!("Pin this terminal (session {sid}, tty {tty}) as the only one that may confirm?")) { return Err("aborted") }
+    if let Some(d) = path.parent() { std::fs::create_dir_all(d).map_err(|_| "io")? }
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut f = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path).map_err(|_| "io")?;
+    writeln!(f, "{sid} {tty}").map_err(|_| "io")
+}
+
 #[cfg(test)]
 mod tests {
+    #[test] fn pin_compare() {
+        use super::pin_matches as m;
+        assert!(m("100 34816\n", Some((100, 34816)))); assert!(!m("100 34816", Some((101, 34816))));
+        assert!(!m("100 34816", Some((100, 34817)))); assert!(!m("100 34816", None)); assert!(!m("junk", Some((1, 1))));
+    }
     #[test] fn code_shape() { let c = super::code().unwrap(); assert_eq!(c.len(), 6); assert!(c.chars().all(|x| x.is_ascii_alphanumeric())); assert_ne!(c, super::code().unwrap()); }
 }

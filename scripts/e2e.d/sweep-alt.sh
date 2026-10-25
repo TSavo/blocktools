@@ -16,7 +16,7 @@ sweep() { # chain from-addr-segwit-or-empty from-p2pkh to
   { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; if [ $c = zec ]; then printf '{"txid":"%s","vout":1,"amount":%s,"address":"%s"}\n' $TID ${AMT:-30000} $p; else $MU $c 1 ${AMT:-30000} $p; fi; } > $T/u.$c
   $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 ${TIME:+--time $TIME} > $T/p.$c || { cat $T/p.$c; f "$c build"; }
   $B/tx-verify --chain $c --expect-to $d < $T/p.$c >/dev/null || f "$c verify"
-  python3 scripts/tty-drive.py right $T/k $T/o.$c $PWD/$B/tx-sign --tx $T/p.$c --expect-to $d > $T/tty.$c || f "$c sign"
+  python3 scripts/e2e-only/tty-drive.py right $T/k $T/o.$c $PWD/$B/tx-sign --tx $T/p.$c --expect-to $d > $T/tty.$c || f "$c sign"
   grep -q "Checks passed" $T/tty.$c || f "$c summary"
   $B/tx-decode --chain $c < $T/o.$c > $T/d.$c && grep -q '"signed":true' $T/d.$c || f "$c decode"
   $B/tx-verify --chain $c --expect-to $d < $T/o.$c >/dev/null || f "$c reverify"

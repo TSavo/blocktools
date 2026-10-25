@@ -7,3 +7,4 @@ description = "blocktools sealed-run. DANGEROUS: use at your own risk. Code that
 [dependencies]
 blocktools-io = { path = "../../crates/io" }
 blocktools-schema = { path = "../../crates/schema" }
+blocktools-tty = { path = "../../crates/tty" }

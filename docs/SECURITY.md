@@ -26,9 +26,8 @@
 * Not externally reviewed; no fuzzing yet, no formal review of the parsers against hostile files
   beyond size bounds and unit tests.
 * Docker image verification on real hardware is done per release step only.
-* Terminal confirmation reads /dev/tty; an attacker who controls the terminal
-  (or a TTY emulator / agent with terminal access) can type the code. That residual
-  risk is inherent: a human must read the summary themselves.
+* Terminal confirmation is NOT proof of a human: any process that can spawn a pty can type the
+  code (see "Terminal confirmation: residual risk" below). Terminal pinning narrows it; it doesn't close it.
 * Signing / broadcasting tools are tested only against fixtures and a mock server.
 * Old git history (commit 360a78e) contains throwaway test wallet files (public
   phrases, no value); history is deliberately not rewritten.
@@ -50,3 +49,28 @@ or when its txid (chain digest: GRS single SHA-256) or output disagrees with the
 fails with `legacy_input_amount_unproven` (not waivable by `--allow-warnings`); `tx-sign` refuses to sign such an
 input. Zcash (ZIP-243/244) and forkid chains (BCH/BSV/BTG) commit to amounts in the sighash, so a lying amount only
 produces an invalid signature; the PSBT check still applies to them.
+
+## Terminal confirmation: residual risk (security review 2026-10-25)
+
+Earlier docs said "agent shells have no TTY". That is false: any process that can fork a pseudo-terminal
+(Python `pty.fork`, `script`, `expect`, tmux) gets a controlling terminal, reads the code from it and
+types it back. scripts/e2e-only/tty-drive.py does exactly that, and e2e uses it to drive `reveal`,
+`sealed-run human` and `tx-sign`. The typed code proves that *something* answered on a terminal, not
+that a human read the summary.
+
+Partial mitigation: **terminal pinning.** The human runs `sealed-run pin-tty` once in their own terminal.
+It records that terminal's session id and controlling-tty device in `~/.config/blocktools/tty-pin`
+(from the password database, not `$HOME`; mode 0600). `$BLOCKTOOLS_TTY_PIN` can add a second pin but
+can't remove one. While a pin exists, every confirmation (`tx-sign`, `tx-broadcast`, `acct-tx`, `xrp-tx`,
+`xmr-wallet`, `sealed-run human`) refuses from any other session with `tty_session_not_pinned`. An unreadable pin
+fails closed. e2e checks that a pin made in one pty refuses a code from a freshly spawned pty.
+
+What it does NOT stop:
+* an agent running as the same Unix user can delete or rewrite the pin (or pin its own pty first);
+* injection into the pinned terminal itself (TIOCSTI where the kernel allows it, ptrace,
+  `tmux send-keys`, terminal-emulator automation);
+* platforms without /proc (macOS): there the session can't be read, so any pin fails closed and
+  confirmation is refused while a pin exists.
+
+It only helps when the agent runs as a different user (or in a container) that can't write the pin.
+The real control is still the human reading the summary on a terminal the agent does not drive.

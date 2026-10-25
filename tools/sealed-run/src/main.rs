@@ -2,6 +2,7 @@
 //! WITHOUT a shell (no expansion, no injection), then:
 //!   sealed-run agent '<pipeline>'  -> stdout = redacted public JSON lines only
 //!   sealed-run human '<pipeline>'  -> raw output (keys!) to /dev/tty after a typed code
+//!   sealed-run pin-tty             -> pin this terminal session; afterwards codes are accepted only from it
 //! Pipeline grammar: `tool args... [< file] | tool args... | ...`
 //! Tokens are whitespace-separated. Only tools that live next to sealed-run and are
 //! on the allowlist can be run. Tool stderr is discarded.
@@ -73,6 +74,11 @@ fn random_code() -> String {
 fn main() {
     blocktools_io::help("sealed-run agent|human '<pipeline>': run an allowlisted tool pipeline; agent mode prints only redacted output");
     let a: Vec<String> = std::env::args().collect();
+    if a.len() == 2 && a[1] == "pin-tty" {
+        // Human-only: pin this terminal session (partial mitigation against agent-spawned ptys; SECURITY.md).
+        let p = blocktools_tty::pin_paths().into_iter().last().unwrap_or_else(|| out("error")); // $BLOCKTOOLS_TTY_PIN if set, else ~/.config/blocktools/tty-pin
+        match blocktools_tty::pin_here(&p) { Ok(()) => { blocktools_io::outln!(r#"{{"tool":"sealed-run","status":"pinned"}}"#); return } Err(e) => out(e) }
+    }
     let (mode, pipeline) = match (a.get(1), a.get(2), a.len()) { (Some(m), Some(p), 3) => (m.clone(), p.clone()), _ => out("bad_input") };
     let stages = parse(&pipeline).unwrap_or_else(|e| out(e));
     match mode.as_str() {
@@ -95,6 +101,7 @@ fn main() {
             let _ = writeln!(o, r#"{{"tool":"redact","status":"done","count":{kept},"index":{dropped}}}"#);
         }
         "human" => {
+            if let Err(e) = blocktools_tty::pin_check() { out(e) }
             let mut tty = std::fs::OpenOptions::new().read(true).write(true).open("/dev/tty").unwrap_or_else(|_| out("bad_input"));
             let code = random_code();
             let _ = write!(tty, "This will print PRIVATE KEYS to this terminal.\nType the code {code} to continue: ");
