@@ -123,7 +123,8 @@ pub fn detect_address(addr: &str) -> String {
 #[wasm_bindgen(js_name = detectAddressInfo)]
 pub fn detect_address_info(addr: &str) -> String {
     let d = blocktools::address::detect(addr);
-    let kinds: Vec<String> = d.iter().map(|(_, k)| format!("{k:?}")).collect();
+    // XRP X-addresses (XLS-5d) validate as kind Xrp; report them as "xaddress" so callers know a tag may be embedded.
+    let kinds: Vec<String> = d.iter().map(|(c, k)| if *c == "xrp" && addr.starts_with('X') { "xaddress".into() } else { format!("{k:?}") }).collect();
     json!({"candidates": d.iter().zip(&kinds).map(|((c, _), k)| json!({"chain": c, "kind": k})).collect::<Vec<_>>(),
            "ambiguous": d.len() > 1, "kinds_agree": kinds.windows(2).all(|w| w[0] == w[1])}).to_string()
 }

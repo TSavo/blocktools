@@ -16,6 +16,9 @@ pub fn b58dec(s: &str) -> Result<Vec<u8>, &'static str> { bitcoin::base58::decod
 /// 32-byte public key from base58.
 pub fn pubkey(s: &str) -> Result<[u8; 32], &'static str> { b58dec(s)?.try_into().map_err(|_| "bad_length") }
 /// True if the 32 bytes decompress to an ed25519 point (a wallet key can sign; a PDA must not be on curve).
+/// Same call Solana's runtime uses (`curve25519_dalek` `CompressedEdwardsY::decompress`), so edge encodings
+/// follow dalek, not strict RFC 8032: a non-canonical y (y >= p, reduced mod p) and x = 0 with the sign bit
+/// set both count as on curve.
 pub fn is_on_curve(k: &[u8; 32]) -> bool { CompressedEdwardsY(*k).decompress().is_some() }
 
 /// `create_program_address`: sha256(seeds ‖ program ‖ "ProgramDerivedAddress"); errors if on curve.
@@ -62,9 +65,48 @@ pub struct Lookup { pub table: [u8; 32], pub writable: Vec<u8>, pub readonly: Ve
 pub struct SolTx {
     pub signatures: Vec<[u8; 64]>, pub version: Option<u8>, pub header: [u8; 3], pub keys: Vec<[u8; 32]>,
     pub blockhash: [u8; 32], pub ixs: Vec<Ix>, pub lookups: Vec<Lookup>, pub message: Vec<u8>,
+    /// v1 (SIMD-0385) transaction config: (mask, priority_fee_lamports, compute_unit_limit, loaded_accounts_data_size_limit, heap_size).
+    pub config: Option<V1Config>,
+}
+#[derive(Clone, Debug, Default)]
+pub struct V1Config { pub mask: u32, pub priority_fee: Option<u64>, pub cu_limit: Option<u32>, pub loaded_data_limit: Option<u32>, pub heap_size: Option<u32> }
+
+/// v1 wire format (SIMD-0385, prefix 0x81): header, u32 config mask, blockhash, u8 counts, inline addresses,
+/// config values, fixed instruction headers then payloads, signatures at the tail. Applies the SIMD's
+/// sanitization rules (size <= 4096, <= 12 signatures, <= 64 addresses / instructions, no duplicate
+/// addresses, both priority-fee bits or neither, heap 32..256 KiB in 1 KiB steps, no unknown mask bits).
+fn parse_v1(raw: &[u8]) -> Result<SolTx, &'static str> {
+    if raw.len() > 4096 { return Err("v1_too_large") }
+    let mut r = Rd { b: raw, i: 1 };
+    let header: [u8; 3] = r.take(3)?.try_into().unwrap();
+    let mask = u32::from_le_bytes(r.take(4)?.try_into().unwrap());
+    let blockhash = r.take(32)?.try_into().unwrap();
+    let ni = r.u8()? as usize; let na = r.u8()? as usize;
+    if ni > 64 || na > 64 { return Err("v1_limits") }
+    let mut keys: Vec<[u8; 32]> = Vec::new(); for _ in 0..na { keys.push(r.take(32)?.try_into().unwrap()) }
+    if mask & !0x1f != 0 { return Err("v1_unknown_config_bits") }
+    if (mask & 1) != ((mask >> 1) & 1) { return Err("v1_priority_fee_bits") }
+    let mut c = V1Config { mask, ..Default::default() };
+    let w = |r: &mut Rd| -> Result<u32, &'static str> { Ok(u32::from_le_bytes(r.take(4)?.try_into().unwrap())) };
+    if mask & 3 == 3 { c.priority_fee = Some(u64::from_le_bytes(r.take(8)?.try_into().unwrap())) }
+    if mask & 4 != 0 { c.cu_limit = Some(w(&mut r)?) }
+    if mask & 8 != 0 { c.loaded_data_limit = Some(w(&mut r)?) }
+    if mask & 16 != 0 { let h = w(&mut r)?; if h % 1024 != 0 || !(32 * 1024..=256 * 1024).contains(&h) { return Err("v1_heap_size") } c.heap_size = Some(h) }
+    let mut hdrs = Vec::new(); for _ in 0..ni { let b = r.take(4)?; hdrs.push((b[0] as usize, b[1] as usize, u16::from_le_bytes([b[2], b[3]]) as usize)) }
+    let mut ixs = Vec::new();
+    for (program, nacc, nd) in hdrs { let accounts = r.take(nacc)?.iter().map(|&x| x as usize).collect(); ixs.push(Ix { program, accounts, data: r.take(nd)?.to_vec() }) }
+    let ms = r.i; let ns = header[0] as usize;
+    if ns > 12 { return Err("too_many_signatures") }
+    let mut signatures = Vec::new(); for _ in 0..ns { signatures.push(r.take(64)?.try_into().unwrap()) }
+    if r.i != raw.len() { return Err("trailing_bytes") }
+    if ns == 0 || header[1] as usize >= ns || ns + header[2] as usize > na { return Err("bad_header") }
+    let mut sorted = keys.clone(); sorted.sort(); sorted.dedup(); if sorted.len() != na { return Err("v1_duplicate_address") }
+    for ix in &ixs { if ix.program >= na || ix.accounts.iter().any(|&a| a >= na) { return Err("bad_account_index") } }
+    Ok(SolTx { signatures, version: Some(1), header, keys, blockhash, ixs, lookups: vec![], message: raw[..ms].to_vec(), config: Some(c) })
 }
 /// Parse a wire transaction (signatures + legacy or v0 message). Rejects trailing bytes and bad indices.
 pub fn parse_tx(raw: &[u8]) -> Result<SolTx, &'static str> {
+    match raw.first() { Some(0x81) => return parse_v1(raw), Some(&b) if b > 0x81 && b & 0x80 != 0 => return Err("unsupported_version"), _ => {} }
     let mut r = Rd { b: raw, i: 0 };
     let ns = r.sv()?; if ns > 64 { return Err("too_many_signatures") }
     let mut signatures = Vec::new(); for _ in 0..ns { signatures.push(r.take(64)?.try_into().unwrap()) }
@@ -88,7 +130,7 @@ pub fn parse_tx(raw: &[u8]) -> Result<SolTx, &'static str> {
     if (header[0] as usize) > nk || (header[1] as usize) > header[0] as usize || (header[2] as usize) > nk - header[0] as usize { return Err("bad_header") }
     let total = nk + lookups.iter().map(|l| l.writable.len() + l.readonly.len()).sum::<usize>();
     for ix in &ixs { if ix.program >= nk || ix.accounts.iter().any(|&a| a >= total) { return Err("bad_account_index") } }
-    Ok(SolTx { signatures, version: v, header, message: raw[ms..].to_vec(), keys, blockhash, ixs, lookups })
+    Ok(SolTx { signatures, version: v, header, message: raw[ms..].to_vec(), keys, blockhash, ixs, lookups, config: None })
 }
 impl SolTx {
     fn key(&self, i: usize) -> String { self.keys.get(i).map(|k| b58enc(k)).unwrap_or_else(|| format!("lookup#{}", i - self.keys.len())) }
@@ -155,7 +197,7 @@ fn decode_ix(t: &SolTx, ix: &Ix) -> Value {
         MEMO => json!({"kind": "memo", "text": String::from_utf8_lossy(d)}),
         _ => json!({"kind": "unknown", "accounts": ix.accounts.iter().map(|&i| t.key(i)).collect::<Vec<_>>(), "data": crate::hex_enc(d)}),
     };
-    v["program"] = json!(p); v
+    v["program"] = json!(p); v["program_index"] = json!(ix.program); v["account_indexes"] = json!(ix.accounts); v["data_hex"] = json!(crate::hex_enc(d)); v
 }
 /// JSON decode of a wire transaction.
 pub fn decode_tx(raw: &[u8]) -> Result<Value, &'static str> {
@@ -168,6 +210,7 @@ pub fn decode_tx(raw: &[u8]) -> Result<Value, &'static str> {
         "instructions": t.ixs.iter().map(|ix| decode_ix(&t, ix)).collect::<Vec<_>>(),
         "signatures": t.verify_signatures(),
         "message_hex": crate::hex_enc(&t.message),
+        "config": t.config.as_ref().map(|c| json!({"mask": c.mask, "priority_fee_lamports": c.priority_fee.map(|x| x.to_string()), "compute_unit_limit": c.cu_limit, "loaded_accounts_data_size_limit": c.loaded_data_limit, "heap_size": c.heap_size})),
     }))
 }
 /// Verify a transaction against expectations. `expect`: {owner?, to?, lamports? (decimal), mint?, amount?, allow_programs?: [..]}.
@@ -200,8 +243,13 @@ pub fn verify_tx(raw: &[u8], expect: &Value) -> Result<Value, &'static str> {
     if s("to").is_some() && !seen_to { fail.push("recipient_not_paid".into()) }
     if let Some(l) = s("lamports") { if l.parse::<u128>().ok() != Some(lam) { fail.push("lamports_mismatch".into()) } }
     if let Some(a) = s("amount") { if a.parse::<u128>().ok() != Some(tok) { fail.push("amount_mismatch".into()) } }
+    // Only signatures that ed25519-verify count as signed; invalid ones fail the whole check.
+    let st = |w: &str| d["signatures"].as_array().unwrap().iter().filter(|x| x["status"] == w).count();
+    let (nv, ni, nu) = (st("valid"), st("invalid"), st("unsigned"));
+    if nu > 0 { warn.push("unsigned".into()) }
     fail.sort(); fail.dedup();
-    Ok(json!({"ok": fail.is_empty(), "failures": fail, "warnings": warn, "txid": d["txid"], "lamports": lam.to_string(), "token_amount": tok.to_string()}))
+    Ok(json!({"ok": fail.is_empty(), "failures": fail, "warnings": warn, "txid": d["txid"],
+        "signatures_valid": nv, "signatures_invalid": ni, "signatures_unsigned": nu, "fully_signed": ni == 0 && nu == 0 && nv > 0, "lamports": lam.to_string(), "token_amount": tok.to_string()}))
 }
 
 #[cfg(test)]
@@ -244,5 +292,22 @@ mod t {
         assert_eq!(verify_tx(&bad, &json!({})).unwrap()["ok"], false);
         assert!(parse_tx(&h(&LEGACY[..LEGACY.len() - 2])).is_err());
         let mut tr = h(LEGACY); tr.push(0); assert_eq!(parse_tx(&tr).unwrap_err(), "trailing_bytes");
+        let d = decode_tx(&h(LEGACY)).unwrap()["instructions"][0].clone();
+        assert_eq!(d["program_index"], 2); assert_eq!(d["account_indexes"], json!([0, 1])); assert_eq!(d["data_hex"], "0200000087d6120000000000");
+    }
+    #[test] fn invalid_signature_fails_closed() {
+        let mut bad = h(LEGACY); bad[1] ^= 1; // corrupt R of the only signature
+        let v = verify_tx(&bad, &json!({"owner": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9", "to": OWNER, "lamports": "1234567"})).unwrap();
+        assert_eq!(v["ok"], false); assert!(v["failures"].as_array().unwrap().contains(&json!("bad_signature")));
+        assert_eq!(v["signatures_valid"], 0); assert_eq!(v["signatures_invalid"], 1); assert_eq!(v["fully_signed"], false);
+        let v = verify_tx(&h(LEGACY), &json!({})).unwrap(); assert_eq!(v["fully_signed"], true); assert_eq!(v["signatures_valid"], 1);
+    }
+    #[test] fn on_curve_edges_match_dalek() {
+        // Expected values from solders Pubkey.is_on_curve (Solana's curve25519-dalek decompress).
+        let mut x0 = [0u8; 32]; x0[0] = 1; x0[31] = 0x80; assert!(is_on_curve(&x0)); // x = 0 with sign bit
+        let mut p1 = [0xffu8; 32]; p1[0] = 0xee; p1[31] = 0x7f; assert!(is_on_curve(&p1)); // y = p+1 (non-canonical 1)
+        let mut p0 = p1; p0[0] = 0xed; assert!(is_on_curve(&p0)); // y = p (non-canonical 0)
+        p1[31] = 0xff; assert!(is_on_curve(&p1)); // y = p+1, sign bit set
+        let mut p2 = p0; p2[0] = 0xef; assert!(!is_on_curve(&p2)); // y = p+2 (2 is not a valid y)
     }
 }

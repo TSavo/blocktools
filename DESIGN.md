@@ -283,6 +283,8 @@ tx-decode  (offline)        ->  on the SIGNED output: same outputs, fee and send
 tx-broadcast (host)         ->  submit the raw bytes (mock-tested only)
 ```
 
+**Solana**: legacy, v0 and v1 (SIMD-0385) wire transactions decode and verify; `is_on_curve` is dalek `decompress`, as in the Solana runtime.
+
 **Swap-deposit PSBTs** (`buildPsbtWithMemo`) follow THORChain's UTXO output order: vault, change, then OP_RETURN memo (optional).
 
 **Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host

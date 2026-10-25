@@ -14,7 +14,7 @@ rc=0
 bad=$(cargo tree -q --locked --target wasm32-unknown-unknown -e normal --prefix none | awk '{print $1}' | sort -u \
   | grep -xE 'blocktools-secrets|blocktools-net|blocktools-tty|blocktools-io|bip39|scrypt|pbkdf2|aes|cbc|ctr|ed25519-dalek|minreq|rustls|ring|tokio|getrandom|rand' || true)
 [ -z "$bad" ] || { echo "FAIL wasm dep tree has: $bad"; rc=1; }
-rm -rf pkg && wasm-bindgen "$W" --out-dir pkg/node --target nodejs && wasm-bindgen "$W" --out-dir pkg/web --target web
+rm -rf pkg && wasm-bindgen "$W" --out-dir pkg/node --target nodejs && wasm-bindgen "$W" --out-dir pkg/web --target web && echo '{"type":"module"}' > pkg/web/package.json
 M=pkg/web/blocktools_wasm_bg.wasm
 python3 ../../scripts/wasm-names.py "$M" funcs > target/funcs.txt
 [ -s target/funcs.txt ] || { echo "FAIL no name section to check"; rc=1; }
@@ -24,6 +24,7 @@ exp=$(python3 ../../scripts/wasm-names.py "$M" exports | awk '{print $2}' | sort
 want="__externref_table_alloc __externref_table_dealloc __wbindgen_export_0 __wbindgen_free __wbindgen_malloc __wbindgen_realloc __wbindgen_start addressToScript addressValidate addressesFromXpub base58Decode base58Encode blake2b buildPsbtWithMemo buildUnsignedSweep buildUnsignedSweepAt cashAddrDecode cashAddrEncode cashAddrToLegacy chainParams checkTx convertAddress convertAddressFrom decodeAccountInfo decodeTx deriveFromXpub describeTx detectAddress detectAddressInfo explainPlan legacyToCashAddr listChains memory polkadotAccountStorageKey recoveryTables rustsecp256k1_v0_10_0_context_create rustsecp256k1_v0_10_0_context_destroy rustsecp256k1_v0_10_0_default_error_callback_fn rustsecp256k1_v0_10_0_default_illegal_callback_fn scriptToAddress solAnchorDiscriminator solAssociatedTokenAddress solDecodeTx solFindProgramAddress solIsOnCurve solVerifyTx ss58Decode ss58Encode supportedChains tronDecodeTx tronTxId twox128 unverifiedChains validateAddress verifyRecovery verifyRecoveryRaw verifySweepRaw verifySweepTx verifyTx version "
 [ "$exp" = "$want" ] || { echo "FAIL exports differ:"; echo " got  $exp"; echo " want $want"; rc=1; }
 node test.mjs || rc=1
+node test-web.mjs || rc=1
 raw=$(wc -c < "$M"); gz=$(gzip -9c "$M" | wc -c)
 wasm-bindgen "$W" --out-dir target/stripped --target web --remove-name-section --remove-producers-section
 st=$(wc -c < target/stripped/blocktools_wasm_bg.wasm); stgz=$(gzip -9c target/stripped/blocktools_wasm_bg.wasm | wc -c)

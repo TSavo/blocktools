@@ -45,7 +45,13 @@ assert.equal(JSON.parse(bt.checkTx('{')).ok, false);
   if (!i.ambiguous || !i.kinds_agree || !i.candidates.some(c => c.chain === "btc")) throw new Error("detectAddressInfo btc");
   const j = JSON.parse(bt.detectAddressInfo("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"));
   if (j.ambiguous || j.candidates.length !== 1 || j.candidates[0].chain !== "btc") throw new Error("detectAddressInfo bech32");
-  if (JSON.parse(bt.detectAddressInfo("nope")).candidates.length !== 0) throw new Error("detectAddressInfo empty"); }
+  if (JSON.parse(bt.detectAddressInfo("nope")).candidates.length !== 0) throw new Error("detectAddressInfo empty");
+  // XLS-5d test vector (xrpl.org address-codec): X-address -> kind "xaddress"; classic r-address stays "Xrp"
+  const x = JSON.parse(bt.detectAddressInfo("X7AcgcsBL6XDcUb289X4mJ8djcdyKaB5hJDWMArnXr61cqZ"));
+  if (x.candidates.length !== 1 || x.candidates[0].chain !== "xrp" || x.candidates[0].kind !== "xaddress") throw new Error("detectAddressInfo xaddress " + JSON.stringify(x));
+  if (bt.validateAddress("xrp", "X7AcgcsBL6XDcUb289X4mJ8djcdyKaB5hJDWMArnXr61cqZ") !== "Xrp") throw new Error("xaddr validate");
+  const r = JSON.parse(bt.detectAddressInfo("r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59"));
+  if (r.candidates[0].kind !== "Xrp") throw new Error("r-address kind"); }
 const det = a => JSON.parse(bt.detectAddress(a)).map(x => x.chain).sort();
 assert.deepEqual(det('DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE'), ['dgb', 'doge']);
 assert.deepEqual(det('t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), ['zec']);
@@ -197,3 +203,10 @@ console.log('verifier + xrp ok');
   }
 }
 console.log('addressToScript case + zec ok');
+{ // Solana v1 (SIMD-0385) tx signed by @solana/kit 8.5 (throwaway key)
+  const d = JSON.parse(bt.solDecodeTx('810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901'));
+  assert.equal(d.version, 1); assert.equal(d.config.priority_fee_lamports, '7777'); assert.equal(d.signatures[0].status, 'valid');
+  assert.equal(typeof d.instructions[0].data_hex, 'string'); assert.ok(Array.isArray(d.instructions[0].account_indexes));
+  const v = JSON.parse(bt.solVerifyTx('810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901', '{}')); assert.equal(v.fully_signed, true);
+  console.log('sol v1 ok');
+}
