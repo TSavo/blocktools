@@ -10,18 +10,21 @@ while [ ! -s "$R/port" ]; do sleep 0.1; done; RU=http://127.0.0.1:$(cat "$R/port
 rec() {
   if [ ! -f "$2" ]; then echo "skip recover $1: $2 absent (scripts/fetch-fixtures.sh)"; return 0; fi
   echo "$3" > "$R/funded"; : > "$R/log"; printf '%s\n' "${4:-}" > "$R/pw"
-  dst=$D; case $3 in 0x*) dst=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF ;; esac
+  dst=$D; ch=${5:-btc}; case $3 in 0x*) dst=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF ;; esac
+  case $ch in ltc) dst=LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ ;; doge) dst=DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE ;; esac
   BIN=$B python3 scripts/tty-drive.py right /dev/null "$R/$1.out" "$PWD/recipes/recover.sh" "$2" "$dst" \
-    --url "$RU" --count 2 --password-file "$R/pw" > "$R/$1.tty" 2>&1 || { echo "FAIL recover $1"; cat "$R/$1.tty" "$R/$1.out"; exit 1; }
+    --url "$RU" --count 2 --chain "$ch" --password-file "$R/pw" > "$R/$1.tty" 2>&1 || { echo "FAIL recover $1"; cat "$R/$1.tty" "$R/$1.out"; exit 1; }
   if ! grep -q '"status":"ok"' "$R/$1.out" || [ "$(grep -Ec '^/tx |eth_sendRawTransaction' "$R/log")" != 1 ]; then echo "FAIL recover $1: not broadcast once"; cat "$R/$1.out"; exit 1; fi
   # txids are public 64-hex: strip them; then nothing key-shaped may remain in stdout or on the terminal
   if sed -E 's/(txid[": ]*|id )[0-9a-f]{64}//g' "$R/$1.out" "$R/$1.tty" | grep -Eq "$LEAK"; then echo "LEAK recover $1"; exit 1; fi
-  echo "ok  recover $1: $(sed -n 's/^recover: classified as //p' "$R/$1.tty") -> signed sweep, confirmed twice, broadcast once"
+  echo "ok  recover $1 ($ch): $(sed -n 's/^recover: classified as //p' "$R/$1.tty") -> signed sweep, confirmed twice, broadcast once"
 }
 echo "abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot" > "$R/seed.txt"
 rec seed-typo "$R/seed.txt" bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu
 echo "cycle rocket west magnet parrot shuffle foot correct salt library feed song" > "$R/electrum-seed.txt"
 rec electrum-seed "$R/electrum-seed.txt" 1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf
+rec seed-ltc "$R/seed.txt" ltc1qjmxnz78nmc8nq77wuxh25n2es7rzm5c2rkk4wh "" ltc
+rec seed-doge "$R/seed.txt" DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC "" doge
 echo 0000000000000000000000000000000000000000000000000000000000000001 > "$R/key.hex"
 rec hex-key "$R/key.hex" bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
 echo KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn > "$R/key.wif"

@@ -12,7 +12,7 @@ The steps:
 Keys are never written to disk. They are re-derived and piped straight into `tx-sign`.
 
 The e2e test runs this end to end against a 127.0.0.1 mock chain for seed (with typos), Electrum seed and
-wallet, wallet.dat, raw hex key, WIF, MultiBit and Ethereum keystore (Litecoin and Dogecoin sweeps through this script are UNTESTED), with both codes typed
+wallet, wallet.dat, raw hex key, WIF, MultiBit, Ethereum keystore, Litecoin and Dogecoin, with both codes typed
 by a pty driver. A wrong code aborts with nothing sent. That flow needs a terminal, so it isn't one of the
 one-line examples here. The watch-only refusal is:
 

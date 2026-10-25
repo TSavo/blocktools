@@ -42,6 +42,11 @@ pub fn parse_key_line(s: &str) -> Option<SecretKey> {
         _ => s.to_string(),
     });
     if let Ok(k) = bitcoin::PrivateKey::from_wif(&tok) { return Some(k.inner) }
+    // Altcoin WIF (any version byte: LTC 0xB0, DOGE 0x9E, ...): version + 32 bytes [+ 0x01].
+    if let Ok(d) = bitcoin::base58::decode_check(&tok) {
+        let d = Zeroizing::new(d);
+        if d.len() == 33 || (d.len() == 34 && d[33] == 1) { return SecretKey::from_slice(&d[1..33]).ok() }
+    }
     let h = tok.strip_prefix("0x").unwrap_or(&tok);
     if h.len() == 64 { return SecretKey::from_slice(&Zeroizing::new(blocktools_core::hex_dec(h)?)).ok() }
     None
@@ -50,6 +55,15 @@ pub fn parse_key_line(s: &str) -> Option<SecretKey> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn altcoin_wif_lines() {
+        // private key 1 as LTC (0xB0) and DOGE (0x9E) compressed WIF, from the chain table encoder
+        let one = SecretKey::from_slice(&[[0u8; 31].as_slice(), &[1]].concat()).unwrap();
+        for v in [0xB0u8, 0x9E] {
+            let mut p = vec![v]; p.extend([0u8; 31]); p.extend([1, 1]);
+            let w = bitcoin::base58::encode_check(&p);
+            assert_eq!(parse_key_line(&format!(r#"{{"wif":"{w}"}}"#)), Some(one));
+        }
+    }
     #[test] fn encodings_of_privkey_one() {
         // private key 1 (textbook value) in several encodings
         let hex = format!("{}01", "0".repeat(62));

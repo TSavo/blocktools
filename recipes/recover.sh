@@ -74,10 +74,11 @@ if [ $CHAIN != eth ]; then
 else
   "$B/tx-build" --chain eth --chain-id "$CID" --account "$W/utxos" --to "$DEST" --sweep > "$W/psbt"
 fi
-"$B/tx-decode" --text < "$W/psbt" >&2
+dc=eth; [ $CHAIN = eth ] || dc=$CHAIN
+"$B/tx-decode" --chain $dc --text < "$W/psbt" >&2
 
 # 5. Sign (human types the code on the terminal), then broadcast (human types another code).
-extra=(); if [ $CHAIN = eth ]; then extra=(--chain-id "$CID"); fi
+extra=(--chain $CHAIN); if [ $CHAIN = eth ]; then extra=(--chain-id "$CID"); fi
 keys | "$B/tx-sign" --tx "$W/psbt" --expect-to "$DEST" "${extra[@]}" > "$W/signed"
 grep -q '"status":"ok"' "$W/signed" || { cat "$W/signed"; exit 1; }
 "$B/tx-broadcast" --chain $CHAIN "${url[@]}" < "$W/signed"
