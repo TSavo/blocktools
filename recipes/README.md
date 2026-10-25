@@ -28,6 +28,7 @@ and see addresses and signed transactions only.
 | Ethereum keystore JSON | [input-keystore.md](input-keystore.md) | built, tested |
 | xpub / ypub / zpub / address (watch-only) | [input-xpub-address.md](input-xpub-address.md) | built, tested |
 | XRP family seed (`s...`, `sEd...`) | [xrp.md](xrp.md) | built, tested |
+| Algorand 25-word mnemonic | [chain-algorand.md](chain-algorand.md) | addresses only, tested |
 | Stellar secret (`S...`) | [chain-stellar.md](chain-stellar.md) | addresses only, tested |
 | Monero 25 words | [monero.md](monero.md) | keys/address built; scan, sweep not built |
 | Don't know | [input-unknown.md](input-unknown.md) | classify |
@@ -45,6 +46,7 @@ and see addresses and signed transactions only.
 | Tron | ✅ | ✗ | ✗ | [chain-tron.md](chain-tron.md) |
 | Solana | ✅ | ✗ | ✗ | [chain-solana.md](chain-solana.md) |
 | Cosmos Hub | ✅ | ✗ | ✗ | [chain-cosmos.md](chain-cosmos.md) |
+| Algorand | ✅ (own mnemonic) | ✗ | ✗ | [chain-algorand.md](chain-algorand.md) |
 | Stellar | ✅ | ✗ | ✗ | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | view-only request | ✗ (design) | [monero.md](monero.md) |
 

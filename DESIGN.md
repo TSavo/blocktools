@@ -125,7 +125,10 @@ all-hardened (SLIP-10) and need the `seed` field from seed-to-master. Stellar (`
 `m/44'/148'/{i}'`): address = StrKey G (version 6<<3), secret = StrKey S (18<<3), base32 +
 CRC16-XModem LE (chains::strkey_encode/strkey_decode). KATs: SEP-0005 vector 1 (crates/secrets/tests/xlm.rs). Cosmos Hub (`atom`, Enc::Cosmos{hrp}):
 secp256k1 `m/44'/118'/0'/0/{i}`, address = plain bech32(hrp, hash160(compressed pubkey)),
-secret = 32-byte hex `private_key`. KAT: cosmjs Secp256k1HdWallet default address.
+secret = 32-byte hex `private_key`. KAT: cosmjs Secp256k1HdWallet default address. Algorand (`algo`, Enc::Algo): native 25-word
+mnemonic only (BIP39 English words, 11-bit little-endian packing, checksum word = sha512/256(key)
+bits 0..10; core feature `algo`), address = base32(pub || sha512/256(pub)[28..]); not derived
+from BIP39 seeds (derive skips it, like Monero). KAT: py-algorand-sdk test mnemonic/address.
 Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 

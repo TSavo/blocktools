@@ -25,6 +25,9 @@ pub enum Enc {
     Sol,
     /// Cosmos SDK: secp256k1, bech32(hrp, ripemd160(sha256(compressed pubkey))), m/44'/118'/0'/0/i
     Cosmos { hrp: &'static str },
+    /// Algorand: ed25519 key from the native 25-word mnemonic (no BIP32 path); address =
+    /// base32(pub || sha512/256(pub)[28..])
+    Algo,
     /// Stellar: ed25519, SLIP-0010, SEP-0005 path m/44'/148'/i'; StrKey G... / S...
     Xlm,
     /// Monero: ed25519 spend/view keys from its own 25-word seed (crates/monero); not secp-derivable.
@@ -39,7 +42,9 @@ pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
     /// (and its hashPrevouts/hashSequence/hashOutputs) are single SHA-256 (Groestlcoin).
     Sha256Single }
 impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
-    pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) } }
+    pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
+    /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
+    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Xmr) } }
 impl Sign { /// tx-build / tx-sign build and sign this scheme.
     pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
@@ -76,6 +81,7 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "tron", ticker: "TRX", title: "Tron", coin: 195, enc: Enc::Tron, default_count: 10, sign: Unknown, verified: true, source: "tronprotocol docs: 0x41 || keccak20, base58check", sources: &[] },
     Chain { name: "xrp", ticker: "XRP", title: "XRP Ledger", coin: 144, enc: Enc::Xrp, default_count: 10, sign: Unknown, verified: true, source: "xrpl.org: account ID, ripple base58 alphabet", sources: &[] },
     Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos" }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
+    Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
@@ -201,7 +207,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Cosmos { hrp } => vec![row("cosmos", cosmos_address(hrp, &h160(&pk.serialize())))],
-        Enc::Sol | Enc::Xlm | Enc::Xmr => vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Xmr => vec![],
     }
 }
 /// Cosmos SDK account address: plain bech32 (not segwit) of a 20-byte hash.
@@ -221,30 +227,83 @@ fn crc16_xmodem(d: &[u8]) -> u16 {
     c
 }
 const B32: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+/// RFC 4648 base32, no padding (Stellar StrKey, Algorand addresses).
+pub fn b32_encode(d: &[u8]) -> String {
+    let (mut out, mut acc, mut bits) = (String::new(), 0u32, 0);
+    for b in d { acc = (acc << 8) | *b as u32; bits += 8; while bits >= 5 { bits -= 5; out.push(B32[((acc >> bits) & 31) as usize] as char) } }
+    if bits > 0 { out.push(B32[((acc << (5 - bits)) & 31) as usize] as char) }
+    out
+}
+/// Inverse of b32_encode; rejects other characters and non-zero trailing bits.
+pub fn b32_decode(s: &str) -> Result<Vec<u8>, &'static str> {
+    let (mut d, mut acc, mut bits) = (Vec::new(), 0u32, 0);
+    for ch in s.bytes() {
+        let v = B32.iter().position(|&x| x == ch).ok_or("bad base32")? as u32;
+        acc = ((acc << 5) | v) & 0xffff; bits += 5;
+        if bits >= 8 { bits -= 8; d.push((acc >> bits) as u8) }
+    }
+    if bits >= 5 || acc & ((1 << bits) - 1) != 0 { return Err("bad base32") }
+    Ok(d)
+}
 /// Stellar StrKey: base32(version || payload || crc16-xmodem LE), no padding.
 /// Versions: 6<<3 = 'G' account id, 18<<3 = 'S' seed.
 pub fn strkey_encode(version: u8, payload: &[u8]) -> String {
     let mut d = vec![version]; d.extend_from_slice(payload);
     let c = crc16_xmodem(&d); d.extend_from_slice(&c.to_le_bytes());
-    let (mut out, mut acc, mut bits) = (String::new(), 0u32, 0);
-    for b in &d { acc = (acc << 8) | *b as u32; bits += 8; while bits >= 5 { bits -= 5; out.push(B32[((acc >> bits) & 31) as usize] as char) } }
-    if bits > 0 { out.push(B32[((acc << (5 - bits)) & 31) as usize] as char) }
+    let out = b32_encode(&d);
     d.iter_mut().for_each(|b| *b = 0);
     out
 }
 /// Decode a StrKey; checks the alphabet, length, canonical trailing bits and the CRC.
 pub fn strkey_decode(s: &str) -> Result<(u8, Vec<u8>), &'static str> {
-    let (mut d, mut acc, mut bits) = (Vec::new(), 0u32, 0);
-    for ch in s.bytes() {
-        let v = B32.iter().position(|&x| x == ch).ok_or("bad base32")? as u32;
-        acc = (acc << 5) | v; bits += 5;
-        if bits >= 8 { bits -= 8; d.push((acc >> bits) as u8) }
-    }
-    if bits >= 5 || acc & ((1 << bits) - 1) != 0 { return Err("bad base32") }
+    let d = b32_decode(s)?;
     if d.len() < 3 { return Err("bad length") }
     let (body, ck) = d.split_at(d.len() - 2);
     if crc16_xmodem(body).to_le_bytes() != ck { return Err("bad checksum") }
     Ok((body[0], body[1..].to_vec()))
+}
+/// Algorand address of a 32-byte ed25519 public key.
+pub fn algo_address(pubkey: &[u8; 32]) -> String {
+    use bitcoin::hashes::{sha512_256, Hash};
+    let h = sha512_256::Hash::hash(pubkey).to_byte_array();
+    let mut d = pubkey.to_vec(); d.extend_from_slice(&h[28..]);
+    b32_encode(&d)
+}
+/// Algorand address -> 32-byte public key (checks length and the 4-byte checksum).
+pub fn algo_decode(a: &str) -> Result<[u8; 32], &'static str> {
+    if a.len() != 58 { return Err("bad length") }
+    let d = b32_decode(a)?;
+    let pk: [u8; 32] = d[..32].try_into().map_err(|_| "bad length")?;
+    if algo_address(&pk) != a { return Err("bad checksum") }
+    Ok(pk)
+}
+/// Algorand row: address plus `private_key` = base64(seed || pub), the 64-byte algosdk key.
+#[cfg(all(feature = "ed25519", feature = "secrets"))]
+pub fn algo_row(path: &str, seed: &[u8; 32]) -> Row {
+    let pubk = ed25519_dalek::SigningKey::from_bytes(seed).verifying_key().to_bytes();
+    let mut kp = seed.to_vec(); kp.extend_from_slice(&pubk);
+    let secret = crate::b64::encode(&kp);
+    kp.iter_mut().for_each(|b| *b = 0);
+    Row { chain: "algo", kind: "algo", path: path.into(), address: algo_address(&pubk), secret_field: "private_key", secret }
+}
+/// Algorand 25-word mnemonic -> 32-byte key: 24 words of 11 bits (little-endian packing) + a
+/// checksum word = first 11 bits of sha512/256(key). BIP39 English words, full words only.
+#[cfg(feature = "algo")]
+pub fn algo_mnemonic_key(m: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'static str> {
+    use bitcoin::hashes::{sha512_256, Hash};
+    let l = bip39::Language::English;
+    let ws: Vec<&str> = m.split_whitespace().collect();
+    if ws.len() != 25 { return Err("bad length") }
+    let ix: Vec<u32> = ws.iter().map(|w| l.find_word(&w.to_lowercase()).map(|i| i as u32).ok_or("bad word")).collect::<Result<_, _>>()?;
+    let mut out = zeroize::Zeroizing::new(Vec::with_capacity(34));
+    let (mut acc, mut bits) = (0u64, 0);
+    for &i in &ix[..24] { acc |= (i as u64) << bits; bits += 11; while bits >= 8 { out.push(acc as u8); acc >>= 8; bits -= 8 } }
+    if bits > 0 { out.push(acc as u8) }
+    if out.len() != 33 || out[32] != 0 { return Err("bad checksum") }
+    let key: [u8; 32] = out[..32].try_into().unwrap();
+    let h = sha512_256::Hash::hash(&key).to_byte_array();
+    if ((h[0] as u32) | ((h[1] as u32) << 8)) & 2047 != ix[24] { return Err("bad checksum") }
+    Ok(zeroize::Zeroizing::new(key))
 }
 /// Stellar account id (G...) of a 32-byte ed25519 public key.
 pub fn xlm_address(pubkey: &[u8; 32]) -> String { strkey_encode(6 << 3, pubkey) }
@@ -308,7 +367,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => &["p2pkh"],
-        Enc::Sol | Enc::Xlm => return vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo => return vec![],
         _ => &[""],
     };
     let mut out = Vec::new();

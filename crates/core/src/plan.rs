@@ -29,7 +29,7 @@ pub fn kinds_of(c: &Chain) -> Vec<&'static str> {
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => vec!["p2pkh"],
-        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Xmr => vec![],
+        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Algo => vec![], Enc::Xmr => vec![],
     }
 }
 pub fn std_template(c: &Chain) -> &'static str {
@@ -42,7 +42,7 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
     let mut v = Vec::new();
     for &c in chains_sel {
         // Monero keys come from its own 25-word seed (crates/monero, xmr-keys), not BIP32 paths.
-        if c.enc == Enc::Xmr { continue }
+        if c.enc.native_seed() { continue }
         let utxo = matches!(c.enc, Enc::Utxo { .. });
         match name {
             "common" => for k in kinds_of(c) { v.push(sp(c, k, std_template(c), false)) },
