@@ -158,6 +158,7 @@ fn explain(o: &Opts) {
 }
 
 fn main() {
+    kr_io::help(HELP);
     let o = parse_args();
     if o.explain { explain(&o); return }
     let mut n = 0u64;

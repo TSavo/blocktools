@@ -3,6 +3,7 @@ name = "key-to-addresses"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue key-to-addresses. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 kr-io = { path = "../../crates/kr-io" }
 kr-core = { path = "../../crates/kr-core", features = ["ed25519"] }

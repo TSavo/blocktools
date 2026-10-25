@@ -3,6 +3,7 @@ name = "derive"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue derive. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 kr-core = { path = "../../crates/kr-core", features = ["ed25519"] }
 bitcoin.workspace = true

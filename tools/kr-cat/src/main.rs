@@ -3,6 +3,7 @@
 //! Bounded: at most 64 MiB per file.
 use std::io::{Read, Write};
 fn main() {
+    kr_io::help("kr-cat FILE: bounded file reader for pipelines inside the container");
     let mut out = std::io::stdout().lock();
     let mut rc = 0;
     for p in std::env::args().skip(1) {

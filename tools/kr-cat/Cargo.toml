@@ -3,4 +3,6 @@ name = "kr-cat"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue kr-cat. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
+kr-io = { path = "../../crates/kr-io" }

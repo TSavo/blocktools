@@ -2,7 +2,7 @@
 //! tx-verify / tx-sign before any destination is accepted, and by the KAT tests.
 use crate::chains::{self, Enc, BTC_ALPHA, XRP_ALPHA};
 use bitcoin::base58;
-use bitcoin::bech32::{self, segwit};
+use bitcoin::bech32::segwit;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol }
@@ -87,7 +87,7 @@ mod tests {
         // same xpub drives LTC / DOGE encoders: shape checks as in the prior art
         let h = bitcoin::hashes::hash160::Hash::hash(&pk.serialize());
         use bitcoin::hashes::Hash;
-        let ltc = segwit::encode_v0(bech32::Hrp::parse("ltc").unwrap(), h.as_byte_array()).unwrap();
+        let ltc = segwit::encode_v0(bitcoin::bech32::Hrp::parse("ltc").unwrap(), h.as_byte_array()).unwrap();
         assert_eq!(ltc.len(), 43); assert_eq!(validate("ltc", &ltc), Ok(AddrKind::SegwitV0));
         let mut d = vec![0x1e]; d.extend(h.as_byte_array());
         let doge = base58::encode_check(&d);

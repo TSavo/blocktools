@@ -3,6 +3,7 @@ name = "seed-to-master"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue seed-to-master. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 kr-tty = { path = "../../crates/kr-tty" }
 kr-io = { path = "../../crates/kr-io" }

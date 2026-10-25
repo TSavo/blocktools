@@ -79,6 +79,7 @@ pub fn repair(tokens: &[String], max_out: usize) -> Result<Vec<(Vec<&'static str
 }
 
 fn main() {
+    kr_io::help(r#"seed-repair < damaged BIP39 phrase -> checksum-valid candidate phrases {"mnemonic","candidate"}"#);
     let args: Vec<String> = std::env::args().collect();
     let mut max_out = 1000usize;
     let mut i = 1;

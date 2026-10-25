@@ -1,5 +1,15 @@
 # keyrescue: design
 
+> **⚠️ DANGEROUS: use at your own risk.** This code needs an independent security
+> audit before use with real funds or real keys. It opens hostile wallet files and
+> extracts secrets. Run it only sealed and offline (`./keyrescue run`, `--network none`).
+> **Used incorrectly, these tools can destroy funds**: signing to a wrong address,
+> paying a huge fee, losing keys, or sending to an address on the wrong chain. You are
+> responsible for verifying every transaction before it is signed or broadcast.
+> The unit tests are the main evidence of correctness; they are not a substitute for
+> an audit. See [docs/SECURITY.md](docs/SECURITY.md).
+
+
 keyrescue is a set of small Unix command-line tools that recover keys from old
 wallet files and sign transactions. The tools run inside a sealed, offline
 container. It ships tools only: it is not an agent and not an MCP server.

@@ -2,6 +2,7 @@
 //! This is the only process whose stdout is connected to the agent.
 use std::io::{self, BufRead, Read, Write};
 fn main() {
+    kr_io::help("kr-redact: JSON lines in -> schema-checked, secrets replaced by [REDACTED], leak-checked lines out");
     let stdin = io::stdin();
     let mut out = io::stdout().lock();
     let (mut kept, mut dropped) = (0u64, 0u64);

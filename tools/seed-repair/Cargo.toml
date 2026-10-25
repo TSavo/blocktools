@@ -3,6 +3,7 @@ name = "seed-repair"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue seed-repair. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 kr-io = { path = "../../crates/kr-io" }
 bip39.workspace = true

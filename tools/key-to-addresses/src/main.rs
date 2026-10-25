@@ -31,6 +31,7 @@ fn decodings(s: &str) -> Vec<(&'static str, Zeroizing<Vec<u8>>, Option<bool>)> {
     v
 }
 fn main() {
+    kr_io::help(r#"key-to-addresses [--chain LIST] < raw 32-byte key (hex, WIF, base58, base64, {"key":...}) -> addresses on every chain"#);
     let a: Vec<String> = std::env::args().collect();
     let mut sel: Vec<&'static Chain> = chains::CHAINS.iter().collect();
     match a.get(1).map(String::as_str) {

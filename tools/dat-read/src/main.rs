@@ -88,6 +88,7 @@ fn parse_desc(s: &str) -> Desc {
 }
 
 fn main() {
+    kr_io::help("dat-read: Bitcoin Core wallet.dat (stdin) -> account keys / legacy keys. Password via stdin JSON or --password-tty.");
     let mut inp = std::io::stdin().lock().take(256 << 20);
     let mut pw = Zeroizing::new(Vec::new());
     if inp.read_until(b'\n', &mut pw).is_err() { die("bad_input"); }

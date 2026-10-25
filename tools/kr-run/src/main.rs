@@ -70,6 +70,7 @@ fn random_code() -> String {
 }
 
 fn main() {
+    kr_io::help("kr-run agent|human '<pipeline>': run an allowlisted tool pipeline; agent mode prints only redacted output");
     let a: Vec<String> = std::env::args().collect();
     let (mode, pipeline) = match (a.get(1), a.get(2), a.len()) { (Some(m), Some(p), 3) => (m.clone(), p.clone()), _ => out("bad_input") };
     let stages = parse(&pipeline).unwrap_or_else(|e| out(e));

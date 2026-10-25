@@ -3,6 +3,7 @@ name = "kr-tty"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue library. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 libc = { version = "0.2", default-features = false }
 zeroize.workspace = true

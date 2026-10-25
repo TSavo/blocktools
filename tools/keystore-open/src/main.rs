@@ -6,7 +6,7 @@
 use aes::cipher::{KeyIvInit, StreamCipher};
 use serde_json::Value;
 use sha3::{Digest, Keccak256};
-use std::io::{Read, Write};
+use std::io::Read;
 use zeroize::Zeroizing;
 
 type Ctr = ctr::Ctr128BE<aes::Aes128>;
@@ -77,6 +77,7 @@ fn read_tty_password() -> Zeroizing<String> {
 }
 
 fn main() {
+    kr_io::help("keystore-open [--password-tty] < password line + Ethereum V3 keystore JSON -> address + private key");
     let a: Vec<String> = std::env::args().collect();
     let tty = match a.get(1).map(|s| s.as_str()) { None => false, Some("--password-tty") if a.len() == 2 => true, _ => st("bad_input") };
     let mut raw = Zeroizing::new(Vec::new());

@@ -73,6 +73,7 @@ fn readings(phrase: &str, passphrase: &str, cand: u64, n: &mut u64) -> u64 {
 }
 
 fn main() {
+    kr_io::help("seed-to-master [--passphrase-prompt] < {\"mnemonic\":...} lines -> master keys (BIP39 and Electrum standard/segwit; 2FA and old-Electrum: unsupported, planned)");
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut passphrase = Zeroizing::new(String::new());
     match args.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice() {

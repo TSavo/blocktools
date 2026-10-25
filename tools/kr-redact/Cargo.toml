@@ -3,6 +3,7 @@ name = "kr-redact"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "keyrescue kr-redact. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
 [dependencies]
 kr-io = { path = "../../crates/kr-io" }
 kr-schema = { path = "../../crates/kr-schema" }

@@ -418,6 +418,9 @@ dependencies = [
 [[package]]
 name = "kr-cat"
 version = "0.1.0"
+dependencies = [
+ "kr-io",
+]
 
 [[package]]
 name = "kr-core"
