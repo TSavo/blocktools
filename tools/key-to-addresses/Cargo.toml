@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 [dependencies]
 kr-io = { path = "../../crates/kr-io" }
-kr-core = { path = "../../crates/kr-core" }
+kr-core = { path = "../../crates/kr-core", features = ["ed25519"] }
 bitcoin.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true

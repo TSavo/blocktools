@@ -92,6 +92,7 @@ fn purpose(kind: &str) -> u32 { match kind { "p2sh-p2wpkh" => 49, "p2wpkh" => 84
 
 /// ed25519 key from a 32-byte seed: (address = base58 pubkey, secret = base58(seed||pub), the
 /// 64-byte keypair format Solana wallets import).
+#[cfg(feature = "ed25519")]
 pub fn sol_row(path: &str, seed: &[u8; 32]) -> Row {
     let sk = ed25519_dalek::SigningKey::from_bytes(seed);
     let pubk = sk.verifying_key().to_bytes();
@@ -136,6 +137,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
     out
 }
 /// Solana rows from a BIP39 seed (64 bytes): m/44'/501'/i'/0'.
+#[cfg(feature = "ed25519")]
 pub fn derive_sol(seed: &[u8], count: u32) -> Vec<Row> {
     (0..count).map(|i| sol_row(&format!("m/44'/501'/{i}'/0'"), &slip10_ed25519(seed, &[44, 501, i, 0]))).collect()
 }

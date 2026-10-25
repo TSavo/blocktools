@@ -7,4 +7,7 @@ license.workspace = true
 bitcoin.workspace = true
 sha3.workspace = true
 zeroize.workspace = true
-ed25519-dalek.workspace = true
+ed25519-dalek = { workspace = true, optional = true }
+[features]
+# Solana / ed25519 addresses. Off by default so dat-read & co. stay small.
+ed25519 = ["dep:ed25519-dalek"]

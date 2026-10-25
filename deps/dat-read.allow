@@ -13,11 +13,7 @@ cfg-if
 cipher
 cpufeatures
 crypto-common
-curve25519-dalek
-curve25519-dalek-derive
 digest
-ed25519
-ed25519-dalek
 generic-array
 hex-conservative
 hex_lit
@@ -25,15 +21,8 @@ inout
 keccak
 kr-core
 kr-io
-proc-macro2
-quote
 secp256k1
 secp256k1-sys
-sha2
 sha3
-signature
-subtle
-syn
 typenum
-unicode-ident
 zeroize
