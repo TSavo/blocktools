@@ -215,6 +215,7 @@ dependencies = [
  "bitcoin",
  "blocktools-core",
  "ed25519-dalek",
+ "secp256k1",
  "sha2",
  "zeroize",
 ]

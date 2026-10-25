@@ -21,5 +21,14 @@ done
 "$B/acct-tx" sign --chain xlm --tx "$X/xs-sign-wrongkey" --expect-to $XT < /dev/null >/dev/null 2>&1 && { echo "FAIL acct missing tx accepted"; exit 1; }
 grep -q 'G0D29cAAAAQC4Y2enTepaRAPTDF9gL0XCtVvFUOHpKqEGVs6qtgz2TG' "$X/xlm-s.json" || { echo "FAIL acct xlm signature != stellar-sdk"; exit 1; }
 grep -q 'gqNzaWfEQE5QP6/t0rTXTW1Ip8K2vgeO0' "$X/algo-s.json" || { echo "FAIL acct algo signature != algosdk"; exit 1; }
-if grep -rqF -e "$(cat "$X/xlm.key")" -e "$(cat "$X/algo.key")" "$X"/*.json "$X"/t*; then echo "LEAK acct key in output"; exit 1; fi
-echo "ok  acct-tx: xlm payment + algo close-to built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"
+printf '%064d' 0 | tr 0 1 | sed 's/1/01/g' | cut -c1-64 > "$X/atom.key"
+CF=cosmos10xcqpzrky6eff2g52qdye53xkk9jxkvrpq6uqr; CT=cosmos1a0qwuze2h85zw7nqpsj3ga0z9geyrgwphl8j6w
+"$B/acct-tx" keys --chain atom < "$X/atom.key" | grep -q "\"address\":\"$CF\"" || { echo "FAIL acct atom keys"; exit 1; }
+PK=$("$B/acct-tx" keys --chain atom < "$X/atom.key" | sed 's/.*"pubkey":"\([0-9a-f]*\)".*/\1/')
+"$B/acct-tx" build --chain atom --from $CF --pubkey "$PK" --to $CT --amount 1234567 --fee 5000 --gas 200000 --sequence 7 --account-number 123456 --memo 42 > "$X/cu.json"
+python3 scripts/tty-drive.py right "$X/atom.key" "$X/atom-s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain atom --tx "$X/cu.json" --expect-to $CT > "$X/t-atom" 2>&1
+grep -q '"txid":"EA467ABCA0270EBC959BEBC2A256A7592FD3C05F985CE04F4D5D49C54ED28F03"' "$X/atom-s.json" || { echo "FAIL acct atom txid != cosmjs"; cat "$X/t-atom"; exit 1; }
+"$B/acct-tx" decode --chain atom < "$X/atom-s.json" | grep -q '"signature_valid":true' || { echo "FAIL acct atom signed decode"; exit 1; }
+"$B/acct-tx" sign --chain atom --tx "$X/cu.json" --expect-to $CF < "$X/atom.key" | grep -q destination_mismatch || { echo "FAIL acct atom expect-to"; exit 1; }
+if grep -rqF -e "$(cat "$X/atom.key")" -e "$(cat "$X/xlm.key")" -e "$(cat "$X/algo.key")" "$X"/*.json "$X"/t*; then echo "LEAK acct key in output"; exit 1; fi
+echo "ok  acct-tx: xlm payment + algo close-to + atom MsgSend (== cosmjs) built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"

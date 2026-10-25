@@ -2,6 +2,8 @@
 //! Each chain module is checked against vectors from that chain's own SDK (tests/kat.rs).
 pub mod xlm;
 pub mod algo;
+pub mod atom;
+pub mod pb;
 
 pub fn ed_sign(seed: &[u8; 32], msg: &[u8]) -> ([u8; 32], [u8; 64]) {
     use ed25519_dalek::Signer;

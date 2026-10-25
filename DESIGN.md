@@ -553,7 +553,8 @@ Signing uses `STX\0`. secp256k1 signs sha512half of it with RFC6979, low-S and D
 
 `crates/acct` builds one transfer per chain in that chain's native encoding (base64 on the CLI): Stellar
 TransactionEnvelope v1 XDR (one native Payment or AccountMerge; signature over sha256(sha256(passphrase) || 2 || tx)),
-Algorand canonical msgpack `pay` (signature over "TX" || msgpack; txid = base32(sha512/256)). Decoders accept only that
+Algorand canonical msgpack `pay` (signature over "TX" || msgpack; txid = base32(sha512/256)), Cosmos Hub MsgSend
+(SignDoc protobuf, secp256k1 RFC6979 low-S over sha256(SignDoc), txid = sha256(TxRaw)). Decoders accept only that
 subset and refuse anything else (muxed accounts, other assets, rekey/lease/group, msig). Algorand decode also re-encodes
 and refuses non-canonical input. `acct-tx sign` needs `--expect-to`, refuses an already-signed tx, checks the key
 matches the source, and signs only after the typed code on /dev/tty. Balance and sequence come from host-side `utxo-fetch --chain xlm|algo` (blocking

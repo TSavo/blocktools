@@ -45,7 +45,7 @@ and see addresses and signed transactions only.
 | Old coins (PPC, NMC, FTC, NVC, CLAM, BLK, RDD, ...) | ✅ | ✗ | ✗ | [chain-old-coins.md](chain-old-coins.md) |
 | Tron | ✅ | ✗ | ✗ | [chain-tron.md](chain-tron.md) |
 | Solana | ✅ | ✗ | ✗ | [chain-solana.md](chain-solana.md) |
-| Cosmos Hub | ✅ | ✗ | ✗ | [chain-cosmos.md](chain-cosmos.md) |
+| Cosmos Hub | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ MsgSend (acct-tx, TTY confirm) | [chain-cosmos.md](chain-cosmos.md) |
 | Algorand | ✅ (own mnemonic) | ✅ utxo-fetch (host-side, manual) | ✅ pay / close-to (acct-tx, TTY confirm) | [chain-algorand.md](chain-algorand.md) |
 | Cardano | ✅ (Shelley base, Icarus) | ✗ | ✗ | [chain-cardano.md](chain-cardano.md) |
 | Zcash shielded (Sapling) | ✅ (address + viewing key) | ✗ | ✗ | [zcash-shielded.md](zcash-shielded.md) |

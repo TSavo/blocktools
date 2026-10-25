@@ -10,4 +10,5 @@ blocktools-core = { path = "../core", default-features = false, features = ["ed2
 bitcoin = { workspace = true }
 ed25519-dalek = { workspace = true }
 sha2 = { workspace = true }
+secp256k1 = { workspace = true }
 zeroize = { workspace = true }

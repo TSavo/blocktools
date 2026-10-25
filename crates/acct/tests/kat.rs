@@ -66,3 +66,26 @@ fn algo_pay_and_close_match_algosdk() {
 
 #[test]
 fn fmt_units_trims() { assert_eq!(fmt_units(125_000_000, 7), "12.5"); assert_eq!(fmt_units(1_000_000, 6), "1"); assert_eq!(fmt_units(5, 6), "0.000005"); }
+
+fn unhex(s: &str) -> Vec<u8> { (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect() }
+#[test]
+fn atom_msgsend_matches_cosmjs() {
+    // @cosmjs/proto-signing DirectSecp256k1Wallet.fromKey([1;32]) -> [2;32]; makeAuthInfoBytes/makeSignDoc/signDirect.
+    use atom::*;
+    let pubkey = atom::pubkey_of(&S1).unwrap();
+    assert_eq!(atom::address(&pubkey), "cosmos10xcqpzrky6eff2g52qdye53xkk9jxkvrpq6uqr");
+    let t = Send { from: address(&pubkey), to: "cosmos1a0qwuze2h85zw7nqpsj3ga0z9geyrgwphl8j6w".into(), denom: "uatom".into(), amount: 1234567, memo: "42".into(),
+        pubkey, sequence: 7, fee: 5000, gas: 200000, chain_id: "cosmoshub-4".into(), account_number: 123456 };
+    assert_eq!(t.body(), unhex("0a90010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e6412700a2d636f736d6f733130786371707a726b793665666632673532716479653533786b6b396a786b7672707136757172122d636f736d6f733161307177757a65326838357a77376e7170736a336761307a3967657972677770686c386a36771a100a057561746f6d12073132333435363712023432"));
+    assert_eq!(t.auth_info(), unhex("0a500a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a21031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f12040a020801180712130a0d0a057561746f6d12043530303010c09a0c"));
+    assert_eq!(Send::decode_sign_doc(&t.sign_doc()).unwrap(), t);
+    assert!(t.sign(&[2; 32]).is_err());
+    let sig = t.sign(&S1).unwrap();
+    let raw = t.tx_raw(&sig);
+    assert_eq!(raw, b64("CpcBCpABChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEnAKLWNvc21vczEweGNxcHpya3k2ZWZmMmc1MnFkeWU1M3hrazlqeGt2cnBxNnVxchItY29zbW9zMWEwcXd1emUyaDg1enc3bnFwc2ozZ2EwejlnZXlyZ3dwaGw4ajZ3GhAKBXVhdG9tEgcxMjM0NTY3EgI0MhJnClAKRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiEDG4TFVnsSZECZXT7VqroFZdceGDRgSBn/nBf16dXdB48SBAoCCAEYBxITCg0KBXVhdG9tEgQ1MDAwEMCaDBpA+sNvNt/ARWjxfrx1LC4t29i0j8CRASmrTMA9oWuq1gAuzuJPc96+3ETQcVcGZA3TuO7YYtKxOqGyRbiAg3MkXQ=="));
+    assert_eq!(Send::txid(&raw), "EA467ABCA0270EBC959BEBC2A256A7592FD3C05F985CE04F4D5D49C54ED28F03");
+    let (d, s2) = Send::decode_tx_raw(&raw, "cosmoshub-4", 123456).unwrap();
+    assert!(d.verify(&s2));
+    let (d, s2) = Send::decode_tx_raw(&raw, "cosmoshub-4", 123457).unwrap();
+    assert!(!d.verify(&s2));
+}

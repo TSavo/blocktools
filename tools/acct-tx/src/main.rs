@@ -1,13 +1,17 @@
-//! acct-tx: account-model payments for xlm and algo. Encoded transactions are base64 (each chain's native form).
+//! acct-tx: account-model payments for xlm, algo and atom. Encoded transactions are base64 (each chain's native form).
 //! Balance / sequence / rounds come from the host-side `utxo-fetch --chain xlm|algo ADDR` (this tool has no network).
 //! acct-tx build   --chain xlm  --from G.. --to G.. (--amount STROOPS | --sweep) --fee STROOPS --seq N [--memo-id N|--memo-text T] [--max-time UNIX] [--testnet]
 //! acct-tx build   --chain algo --from A.. --to A.. (--amount MICROALGO | --sweep) --fee MICROALGO --first-round N [--last-round N] [--note T]
+//! acct-tx keys    --chain atom < hex-private-key                    -> {"address","pubkey"} (public only; build needs --pubkey)
+//! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
+//!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
 //! acct-tx decode  --chain C [--testnet] < unsigned-or-signed (JSON from build/sign, or bare base64)
 //! acct-tx sign    --chain C --tx FILE --expect-to ADDR [--testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
+//!   (atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
 //!   shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
 //! --sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
 //!          algo = amount 0 + close-to (sends everything and closes the account; fails while ASAs are opted in).
-use blocktools_acct::{algo, fmt_units, xlm};
+use blocktools_acct::{algo, atom, fmt_units, xlm};
 use blocktools_core::b64;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -48,6 +52,35 @@ fn algo_secret(s: &str) -> Zeroizing<[u8; 32]> {
     Zeroizing::new(b[..32].try_into().unwrap())
 }
 
+fn atom_describe(t: &atom::Send, sig: Option<&[u8; 64]>) -> Value {
+    let mut w = vec![];
+    if t.memo.is_empty() { w.push("memo_missing: exchanges credit deposits by memo; without one the funds may not be credited") }
+    if t.denom != "uatom" { w.push("denom_not_uatom") }
+    if t.chain_id != "cosmoshub-4" { w.push("not_cosmoshub-4: chain_id differs from Cosmos Hub mainnet") }
+    let raw = sig.map(|s| t.tx_raw(s));
+    json!({"chain":"atom","type":"MsgSend","from":t.from,"to":t.to,"denom":t.denom,"amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 6),
+        "fee_base":t.fee.to_string(),"fee_str":fmt_units(t.fee, 6),"gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,"memo":t.memo,
+        "network":t.chain_id,"signed":sig.is_some(),"signature_valid":sig.map(|s| t.verify(s)),"txid":raw.map(|r| atom::Send::txid(&r)),"warnings":w})
+}
+fn hex32(s: &str) -> Zeroizing<[u8; 32]> {
+    let s = s.trim().trim_start_matches("0x");
+    if s.len() != 64 { fail("private_key_must_be_64_hex") }
+    let mut k = Zeroizing::new([0u8; 32]);
+    for i in 0..32 { k[i] = u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap_or_else(|_| fail("private_key_must_be_64_hex")) }
+    k
+}
+fn unhex(s: &str) -> Vec<u8> { if s.len() % 2 != 0 { fail("bad_hex") } (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap_or_else(|_| fail("bad_hex"))).collect() }
+fn atom_read(s: &str) -> (atom::Send, Option<[u8; 64]>) {
+    let v: Value = serde_json::from_str(s).unwrap_or_else(|_| fail("atom input must be the JSON from build/sign"));
+    let doc = b64::decode(v["unsigned"].as_str().unwrap_or_else(|| fail("missing unsigned SignDoc"))).unwrap_or_else(|| fail("bad_base64"));
+    let t = atom::Send::decode_sign_doc(&doc).unwrap_or_else(|e| fail(&e));
+    match v["signed"].as_str() {
+        None => (t, None),
+        Some(r) => { let (d, sig) = atom::Send::decode_tx_raw(&b64::decode(r).unwrap_or_else(|| fail("bad_base64")), &t.chain_id, t.account_number).unwrap_or_else(|e| fail(&e));
+            if d != t { fail("signed_tx_differs_from_sign_doc") } (t, Some(sig)) }
+    }
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let chain = opt(&a, "--chain").unwrap_or("");
@@ -85,6 +118,28 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             println!("{}", json!({"chain":"algo","unsigned":b64::encode(&p.encode()),"summary":d}));
         }
+        (Some("keys"), "atom") => {
+            let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
+            let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
+            println!("{}", json!({"chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
+        }
+        (Some("build"), "atom") => {
+            let pubkey: [u8; 33] = unhex(req(&a, "--pubkey")).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"));
+            let from = req(&a, "--from").to_string(); let to = req(&a, "--to").to_string();
+            if atom::address(&pubkey) != from { fail("pubkey_does_not_match_from") }
+            for x in [&from, &to] { blocktools_core::chains::cosmos_decode("cosmos", x).unwrap_or_else(|e| fail(e)); }
+            if from == to { fail("destination_is_source") }
+            let fee: u128 = num(&a, "--fee").unwrap_or_else(|| fail("missing --fee"));
+            let amount: u128 = if flag(&a, "--sweep") { num::<u128>(&a, "--balance").unwrap_or_else(|| fail("--sweep needs --balance")).checked_sub(fee).filter(|&v| v > 0).unwrap_or_else(|| fail("balance_below_fee")) }
+                else { num(&a, "--amount").unwrap_or_else(|| fail("missing --amount or --sweep")) };
+            let t = atom::Send { from, to, denom: "uatom".into(), amount, memo: opt(&a, "--memo").unwrap_or("").into(), pubkey,
+                sequence: num(&a, "--sequence").unwrap_or_else(|| fail("missing --sequence")), fee, gas: num(&a, "--gas").unwrap_or_else(|| fail("missing --gas")),
+                chain_id: opt(&a, "--chain-id").unwrap_or("cosmoshub-4").into(), account_number: num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number")) };
+            let d = atom_describe(&t, None);
+            for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
+            println!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
+        }
+        (Some("decode"), "atom") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = atom_read(&s); println!("{}", atom_describe(&t, sig.as_ref())) }
         (Some("decode"), c) => {
             let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok();
             let b = read_tx(&s);
@@ -93,7 +148,7 @@ fn main() {
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
-            let b = read_tx(&raw); let want = req(&a, "--expect-to");
+            let b = if c == "atom" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
             let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
             let (d, out): (Value, Box<dyn FnOnce() -> Value>) = match c {
                 "xlm" => {
@@ -110,6 +165,14 @@ fn main() {
                     let k = algo_secret(&secret);
                     (d, Box::new(move || { p.sign(&k).unwrap_or_else(|e| fail(e)); json!({"status":"ok","chain":"algo","signed":b64::encode(&p.encode()),"txid":p.txid()}) }))
                 }
+                "atom" => {
+                    let (t, sig) = atom_read(&raw);
+                    if sig.is_some() { fail("already_signed") }
+                    let d = atom_describe(&t, None); if d["to"] != want { fail("destination_mismatch") }
+                    let k = hex32(&secret);
+                    (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
+                        json!({"status":"ok","chain":"atom","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":atom::Send::txid(&r)}) }))
+                }
                 _ => fail("unsupported --chain"),
             };
             let summary = format!("{} {} {}\n  amount {}  fee {}\n  from {}\n  to   {}{}\n{}", c.to_uppercase(), d["type"].as_str().unwrap(),
@@ -120,6 +183,6 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             println!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx build|decode|sign --chain xlm|algo (see source header)"); std::process::exit(2) }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom (see source header)"); std::process::exit(2) }
     }
 }

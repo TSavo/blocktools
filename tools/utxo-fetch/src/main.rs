@@ -3,7 +3,8 @@
 //!       stdout: UTXO JSON lines {"txid","vout","amount","address"[,"prev_tx"]}  (tx-build --utxos FILE)
 //!   utxo-fetch --chain eth [--url RPC] ADDR
 //!       stdout: one account object {"nonce","balance","max_fee_per_gas","max_priority_fee_per_gas","chain_id"}
-//!   utxo-fetch --chain xlm|algo [--url NODE] ADDR
+//!   utxo-fetch --chain xlm|algo|atom [--url NODE] ADDR
+//!       atom: balance_uatom, account_number, sequence, pubkey (hex, once the account has signed)
 //!       stdout: one account object (xlm: balance_str, next_seq, subentry_count; algo: amount, min_balance, assets, last_round, min_fee) for acct-tx build
 //! Only ADDRESSES go in (bare, or JSON lines with an "address" field, e.g. redact output).
 //! Server data is untrusted: txids are re-checked here, prev_tx is re-hashed by tx-build.
@@ -13,7 +14,7 @@ use std::io::{BufRead, Read};
 
 fn die(e: &str) -> ! { eprintln!("{}", json!({"tool":"utxo-fetch","status":"error","error":e})); std::process::exit(1) }
 fn main() {
-    blocktools_io::help("utxo-fetch --chain btc|ltc|doge|eth|xlm|algo [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
+    blocktools_io::help("utxo-fetch --chain btc|ltc|doge|eth|xlm|algo|atom [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut chain = "btc".to_string(); let mut url = None; let mut prev = true; let mut addrs = Vec::new();
     let mut it = a.into_iter();
@@ -30,7 +31,7 @@ fn main() {
     if addrs.is_empty() || addrs.len() > 1000 { die("give 1..1000 addresses") }
     let vchain = if chain == "eth" { "eth" } else { chain.as_str() };
     for x in &addrs { if blocktools_core::validate::validate(vchain, x).is_err() { die("invalid address for chain") } }
-    if chain == "xlm" || chain == "algo" { return acct(&chain, url.as_deref(), &addrs) }
+    if chain == "xlm" || chain == "algo" || chain == "atom" { return acct(&chain, url.as_deref(), &addrs) }
     if chain == "eth" { return eth(url.as_deref().unwrap_or("https://ethereum-rpc.publicnode.com"), &addrs) }
     let base = url.unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(), _ => die("--url ESPLORA_BASE required for this chain") });
     let base = base.trim_end_matches('/');
@@ -75,6 +76,15 @@ fn get_json(u: &str) -> Value { serde_json::from_slice(&blocktools_net::get(u).u
 fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
     if addrs.len() != 1 { die("give exactly one address") }
     let ad = &addrs[0];
+    if chain == "atom" {
+        let node = url.unwrap_or("https://cosmos-rest.publicnode.com").trim_end_matches('/');
+        let v = get_json(&format!("{node}/cosmos/auth/v1beta1/accounts/{ad}"));
+        let b = get_json(&format!("{node}/cosmos/bank/v1beta1/balances/{ad}/by_denom?denom=uatom"));
+        let acc = &v["account"];
+        let pk = acc["pub_key"]["key"].as_str().and_then(blocktools_core::b64::decode).map(|k| k.iter().map(|x| format!("{x:02x}")).collect::<String>());
+        println!("{}", json!({"chain":"atom","address":ad,"balance_uatom":b["balance"]["amount"],"account_number":acc["account_number"],"sequence":acc["sequence"],"pubkey":pk,"source":node}));
+        return
+    }
     if chain == "xlm" {
         let node = url.unwrap_or("https://horizon.stellar.org").trim_end_matches('/');
         let v = get_json(&format!("{node}/accounts/{ad}"));
