@@ -1,6 +1,8 @@
 //! detect / convert / zec / sweep per tx format. Expected addresses come from
 //! scripts/kat-chains.py (independent base58check, version bytes from each coin's source):
 //! p2pkh of the secp256k1 generator G (pubkey of private key 1, a public test vector).
+#[path = "../../tx/tests/common/mod.rs"]
+mod common;
 use blocktools::{address, chains, sweep::{build_unsigned_sweep, build_unsigned_sweep_at, build_unsigned_zec_sweep}, tx};
 const KAT: &[(&str, &str)] = &[
     ("btc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
@@ -76,7 +78,7 @@ const BTC: &str = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
 }
 fn utxo(c: &str) -> String {
     let a = address::convert(BTC, c).unwrap();
-    format!(r#"{{"txid":"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9","vout":0,"amount":100000,"address":"{a}"}}"#)
+    common::line(chains::chain(c).unwrap(), 0, 100000, &a) // legacy inputs carry prev_tx (amount proof)
 }
 #[test] fn sweep_builds_legacy_and_forkid_and_decodes_back() {
     for c in ["dash", "dgb", "rvn", "vtc", "via", "qtum", "bsv", "mona", "btc", "doge"] {
@@ -133,7 +135,7 @@ fn utxo(c: &str) -> String {
     // qrk: Bitcoin-legacy since 2026-10-25 (tx/tests/qrk.rs), 5 decimals.
     assert_eq!(address::tx_format("qrk"), ("legacy", true));
     let q = "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59";
-    let r = build_unsigned_sweep("qrk", &format!("{{\"txid\":\"{}\",\"vout\":0,\"amount\":10000000,\"address\":\"{q}\"}}", "11".repeat(32)), q, 10).unwrap();
+    let r = build_unsigned_sweep("qrk", &common::line(chains::chain("qrk").unwrap(), 0, 10000000, q), q, 10).unwrap();
     assert_eq!(r["tx_format"], "legacy");
     assert!(build_unsigned_sweep("dash", &utxo("btc"), BTC, 10).is_err()); // utxo address not a DASH address
 }

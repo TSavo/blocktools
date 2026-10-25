@@ -60,20 +60,23 @@ assert.equal(bt.addressValidate('zec', 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), '
 const P = JSON.parse(bt.chainParams()); const pr = n => P.find(r => r.name === n);
 assert.equal(pr('ppc').decimals, 6); assert.equal(pr('btg').forkid, 79); assert.equal(pr('dash').sweep_build, true);
 const dashA = bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'dash');
-const sw = JSON.parse(bt.buildUnsignedSweep('dash', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: dashA}), dashA, 10));
+const sw = JSON.parse(bt.buildUnsignedSweep('dash', '{"txid":"75213284b51c45476cd7ac67386452786f8016f547ed064af04905af96e25bd5","vout":0,"amount":100000,"address":"XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE","prev_tx":"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff020101ffffffff01a0860100000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000"}', dashA, 10));
 assert.equal(sw.fee, '1930'); assert.equal(sw.tx_format, 'legacy');
 assert.ok(JSON.stringify(JSON.parse(bt.decodeTx(sw.unsigned_tx, 'dash'))).includes(dashA));
 assert.throws(() => bt.buildUnsignedSweep('pot', '', dashA, 10));
+// legacy input amount must match its prev_tx (legacy sighash does not commit to it), and prev_tx is required
+assert.throws(() => bt.buildUnsignedSweep('dash', '{"txid":"75213284b51c45476cd7ac67386452786f8016f547ed064af04905af96e25bd5","vout":0,"amount":10000,"address":"XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE","prev_tx":"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff020101ffffffff01a0860100000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000"}', dashA, 10), /prev_tx|amount/);
+assert.throws(() => bt.buildUnsignedSweep('dash', JSON.stringify({...JSON.parse('{"txid":"75213284b51c45476cd7ac67386452786f8016f547ed064af04905af96e25bd5","vout":0,"amount":100000,"address":"XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE","prev_tx":"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff020101ffffffff01a0860100000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000"}'), prev_tx: undefined}), dashA, 10), /prev_tx/);
 { // PoS-nTime (Peercoin): raw tx + prevouts, nTime right after the version
   const ppcA = 'PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9';
-  const u = JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: ppcA});
+  const u = '{"txid":"53afd998f418f2917ed7c4bd8a7ec04c6f47361aa9ac1ea2d8d9c1ce9471e103","vout":0,"amount":100000,"address":"PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9","prev_tx":"0100000000f15365010707070707070707070707070707070707070707070707070707070707070707000000000151ffffffff01a0860100000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000"}';
   const p = JSON.parse(bt.buildUnsignedSweepAt('ppc', u, ppcA, 10, 1792800000));
   assert.equal(p.tx_format, 'pos-ntime'); assert.equal(p.psbt, undefined); assert.equal(p.pos_prevouts.length, 1);
   assert.equal(p.unsigned_tx.slice(8, 16), '00f5db6a'); // 1792800000 LE
   assert.throws(() => bt.buildUnsignedSweep('ppc', u, ppcA, 10)); // wasm has no clock: time required
   { // amounts above 2^53 round-trip exactly as strings (RDD whale sweep)
     const rddA = 'RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa', big = '9007199254740993';
-    const r = JSON.parse(bt.buildUnsignedSweepAt('rdd', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: big, address: rddA}), rddA, 10, 1792800000));
+    const r = JSON.parse(bt.buildUnsignedSweepAt('rdd', '{"txid":"19db44a77447d34cf87e14e7e962b137cd76a60dc1a2bfab2a205c0281f2bcfc","vout":0,"amount":"9007199254740993","address":"RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa","prev_tx":"02000000010707070707070707070707070707070707070707070707070707070707070707000000000151ffffffff0101000000000020001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac0000000000f15365"}', rddA, 10, 1792800000));
     assert.equal(BigInt(r.amount_str) + BigInt(r.fee_str), BigInt(big));
     assert.equal(r.pos_prevouts[0].amount_str, big);
     assert.equal(r.amount, r.amount_str); // sweep amount/fee were already strings; twins are uniform

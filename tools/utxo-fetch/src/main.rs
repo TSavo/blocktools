@@ -1,5 +1,7 @@
 //! utxo-fetch (HOST-SIDE, network): public chain data for addresses -> files tx-build reads.
 //!   utxo-fetch --chain btc|ltc|doge [--url ESPLORA_BASE] [--no-prev-tx] [ADDR...]  (or addresses on stdin)
+//!       prev_tx is fetched for every legacy (non-segwit, non-P2SH) input; tx-build refuses such inputs without it
+//!       (--no-prev-tx is only useful for segwit-only sets).
 //!       stdout: UTXO JSON lines {"txid","vout","amount","address"[,"prev_tx"]}  (tx-build --utxos FILE)
 //!   utxo-fetch --chain eth [--url RPC] ADDR
 //!       stdout: one account object {"nonce","balance","max_fee_per_gas","max_priority_fee_per_gas","chain_id"}
@@ -41,7 +43,11 @@ fn main() {
     for ad in &addrs {
         let body = blocktools_net::get(&format!("{base}/address/{ad}/utxo")).unwrap_or_else(|e| die(&e));
         let list: Vec<Value> = serde_json::from_slice(&body).unwrap_or_else(|_| die("bad utxo response"));
-        let legacy = !(ad.starts_with("bc1") || ad.starts_with("ltc1") || ad.starts_with("tb1"));
+        // Legacy-sighash inputs (anything but a witness program or P2SH) need the full previous tx:
+        // their signature does not commit to the amount, and tx-build / tx-sign refuse them without it.
+        let legacy = blocktools_core::chains::chain(&chain).and_then(|c| blocktools_core::chains::address_to_script(c, ad))
+            .map(|s| !(matches!(s.first(), Some(0x00) | Some(0x51..=0x60)) && s.len() >= 4 && s.len() <= 42 && s[1] as usize == s.len() - 2 || (s.len() == 23 && s[0] == 0xa9 && s[22] == 0x87)))
+            .unwrap_or(true);
         for u in list {
             let txid = u["txid"].as_str().filter(|t| t.len() == 64 && t.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| die("bad txid from server"));
             let vout = u["vout"].as_u64().filter(|&v| v <= u32::MAX as u64).unwrap_or_else(|| die("bad vout from server"));

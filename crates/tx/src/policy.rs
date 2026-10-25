@@ -21,6 +21,8 @@ fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_c
 
 pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
+    // Never overridable: the signed bytes do not commit to these amounts, so the fee shown is unproven.
+    if d.unproven_inputs > 0 { f.push("legacy_input_amount_unproven") }
     if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned") { f.push("has_warnings") }
     if let Some(t) = &d.evm {
         let fee = t.max_fee_per_gas.saturating_mul(t.gas as u128);

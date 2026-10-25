@@ -8,7 +8,9 @@ use blocktools_core::chains::{self, Chain};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
-pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Vec<u8>, pub kind: &'static str, pub prev_tx: Option<Transaction> }
+pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Vec<u8>, pub kind: &'static str, pub prev_tx: Option<Transaction>,
+    /// Raw previous tx bytes for nTime chains (PoS layout, not a bitcoin Transaction).
+    pub prev_raw: Option<Vec<u8>> }
 
 pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
     let mut v = Vec::new();
@@ -22,14 +24,21 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
         let addr = j["address"].as_str().ok_or_else(|| e("address"))?;
         let script = chains::address_to_script(c, addr).ok_or_else(|| e("address not valid for chain"))?;
         let kind = chains::script_to_address(c, &script).map(|x| x.0).unwrap_or("unknown");
+        let pos = crate::pos::layout(c.name).is_some();
+        let mut prev_raw = None;
         let prev_tx = match j["prev_tx"].as_str() {
+            Some(h) if pos => { let b = blocktools_core::hex_dec(h).ok_or_else(|| e("prev_tx hex"))?;
+                let t = crate::pos::PosTx::parse(c.name, &b).map_err(|_| e("prev_tx"))?;
+                if t.txid_hex() != txid.to_string() { return Err(e("prev_tx does not match txid")) }
+                if t.outputs.get(vout as usize) != Some(&(amount, script.clone())) { return Err(e("prev_tx output differs from amount/address")) }
+                prev_raw = Some(b); None }
             Some(h) => { let t: Transaction = bitcoin::consensus::deserialize(&blocktools_core::hex_dec(h).ok_or_else(|| e("prev_tx hex"))?).map_err(|_| e("prev_tx"))?;
                 if crate::digest::txid(&t, crate::digest::Digest::for_chain(c)) != txid { return Err(e("prev_tx does not match txid")) }
                 if t.output.get(vout as usize).map(|o| (o.value.to_sat(), o.script_pubkey.as_bytes().to_vec())) != Some((amount, script.clone())) { return Err(e("prev_tx output differs from amount/address")) }
                 Some(t) }
             None => None,
         };
-        v.push(Utxo { txid, vout, amount, script, kind, prev_tx });
+        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, prev_raw });
     }
     if v.is_empty() { return Err("no_utxos".into()) }
     Ok(v)
@@ -75,6 +84,9 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
     let tx = Transaction { version: Version::TWO, lock_time: LockTime::from_consensus(p.locktime),
         input: chosen.iter().map(|u| TxIn { previous_output: OutPoint { txid: u.txid, vout: u.vout }, script_sig: ScriptBuf::new(), sequence: seq, witness: Witness::new() }).collect(),
         output: outs.iter().map(|(s, v)| TxOut { value: Amount::from_sat(*v), script_pubkey: ScriptBuf::from_bytes(s.clone()) }).collect() };
+    if chosen.iter().any(|u| crate::digest::amount_uncommitted(bitcoin::Script::from_bytes(&u.script)) && u.prev_tx.is_none()) {
+        return Err("legacy_input_needs_prev_tx: a non-segwit input needs its previous transaction (utxo-fetch adds prev_tx unless --no-prev-tx)".into())
+    }
     let mut psbt = Psbt::from_unsigned_tx(tx).map_err(|_| "psbt")?;
     for (i, u) in chosen.iter().enumerate() {
         psbt.inputs[i].witness_utxo = Some(TxOut { value: Amount::from_sat(u.amount), script_pubkey: ScriptBuf::from_bytes(u.script.clone()) });
@@ -124,7 +136,7 @@ pub fn build_pos_sweep(c: &Chain, utxos: &[Utxo], to: &str, fee_rate: u64, time:
     let cap = crate::chains::fee_warn(c.name).rate_cap();
     if fee_rate == 0 || fee_rate > cap { return Err(format!("fee_rate must be 1..{cap} per byte for {}", c.name)) }
     if let Some(u) = utxos.iter().find(|u| u.kind != "p2pkh") { return Err(format!("pos-ntime sweep supports p2pkh inputs only (got {})", u.kind)) }
-    if utxos.iter().any(|u| u.prev_tx.is_some()) { return Err("prev_tx is not used for pos-ntime chains".into()) }
+    if utxos.iter().any(|u| u.prev_raw.is_none()) { return Err("legacy_input_needs_prev_tx: nTime inputs need prev_tx (utxo-fetch adds it)".into()) }
     let to_s = chains::address_to_script(c, to).ok_or("bad --to address")?;
     let inputs = utxos.iter().map(|u| PIn { txid: u.txid.to_byte_array(), vout: u.vout, script_sig: vec![], sequence: 0xffff_ffff }).collect();
     let mut tx = PosTx { layout: l, time, inputs, outputs: vec![(0, to_s)], locktime: 0, speech: vec![] };

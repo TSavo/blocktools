@@ -104,3 +104,5 @@ wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed
 - 2026-10-25: Solana v1 transactions (SIMD-0385) decode + verify; XRP X-address kind `xaddress` in detectAddressInfo.
 - 2026-10-25: `buildPsbtWithMemo` output order `[to, change, OP_RETURN]` (THORChain), optional memo, selected-input fee fix.
 - 2026-10-25: Tron txID + raw_data decode (`tronDecodeTx`); BTC-family PSBT with OP_RETURN memo (`buildPsbtWithMemo`).
+
+Legacy-sighash chains (P2PKH everywhere, GRS, PoS-nTime) need `prev_tx` per input; zec and forkid chains commit amounts in the sighash.

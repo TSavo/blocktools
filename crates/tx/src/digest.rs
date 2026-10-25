@@ -14,6 +14,20 @@ impl Digest {
         match self { Digest::Sha256d => sha256d::Hash::hash(b).to_byte_array(), Digest::Sha256 => sha256::Hash::hash(b).to_byte_array() }
     }
 }
+/// True when an input spending `spk` is signed with the legacy (pre-segwit) sighash, which does
+/// NOT commit to the input amount: such an input needs the full previous transaction, or a
+/// lying amount turns into an invisible fee. Witness programs and P2SH (signed here only as
+/// P2SH-P2WPKH, BIP143) commit to the amount.
+pub fn amount_uncommitted(spk: &bitcoin::Script) -> bool { !(spk.is_witness_program() || spk.is_p2sh()) }
+/// Check a PSBT input's `non_witness_utxo` proves its prevout: hash = outpoint txid, output
+/// exists, and equals `witness_utxo` when that is also present. Returns the proven prevout.
+pub fn proven_prevout(inp: &bitcoin::psbt::Input, op: &bitcoin::OutPoint, d: Digest) -> Option<bitcoin::TxOut> {
+    let t = inp.non_witness_utxo.as_ref()?;
+    if txid(t, d) != op.txid { return None }
+    let o = t.output.get(op.vout as usize)?.clone();
+    if inp.witness_utxo.as_ref().is_some_and(|w| *w != o) { return None }
+    Some(o)
+}
 /// Txid under a digest (display order, i.e. reversed), from the no-witness serialisation.
 pub fn txid_hex(tx: &Transaction, d: Digest) -> String {
     let mut bare = tx.clone();

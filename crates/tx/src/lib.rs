@@ -64,6 +64,9 @@ pub struct Decoded {
     pub rbf: Option<bool>,
     pub evm: Option<evm::Tx>,
     pub warnings: Vec<&'static str>,
+    /// Inputs signed with a sighash that does not commit to the amount (legacy P2PKH, PoS nTime)
+    /// whose amount is not proven by the full previous transaction. policy::check refuses > 0.
+    pub unproven_inputs: usize,
 }
 
 /// Raw bytes from text: JSON line field, base64 PSBT, or hex.
@@ -94,7 +97,9 @@ pub fn decode(text: &str, utxo_chain: &str) -> Result<Decoded, &'static str> {
         let tx = pos::PosTx::parse(utxo_chain, &input_bytes(text)?)?;
         let prev = pos::prevouts_from_json(text)?;
         if prev.as_ref().is_some_and(|p| p.len() != tx.inputs.len()) { return Err("pos_prevouts_count_mismatch") }
-        return Ok(pos_decoded(c, &tx, prev.as_deref()));
+        let mut d = pos_decoded(c, &tx, prev.as_deref());
+        d.unproven_inputs = pos::unproven(utxo_chain, &tx, prev.as_deref().unwrap_or(&[]), &pos::prev_txs_from_json(text));
+        return Ok(d);
     }
     decode_bytes(&input_bytes(text)?, utxo_chain)
 }
@@ -131,7 +136,7 @@ pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded 
     if !signed { w.push("unsigned") }
     if tx.inputs.is_empty() || tx.outputs.is_empty() { w.push("no_inputs_or_outputs") }
     Decoded { chain: "zec".into(), ty: if tx.version == 4 { "zcash-v4" } else { "zcash-v5" }, signed, txid: Some(tx.txid_hex()), inputs, outputs, fee,
-        vsize: Some(zcash::signed_size(tx)), locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w }
+        vsize: Some(zcash::signed_size(tx)), locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w, unproven_inputs: 0 }
 }
 
 /// Decoded view of a PoS-nTime tx (amounts of inputs only when `prev` is given).
@@ -164,7 +169,7 @@ pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) 
     if !signed { w.push("unsigned") }
     if tx.inputs.is_empty() || tx.outputs.is_empty() { w.push("no_inputs_or_outputs") }
     Decoded { chain: c.name.into(), ty: "pos-ntime", signed, txid: Some(tx.txid_hex()), inputs, outputs, fee, vsize: Some(vsize),
-        locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w }
+        locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w, unproven_inputs: 0 }
 }
 
 pub fn decode_bytes(b: &[u8], utxo_chain: &str) -> Result<Decoded, &'static str> {
@@ -226,11 +231,16 @@ fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Deco
     if !signed { w.push("unsigned") }
     if tx.input.is_empty() || tx.output.is_empty() { w.push("no_inputs_or_outputs") }
     Decoded { chain: c.name.into(), ty: "btc-tx", signed, txid: Some(digest::txid_hex(tx, digest::Digest::for_chain(c))), inputs, outputs, fee, vsize: Some(vsize),
-        locktime: Some(lt), rbf: Some(rbf), evm: None, warnings: w }
+        locktime: Some(lt), rbf: Some(rbf), evm: None, warnings: w, unproven_inputs: 0 }
 }
 
 fn psbt(c: &Chain, p: &Psbt) -> Decoded {
     let mut bad = false;
+    let dg = digest::Digest::for_chain(c);
+    let unproven = p.inputs.iter().zip(&p.unsigned_tx.input).filter(|(i, ti)| {
+        let spk = i.witness_utxo.as_ref().map(|o| o.script_pubkey.clone()).or_else(|| i.non_witness_utxo.as_ref()?.output.get(ti.previous_output.vout as usize).map(|o| o.script_pubkey.clone()));
+        match spk { Some(s) => digest::amount_uncommitted(&s) && digest::proven_prevout(i, &ti.previous_output, dg).is_none(), None => true }
+    }).count();
     let prev: Vec<Option<TxOut>> = p.inputs.iter().zip(&p.unsigned_tx.input).map(|(i, ti)| {
         if let Some(o) = &i.witness_utxo { return Some(o.clone()) }
         let t = i.non_witness_utxo.as_ref()?;
@@ -245,6 +255,7 @@ fn psbt(c: &Chain, p: &Psbt) -> Decoded {
     d.warnings.retain(|w| *w != "unsigned");
     if !fin { d.warnings.push(if partial { "partially_signed" } else { "unsigned" }) }
     if bad { d.warnings.push("utxo_txid_mismatch") }
+    d.unproven_inputs = unproven;
     d
 }
 
@@ -268,7 +279,7 @@ fn evm_decoded(b: &[u8]) -> Result<Decoded, &'static str> {
     let inputs = from.map(|a| vec![Io { txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
     let outputs = vec![Io { txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
     Ok(Decoded { chain: "eth".into(), ty: if t.kind == evm::Kind::Legacy { "evm-legacy" } else { "evm-1559" }, signed: t.sig.is_some(),
-        txid: t.txhash().map(|h| format!("0x{}", hex_enc(h))), inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w })
+        txid: t.txhash().map(|h| format!("0x{}", hex_enc(h))), inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w, unproven_inputs: 0 })
 }
 
 fn btc_amt(s: u64) -> String { format!("{}.{:08}", s / 100_000_000, s % 100_000_000) }

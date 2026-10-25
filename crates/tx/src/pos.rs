@@ -98,10 +98,28 @@ impl PosTx {
 /// unsigned tx because the nTime format has no PSBT.
 pub type Prevouts = Vec<(u64, Vec<u8>)>;
 /// The JSON line tx-build / build_unsigned_sweep emit for an nTime chain.
-pub fn envelope(chain: &str, tx: &PosTx, prev: &Prevouts) -> serde_json::Value {
+/// Each `pos_prevouts` entry carries `prev_tx` (raw previous tx hex) when `prev_txs` has it.
+pub fn envelope(chain: &str, tx: &PosTx, prev: &Prevouts, prev_txs: &[Option<Vec<u8>>]) -> serde_json::Value {
     let k = if tx.inputs.iter().any(|i| !i.script_sig.is_empty()) { "signed_tx" } else { "unsigned_tx" };
     serde_json::json!({"chain": chain, "tx_format": "pos-ntime", k: blocktools_core::hex_enc(tx.serialize()), "time": tx.time,
-        "pos_prevouts": prev.iter().map(|(a, s)| serde_json::json!({"amount": a, "amount_str": a.to_string(), "script": blocktools_core::hex_enc(s)})).collect::<Vec<_>>()})
+        "pos_prevouts": prev.iter().enumerate().map(|(n, (a, s))| { let mut o = serde_json::json!({"amount": a, "amount_str": a.to_string(), "script": blocktools_core::hex_enc(s)});
+            if let Some(Some(t)) = prev_txs.get(n) { o["prev_tx"] = serde_json::json!(blocktools_core::hex_enc(t)) } o }).collect::<Vec<_>>()})
+}
+/// `prev_tx` of each `pos_prevouts` entry (None where absent or not hex).
+pub fn prev_txs_from_json(text: &str) -> Vec<Option<Vec<u8>>> {
+    let Some(v) = text.lines().find_map(|l| serde_json::from_str::<serde_json::Value>(l.trim()).ok().filter(|v| v.get("pos_prevouts").is_some())) else { return vec![] };
+    v["pos_prevouts"].as_array().map(|a| a.iter().take(2000).map(|p| p["prev_tx"].as_str().and_then(blocktools_core::hex_dec)).collect()).unwrap_or_default()
+}
+/// Number of inputs whose (amount, script) is NOT proven by a previous tx that parses for
+/// `chain`, hashes to the outpoint txid and has that output. nTime chains use the legacy
+/// sighash (no amount commitment), so tx-sign / tx-verify refuse any unproven input.
+pub fn unproven(chain: &str, tx: &PosTx, prev: &[(u64, Vec<u8>)], prev_txs: &[Option<Vec<u8>>]) -> usize {
+    tx.inputs.iter().enumerate().filter(|(n, i)| {
+        let ok = (|| { let t = PosTx::parse(chain, prev_txs.get(*n)?.as_ref()?).ok()?;
+            let mut id = blocktools_core::hex_dec(&t.txid_hex())?; id.reverse();
+            (id == i.txid && t.outputs.get(i.vout as usize) == prev.get(*n)).then_some(()) })();
+        ok.is_none()
+    }).count()
 }
 /// `pos_prevouts` from a JSON line, if present (bounded; must be well-formed when present).
 pub fn prevouts_from_json(text: &str) -> Result<Option<Prevouts>, &'static str> {

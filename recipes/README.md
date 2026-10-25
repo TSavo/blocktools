@@ -98,3 +98,5 @@ Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains u
 Sweep is automated for btc/ltc/doge/eth. For any other `--chain`, recover.sh prints the addresses, exits 3 and names
 the builder (acct-tx, xrp-tx, or tx-build from a UTXO list) and the recipe.
 
+
+Legacy (non-segwit) inputs: UTXO lists need `prev_tx` (utxo-fetch adds it; recipe fixtures are synthetic). See docs/SECURITY.md.

@@ -8,11 +8,13 @@ set -eu
 B=${BIN:-target/release}; T=$(mktemp -d); trap '[ -n "${KEEP:-}" ] || rm -rf "$T"' EXIT
 f() { echo "FAIL $1"; exit 1; }
 echo 0000000000000000000000000000000000000000000000000000000000000001 > $T/k
+# Legacy inputs carry a synthetic prev_tx (amount proof); zec's ZIP-244 sighash commits to amounts.
+MU="cargo run -q --offline --release -p blocktools-tx --example mock-utxo --"
 TID=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 sweep() { # chain from-addr-segwit-or-empty from-p2pkh to
   c=$1; w=$2; p=$3; d=$4
-  { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; printf '{"txid":"%s","vout":1,"amount":%s,"address":"%s"}\n' $TID ${AMT:-30000} $p; } > $T/u.$c
-  $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 ${TIME:+--time $TIME} > $T/p.$c || f "$c build"
+  { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; if [ $c = zec ]; then printf '{"txid":"%s","vout":1,"amount":%s,"address":"%s"}\n' $TID ${AMT:-30000} $p; else $MU $c 1 ${AMT:-30000} $p; fi; } > $T/u.$c
+  $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 ${TIME:+--time $TIME} > $T/p.$c || { cat $T/p.$c; f "$c build"; }
   $B/tx-verify --chain $c --expect-to $d < $T/p.$c >/dev/null || f "$c verify"
   python3 scripts/tty-drive.py right $T/k $T/o.$c $PWD/$B/tx-sign --tx $T/p.$c --expect-to $d > $T/tty.$c || f "$c sign"
   grep -q "Checks passed" $T/tty.$c || f "$c summary"

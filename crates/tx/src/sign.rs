@@ -30,9 +30,13 @@ pub fn sign_psbt(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str
 pub fn sign_psbt_digest(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<usize, &'static str> {
     let secp = Secp256k1::new();
     let tx = p.unsigned_tx.clone();
-    let prev: Vec<TxOut> = p.inputs.iter().zip(&tx.input).map(|(i, ti)| i.witness_utxo.clone()
-        .or_else(|| i.non_witness_utxo.as_ref()?.output.get(ti.previous_output.vout as usize).cloned()))
-        .collect::<Option<_>>().ok_or("input_missing_utxo")?;
+    let mut prev: Vec<TxOut> = Vec::new();
+    for (i, ti) in p.inputs.iter().zip(&tx.input) {
+        let o = i.witness_utxo.clone().or_else(|| i.non_witness_utxo.as_ref()?.output.get(ti.previous_output.vout as usize).cloned()).ok_or("input_missing_utxo")?;
+        // Fail closed: a legacy-sighash input is only signed against a previous tx that proves its amount.
+        let o = if amount_uncommitted(&o.script_pubkey) { proven_prevout(i, &ti.previous_output, dg).ok_or("legacy_input_amount_unproven")? } else { o };
+        prev.push(o);
+    }
     let mut n = 0;
     for i in 0..tx.input.len() {
         let spk = prev[i].script_pubkey.as_bytes().to_vec();

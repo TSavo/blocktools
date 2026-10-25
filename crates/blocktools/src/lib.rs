@@ -196,7 +196,7 @@ pub mod sweep {
         let (tx, prev) = blocktools_tx::build::build_pos_sweep(c, &u, to, fee_rate, time, 546)?;
         let total: u64 = prev.iter().map(|p| p.0).sum();
         let amount = tx.outputs[0].0;
-        let mut o = blocktools_tx::pos::envelope(chain, &tx, &prev);
+        let mut o = blocktools_tx::pos::envelope(chain, &tx, &prev, &u.iter().map(|x| x.prev_raw.clone()).collect::<Vec<_>>());
         o["inputs"] = json!(u.len()); o["amount"] = json!(amount.to_string()); o["fee"] = json!((total - amount).to_string());
         Ok(o)
     }

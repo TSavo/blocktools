@@ -6,6 +6,7 @@ use bitcoin::{Amount, ScriptBuf, TapNodeHash, Transaction, TxOut};
 use blocktools_core::hex_dec as h;
 use blocktools_tx::{build, sign};
 use std::str::FromStr;
+mod common;
 
 fn sk(x: &str) -> SecretKey { SecretKey::from_slice(&h(x).unwrap()).unwrap() }
 
@@ -45,7 +46,7 @@ fn build_then_sign_every_kind() {
     let c = blocktools_core::chains::chain("btc").unwrap();
     let addrs = ["bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"];
     let tid = "a".repeat(64);
-    let utxos: String = addrs.iter().enumerate().map(|(i, a)| format!("{{\"txid\":\"{tid}\",\"vout\":{i},\"amount\":{},\"address\":\"{a}\"}}\n", 10000 * (i + 1))).collect();
+    let utxos: String = addrs.iter().enumerate().map(|(i, a)| common::line(c, i as u32, 10000 * (i as u64 + 1), a)).collect();
     let u = build::parse_utxos(c, &utxos).unwrap();
     let mut p = build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[0].into(), send: None, change: None, fee_rate: 2, rbf: true, dust: 546, locktime: 0 }).unwrap();
     assert_eq!(p.unsigned_tx.output.len(), 1);
@@ -79,7 +80,7 @@ fn every_signature_verifies() {
     let c = blocktools_core::chains::chain("btc").unwrap();
     let addrs = ["bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN", "bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9"];
     let tid = "b".repeat(64);
-    let utxos: String = addrs.iter().enumerate().map(|(i, a)| format!("{{\"txid\":\"{tid}\",\"vout\":{i},\"amount\":{},\"address\":\"{a}\"}}\n", 10000 * (i + 1))).collect();
+    let utxos: String = addrs.iter().enumerate().map(|(i, a)| common::line(c, i as u32, 10000 * (i as u64 + 1), a)).collect();
     let u = build::parse_utxos(c, &utxos).unwrap();
     let mut p = build::build_btc(c, u, &build::BtcPlan { to: addrs[4].into(), send: None, change: None, fee_rate: 3, rbf: false, dust: 546, locktime: 0 }).unwrap();
     assert_eq!(sign::sign_psbt(&mut p, &[sk(K)]).unwrap(), 5);
@@ -105,4 +106,56 @@ fn every_signature_verifies() {
         let pk = bitcoin::secp256k1::PublicKey::from_slice(&pk).unwrap();
         secp.verify_ecdsa(&Message::from_digest(h), &ecdsa::Signature::from_der(&sig[..sig.len() - 1]).unwrap(), &pk).unwrap_or_else(|_| panic!("input {i}"));
     }
+}
+
+/// Security review finding 1: a legacy P2PKH input whose claimed amount is not proven by the
+/// previous tx must never be signed or pass tx-verify (its sighash does not commit to the amount,
+/// so a 0.0003 claim on a 3 BTC input would sign bytes paying 2.9997 BTC to miners).
+#[test]
+fn legacy_lying_amount_refused() {
+    use blocktools_tx::policy::{check, Policy};
+    let c = blocktools_core::chains::chain("btc").unwrap();
+    let a = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
+    let (txid, real) = common::prev_tx(c, 0, 300_000_000, a); // real prevout: 3 BTC
+    let claim = |extra: &str| format!("{{\"txid\":\"{txid}\",\"vout\":0,\"amount\":30000,\"address\":\"{a}\"{extra}}}");
+    // tx-build: no prev tx -> refused; prev tx that disagrees with the claim -> refused
+    let plan = build::BtcPlan { to: a.into(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, locktime: 0 };
+    let u = build::parse_utxos(c, &claim("")).unwrap();
+    assert!(build::build_btc(c, u.clone(), &plan).unwrap_err().contains("legacy_input_needs_prev_tx"));
+    assert!(build::parse_utxos(c, &claim(&format!(",\"prev_tx\":\"{real}\""))).unwrap_err().contains("differs"));
+    // A hand-made PSBT with only the lying witness_utxo (what the old tx-build produced)
+    let tx = Transaction { version: bitcoin::transaction::Version::TWO, lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![bitcoin::TxIn { previous_output: bitcoin::OutPoint { txid: bitcoin::Txid::from_str(&txid).unwrap(), vout: 0 }, ..Default::default() }],
+        output: vec![TxOut { value: Amount::from_sat(29_000), script_pubkey: u[0].script.clone().into() }] };
+    let mut p = Psbt::from_unsigned_tx(tx).unwrap();
+    p.inputs[0].witness_utxo = Some(TxOut { value: Amount::from_sat(30_000), script_pubkey: u[0].script.clone().into() });
+    let pol = Policy { expect_to: vec![a.into()], max_fee: Some(100_000), ..Default::default() };
+    let d = blocktools_tx::decode_bytes(&p.serialize(), "btc").unwrap();
+    assert_eq!(d.fee, Some(1000)); // the lie the human would have seen
+    assert!(check(&d, &pol).contains(&"legacy_input_amount_unproven"));
+    assert!(check(&d, &Policy { allow_warnings: true, ..pol.clone() }).contains(&"legacy_input_amount_unproven"));
+    assert_eq!(sign::sign_psbt(&mut p.clone(), &[sk(K)]).unwrap_err(), "legacy_input_amount_unproven");
+    // Attaching the real prev tx: mismatch with witness_utxo -> still refused
+    p.inputs[0].non_witness_utxo = Some(deserialize(&h(&real).unwrap()).unwrap());
+    assert!(check(&blocktools_tx::decode_bytes(&p.serialize(), "btc").unwrap(), &pol).contains(&"legacy_input_amount_unproven"));
+    assert_eq!(sign::sign_psbt(&mut p.clone(), &[sk(K)]).unwrap_err(), "legacy_input_amount_unproven");
+    // Honest: witness_utxo agrees with the prev tx -> the true 2.9997 BTC fee shows and the cap refuses it
+    p.inputs[0].witness_utxo = None;
+    let d = blocktools_tx::decode_bytes(&p.serialize(), "btc").unwrap();
+    assert_eq!((d.unproven_inputs, d.fee), (0, Some(300_000_000 - 29_000)));
+    assert!(check(&d, &pol).contains(&"fee_above_cap"));
+    assert_eq!(sign::sign_psbt(&mut p, &[sk(K)]).unwrap(), 1);
+}
+/// Same for GRS (legacy sighash under single SHA-256): the prev tx must hash with GRS's digest.
+#[test]
+fn grs_legacy_needs_prev_tx() {
+    let c = blocktools_core::chains::chain("grs").unwrap();
+    let a = blocktools_core::chains::pub_rows(c, "", &bitcoin::secp256k1::PublicKey::from_secret_key(&Secp256k1::new(), &sk(K)), true).into_iter().find(|r| r.kind == "p2pkh").unwrap().address;
+    let plan = build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, locktime: 0 };
+    let u = build::parse_utxos(c, &common::line(c, 1, 50_000, &a)).unwrap();
+    let mut p = build::build_btc(c, u, &plan).unwrap();
+    assert_eq!(blocktools_tx::decode_bytes(&p.serialize(), "grs").unwrap().unproven_inputs, 0);
+    assert_eq!(sign::sign_psbt_digest(&mut p.clone(), &[sk(K)], sign::Digest::Sha256).unwrap(), 1);
+    p.inputs[0].non_witness_utxo = None;
+    assert_eq!(sign::sign_psbt_digest(&mut p, &[sk(K)], sign::Digest::Sha256).unwrap_err(), "legacy_input_amount_unproven");
 }

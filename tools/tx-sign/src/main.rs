@@ -78,7 +78,7 @@ fn main() {
         let mut bare = t.clone(); for i in &mut bare.inputs { i.script_sig.clear() }
         if bare != unsigned { out("error", json!({"error":"signed_tx_differs_from_unsigned"})) }
         let who: Vec<String> = d.inputs.iter().filter_map(|i| i.address.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
-        (t.serialize(), who.join(", "), blocktools_tx::pos::envelope(&chain, &t, &prev).to_string().into_bytes())
+        (t.serialize(), who.join(", "), blocktools_tx::pos::envelope(&chain, &t, &prev, &blocktools_tx::pos::prev_txs_from_json(&txt)).to_string().into_bytes())
     } else if chain == "zec" {
         let (prev, branch) = blocktools_tx::zcash::envelope_from_json(&txt).unwrap_or_else(|e| bad(e)).unwrap_or_else(|| bad("zec signing needs zec_prevouts and branch_id (from tx-build)"));
         let mut t = blocktools_tx::zcash::ZTx::parse(&raw, branch).unwrap_or_else(|e| bad(e));

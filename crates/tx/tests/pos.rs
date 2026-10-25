@@ -1,6 +1,7 @@
 //! PoS-nTime chains: real mainnet txs. The on-chain txid must equal sha256d of our
 //! serialisation, and every consensus-accepted P2PKH signature must verify against our legacy
 //! sighash (and fail with the opposite timestamp-in-preimage choice: PPC/NVC/CLAM include it, RDD omits it).
+mod common;
 use blocktools_tx::pos::PosTx;
 fn hx(s: &str) -> Vec<u8> { blocktools_core::hex_dec(s).unwrap() }
 
@@ -61,7 +62,14 @@ pub fn check(chain: &str, txid: &str, spks: &str, raw: &str) {
     for (c, from, to) in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9", "PMsYj4nuMuX6uCuig8TeS82KLVhb6hBZqt"), ("nvc", "4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR", "4SzCSxnMzRjvTqMeXQofeEELknbFfka5SC"),
                           ("clam", "xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx", "xMb1TyEXahWwxkLpgXmnCQLpwrpwLRRhrb"), ("rdd", "RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa", "RmuAdiadczJMookEpeTZLsf37XFFKpkCxW")] {
         let ch = blocktools_core::chains::supported(c).unwrap();
-        let u = blocktools_tx::build::parse_utxos(ch, &format!(r#"{{"txid":"{}","vout":1,"amount":30000,"address":"{from}"}}"#, "cc".repeat(32))).unwrap();
+        let line = common::line(ch, 1, 30000, from);
+        let u = blocktools_tx::build::parse_utxos(ch, &line).unwrap();
+        let env = blocktools_tx::pos::envelope(c, &blocktools_tx::build::build_pos_sweep(ch, &u, to, 5, 1792800000, 546).unwrap().0, &blocktools_tx::build::build_pos_sweep(ch, &u, to, 5, 1792800000, 546).unwrap().1, &[u[0].prev_raw.clone()]).to_string();
+        assert_eq!(blocktools_tx::decode(&env, c).unwrap().unproven_inputs, 0);
+        let mut lie: serde_json::Value = serde_json::from_str(&env).unwrap(); lie["pos_prevouts"][0]["amount"] = 3_000_000.into(); lie["pos_prevouts"][0]["amount_str"] = "3000000".into();
+        assert_eq!(blocktools_tx::decode(&lie.to_string(), c).unwrap().unproven_inputs, 1);
+        let mut none: serde_json::Value = serde_json::from_str(&env).unwrap(); none["pos_prevouts"][0].as_object_mut().unwrap().remove("prev_tx");
+        assert!(blocktools_tx::policy::check(&blocktools_tx::decode(&none.to_string(), c).unwrap(), &Default::default()).contains(&"legacy_input_amount_unproven"));
         let (mut tx, prev) = blocktools_tx::build::build_pos_sweep(ch, &u, to, 5, 1792800000, 546).unwrap();
         assert_eq!(blocktools_tx::sign::sign_pos(&mut tx, &prev, &[k]).unwrap(), 1);
         let spks: Vec<String> = prev.iter().map(|p| blocktools_core::hex_enc(&p.1)).collect();

@@ -37,3 +37,16 @@
 Report vulnerabilities privately to the maintainer via a GitHub security advisory
 on the repository (Security → Report a vulnerability), not in a public issue. Do not
 include real keys, seeds or wallet files in any report.
+
+## Legacy-input amount proof
+
+**Legacy-input amount proof (security review 2026-10-25).** A legacy (pre-segwit) sighash does not commit to the
+amount being spent, so a host that lies about an input's value can make a signer pay a hidden fee (the classic
+P2PKH fee attack). Rule, applied to every legacy-sighash family (BTC/LTC/DOGE/BLK/... P2PKH, GRS, PoS-nTime):
+an input whose script is neither a witness program nor P2SH(-P2WPKH) must carry its full previous transaction.
+`utxo-fetch` adds `prev_tx` (raw hex) for such inputs; `tx-build` refuses without it (`legacy_input_needs_prev_tx`)
+or when its txid (chain digest: GRS single SHA-256) or output disagrees with the claimed amount/script; the PSBT gets
+`non_witness_utxo`, PoS envelopes get `pos_prevouts[i].prev_tx`. `tx-decode` reports `unproven_inputs`; `tx-verify`
+fails with `legacy_input_amount_unproven` (not waivable by `--allow-warnings`); `tx-sign` refuses to sign such an
+input. Zcash (ZIP-243/244) and forkid chains (BCH/BSV/BTG) commit to amounts in the sighash, so a lying amount only
+produces an invalid signature; the PSBT check still applies to them.

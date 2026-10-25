@@ -55,7 +55,7 @@ fn main() {
         let time = num(a.get("--time"), "--time").map(|t| u32::try_from(t).unwrap_or_else(|_| fail("--time"))).unwrap_or_else(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as u32).unwrap_or(0));
         let (tx, prev) = build::build_pos_sweep(c, &utxos, a.get("--to").unwrap_or_else(|| fail("--to required")), num(a.get("--fee-rate"), "--fee-rate").unwrap_or_else(|| fail("--fee-rate required")) as u64,
             time, num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64).unwrap_or_else(|e| fail(&e));
-        let mut o = blocktools_tx::pos::envelope(chain, &tx, &prev);
+        let mut o = blocktools_tx::pos::envelope(chain, &tx, &prev, &utxos.iter().map(|u| u.prev_raw.clone()).collect::<Vec<_>>());
         o["tool"] = json!("tx-build"); o["status"] = json!("ok"); o["type"] = json!("pos-ntime");
         blocktools_io::outln!("{o}"); return
     }
