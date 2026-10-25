@@ -75,7 +75,9 @@ next() { case $1 in
   ada) echo "acct-tx build/sign (recipes/chain-cardano.md)" ;; dot) echo "acct-tx build/sign (recipes/chain-polkadot.md)" ;;
   xrp) echo "xrp-tx build/sign (recipes/xrp.md)" ;; grs) echo "tx-build from a UTXO list (recipes/chain-groestlcoin.md)" ;;
   zec) echo "tx-build from a UTXO list (recipes/chain-zcash-transparent.md)" ;;
-  sol|tron|qtum|pot) echo "sweep is not built for $1; import the key into a $1 wallet (recipes/README.md, 'By chain')" ;;
+  qtum) echo "tx-build from a UTXO list (recipes/chain-qtum.md)" ;;
+  pot) echo "sweep is not built for pot (no reachable explorer to verify its tx format); import the key into a Potcoin wallet (recipes/chain-old-coins.md)" ;;
+  sol|tron) echo "sweep is not built for $1; import the key into a $1 wallet (recipes/README.md, 'By chain')" ;;
   *) echo "tx-build from a UTXO list (recipes/chain-old-coins.md)" ;; esac; }
 case $CHAIN in btc|ltc|doge|eth) ;; *)
   cat "$W/pub"; say "$CHAIN: addresses only; recover.sh automates sweep for btc/ltc/doge/eth. Next: $(next "$CHAIN")"; exit 3 ;; esac

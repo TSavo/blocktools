@@ -19,6 +19,10 @@ Every other old-coin row, key 1 (uncompressed p2pkh, as old clients made them; v
 (trc/bch/bsv share Bitcoin's 1... form; dgb shares Dogecoin's D... form; pot shares Peercoin's P... form. Check
 `"chain"` on each line.)
 
+Potcoin (pot): NOT BUILT. Its source (Reddcoin-style PoSV) puts nTime after locktime for version > 1, but no
+explorer for the current chain was reachable (chainz pot hosting expired; explorer.potcoin.com failed TLS), so there
+is no mainnet tx to verify the layout against. Import the key into a Potcoin wallet instead.
+
 ## Sweep a PoS coin (Peercoin-style nTime: ppc, nvc, clam, rdd)
 
 The unsigned tx carries a timestamp: pass `--time UNIX` (now, give or take, for the network to accept it). Key 1 -> key 2,

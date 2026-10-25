@@ -43,7 +43,7 @@ and see addresses and signed transactions only.
 | Groestlcoin | ✅ (incl. Groestl-checksum xpub, grs1p; real-wallet xpub untested) | ✗ | ✅ (e2e, no live network; p2tr spend refused) | [chain-groestlcoin.md](chain-groestlcoin.md) |
 | Ethereum / EVM | ✅ | ✅ | ✅ ETH, ERC-20 | [chain-ethereum.md](chain-ethereum.md) |
 | XRP | ✅ | manual | ✅ Payment (xrp-tx) | [xrp.md](xrp.md) |
-| Qtum | ✅ | ✗ | ✗ | [chain-qtum.md](chain-qtum.md) |
+| Qtum | ✅ | ✗ | ✅ offline build (P2PKH; format checked on 5 mainnet txs; no live network) | [chain-qtum.md](chain-qtum.md) |
 | Old coins (PPC, NMC, FTC, NVC, CLAM, BLK, RDD, XPM, QRK, ...) | ✅ | ✗ | ✅ offline build (PoS nTime for PPC/NVC/CLAM/RDD; QRK format unverified; e2e, no live network) | [chain-old-coins.md](chain-old-coins.md) |
 | Zcash transparent (t1) | ✅ (t1 via zec-sapling --unified only) | ✗ | ✅ offline v5 build (e2e, no live network) | [chain-zcash-transparent.md](chain-zcash-transparent.md) |
 | Tron | ✅ | ✗ | ✗ | [chain-tron.md](chain-tron.md) |

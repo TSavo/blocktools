@@ -22,13 +22,14 @@ w(IN, "seed.txt", "abandon abandon abandn abandon abandon abandon abandon abando
 w(IN, "electrum-seed.txt", "cycle rocket west magnet parrot shuffle foot correct salt library feed song")
 w(IN, "key.hex", "0" * 63 + "1")
 w(IN, "key.wif", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn")
-# Mock UTXO lists for offline tx-build examples: one 0.01-coin output at key 1's address (txid all 'c').
+# Mock UTXO lists for offline tx-build examples: one 0.01-coin output (qtum: 1 QTUM, since its 700 sat/vB fee is 13% of 0.01) at key 1's address (txid all 'c').
 for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR"),
                ("clam", "xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx"), ("rdd", "RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa"),
                ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX"), ("zec", "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs"),
                ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"), ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+               ("qtum", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
                ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5")]:
-    w(IN, f"u-{_c}.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":1000000,"address":"' + _a + '"}')
+    w(IN, f"u-{_c}.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":' + ("100000000" if _c == "qtum" else "1000000") + ',"address":"' + _a + '"}')
 # BIP84 spec mnemonic (abandon x11 about) root key in xprv form (same key as BIP84's zprvAWgYBBk7...).
 w(IN, "xprv.txt", "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu")
 # Shape-only stand-in for an Electrum "encrypt file" wallet (BIE1 base64 prefix); no real ciphertext.
