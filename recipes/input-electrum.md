@@ -38,9 +38,15 @@ mnemonic (1626-word list) as a typed seed. Only the wallet file is read.
 
 ## Electrum "encrypt file" wallets (BIE1)
 
-A whole-file-encrypted wallet starts with `QklFMQ` (base64 of `BIE1`). classify names it, and recover.sh stops (exit 3)
-with the next step. NOT BUILT: decrypting BIE1 files. Open the wallet in Electrum and use its seed (input-seed-phrase.md).
-The test input below has the right shape but no real ciphertext:
+A whole-file-encrypted wallet starts with `QklFMQ` (base64 of `BIE1`). electrum-read decrypts it with the wallet
+password (the same password then opens any field-encrypted seed inside), so recover.sh routes it like any Electrum
+wallet. Checked against btcrecover's Electrum 2.8 and 4.1 encrypted test wallets and an independent python vector.
+NOT BUILT: `BIE2` files (password derived from a hardware wallet xpub); electrum-read says `unsupported_bie2`.
 
-<!-- e2e: rc=3 ; expect=electrum_wallet_file_encrypted ; expect=not supported -->
-    recipes/recover.sh /in/electrum-bie1-wallet -
+<!-- e2e: expect="address" ; needs=electrum-bie1-wallet -->
+    recipes/recover.sh /in/electrum-bie1-wallet - --goal addresses --password-file /secrets/electrum.pw
+
+A file that decrypts but has no keystore is refused:
+
+<!-- e2e: expect="status":"unsupported" -->
+    ./blocktools run 'read-file /secrets/bie1.pw /in/electrum-bie1-nokeys | electrum-read'

@@ -1,3 +1,4 @@
+adler2
 aes
 arrayvec
 base58ck
@@ -26,6 +27,7 @@ inout
 itoa
 keccak
 memchr
+miniz_oxide
 secp256k1
 secp256k1-sys
 serde_core

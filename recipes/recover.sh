@@ -40,7 +40,7 @@ case $class in
   electrum_seed)   keys() { "$B/seed-to-master" < "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   wallet_dat)      keys() { pw_then_file | "$B/dat-read" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   # Electrum 2+: seed -> seed-to-master -> derive. Electrum 1.x: electrum-read emits the keys itself.
-  electrum_wallet) keys() { local e; e=$(pw_then_file | "$B/electrum-read" --count "$COUNT")
+  electrum_wallet|electrum_wallet_file_encrypted) keys() { local e; e=$(pw_then_file | "$B/electrum-read" --count "$COUNT")
                             if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e"; else printf '%s\n' "$e" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; fi; unset e; } ;;
   multibit_key)    keys() { pw_then_file | "$B/multibit-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain "$CHAIN" < "$FILE"; } ;;
@@ -55,7 +55,6 @@ case $class in
   # bitcoinj / MultiBit Classic .wallet: loose keys (wif) or an HD seed (xprv, MultiBit HD path m/0'/c/i).
   bitcoinj_wallet) keys() { local e; e=$(pw_then_file | "$B/multibit-read")
                             if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e" | "$B/key-to-addresses" --chain "$CHAIN"; else printf '%s\n' "$e" | "$B/derive" --chain "$CHAIN" --path "m/0'/{change}/{i}" --change 0,1 --index "0..$((COUNT-1))" --address-type p2pkh --compressed; fi; unset e; } ;;
-  electrum_wallet_file_encrypted) say "Electrum file-encrypted wallet (BIE1): not supported here. Open it in Electrum with its password and use the seed (recipes/input-electrum.md)"; exit 3 ;;
   xpub)            WATCH=1; keys() { "$B/xpub-addresses" --chain "$CHAIN" --count "$COUNT" --change 0,1 < "$FILE"; } ;;
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;
   monero_address)  say "watch-only ($class): Monero balances need the view key (recipes/monero.md)"; exit 3 ;;

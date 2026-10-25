@@ -17,6 +17,7 @@ bitcoin = { version = "0.32", default-features = false, features = ["std"] }
 secp256k1 = { version = "0.29", default-features = false, features = ["std"] }
 sha3 = { version = "0.10", default-features = false }
 scrypt = { version = "0.12", default-features = false }
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 sha2 = { version = "0.10", default-features = false }
 groestl = { version = "0.10", default-features = false }

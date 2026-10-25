@@ -1,4 +1,4 @@
-//! electrum-read: Electrum wallet file (JSON, optionally field-encrypted) -> its seed phrase
+//! electrum-read: Electrum wallet file (JSON, optionally field-encrypted, or BIE1 whole-file encrypted) -> its seed phrase
 //! ({"mnemonic"}) and/or master key ({"xprv"}). Output CONTAINS SECRETS. Pipe to seed-to-master
 //! (mnemonic) or derive (xprv). stdin: line 1 = wallet password (empty if none), rest = wallet file.
 //! Electrum 1.x files: the keys themselves ({"wif","address","path"}, uncompressed P2PKH, `--count N`

@@ -14,6 +14,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "adler2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -302,6 +308,7 @@ dependencies = [
  "cbc",
  "ctr",
  "md-5",
+ "miniz_oxide",
  "pbkdf2 0.12.2",
  "scrypt",
  "serde_json",
@@ -967,6 +974,15 @@ dependencies = [
  "keccak",
  "rand_core",
  "zeroize",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ffbe83022cedc1d264172192511ae958937694cd57ce297164951b8b3568394"
+dependencies = [
+ "adler2",
 ]
 
 [[package]]

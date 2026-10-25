@@ -1,6 +1,10 @@
 //! Electrum wallet files (2.x-4.x JSON, field-level encryption only). With "use_encryption", each
 //! secret field is base64(iv16 || AES-256-CBC(sha256d(password), PKCS7)) (pw_hash_version 1).
-//! Whole-file encrypted wallets (BIE1, "encrypt file") are NOT supported: classify reports them.
+//! Whole-file encrypted wallets ("encrypt file", base64 "BIE1..."): ECIES as Electrum's
+//! storage.py/crypto.py: privkey = PBKDF2-HMAC-SHA512(password, "", 1024) mod n; ephemeral pubkey
+//! at [4..37]; k = sha512(compressed(eph * priv)); iv k[0..16], AES-128-CBC key k[16..32], HMAC-SHA256
+//! key k[32..] over everything but the trailing 32-byte mac; plaintext is zlib. BIE2 (xpub/hardware
+//! password) is refused as "unsupported_bie2".
 //! Electrum 1.x (seed_version 4, a Python dict literal): the seed is 32 hex chars (same
 //! encryption). Its keys come from the "old" scheme: secexp = sha256 stretched 100000x,
 //! key_i = secexp + sha256d("i:change:" || mpk) (uncompressed P2PKH). The derived mpk must equal the
@@ -84,8 +88,58 @@ fn dec(key: &[u8; 32], b64: &str) -> Option<Zeroizing<String>> {
     String::from_utf8(buf[..n].to_vec()).ok().map(Zeroizing::new)
 }
 
+/// Decrypt an Electrum BIE1 whole-file-encrypted wallet to its JSON text.
+pub fn decrypt_bie1(file: &str, password: &str) -> Result<Zeroizing<String>, &'static str> {
+    use bitcoin::hashes::{hmac::{Hmac, HmacEngine}, sha256, sha512, HashEngine};
+    use bitcoin::secp256k1::{PublicKey, Scalar, Secp256k1};
+    let t = file.trim();
+    if t.starts_with("QklFMg") { return Err("unsupported_bie2") }
+    let raw = blocktools_core::b64::decode(t).ok_or("unsupported")?;
+    if raw.len() < 85 || &raw[..4] != b"BIE1" { return Err("unsupported") }
+    // PBKDF2-HMAC-SHA512, one 64-byte block, 1024 iterations, empty salt.
+    let prf = |m: &[u8]| { let mut e = HmacEngine::<sha512::Hash>::new(password.as_bytes()); e.input(m); Hmac::<sha512::Hash>::from_engine(e).to_byte_array() };
+    let mut u = Zeroizing::new(prf(&[0, 0, 0, 1])); let mut acc = Zeroizing::new(*u);
+    for _ in 1..1024 { *u = prf(&u[..]); for (a, b) in acc.iter_mut().zip(u.iter()) { *a ^= b } }
+    let sk = reduce_mod_n(&acc).ok_or("wrong_password")?;
+    let secp = Secp256k1::verification_only();
+    let eph = PublicKey::from_slice(&raw[4..37]).map_err(|_| "unsupported")?;
+    let shared = eph.mul_tweak(&secp, &Scalar::from(sk)).map_err(|_| "wrong_password")?;
+    let k = Zeroizing::new(sha512::Hash::hash(&shared.serialize()).to_byte_array());
+    let (body, mac) = raw.split_at(raw.len() - 32);
+    let mut e = HmacEngine::<sha256::Hash>::new(&k[32..]); e.input(body);
+    let want = Hmac::<sha256::Hash>::from_engine(e).to_byte_array();
+    if want.iter().zip(mac).fold(0u8, |a, (x, y)| a | (x ^ y)) != 0 { return Err("wrong_password") }
+    let mut buf = Zeroizing::new(body[37..].to_vec());
+    let key: [u8; 16] = k[16..32].try_into().unwrap(); let iv: [u8; 16] = k[..16].try_into().unwrap();
+    let n = cbc::Decryptor::<aes::Aes128>::new(&key.into(), &iv.into()).decrypt_padded_mut::<Pkcs7>(&mut buf).map_err(|_| "corrupt")?.len();
+    let plain = Zeroizing::new(miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(&buf[..n], MAX_FILE).map_err(|_| "corrupt")?);
+    String::from_utf8(plain.to_vec()).map(Zeroizing::new).map_err(|_| "corrupt")
+}
+/// 512-bit big-endian value mod the secp256k1 order, as a key (None if 0).
+fn reduce_mod_n(x: &[u8; 64]) -> Option<bitcoin::secp256k1::SecretKey> {
+    const N: [u64; 4] = [0xBFD25E8CD0364141, 0xBAAEDCE6AF48A03B, 0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF]; // little-endian limbs
+    // schoolbook: r = (r * 256 + byte) mod n, r < n < 2^256, kept in 5 limbs
+    let mut r = [0u64; 5];
+    for &b in x.iter() {
+        let mut c = b as u128;
+        for l in r.iter_mut() { let v = ((*l as u128) << 8) | c; *l = v as u64; c = v >> 64; }
+        // r < 2^264; subtract n while r >= n (at most 256 times; constant shape not needed for an offline tool)
+        loop {
+            let ge = r[4] != 0 || (0..4).rev().map(|i| r[i].cmp(&N[i])).find(|o| o.is_ne()).map_or(true, |o| o.is_gt());
+            if !ge { break }
+            let mut br = 0i128;
+            for i in 0..5 { let v = r[i] as i128 - *N.get(i).unwrap_or(&0) as i128 - br; br = (v < 0) as i128; r[i] = (v + (br << 64)) as u64; }
+        }
+    }
+    let mut out = Zeroizing::new([0u8; 32]);
+    for i in 0..4 { out[(3 - i) * 8..(4 - i) * 8].copy_from_slice(&r[i].to_be_bytes()) }
+    bitcoin::secp256k1::SecretKey::from_slice(&out[..]).ok()
+}
+
 /// Err("wrong_password") if the password does not decrypt; Err("unsupported") for other shapes.
+/// A BIE1 whole-file-encrypted wallet is decrypted with the same password first.
 pub fn open(json: &str, password: &str) -> Result<Vec<Item>, &'static str> {
+    if json.trim_start().starts_with("QklF") { let d = decrypt_bie1(json, password)?; return open(&d, password) }
     let v: Value = match serde_json::from_str(json) { Ok(v) => v,
         Err(_) => serde_json::from_str(&py_to_json(json.trim()).ok_or("unsupported")?).map_err(|_| "unsupported")? };
     let enc = v.get("use_encryption").and_then(Value::as_bool).unwrap_or(false);
@@ -131,6 +185,27 @@ mod tests {
         assert_eq!(ks[..5].iter().map(|k| k.1.as_str()).collect::<Vec<_>>(), recv);
         assert_eq!(ks[5..8].iter().map(|k| k.1.as_str()).collect::<Vec<_>>(), chg);
         assert_eq!(open(&f, "wrong"), Err("wrong_password"));
+    }
+    /// Independent vector from scripts/electrum-bie1-gen.py (python `cryptography`, public password).
+    #[test] fn bie1_vector() {
+        const V: &str = "QklFMQP5c6C4cGLDidEl2BmegDuDK2rGv3hnpPbNh1BgYPxMWK0baBcm30a4MYvrXX0n8QXwd98GGE3NTj0ntXbfB5FfKdhKhYV7otO7SQiFvUrSzMzAeC9MQG+4FdNhjn9Ohxmuk9m1ZjliG6izoUXpBl2U9E7iSbSKl7oy7tiYBdCERiVq/YlWwbsqlyW7cLcfZRp5NhbVfpwiHEA/qfv+aPNJ";
+        let d = decrypt_bie1(V, "blocktools-bie1-test").unwrap();
+        assert_eq!(d.as_str(), r#"{"seed_version": 18, "wallet_type": "standard", "note": "blocktools BIE1 vector"}"#);
+        assert_eq!(decrypt_bie1(V, "wrong").unwrap_err(), "wrong_password");
+        assert_eq!(decrypt_bie1(&V.replacen("QklFMQ", "QklFMg", 1), "x").unwrap_err(), "unsupported_bie2");
+        assert_eq!(open(V, "blocktools-bie1-test"), Err("unsupported")); // decrypts, but holds no keystore
+        let mut n = [0xffu8; 64]; n[0] = 0; assert!(reduce_mod_n(&n).is_some());
+    }
+    /// btcrecover's Electrum 2.8 / 4.1 "encrypt file" wallets (fixtures/external, fetched; pw btcr-test-password),
+    /// written by Electrum itself: decrypt, then yield their seed (not printed).
+    #[test] fn bie1_btcrecover_fixtures() {
+        for f in ["electrum28-wallet", "electrum41-wallet"] {
+            let Ok(t) = std::fs::read_to_string(format!("{}/../../fixtures/external/{f}", env!("CARGO_MANIFEST_DIR"))) else { eprintln!("skip: fixture absent"); return };
+            let d = decrypt_bie1(&t, "btcr-test-password").unwrap();
+            assert!(serde_json::from_str::<Value>(&d).unwrap()["seed_version"].as_u64().unwrap() >= 11, "{f}");
+            assert!(matches!(open(&t, "btcr-test-password").unwrap()[0], Item::Mnemonic(_) | Item::Xprv(_)), "{f}");
+            assert_eq!(open(&t, "nope"), Err("wrong_password"));
+        }
     }
     #[test] fn py_literal() {
         assert_eq!(py_to_json("{'a': True, 0: [u'x', None], 'b': (1, 2)}").unwrap(), r#"{"a": true, "0": ["x", null], "b": [1, 2]}"#);

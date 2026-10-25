@@ -84,7 +84,7 @@ Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains u
 | xpub, address | watch-only: xpub-addresses / address (balance, no sweep) | input-xpub-address.md |
 | wallet_dat | dat-read -> derive | input-wallet-dat.md |
 | electrum_wallet | electrum-read (-> seed-to-master -> derive) | input-electrum.md |
-| electrum_wallet_file_encrypted | stops, exit 3 (BIE1 not built) | input-electrum.md |
+| electrum_wallet_file_encrypted | electrum-read (decrypts BIE1; BIE2 refused) | input-electrum.md |
 | multibit_key | multibit-read -> key-to-addresses | input-multibit.md |
 | bitcoinj_wallet | multibit-read -> key-to-addresses (or derive m/0'/c/i for an HD seed) | input-multibit.md |
 | armory_wallet | armory-read -> key-to-addresses | input-armory.md |

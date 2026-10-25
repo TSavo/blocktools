@@ -37,8 +37,8 @@ for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3
                                          check=True, capture_output=True, text=True).stdout.strip())
 # BIP84 spec mnemonic (abandon x11 about) root key in xprv form (same key as BIP84's zprvAWgYBBk7...).
 w(IN, "xprv.txt", "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu")
-# Shape-only stand-in for an Electrum "encrypt file" wallet (BIE1 base64 prefix); no real ciphertext.
-w(IN, "electrum-bie1-wallet", "QklFMQ" + "A" * 120)
+# Public BIE1 vector (scripts/electrum-bie1-gen.py, pw blocktools-bie1-test): decrypts, holds no keystore.
+w(IN, "electrum-bie1-nokeys", "QklFMQP5c6C4cGLDidEl2BmegDuDK2rGv3hnpPbNh1BgYPxMWK0baBcm30a4MYvrXX0n8QXwd98GGE3NTj0ntXbfB5FfKdhKhYV7otO7SQiFvUrSzMzAeC9MQG+4FdNhjn9Ohxmuk9m1ZjliG6izoUXpBl2U9E7iSbSKl7oy7tiYBdCERiVq/YlWwbsqlyW7cLcfZRp5NhbVfpwiHEA/qfv+aPNJ")
 w(IN, "grs-tpub.txt", "tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK")
 w(IN, "xrp-seed.txt", "sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r")
 w(IN, "xmr-seed.txt", "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy")
@@ -72,11 +72,11 @@ w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
 w(IN, "seed-missing.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
 w(IN, "seed-unknown.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ?")
 w(IN, "targets-eth.txt", "0x9858EfFD232B4033E47d90003D41EC34EcaEda94")
-for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"), ("fixtures/external/electrum-wallet", "electrum1-wallet"),
+for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"), ("fixtures/external/electrum-wallet", "electrum1-wallet"), ("fixtures/external/electrum28-wallet", "electrum-bie1-wallet"),
                  ("fixtures/external/multibit.wallet.bitcoinj.encrypted", "bitcoinj.wallet"), ("fixtures/external/multibit.wallet.bitcoinj.clear", "bitcoinj-clear.wallet"),
                  ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat"), ("fixtures/external/armory-wallet.wallet", "armory.wallet")]:
     if os.path.exists(src): shutil.copy(src, os.path.join(IN, dst))
-for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"),
+for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"), ("bie1.pw", "blocktools-bie1-test"),
              ("multibit.pw", "btcr-test-password"), ("armory.pw", "btcr-test-password"), ("empty.pw", "")]:
     w(SEC, n, p)
 secret_values = [open(os.path.join(IN, f)).read().strip() for f in ("seed.txt", "electrum-seed.txt", "key.hex", "key.wif", "xrp-seed.txt", "xmr-seed.txt", "xlm-mnemonic.txt", "xlm-seed.txt", "atom-mnemonic.txt", "algo-mnemonic.txt", "dot-mnemonic.txt", "ton-mnemonic.txt", "ada-mnemonic.txt")]
