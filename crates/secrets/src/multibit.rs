@@ -1,7 +1,6 @@
 //! MultiBit Classic private-key export (.key): OpenSSL "Salted__" AES-256-CBC, key/iv from
 //! EVP_BytesToKey(MD5, 1 round), base64 text. Plaintext: '#' comments and "WIF date" lines.
-//! Output: the WIF keys. MultiBit HD / bitcoinj .wallet protobufs are NOT supported (classify
-//! reports them as bitcoinj_wallet).
+//! Output: the WIF keys. bitcoinj .wallet protobufs and MultiBit HD are in `bitcoinj`.
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
 use md5::{Digest, Md5};
 use zeroize::Zeroizing;

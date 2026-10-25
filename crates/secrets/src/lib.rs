@@ -7,6 +7,8 @@
 pub mod dat;
 #[cfg(feature = "multibit")]
 pub mod multibit;
+#[cfg(feature = "multibit")]
+pub mod bitcoinj;
 #[cfg(feature = "electrum")]
 pub mod electrum;
 #[cfg(feature = "keys")]

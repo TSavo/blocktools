@@ -22,11 +22,17 @@ generic-array
 groestl
 hex-conservative
 hex_lit
+hmac
 inout
 keccak
 md-5
+pbkdf2
+salsa20
+scrypt
 secp256k1
 secp256k1-sys
+sha2
 sha3
+subtle
 typenum
 zeroize
