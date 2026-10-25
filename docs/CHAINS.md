@@ -100,4 +100,5 @@ Scan and sweep: host tool `xmr-wallet` over a loopback monero-wallet-rpc. 2026-1
 ## Solana public data (2026-10-25)
 wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed25519 signature check, `solVerifyTx` policy. No Solana builder yet (planned: acct-tx style, solders vectors).
 - 2026-10-25: BCH CashAddr accepted by `addressToScript('bch', …)` and converted by `cashAddrToLegacy` / `legacyToCashAddr`.
+- 2026-10-25: EVM recovery/sweep verifier (SwapChan parity, raw tx entry points).
 - 2026-10-25: Tron txID + raw_data decode (`tronDecodeTx`); BTC-family PSBT with OP_RETURN memo (`buildPsbtWithMemo`).

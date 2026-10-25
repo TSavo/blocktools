@@ -277,3 +277,38 @@ pub fn tron_tx_id(raw_data_hex: &str) -> Result<String, JsError> { Ok(blocktools
 /// Decode Tron raw_data hex or a full signed Transaction hex. JSON: see EXPORTS.md.
 #[wasm_bindgen(js_name = tronDecodeTx)]
 pub fn tron_decode_tx(hex: &str) -> Result<String, JsError> { Ok(blocktools::tron::decode(&hx(hex)?).map_err(err)?.to_string()) }
+
+fn js_u64(x: f64, what: &str) -> Result<u64, JsError> {
+    if x.is_finite() && x >= 0.0 && x.fract() == 0.0 && x <= 9007199254740991.0 { Ok(x as u64) } else { Err(err(format!("bad_{what}"))) }
+}
+fn tx_json(s: &str) -> Result<serde_json::Value, JsError> { serde_json::from_str(s).map_err(|_| err("bad_json")) }
+fn now_or_clock(now_s: f64) -> Result<u64, JsError> {
+    if now_s == 0.0 { return Err(err("bad_now")) } // explicit clock: pass Math.floor(Date.now()/1000)
+    js_u64(now_s, "now")
+}
+/// SwapChan verifyRecovery twin. `tx_json` = {"to","data","value"}; `now_s` = unix seconds (required; 0 = bad_now).
+/// Returns {"verified":true,"call"} or {"verified":false,"reason"}.
+#[wasm_bindgen(js_name = verifyRecovery)]
+pub fn verify_recovery(tx_json_s: &str, owner: &str, now_s: f64) -> Result<String, JsError> {
+    Ok(blocktools::verifier::verify_recovery_json(&tx_json(tx_json_s)?, owner, now_or_clock(now_s)?).to_json().to_string())
+}
+/// verifyRecovery on a raw (signed or unsigned) EVM tx hex. Adds "tx":{kind,chainId,signed,from,to,value,data,txid}.
+#[wasm_bindgen(js_name = verifyRecoveryRaw)]
+pub fn verify_recovery_raw(raw_hex: &str, owner: &str, chain_id: f64, now_s: f64) -> Result<String, JsError> {
+    Ok(blocktools::verifier::verify_recovery_raw(&hx(raw_hex)?, owner, js_u64(chain_id, "chain_id")?, now_or_clock(now_s)?).to_string())
+}
+/// SwapChan verifySweepTx twin. `tx_json` = {from,to,value,data?,chainId}; `token` = "" for a native sweep.
+#[wasm_bindgen(js_name = verifySweepTx)]
+pub fn verify_sweep_tx(tx_json_s: &str, owner: &str, chain_id: f64, token: &str) -> Result<String, JsError> {
+    let t = (!token.is_empty()).then_some(token);
+    Ok(blocktools::verifier::verify_sweep(&tx_json(tx_json_s)?, owner, js_u64(chain_id, "chain_id")?, t).to_json().to_string())
+}
+/// verifySweepTx on a raw EVM tx hex; the sender is recovered from the signature (unsigned fails closed).
+#[wasm_bindgen(js_name = verifySweepRaw)]
+pub fn verify_sweep_raw(raw_hex: &str, owner: &str, chain_id: f64, token: &str) -> Result<String, JsError> {
+    let t = (!token.is_empty()).then_some(token);
+    Ok(blocktools::verifier::verify_sweep_raw(&hx(raw_hex)?, owner, js_u64(chain_id, "chain_id")?, t).to_string())
+}
+/// The verifier's allowlists: standard sigs/owner slots, pinned contracts, MultiSend, deadline cap.
+#[wasm_bindgen(js_name = recoveryTables)]
+pub fn recovery_tables() -> String { blocktools::verifier::tables().to_string() }

@@ -639,3 +639,14 @@ Untested: a wallet app (Zashi/Ywallet) showing the same UA; Orchard viewing keys
 ## Monero scan/sweep (2026-10-25)
 
 `tools/xmr-wallet` drives the user's own monero-wallet-rpc on loopback only (URLs other than 127.0.0.1 are refused) and never runs in the sealed image. Seed and view key travel only in the HTTP body to loopback. Sweep: restore, refresh, `sweep_all` with do_not_relay, check destination network and amount + fee == unlocked, print the plan; `--relay` additionally requires a 6-digit code typed at /dev/tty, then `relay_tx`. 2026-10-25 stagenet run (Mac, official monero v0.18.5.4 binaries, SHA-256 checked against the published hashes.txt): faucet 0.5 XMR seen by `xmr-wallet scan` (unlocked 500000000000 at height 2236134); `xmr-wallet sweep --relay` planned amount 499969620000 + fee 30380000 = unlocked, relayed tx bb300227e8e6c418fe7d825ac432d79abc2d4b943d99e053eabfba3c8197a96d (mined in stagenet block 2236135, checked on a public stagenet node); a view-only `scan` of the destination wallet shows that amount incoming (pool). The TTY confirm was answered by an `expect` script standing in for a human. Untested: mainnet, Polyseed/13-word/non-English seeds, subaddresses.
+
+## Recovery verifier (2026-10-25)
+
+`blocktools::verifier` is a Rust port of SwapChan's `verifyRecovery` / `verifySafe` / `verifyV4` / `verifySweepTx`
+(no secrets, wasm-safe). The ABI decoder mirrors viem 2.57.11 (lenient address words, strict bools, offset rules,
+8192 recursive-read limit) so verdicts match the TS. `tests/verifier_parity.rs` replays a 1290-case corpus generated
+by `tools/verifier-parity/gen.ts` from the TS sources with real viem, and parses the copied TS sources
+(`tests/data/verifier-ts/`) to prove STANDARD_RECOVERY, pinned contracts, MultiSend and the deadline cap are identical.
+Raw entry points decode a legacy/2930/1559 tx with `blocktools-tx`, require the chain id, recover the signer and
+require it to be the owner. Divergences all fail closed: non-hex `data`, multicall nesting > 32, a malformed `value`
+returns a verdict instead of throwing, viem error texts only keep the `unverifiable: ` prefix.

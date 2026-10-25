@@ -102,6 +102,7 @@ dependencies = [
  "blocktools-tx",
  "curve25519-dalek",
  "serde_json",
+ "sha3",
 ]
 
 [[package]]

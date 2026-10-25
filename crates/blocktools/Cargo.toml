@@ -10,6 +10,7 @@ blocktools-tx = { path = "../tx" }
 serde_json = { workspace = true }
 bitcoin = { workspace = true }
 curve25519-dalek = { workspace = true }
+sha3 = { workspace = true }
 blocktools-schema = { path = "../schema", optional = true }
 blocktools-secrets = { path = "../secrets", optional = true, features = ["repair", "seed", "dat", "keystore", "keys", "walk"] }
 blocktools-net = { path = "../net", optional = true }

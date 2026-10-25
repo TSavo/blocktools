@@ -145,3 +145,33 @@ console.log('wasm grs ok');
   assert.equal(bt.validateAddress('tron', d.contracts[0].to), 'Tron');
   console.log('wasm psbt-memo + tron ok');
 }
+
+// XRP address validation / detection (public: rrrrrrrrrrrrrrrrrrrrrhoLvTp = ACCOUNT_ZERO, rHb9... = genesis)
+{
+  assert.equal(bt.validateAddress('xrp', 'rrrrrrrrrrrrrrrrrrrrrhoLvTp'), 'Xrp');
+  assert.equal(bt.validateAddress('xrp', 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh'), 'Xrp');
+  assert.throws(() => bt.validateAddress('xrp', 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTi'));
+  assert.ok(det('rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh').includes('xrp'), 'detectAddress finds xrp');
+  assert.ok(!det('rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTi').includes('xrp'));
+}
+// Recovery verifier (SwapChan verifyRecovery / verifySweepTx twins)
+{
+  const owner = '0x1111111111111111111111111111111111111111', now = 1761400000;
+  const v = JSON.parse(bt.verifyRecovery(JSON.stringify({ to: '0x2222222222222222222222222222222222222222', data: '0x3ccfd60b', value: '0' }), owner, now));
+  assert.deepEqual(v, { verified: true, call: 'withdraw()' });
+  assert.equal(JSON.parse(bt.verifyRecovery(JSON.stringify({ to: owner, data: '0x3ccfd60b', value: '1' }), owner, now)).reason, 'non-zero value');
+  assert.throws(() => bt.verifyRecovery('{}', owner, 0), /bad_now/);
+  assert.throws(() => bt.verifyRecovery('nope', owner, now), /bad_json/);
+  const s = JSON.parse(bt.verifySweepTx(JSON.stringify({ from: owner, to: owner, value: '5', chainId: 1 }), owner, 1, ''));
+  assert.equal(s.verified, true);
+  assert.equal(JSON.parse(bt.verifySweepTx(JSON.stringify({ from: owner, to: owner, value: '5', chainId: 10 }), owner, 1, '')).verified, false);
+  // unsigned 1559 legacy-free raw: 0x02 || rlp([1,0,1,1,100000,to,0,0x3ccfd60b,[]])
+  const raw = '0x02e40180010183' + '0186a0' + '94' + '22'.repeat(20) + '80' + '84' + '3ccfd60b' + 'c0';
+  const r = JSON.parse(bt.verifyRecoveryRaw(raw, owner, 1, now));
+  assert.equal(r.verified, true, JSON.stringify(r)); assert.equal(r.tx.signed, false); assert.equal(r.tx.chainId, 1);
+  assert.equal(JSON.parse(bt.verifyRecoveryRaw(raw, owner, 5, now)).verified, false);
+  assert.equal(JSON.parse(bt.verifySweepRaw(raw, owner, 1, '')).reason, 'from is not the owner');
+  const t = JSON.parse(bt.recoveryTables());
+  assert.ok(t.standard_recovery.length > 30 && t.exit_deadline_max_s === 3600, Object.keys(t).join());
+}
+console.log('verifier + xrp ok');
