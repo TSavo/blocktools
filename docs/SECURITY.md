@@ -5,7 +5,7 @@
 > **Used incorrectly, it can destroy your money**: signing to a wrong address, paying a
 > huge fee, losing keys, or sending on the wrong chain. You are responsible for verifying
 > every transaction. It opens hostile wallet files and extracts secrets, so run it only
-> sealed and offline (`./keyrescue run`, `--network none`). The unit tests are evidence,
+> sealed and offline (`./blocktools run`, `--network none`). The unit tests are evidence,
 > not a substitute for your own review. See [docs/SECURITY.md](SECURITY.md).
 
 ## What is tested (measured 2026-10-24, box, `cargo test --release` + `make e2e`)
@@ -17,7 +17,7 @@
   edge cases; EIP-55 token addresses; Tron hex conversion and rejects.
   Non-standard goldens were cross-checked with an independent Python implementation
   (`scripts/kat.py`), not only against our own code.
-* Boundary: every e2e pipeline runs through `kr-run agent` and is grepped for
+* Boundary: every e2e pipeline runs through `sealed-run agent` and is grepped for
   secret-shaped strings (`LEAK` regex); secret fields must appear as `[REDACTED]`.
 * Fixtures are self-made, throwaway, generated at test time; no real wallet or key
   has been used. A secret scanner runs before every push.

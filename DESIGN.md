@@ -1,15 +1,15 @@
-# keyrescue: design
+# blocktools: design
 
 > **⚠️ DANGEROUS: use at your own risk.** Code that handles keys and signs transactions
 > should always be read and audited by you before you trust it with real funds.
 > **Used incorrectly, it can destroy your money**: signing to a wrong address, paying a
 > huge fee, losing keys, or sending on the wrong chain. You are responsible for verifying
 > every transaction. It opens hostile wallet files and extracts secrets, so run it only
-> sealed and offline (`./keyrescue run`, `--network none`). The unit tests are evidence,
+> sealed and offline (`./blocktools run`, `--network none`). The unit tests are evidence,
 > not a substitute for your own review. See [docs/SECURITY.md](docs/SECURITY.md).
 
 
-keyrescue is a set of small Unix command-line tools that recover keys from old
+blocktools is a set of small Unix command-line tools that recover keys from old
 wallet files and sign transactions. The tools run inside a sealed, offline
 container. It ships tools only: it is not an agent and not an MCP server.
 It is a companion to [SwapChan](https://swapchan.com), which never holds keys.
@@ -26,30 +26,30 @@ The rule that **the agent never sees secrets** is enforced at one boundary:
 ```
 host (agent)                         sealed container (--network none)
 -----------                          ---------------------------------
-./keyrescue run '<pipeline>'  --->   kr-run agent '<pipeline>'
+./blocktools run '<pipeline>'  --->   sealed-run agent '<pipeline>'
                                        runs tool | tool | tool itself (NO shell),
                                        tool stderr -> null, last stdout -> redactor
                                                                    ---> stdout to the agent
-./keyrescue reveal '<pipeline>' -->  kr-run human: needs a TTY + typed one-time code,
+./blocktools reveal '<pipeline>' -->  sealed-run human: needs a TTY + typed one-time code,
    (T at a terminal)                   writes raw output to /dev/tty only
 ```
 
-* `kr-run` is a Rust program, not a shell script. It parses `a args [< file] | b args`
+* `sealed-run` is a Rust program, not a shell script. It parses `a args [< file] | b args`
   (whitespace tokens, shell metacharacters rejected), runs only allowlisted tools that sit
-  next to it, with an empty environment, and applies the `kr-redact` filter in-process.
+  next to it, with an empty environment, and applies the `redact` filter in-process.
   The reference image has no shell at all, so there is nothing to inject into.
-* The redactor (`kr-redact` / in `kr-run`) is the only thing whose output reaches the agent. It keeps only
+* The redactor (`redact` / in `sealed-run`) is the only thing whose output reaches the agent. It keeps only
   allowlisted fields, each with a strict validator (§3). A line that fails any
   check is dropped completely. It ends with a summary line (kept/dropped counts).
 * Tool stderr is discarded. Raw output is never written to disk, not even tmpfs.
-* Leak tests target `kr-redact` and the end-to-end agent view
-  (`crates/kr-schema` tests, `scripts/e2e-local.sh`), not the individual tools.
+* Leak tests target `redact` and the end-to-end agent view
+  (`crates/schema` tests, `scripts/e2e-local.sh`), not the individual tools.
 
 ## 2. Threat model
 
 | Threat | Mitigation |
 |---|---|
-| Agent (LLM) context leaks keys (logs, prompt injection, transcripts) | Agent only gets `kr-redact` output; allowlist + validators + leak scan |
+| Agent (LLM) context leaks keys (logs, prompt injection, transcripts) | Agent only gets `redact` output; allowlist + validators + leak scan |
 | Hostile wallet files / filenames carrying instructions | Treated as data only; bounded reads; no eval/pickle/shell-outs in tools; filenames never interpreted |
 | Hostile KDF params (CPU/memory DoS) | Bounded scrypt/PBKDF2 parameters; container memory/pids/CPU limits |
 | Exfiltration over the network | `--network none`; no network tools in the image; no network code in tools |
@@ -62,13 +62,13 @@ host (agent)                         sealed container (--network none)
 Out of reach: a compromised Docker host (Battleaxe) or kernel, or a human who
 pastes keys into chat.
 
-## 3. Agent-facing schema (enforced by `kr-redact`)
+## 3. Agent-facing schema (enforced by `redact`)
 
 One JSON object per line, at most 512 bytes. Allowlisted fields:
 
 | field | validator |
 |---|---|
-| `tool` | enum of keyrescue tool names |
+| `tool` | enum of blocktools tool names |
 | `status` | enum: ok, checksum_ok, checksum_fail, no_candidates, too_many_candidates, bad_input, wrong_password, unsupported, error, done (**required**) |
 | `kind` | enum: p2pkh, p2sh-p2wpkh, p2wpkh, p2tr, eth |
 | `address` | base58 `1…`/`3…`, bech32/bech32m `bc1…`, or `0x` + 40 hex |
@@ -88,10 +88,10 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
-| `kr-cat` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |
-| `kr-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
+| `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |
+| `sealed-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
-| `kr-redact` | raw lines | public lines only | 1 ✅ |
+| `redact` | raw lines | public lines only | 1 ✅ |
 | `dat-read` | Bitcoin Core `wallet.dat` (BDB/SQLite, bounded own parser, no libdb) | account xprvs + bare keys | done (M2) |
 | `electrum-open`, `multibit-open`, `armory-open` | respective formats | keys, addresses | 2 |
 | `utxo-match` | addresses + UTXO JSON file (from host) | matched address/amount | 2 |
@@ -127,19 +127,19 @@ seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, se
 
 ## 5. Passwords and passphrases
 
-Interactive alternative: `--passphrase-prompt` / `--password-tty` read from `/dev/tty` with echo off (kr-tty); never argv or env.
+Interactive alternative: `--passphrase-prompt` / `--password-tty` read from `/dev/tty` with echo off (blocktools-tty); never argv or env.
 
 Passwords and passphrases arrive on **stdin**, as data in the stream. The human
-puts them in `$KR_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
+puts them in `$BLOCKTOOLS_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
 git-ignored), and the pipeline feeds them in, e.g.
-`kr-cat /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
+`read-file /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
 opens a named file. The only other source is `keystore-open --password-tty`, a
 prompt to the human on `/dev/tty`. Nothing is ever read from argv or env.
 Values are zeroized after use (`zeroize`).
 
 ## 5a. Pipe principles
 
-1. **Utilities, not a server.** keyrescue is separate Unix programs, not an MCP
+1. **Utilities, not a server.** blocktools is separate Unix programs, not an MCP
    server. Each does exactly one thing, keeps no hidden state, and is named for
    what it does: one reads DAT files (`dat-read`, phase 2), one opens JSON
    keystores (`keystore-open`), one repairs recovery phrases (`seed-repair`).
@@ -147,7 +147,7 @@ Values are zeroized after use (`zeroize`).
 2. **stdin and stdout only.** Secrets and outputs travel only through stdin and
    stdout: never environment variables, never file names, never argv. Output is
    always on stdout. Files reach a tool only via shell redirection
-   (`< /in/x`, `kr-cat a b |`) in the pipeline script. The tool sees a stream,
+   (`< /in/x`, `read-file a b |`) in the pipeline script. The tool sees a stream,
    not a path. argv carries only non-secret options (`--count 5`).
 3. **A half-complete pipe leaks secrets. A complete pipe emits only the intended output.**
    Complete pipe: `wallet file → master key → derived key → signed transaction`.
@@ -156,8 +156,8 @@ Values are zeroized after use (`zeroize`).
    utility piped after it. Cutting the pipe early (stopping after `derive`) prints
    keys, which is fine for a human at a terminal and never shown to the agent.
 4. **Agent workflow.** The agent writes a short script that chains the utilities,
-   runs it with `./keyrescue run '<script>'`, and gets back only the final
-   output. `kr-redact` still filters everything the agent sees (§3), so even a
+   runs it with `./blocktools run '<script>'`, and gets back only the final
+   output. `redact` still filters everything the agent sees (§3), so even a
    half-complete pipe written by mistake shows the agent only addresses, paths
    and statuses.
 
@@ -168,12 +168,12 @@ Values are zeroized after use (`zeroize`).
 | `seed-repair` | ✅ stdin only (`--in FILE` removed) |
 | `derive` | ✅ stdin only (`--phrase-file`, `--passphrase-file` removed; passphrase is a `{"passphrase":…}` line) |
 | `keystore-open` | ✅ stdin only: line 1 = password, rest = keystore (`--in`, `--password-file` removed) |
-| `kr-run` agent mode | ✅ no longer tees raw output to a tmpfs file; tool stderr is discarded |
+| `sealed-run` agent mode | ✅ no longer tees raw output to a tmpfs file; tool stderr is discarded |
 | **Deviation:** `keystore-open --password-tty` | Reads the password from `/dev/tty`, a human side channel, not stdin. Kept for typing passwords that are never stored. To decide: keep, or require stdin only (human pipes `cat /dev/tty` themselves). |
 | Split done | `seed-to-master` (phrase → master xprv) and `derive` (xprv → child keys + addresses). `derive` output is still a half-complete pipe; `tx-sign` completes it. |
-| **Deviation:** `kr-run`/`keyrescue` take the pipeline script via argv | The script is agent-written public text, never a secret. Alternative: feed the script on stdin. |
+| **Deviation:** `sealed-run`/`blocktools` take the pipeline script via argv | The script is agent-written public text, never a secret. Alternative: feed the script on stdin. |
 | **Deviation:** passwords staged as files in `/secrets` | The human stores them, and the tool still receives them via stdin. Alternative: a dedicated fd (e.g. `3< /secrets/pw`) if mixing with data on stdin proves awkward. |
-| `kr-cat` takes file names in argv | Paths are public; the file *contents* go to stdout. This replaces shell `cat` in the shell-less image. |
+| `read-file` takes file names in argv | Paths are public; the file *contents* go to stdout. This replaces shell `cat` in the shell-less image. |
 
 ## 5b. Minimal dependencies
 
@@ -189,12 +189,12 @@ Measured with `cargo tree -e normal` (unique crates excluding the crate itself):
 |---|---|---|---|
 | seed-repair | 12 / 52 | 1 / 8 | bip39 |
 | seed-to-master | (new) | 4 / 21 | bip39, bitcoin, zeroize, serde_json |
-| derive | 12 / 52 | 4 / 25 | kr-core (bitcoin, sha3, zeroize), serde_json — no bip39 any more |
-| kr-run | (new) | 1 / 13 | kr-schema |
-| kr-cat | (new) | 0 / 0 | std only |
+| derive | 12 / 52 | 4 / 25 | blocktools-core (bitcoin, sha3, zeroize), serde_json — no bip39 any more |
+| sealed-run | (new) | 1 / 13 | blocktools-schema |
+| read-file | (new) | 0 / 0 | std only |
 | keystore-open | 12 / 52 | 9 / 27 | secp256k1, sha3, scrypt, pbkdf2, sha2, aes, ctr, zeroize, serde_json |
-| kr-schema | 4 / 21 | 2 / 12 | bip39 (wordlist), serde_json |
-| kr-redact | 2 / 22 | 2 / 13 | kr-schema, serde_json |
+| blocktools-schema | 4 / 21 | 2 / 12 | bip39 (wordlist), serde_json |
+| redact | 2 / 22 | 2 / 13 | blocktools-schema, serde_json |
 
 Removed: `regex`, `hex`, `serde` (derive), and every unused crate the tools had
 inherited. Justification for what stays:
@@ -204,7 +204,7 @@ inherited. Justification for what stays:
 * **secp256k1** (keystore-open): public key from private key for the ETH address, without all of `bitcoin`.
 * **sha3**: Keccak-256 for ETH addresses and keystore MAC (not in the rust-bitcoin stack).
 * **scrypt, pbkdf2, sha2, aes, ctr** (keystore-open): the Web3 v3 keystore KDFs and cipher, all RustCrypto.
-* **serde_json**: parsing *hostile* JSON input (keystore files, pipe input in derive/kr-redact) must be robust. A hand-rolled parser on untrusted input is a bigger risk than one well-fuzzed crate. Output JSON is hand-written.
+* **serde_json**: parsing *hostile* JSON input (keystore files, pipe input in derive/redact) must be robust. A hand-rolled parser on untrusted input is a bigger risk than one well-fuzzed crate. Output JSON is hand-written.
 * **zeroize**: wiping secrets from memory.
 
 Deferred (to decide):
@@ -219,18 +219,18 @@ Deferred (to decide):
   covers growth only.
 
 ### libc (single exception, reviewed)
-`libc` (0.2, no default features) is used **only** by `crates/kr-tty`, for
+`libc` (0.2, no default features) is used **only** by `crates/tty`, for
 `tcgetattr`/`tcsetattr` to turn terminal echo off while a human types a password
 or passphrase (`seed-to-master --passphrase-prompt`, `keystore-open --password-tty`)
 and to read the typed confirmation code before signing. No other libc calls. If echo
 cannot be disabled the prompt refuses (`bad_input`) instead of echoing a secret.
-Only the tools that prompt depend on kr-tty.
+Only the tools that prompt depend on blocktools-tty.
 
 ### Network (host-side only)
 
-Only `utxo-fetch` and `tx-broadcast` use the network, through `crates/kr-net`. They are
+Only `utxo-fetch` and `tx-broadcast` use the network, through `crates/net`. They are
 **not copied into the sealed image** (Dockerfile skips them) and `check-deps.sh` fails if any
-other crate pulls in `kr-net`, `minreq`, `rustls`, `ring` or `webpki-roots`.
+other crate pulls in `blocktools-net`, `minreq`, `rustls`, `ring` or `webpki-roots`.
 
 HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 
@@ -243,7 +243,7 @@ HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 
 `minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
 fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
-next-smallest and swapping is confined to `kr-net`. kr-net: https only (plain http only for
+next-smallest and swapping is confined to `blocktools-net`. blocktools-net: https only (plain http only for
 localhost test servers), 30 s timeout, no redirects, 8 MiB body cap, server data re-validated.
 Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
 
@@ -267,7 +267,7 @@ builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with
 or EIP-1559 type 2). Tron (protobuf with energy/bandwidth) is planned. Multisig is planned,
 but not soon.
 
-**tx-decode** (`crates/kr-tx` library plus the thin `tools/tx-decode`, **built**). The input
+**tx-decode** (`crates/tx` library plus the thin `tools/tx-decode`, **built**). The input
 format is auto-detected: hex or base64, a raw Bitcoin tx, a PSBT, EVM RLP, or a JSON line
 with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 - a summary line: chain/type, signed, counts, txid, fee and fee rate (when the input amounts
@@ -283,7 +283,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
-`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `kr-redact`:
+`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `redact`:
 amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.
@@ -294,20 +294,20 @@ input files, never fetched. Modes: `--sweep`, `--send AMOUNT`, `--fee-rate`, `--
 are two transactions: an explicit, separately confirmed gas top-up from a funding address,
 then the token `transfer`.
 
-**tx-verify** (planned) reuses `kr-tx` and checks the decoded tx against expectations:
+**tx-verify** (planned) reuses `blocktools-tx` and checks the decoded tx against expectations:
 outputs equal the expected addresses, change goes to a derived address, the chain id is
 right, the fee and fee percentage are under caps, and no unknown outputs exist. Any failure
 gives a non-zero exit.
 
 **tx-sign** (planned) reads keys on stdin and the tx on a second stdin line or `--tx FILE`.
 It then:
-1. decodes the tx with `kr-tx` and **prints the tx-decode `--text` summary on /dev/tty**;
+1. decodes the tx with `blocktools-tx` and **prints the tx-decode `--text` summary on /dev/tty**;
 2. refuses if the fee exceeds `--max-fee` (a default cap guards against typo burns) or if
-   `--expect-to ADDR` (validated by `kr_core::validate`) is not the destination;
-3. asks for a random 6-character code typed on the TTY (`kr_tty::confirm`);
+   `--expect-to ADDR` (validated by `blocktools_core::validate`) is not the destination;
+3. asks for a random 6-character code typed on the TTY (`blocktools_tty::confirm`);
 4. signs exactly those bytes and emits the signed tx.
 EVM signing refuses transactions without a chain id. Signing reuses the
-`kr_tx::evm::Tx::sign` path that already reproduces the EIP-155 example byte for byte.
+`blocktools_tx::evm::Tx::sign` path that already reproduces the EIP-155 example byte for byte.
 
 **SwapChan** stays host-side: `find_money` → UTXO/nonce files for tx-build; `verify_tx`
 can double-check tx-decode output before broadcast.
@@ -316,31 +316,31 @@ can double-check tx-decode output before broadcast.
 
 The container never talks to SwapChan. Public data (addresses, unsigned
 txs, signed hex) moves between the agent's SwapChan MCP tools and the container
-as files in `in/` and lines from `kr-redact`.
+as files in `in/` and lines from `redact`.
 
 ## 8. Build and run
 
 * `Dockerfile`: build stage `rust:1.85-alpine3.20` pinned by digest (allowlist check, tests,
   build, then `file` on every binary — the build fails unless each is statically linked).
-  Runtime stage is `FROM scratch`: only the static tools in `/kr`. No shell, no busybox,
+  Runtime stage is `FROM scratch`: only the static tools in `/blocktools`. No shell, no busybox,
   no wget, no libc, no `/etc`.
-* `./keyrescue build | run '<pipeline>' | reveal '<pipeline>'`, plus `make recover`
+* `./blocktools build | run '<pipeline>' | reveal '<pipeline>'`, plus `make recover`
   and `make reveal` for one-command use.
 
 ### Verified status (2026-10-24, Battleaxe, Docker 29.8.2, linux/amd64)
 
 Measured: the image builds (dependency allowlist check + `cargo test` in the build stage), and the
 runtime image is 18.2 MB. Under the full sealing flags:
-* `seed-repair | derive` on the public "abandon … about" vector with typos, through `kr-run agent`:
+* `seed-repair | derive` on the public "abandon … about" vector with typos, through `sealed-run agent`:
   7 lines, only addresses, paths and statuses, with the expected BIP44/49/84/86/ETH addresses.
 * `keystore-open` on the Web3 spec vector: only `0x008AeEda4D805471dF9b2A5B0f38A0C3bCBA786b`.
 * Leak grep (wif, private_key, mnemonic, abandon, 64-hex) on agent output: 0 matches. The raw tool output
   without the boundary does contain keys, as intended.
 * Inside: uid 10001, only `lo` interface, an HTTP connect to 1.1.1.1 fails, DNS fails, `touch /usr/x`
   gives "Read-only file system", executing a binary copied to the tmpfs fails, CapEff=0, NoNewPrivs=1.
-* `kr-run human` without a TTY refuses (exit 3).
+* `sealed-run human` without a TTY refuses (exit 3).
 
-Not yet exercised: `./keyrescue` itself (its `-v`-style bind mounts resolve on the Docker *host*, so
+Not yet exercised: `./blocktools` itself (its `-v`-style bind mounts resolve on the Docker *host*, so
 with a remote context like Battleaxe, `in/` and `secrets/` must exist there; the test above fed data on stdin),
 and `reveal` with a real TTY. (The alpine runtime measured above was replaced by `scratch` afterwards; see the
 newest verified-status section.)
@@ -353,6 +353,100 @@ wallets, and any key escrow or backup service.
 
 ## 10. Roadmap
 
-* **Phase 1 (this commit):** seed-repair, derive (BIP44/49/84/86, ETH), keystore-open, kr-redact, sealed wrapper.
-* **Phase 2:** wallet.dat reader, Electrum, MultiBit, Armory; utxo-match; tx-verify, tx-sign + TTY confirmation; typed `txid`/`signed_tx` fields.
+* **Phase 1 (done):** seed-repair, derive (BIP44/49/84/86, ETH), keystore-open, redact, sealed wrapper.
+* **Phase 2 (in progress):** wallet.dat reader; tx-decode/build/verify/sign; Electrum, MultiBit, Armory; utxo-match; typed `txid`/`signed_tx` fields.
 * **Phase 3:** password-candidate lists from a human-provided file (bounded), missing-word repair, more chains.
+* **Library split:** §11 — logic in crates, thin CLIs, `secrets` feature off by default for SwapChan. Steps in docs/ROADMAP.md L1–L8.
+
+## 11. Library crate (public API for dependents)
+
+Other projects (notably SwapChan) depend on **library code**. Two consumption paths stay open; neither is required to be picked now:
+
+1. **CLI** — spawn the thin stdin/stdout tools (same pipes as humans/agents).
+2. **WebAssembly** — `wasm-bindgen` build of the `blocktools` facade (default = public-only features) producing a **TypeScript/npm wrapper** for SwapChan (SwapChan stays TypeScript). Same API; no network and no `secrets` in that build. CI must assert the `.wasm` contains no secrets-feature code (ROADMAP L4b).
+
+The native CLIs remain first-class: each is a thin stdin/stdout wrapper around the library. The sealed Docker image and `sealed-run` / `redact` boundary are unchanged for agent use. WASM is a binding option for host-side consumers, not a second product.
+
+### Crate layout (target)
+
+| crate | role | default features |
+|---|---|---|
+| **`blocktools`** | **Published facade.** One dependency for consumers. Re-exports the modules below. | public-only (no secret types in the API) |
+| `blocktools-core` | chains, path plans, address encode/validate, xpub→address | no private keys |
+| `blocktools-tx` | decode, build unsigned, policy/verify | no signing |
+| `blocktools-io` | JSON-line emit, `--help` warning | std only |
+| `blocktools-schema` | agent allowlist + leak scan (optional dep) | public fields only |
+| `blocktools-secrets` (new, or feature modules in core/tx) | seed repair/master, xprv derive, keystore/DAT/Electrum parsers, `tx::sign` | **off unless `secrets` feature** |
+| `blocktools-tty` | echo-off prompts | only CLIs that prompt |
+| `blocktools-net` | host HTTP for utxo-fetch / tx-broadcast | never in sealed image |
+
+Internal crates live under `crates/{core,tx,io,schema,tty,net}` with package names `blocktools-*`; tools keep plain job names (no prefix). The local checkout path may differ. The **published name** consumers depend on is `blocktools`.
+
+### Feature flags (on the `blocktools` facade)
+
+| feature | default | compiles |
+|---|---|---|
+| *(none / default)* | yes | address validate, path plan, xpub→addresses, tx decode/build/policy, classify fingerprints |
+| `secrets` | **no** | BIP39/Electrum seed→master, xprv/seed derive (WIF/hex out), keystore/DAT/Electrum/MultiBit/Armory open, `tx::sign` |
+| `ed25519` | no | Solana / SLIP-10 (same as today) |
+| `schema` | no | `redact` allowlist helpers (SwapChan usually does not need this) |
+| `net` | no | never pulled by sealed tools; host-only |
+
+A public-inputs-only consumer (`SwapChan`) depends on `blocktools` with default features and **never compiles** secret-handling code. Offline CLIs that print keys enable `secrets` (and `ed25519` when needed). `check-deps.sh` allowlists stay per-crate; the facade's default tree must not grow a secrets crate.
+
+### Public API shape (stable surface for SwapChan)
+
+Types are owned by the library; CLIs only parse argv/stdin and print JSON lines.
+
+```text
+blocktools::address
+  validate(chain, addr) -> Result<AddrKind, Error>
+  eth_checksum([u8;20]) -> String
+  script_to_address / address_to_script  (BTC-family)
+
+blocktools::plan
+  Spec, Ranges, preset(name), expand(template, …)
+  explain(flags) -> Plan          // no key material; same as derive --explain
+
+blocktools::derive          // default: public keys only
+  from_xpub(xpub, plan) -> Vec<AddressRow>   // address, path, kind, chain — no secrets
+  // with feature = "secrets":
+  from_xprv(xprv, plan) -> Vec<KeyRow>       // + wif / private_key
+  from_seed(seed32, plan) -> Vec<KeyRow>     // ed25519 paths need this
+
+blocktools::tx
+  decode(bytes_or_text, utxo_chain) -> Decoded
+  Decoded { chain, kind, signed, inputs, outputs, fee, warnings, … }
+  policy::Policy { expect_to, max_fee, max_fee_rate, change, chain_id, … }
+  policy::check(&Decoded, &Policy) -> Vec<&'static str>
+  build::btc(…) / build::evm(…) -> unsigned PSBT or RLP bytes
+
+  // with feature = "secrets":
+  sign::psbt / sign::evm(…) -> signed bytes   // still requires human confirm at CLI
+
+blocktools::classify   // public fingerprints only
+  scan_line(text) -> { kind, line, fingerprint }  // never echoes the secret
+
+// feature = "secrets" only:
+blocktools::seed::repair / to_master
+blocktools::keystore::open_v3
+blocktools::wallet::{dat_read, electrum_open, …}
+```
+
+Errors are plain enums/`&'static str` today; a single `blocktools::Error` can wrap them later without pulling anyhow. No async, no HTTP in the default tree, no Tokio.
+
+### CLI contract (unchanged for humans/agents)
+
+Each `tools/*` binary:
+1. `blocktools_io::help(USAGE)` for `--help`
+2. parse public flags
+3. read stdin (and `/dev/tty` only where DESIGN §5 already allows)
+4. call one library function
+5. `outln!` JSON lines
+
+No business logic left in `main` beyond argv and I/O. Composition stays `a | b | c`.
+
+### Migration steps
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) rows **L1–L8**. Order of work: freeze the public modules → move remaining tool-local logic into crates → add `secrets` feature gates → introduce the `blocktools` facade → thin the CLIs → point SwapChan at the facade with default features → rename crates/docs when ready.
+

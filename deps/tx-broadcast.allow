@@ -6,6 +6,11 @@ bitcoin-io
 bitcoin-units
 bitcoin_hashes
 block-buffer
+blocktools-core
+blocktools-io
+blocktools-net
+blocktools-tty
+blocktools-tx
 cfg-if
 crypto-common
 digest
@@ -15,11 +20,6 @@ hex-conservative
 hex_lit
 itoa
 keccak
-kr-core
-kr-io
-kr-net
-kr-tty
-kr-tx
 libc
 log
 memchr

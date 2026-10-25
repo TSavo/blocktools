@@ -8,6 +8,8 @@ bitcoin-units
 bitcoin_hashes
 block-buffer
 block-padding
+blocktools-core
+blocktools-io
 cbc
 cfg-if
 cipher
@@ -19,8 +21,6 @@ hex-conservative
 hex_lit
 inout
 keccak
-kr-core
-kr-io
 secp256k1
 secp256k1-sys
 sha3

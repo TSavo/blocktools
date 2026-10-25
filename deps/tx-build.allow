@@ -6,6 +6,9 @@ bitcoin-io
 bitcoin-units
 bitcoin_hashes
 block-buffer
+blocktools-core
+blocktools-io
+blocktools-tx
 crypto-common
 digest
 generic-array
@@ -13,9 +16,6 @@ hex-conservative
 hex_lit
 itoa
 keccak
-kr-core
-kr-io
-kr-tx
 memchr
 secp256k1
 secp256k1-sys

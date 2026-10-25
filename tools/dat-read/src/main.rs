@@ -18,7 +18,7 @@ use zeroize::Zeroizing;
 type Dec = cbc::Decryptor<aes::Aes256>;
 const T: &str = "dat-read";
 
-fn status(s: &str) { kr_io::outln!(r#"{{"tool":"{T}","status":"{s}"}}"#); }
+fn status(s: &str) { blocktools_io::outln!(r#"{{"tool":"{T}","status":"{s}"}}"#); }
 fn die(s: &str) -> ! { status(s); std::process::exit(2) }
 
 /// Bitcoin CompactSize-prefixed byte vector.
@@ -88,7 +88,7 @@ fn parse_desc(s: &str) -> Desc {
 }
 
 fn main() {
-    kr_io::help("dat-read: Bitcoin Core wallet.dat (stdin) -> account keys / legacy keys. Password via stdin JSON or --password-tty.");
+    blocktools_io::help("dat-read: Bitcoin Core wallet.dat (stdin) -> account keys / legacy keys. Password via stdin JSON or --password-tty.");
     let mut inp = std::io::stdin().lock().take(256 << 20);
     let mut pw = Zeroizing::new(Vec::new());
     if inp.read_until(b'\n', &mut pw).is_err() { die("bad_input"); }
@@ -166,7 +166,7 @@ fn main() {
                 let Ok(dp) = bitcoin::bip32::DerivationPath::from_str(&format!("m/{}", steps.join("/"))) else { continue };
                 let Ok(a) = x.derive_priv(&secp, &dp) else { continue }; a };
             let br = branch.map(|b| format!(r#","branch":{b}"#)).unwrap_or_default();
-            kr_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{kind}","path":"{path}"{br},"xprv":"{x}"}}"#);
+            blocktools_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{kind}","path":"{path}"{br},"xprv":"{x}"}}"#);
             used.push(pk); n += 1;
         }
     }
@@ -174,10 +174,10 @@ fn main() {
     for (pk, s) in &secrets {
         if used.contains(pk) { continue; }
         let Ok(sk) = SecretKey::from_slice(&s[..]) else { continue };
-        for r in kr_core::key_rows(&sk, pk.len() == 33) {
-            kr_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{}","address":"{}","wif":"{}"}}"#, r.kind, r.address, r.secret);
+        for r in blocktools_core::key_rows(&sk, pk.len() == 33) {
+            blocktools_io::outln!(r#"{{"tool":"{T}","status":"ok","index":{n},"kind":"{}","address":"{}","wif":"{}"}}"#, r.kind, r.address, r.secret);
         }
         n += 1;
     }
-    kr_io::outln!(r#"{{"tool":"{T}","status":"done","count":{n}}}"#);
+    blocktools_io::outln!(r#"{{"tool":"{T}","status":"done","count":{n}}}"#);
 }

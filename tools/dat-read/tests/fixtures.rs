@@ -17,12 +17,12 @@ fn fx(p: &str) -> Option<Vec<u8>> { std::fs::read(root().join(p)).ok() }
 fn self_made(name: &str) -> Option<Vec<u8>> {
     static DIR: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
     let dir = DIR.get_or_init(|| {
-        let d = std::env::temp_dir().join(format!("kr-fixtures-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("blocktools-fixtures-{}", std::process::id()));
         std::fs::create_dir_all(&d).ok()?;
         let ok = Command::new("python3").arg(root().join("scripts/make-fixtures.py")).arg(&d)
             .stdout(Stdio::null()).stderr(Stdio::null()).status().map(|s| s.success()).unwrap_or(false);
         if ok { Some(d) } else {
-            assert!(std::env::var("KR_REQUIRE_FIXTURES").is_err(), "make-fixtures.py failed");
+            assert!(std::env::var("BLOCKTOOLS_REQUIRE_FIXTURES").is_err(), "make-fixtures.py failed");
             eprintln!("skip: python3 + cryptography needed for self-made fixtures"); None
         }
     });
@@ -30,13 +30,13 @@ fn self_made(name: &str) -> Option<Vec<u8>> {
 }
 
 #[test] fn self_made_plain_and_encrypted() {
-    for (f, pw) in [("descriptor-plain.sqlite", ""), ("descriptor-encrypted.sqlite", "keyrescue-test-password")] {
+    for (f, pw) in [("descriptor-plain.sqlite", ""), ("descriptor-encrypted.sqlite", "blocktools-test-password")] {
         let Some(b) = self_made(f) else { return };
         let (rc, out) = run(pw, &b);
         assert_eq!(rc, 0, "{f}: {out}");
         assert!(out.contains(r#""kind":"p2wpkh","path":"m/84'/0'/0'","branch":0,"xprv":"xprv"#), "{f}: {out}");
         // throwaway bare key; address computed independently by scripts/make-fixtures.py
-        assert!(out.contains(r#""address":"13M3vwLduvWviNdwLqrsLYBf6KLNq1cyYM""#), "{f}");
+        assert!(out.contains(r#""address":"1McH57cuCXCq5hKooyJvQFG5XGL9fsbqHd""#), "{f}");
     }
 }
 #[test] fn wrong_password() {

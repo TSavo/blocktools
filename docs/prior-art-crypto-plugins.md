@@ -11,7 +11,7 @@ Paths: `CP/` = crypto-plugins, `PCS/` = platform-crypto-server. No secrets or cr
   - `IChainPlugin { pluginId, supportedCurve, encoders: {name→encoder}, createWatcher, createSweeper, version }`
   - `ISweepStrategy { scan(keys, treasury) → DepositInfo[]; sweep(keys, treasury, dryRun) → SweepResult[] }`. **scan/sweep split plus dry-run by default** (`SWEEP_DRY_RUN` must be `"false"` to send).
   - `IChainWatcher { init, poll, setWatchedAddresses, getCursor, stop }` plus `IWatcherCursorStore` (cursor and per-txKey confirmation counts).
-  → keyrescue: `derive` = curve deriver × encoder table; sweep = scan, then a plan, then sign.
+  → blocktools: `derive` = curve deriver × encoder table; sweep = scan, then a plan, then sign.
 - **The chain is a data row, not code.** In the DB `payment_methods` row: `coin_type, curve, encoding, encoding_params(JSON), xpub, rpc_url, rpc_headers, contract_address, decimals, confirmations` (`PCS/src/db/schema.ts`, `CP/src/sweep/index.ts`). Adding a chain is an INSERT. The sweeper groups methods by `coin_type` into a family (`0,2,3→utxo; 60→evm; 195→tron; 501→solana`).
 - **Key rings** (`schema.ts key_rings`): `curve`, `derivation_scheme` (`bip32|slip10|ed25519-hd`), `derivation_mode` (`on-demand|pre-derived`), coin_type, account_index. `/admin/next-path` hands out `m/44'/{coin}'/{n}'`.
 - **Ed25519 can't use xpubs**, so Solana and TON use a **pre-derived address pool**. An offline tool uploads `{index, public_key, address}`. The server **re-encodes public_key and rejects a mismatch** ("Address mismatch", `PCS/src/__tests__/key-server.test.ts:523`). This integrity check is worth copying for `derive` output.

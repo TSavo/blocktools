@@ -1,9 +1,0 @@
-[package]
-name = "kr-schema"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "keyrescue library. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
-[dependencies]
-serde_json.workspace = true
-bip39.workspace = true

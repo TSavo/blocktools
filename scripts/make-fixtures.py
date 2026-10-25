@@ -4,8 +4,8 @@
 Independent of the Rust code: Python's sqlite3, hashlib, and `cryptography`
 (AES-256-CBC, secp256k1). Keys used are PUBLIC TEST VECTORS / throwaway only:
   * the BIP84 account m/84'/0'/0' of the public BIP39 phrase "abandon x11 about"
-  * a throwaway bare key = sha256("keyrescue throwaway fixture key 1")
-Password of the encrypted wallet (public test password): keyrescue-test-password
+  * a throwaway bare key = sha256("blocktools throwaway fixture key 1")
+Password of the encrypted wallet (public test password): blocktools-test-password
 """
 import hashlib, hmac, os, sqlite3, struct, sys
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -49,7 +49,7 @@ k, c = ckd(k, c, 0 | 1 << 31)            # m/84'/0'/0'
 xpub = b58c(bytes.fromhex("0488B21E") + bytes([3]) + h160(pub(k_parent))[:4] + struct.pack(">I", 1 << 31) + c + pub(k))
 desc = f"wpkh([73c5da0a/84h/0h/0h]{xpub}/0/*)#fixture0"
 acct, acct_pub = k, pub(k)
-bare = int.from_bytes(hashlib.sha256(b"keyrescue throwaway fixture key 1").digest(), "big")
+bare = int.from_bytes(hashlib.sha256(b"blocktools throwaway fixture key 1").digest(), "big")
 
 def wallet(path, encrypted):
     if os.path.exists(path): os.remove(path)
@@ -63,8 +63,8 @@ def wallet(path, encrypted):
         put(cs(b"walletdescriptorkey") + did + cs(acct_pub), cs(der(acct)) + sha256d(acct_pub + der(acct)))
         put(cs(b"key") + cs(pub(bare)), cs(der(bare)) + bytes(32))
     else:
-        pw, salt, rounds = b"keyrescue-test-password", hashlib.sha256(b"salt").digest()[:8], 25000
-        master = hashlib.sha256(b"keyrescue fixture master key").digest()
+        pw, salt, rounds = b"blocktools-test-password", hashlib.sha256(b"salt").digest()[:8], 25000
+        master = hashlib.sha256(b"blocktools fixture master key").digest()
         h = hashlib.sha512(pw + salt).digest()
         for _ in range(rounds - 1): h = hashlib.sha512(h).digest()
         put(cs(b"mkey") + struct.pack("<I", 1), cs(aes_enc(h[:32], h[32:48], master)) + cs(salt) + struct.pack("<II", 0, rounds) + cs(b""))

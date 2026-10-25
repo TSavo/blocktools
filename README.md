@@ -1,11 +1,11 @@
-# keyrescue
+# blocktools
 
 > **⚠️ DANGEROUS: use at your own risk.** Code that handles keys and signs transactions
 > should always be read and audited by you before you trust it with real funds.
 > **Used incorrectly, it can destroy your money**: signing to a wrong address, paying a
 > huge fee, losing keys, or sending on the wrong chain. You are responsible for verifying
 > every transaction. It opens hostile wallet files and extracts secrets, so run it only
-> sealed and offline (`./keyrescue run`, `--network none`). The unit tests are evidence,
+> sealed and offline (`./blocktools run`, `--network none`). The unit tests are evidence,
 > not a substitute for your own review. See [docs/SECURITY.md](docs/SECURITY.md).
 
 
@@ -16,15 +16,15 @@ Tools print keys. The agent-facing wrapper returns only addresses,
 derivation paths and statuses. See [DESIGN.md](DESIGN.md).
 
 ```sh
-./keyrescue build                 # on a Docker host
+./blocktools build                 # on a Docker host
 echo "your phrase" > in/seed.txt  # or copy wallet files into in/
 make recover                      # agent-safe: addresses + paths only
 make reveal                       # human at a terminal: shows keys after typed code
 ```
 
-Status: image built and sealed run verified on Battleaxe (18.2 MB; network off, read-only rootfs, no leaks in agent output). `./keyrescue reveal` and phase-2 tools are not yet tested. See DESIGN.md "Verified status".
+Status: image built and sealed run verified on Battleaxe (18.2 MB; network off, read-only rootfs, no leaks in agent output). `./blocktools reveal` and phase-2 tools are not yet tested. See DESIGN.md "Verified status".
 
-Tools: `seed-repair`, `seed-to-master`, `derive`, `keystore-open`, `kr-redact`, `kr-run`, `kr-cat`, `dat-read`.
+Tools: `seed-repair`, `seed-to-master`, `derive`, `keystore-open`, `redact`, `sealed-run`, `read-file`, `dat-read`.
 
 ### Bitcoin Core wallet.dat
 
@@ -34,7 +34,7 @@ then the wallet bytes. Every decrypted key is checked against its stored public 
 
 ```sh
 # human, at a terminal, in the sealed container:
-{ cat pw.txt; cat wallet.dat; } | kr-run agent 'dat-read | derive --count 20'
+{ cat pw.txt; cat wallet.dat; } | sealed-run agent 'dat-read | derive --count 20'
 ```
 
 Tested: 3 public Core test wallets (BDB 0.x, 0.20.1 HD, 0.21.1 SQLite) when fetched with

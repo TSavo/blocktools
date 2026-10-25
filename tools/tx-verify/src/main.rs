@@ -2,23 +2,23 @@
 //!   tx-verify [--chain btc|ltc|doge] [--expect-to ADDR]... [--change ADDR]... [--chain-id N]
 //!             [--max-fee SATS_OR_WEI] [--allow-warnings]
 //! Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
-use kr_tx::policy::{check, Policy};
+use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    kr_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--allow-warnings] < tx");
+    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--allow-warnings] < tx");
     let a: Vec<String> = std::env::args().collect();
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
-    let bad = |e: &str| -> ! { kr_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
+    let bad = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
     let chain = one("--chain").unwrap_or("btc".into());
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
         max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))), allow_warnings: a.iter().any(|x| x == "--allow-warnings") };
     let mut s = String::new();
-    if std::io::stdin().take(kr_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
-    let d = kr_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
+    if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
+    let d = blocktools_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
     let f = check(&d, &p);
-    kr_io::outln!("{}", json!({"tool":"tx-verify","status":if f.is_empty() {"ok"} else {"failed"},"failures":f,"warnings":d.warnings}));
+    blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":if f.is_empty() {"ok"} else {"failed"},"failures":f,"warnings":d.warnings}));
     if !f.is_empty() { std::process::exit(1) }
 }

@@ -16,7 +16,7 @@ tx-decode --chain ltc --text < tx.txt     # Litecoin/Dogecoin address encoding
 The input can be hex or base64, a raw Bitcoin tx, a PSBT, an EVM legacy or EIP-1559 tx, or
 a JSON line with `psbt`, `tx`, `unsigned_tx` or `signed_tx`.
 
-Example (Bitcoin block 170, a public transaction; the vector is in `crates/kr-tx/tests/vectors/`):
+Example (Bitcoin block 170, a public transaction; the vector is in `crates/tx/tests/vectors/`):
 
 ```
 === TRANSACTION (btc btc-tx, SIGNED) ===

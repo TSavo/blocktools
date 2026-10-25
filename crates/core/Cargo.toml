@@ -1,0 +1,14 @@
+[package]
+name = "blocktools-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools library. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+bitcoin.workspace = true
+sha3.workspace = true
+zeroize.workspace = true
+ed25519-dalek = { workspace = true, optional = true }
+[features]
+# Solana / ed25519 addresses. Off by default so dat-read & co. stay small.
+ed25519 = ["dep:ed25519-dalek"]

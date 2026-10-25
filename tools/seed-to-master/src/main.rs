@@ -44,7 +44,7 @@ pub fn electrum_seed(norm: &str, passphrase: &str) -> Zeroizing<[u8; 64]> {
 fn emit(cand: u64, scheme: &str, seed: &[u8], n: &mut u64) {
     let master = Xpriv::new_master(Network::Bitcoin, seed).expect("seed");
     let hex = Zeroizing::new(seed.iter().map(|b| format!("{b:02x}")).collect::<String>());
-    kr_io::outln!(r#"{{"tool":"seed-to-master","status":"ok","candidate":{cand},"scheme":"{scheme}","xprv":"{}","seed":"{}"}}"#, master, hex.as_str());
+    blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"ok","candidate":{cand},"scheme":"{scheme}","xprv":"{}","seed":"{}"}}"#, master, hex.as_str());
     *n += 1;
 }
 
@@ -55,7 +55,7 @@ fn one(t: &str, passphrase: &str, cand: u64, n: &mut u64) {
     }
     if let Some(norm) = electrum_norm(&t).map(Zeroizing::new) {
         match electrum_scheme(&norm) {
-            Some(s @ ("electrum-2fa" | "electrum-2fa-segwit")) => kr_io::outln!(r#"{{"tool":"seed-to-master","status":"unsupported","candidate":{cand},"scheme":"{s}"}}"#),
+            Some(s @ ("electrum-2fa" | "electrum-2fa-segwit")) => blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"unsupported","candidate":{cand},"scheme":"{s}"}}"#),
             Some(s) => emit(cand, s, &electrum_seed(&norm, passphrase)[..], n),
             None => {}
         }
@@ -73,17 +73,17 @@ fn readings(phrase: &str, passphrase: &str, cand: u64, n: &mut u64) -> u64 {
 }
 
 fn main() {
-    kr_io::help("seed-to-master [--passphrase-prompt] < {\"mnemonic\":...} lines -> master keys (BIP39 and Electrum standard/segwit; 2FA and old-Electrum: unsupported, planned)");
+    blocktools_io::help("seed-to-master [--passphrase-prompt] < {\"mnemonic\":...} lines -> master keys (BIP39 and Electrum standard/segwit; 2FA and old-Electrum: unsupported, planned)");
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut passphrase = Zeroizing::new(String::new());
     match args.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice() {
         [] => {}
-        ["--passphrase-prompt"] => match kr_tty::read_secret("BIP39/Electrum passphrase (not echoed, empty = none): ") {
+        ["--passphrase-prompt"] => match blocktools_tty::read_secret("BIP39/Electrum passphrase (not echoed, empty = none): ") {
             Some(p) => passphrase = p,
-            None => { kr_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
+            None => { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
         },
         ["--help"] => { println!("seed-to-master [--passphrase-prompt]  < {{\"mnemonic\":...}} lines\n  tries BIP39 and Electrum (standard/segwit); 2FA and old-Electrum: unsupported (planned)"); return }
-        _ => { kr_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
+        _ => { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
     }
     let mut n = 0u64;
     let reader = std::io::stdin().lock().take(16 << 20);
@@ -97,10 +97,10 @@ fn main() {
         if m.len() > 4096 { continue }
         let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
         if readings(m, &passphrase, cand, &mut n) == 0 {
-            kr_io::outln!(r#"{{"tool":"seed-to-master","status":"checksum_fail","candidate":{cand}}}"#)
+            blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"checksum_fail","candidate":{cand}}}"#)
         }
     }
-    kr_io::outln!(r#"{{"tool":"seed-to-master","status":"done","count":{n}}}"#);
+    blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"done","count":{n}}}"#);
 }
 
 #[cfg(test)]

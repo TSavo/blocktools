@@ -4,25 +4,25 @@
 //! or a JSON line {"key":"..."}. An ambiguous string is tried in every encoding that yields
 //! exactly 32 bytes; each decoding is a separate "candidate".
 //! Output CONTAINS SECRETS. Flags: --chain a,b (default all).
-use kr_core::chains::{self, Chain, Enc};
-use kr_io::outln;
+use blocktools_core::chains::{self, Chain, Enc};
+use blocktools_io::outln;
 use std::io::{BufRead, Read};
 use zeroize::Zeroizing;
 
-use kr_core::b64::decode as b64;
+use blocktools_core::b64::decode as b64;
 /// (encoding name, 32 bytes, compressed-hint) for each decoding that works.
 fn decodings(s: &str) -> Vec<(&'static str, Zeroizing<Vec<u8>>, Option<bool>)> {
     let mut v = Vec::new();
     if s.len() > 120 { return v }
     let h = s.strip_prefix("0x").unwrap_or(s);
-    if h.len() == 64 { if let Some(b) = kr_core::hex_dec(h) { v.push(("hex", Zeroizing::new(b), None)) } }
+    if h.len() == 64 { if let Some(b) = blocktools_core::hex_dec(h) { v.push(("hex", Zeroizing::new(b), None)) } }
     if let Ok(k) = bitcoin::PrivateKey::from_wif(s) { v.push(("wif", Zeroizing::new(k.inner.secret_bytes().to_vec()), Some(k.compressed))) }
     if let Ok(b) = bitcoin::base58::decode(s) { if b.len() == 32 { v.push(("base58", Zeroizing::new(b), None)) } }
     if h.len() != 64 { if let Some(b) = b64(s) { if b.len() == 32 { v.push(("base64", Zeroizing::new(b), None)) } } }
     v
 }
 fn main() {
-    kr_io::help(r#"key-to-addresses [--chain LIST] < raw 32-byte key (hex, WIF, base58, base64, {"key":...}) -> addresses on every chain"#);
+    blocktools_io::help(r#"key-to-addresses [--chain LIST] < raw 32-byte key (hex, WIF, base58, base64, {"key":...}) -> addresses on every chain"#);
     let a: Vec<String> = std::env::args().collect();
     let mut sel: Vec<&'static Chain> = chains::CHAINS.iter().collect();
     match a.get(1).map(String::as_str) {

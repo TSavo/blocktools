@@ -131,6 +131,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-core"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "ed25519-dalek",
+ "sha3",
+ "zeroize",
+]
+
+[[package]]
+name = "blocktools-io"
+version = "0.1.0"
+
+[[package]]
+name = "blocktools-net"
+version = "0.1.0"
+dependencies = [
+ "minreq",
+ "serde_json",
+]
+
+[[package]]
+name = "blocktools-schema"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "serde_json",
+]
+
+[[package]]
+name = "blocktools-tty"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "zeroize",
+]
+
+[[package]]
+name = "blocktools-tx"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
+ "secp256k1",
+ "serde_json",
+ "sha3",
+]
+
+[[package]]
 name = "cbc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -232,9 +281,9 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "bitcoin",
+ "blocktools-core",
+ "blocktools-io",
  "cbc",
- "kr-core",
- "kr-io",
  "zeroize",
 ]
 
@@ -254,9 +303,9 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "bitcoin",
- "kr-core",
- "kr-io",
- "kr-schema",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-schema",
  "serde_json",
  "zeroize",
 ]
@@ -392,8 +441,8 @@ name = "key-to-addresses"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
- "kr-core",
- "kr-io",
+ "blocktools-core",
+ "blocktools-io",
  "serde_json",
  "zeroize",
 ]
@@ -403,9 +452,9 @@ name = "keystore-open"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "blocktools-io",
+ "blocktools-tty",
  "ctr",
- "kr-io",
- "kr-tty",
  "pbkdf2",
  "scrypt",
  "secp256k1",
@@ -413,79 +462,6 @@ dependencies = [
  "sha2",
  "sha3",
  "zeroize",
-]
-
-[[package]]
-name = "kr-cat"
-version = "0.1.0"
-dependencies = [
- "kr-io",
-]
-
-[[package]]
-name = "kr-core"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "ed25519-dalek",
- "sha3",
- "zeroize",
-]
-
-[[package]]
-name = "kr-io"
-version = "0.1.0"
-
-[[package]]
-name = "kr-net"
-version = "0.1.0"
-dependencies = [
- "minreq",
- "serde_json",
-]
-
-[[package]]
-name = "kr-redact"
-version = "0.1.0"
-dependencies = [
- "kr-io",
- "kr-schema",
- "serde_json",
-]
-
-[[package]]
-name = "kr-run"
-version = "0.1.0"
-dependencies = [
- "kr-io",
- "kr-schema",
-]
-
-[[package]]
-name = "kr-schema"
-version = "0.1.0"
-dependencies = [
- "bip39",
- "serde_json",
-]
-
-[[package]]
-name = "kr-tty"
-version = "0.1.0"
-dependencies = [
- "libc",
- "zeroize",
-]
-
-[[package]]
-name = "kr-tx"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "kr-core",
- "secp256k1",
- "serde_json",
- "sha3",
 ]
 
 [[package]]
@@ -565,6 +541,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "read-file"
+version = "0.1.0"
+dependencies = [
+ "blocktools-io",
+]
+
+[[package]]
+name = "redact"
+version = "0.1.0"
+dependencies = [
+ "blocktools-io",
+ "blocktools-schema",
+ "serde_json",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,6 +632,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sealed-run"
+version = "0.1.0"
+dependencies = [
+ "blocktools-io",
+ "blocktools-schema",
+]
+
+[[package]]
 name = "secp256k1"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -663,7 +663,7 @@ name = "seed-repair"
 version = "0.1.0"
 dependencies = [
  "bip39",
- "kr-io",
+ "blocktools-io",
 ]
 
 [[package]]
@@ -672,8 +672,8 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "bitcoin",
- "kr-io",
- "kr-tty",
+ "blocktools-io",
+ "blocktools-tty",
  "pbkdf2",
  "serde_json",
  "sha2",
@@ -814,11 +814,11 @@ name = "tx-broadcast"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
- "kr-core",
- "kr-io",
- "kr-net",
- "kr-tty",
- "kr-tx",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-net",
+ "blocktools-tty",
+ "blocktools-tx",
  "serde_json",
 ]
 
@@ -826,9 +826,9 @@ dependencies = [
 name = "tx-build"
 version = "0.1.0"
 dependencies = [
- "kr-core",
- "kr-io",
- "kr-tx",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-tx",
  "serde_json",
 ]
 
@@ -836,8 +836,8 @@ dependencies = [
 name = "tx-decode"
 version = "0.1.0"
 dependencies = [
- "kr-io",
- "kr-tx",
+ "blocktools-io",
+ "blocktools-tx",
  "serde_json",
 ]
 
@@ -846,10 +846,10 @@ name = "tx-sign"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
- "kr-core",
- "kr-io",
- "kr-tty",
- "kr-tx",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-tty",
+ "blocktools-tx",
  "serde_json",
  "zeroize",
 ]
@@ -858,8 +858,8 @@ dependencies = [
 name = "tx-verify"
 version = "0.1.0"
 dependencies = [
- "kr-io",
- "kr-tx",
+ "blocktools-io",
+ "blocktools-tx",
  "serde_json",
 ]
 
@@ -894,9 +894,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 name = "utxo-fetch"
 version = "0.1.0"
 dependencies = [
- "kr-core",
- "kr-io",
- "kr-net",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-net",
  "serde_json",
 ]
 

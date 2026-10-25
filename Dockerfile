@@ -15,9 +15,9 @@ RUN mkdir /out && for t in tools/*/; do n=$(basename "$t"); b=target/release/$n;
     for b in /out/*; do file "$b"; file "$b" | grep -q "static" || { echo "NOT STATIC: $b"; exit 1; }; done
 
 # Runtime: nothing but the static tools. No shell, no busybox, no wget, no libc.
-# kr-run executes pipelines itself (no shell), so nothing else is needed.
+# sealed-run executes pipelines itself (no shell), so nothing else is needed.
 FROM scratch
-COPY --from=build /out/ /kr/
+COPY --from=build /out/ /blocktools/
 USER 10001:10001
-WORKDIR /run/kr
-ENTRYPOINT ["/kr/kr-run"]
+WORKDIR /run/blocktools
+ENTRYPOINT ["/blocktools/sealed-run"]

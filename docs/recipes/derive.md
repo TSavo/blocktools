@@ -1,7 +1,7 @@
 # Recipe: find which derivation path a wallet used
 
-Everything below runs inside the sealed container through `kr-run` (the agent sees
-addresses and paths only) or, for a human at the terminal, via `./keyrescue reveal`.
+Everything below runs inside the sealed container through `sealed-run` (the agent sees
+addresses and paths only) or, for a human at the terminal, via `./blocktools reveal`.
 Flags carry public parameters only; the seed phrase arrives on stdin.
 
 ## 1. See the plan first (no keys involved)

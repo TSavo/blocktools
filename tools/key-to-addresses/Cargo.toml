@@ -3,10 +3,10 @@ name = "key-to-addresses"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "keyrescue key-to-addresses. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+description = "blocktools key-to-addresses. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-kr-io = { path = "../../crates/kr-io" }
-kr-core = { path = "../../crates/kr-core", features = ["ed25519"] }
+blocktools-io = { path = "../../crates/io" }
+blocktools-core = { path = "../../crates/core", features = ["ed25519"] }
 bitcoin.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true

@@ -70,14 +70,14 @@ fn eth_address(k: &[u8; 32]) -> Result<String, &'static str> {
     Ok(format!("0x{}", a.chars().zip(ch.chars()).map(|(c, k)| if k.to_digit(16).unwrap() >= 8 { c.to_ascii_uppercase() } else { c }).collect::<String>()))
 }
 
-fn st(s: &str) -> ! { kr_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
+fn st(s: &str) -> ! { blocktools_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
 
 fn read_tty_password() -> Zeroizing<String> {
-    kr_tty::read_secret("keystore password (not echoed): ").unwrap_or_else(|| st("bad_input"))
+    blocktools_tty::read_secret("keystore password (not echoed): ").unwrap_or_else(|| st("bad_input"))
 }
 
 fn main() {
-    kr_io::help("keystore-open [--password-tty] < password line + Ethereum V3 keystore JSON -> address + private key");
+    blocktools_io::help("keystore-open [--password-tty] < password line + Ethereum V3 keystore JSON -> address + private key");
     let a: Vec<String> = std::env::args().collect();
     let tty = match a.get(1).map(|s| s.as_str()) { None => false, Some("--password-tty") if a.len() == 2 => true, _ => st("bad_input") };
     let mut raw = Zeroizing::new(Vec::new());
@@ -90,7 +90,7 @@ fn main() {
         (Zeroizing::new(p.trim_end_matches('\r').to_string()), rest)
     };
     match open(json, pw.as_bytes()).and_then(|k| Ok((eth_address(&k)?, hex_enc(&k[..])))) {
-        Ok((addr, k)) => kr_io::outln!(r#"{{"tool":"keystore-open","status":"ok","kind":"eth","address":"{addr}","private_key":"{k}"}}"#),
+        Ok((addr, k)) => blocktools_io::outln!(r#"{{"tool":"keystore-open","status":"ok","kind":"eth","address":"{addr}","private_key":"{k}"}}"#),
         Err(e) => st(e),
     }
 }

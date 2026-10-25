@@ -5,9 +5,9 @@
 //! Output CONTAINS SECRETS ("wif"/"private_key") unless --explain/--list-presets.
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv};
 use bitcoin::secp256k1::{All, Secp256k1};
-use kr_core::chains::{self, Chain, Enc, Row};
-use kr_core::plan::{self, Ranges, Spec};
-use kr_io::outln;
+use blocktools_core::chains::{self, Chain, Enc, Row};
+use blocktools_core::plan::{self, Ranges, Spec};
+use blocktools_io::outln;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Read};
 use std::str::FromStr;
@@ -158,7 +158,7 @@ fn explain(o: &Opts) {
 }
 
 fn main() {
-    kr_io::help(HELP);
+    blocktools_io::help(HELP);
     let o = parse_args();
     if o.explain { explain(&o); return }
     let mut n = 0u64;
@@ -185,16 +185,16 @@ fn main() {
             *n += 1; true
         };
         // Account-level key (dat-read): {"xprv","kind","path","branch"?} -> path/branch/i.
-        if let (Some(kind), Some(path)) = (v.get("kind").and_then(|k| k.as_str()).and_then(kr_core::kind_name), v.get("path").and_then(|p| p.as_str())) {
+        if let (Some(kind), Some(path)) = (v.get("kind").and_then(|k| k.as_str()).and_then(blocktools_core::kind_name), v.get("path").and_then(|p| p.as_str())) {
             if path.len() < 128 {
                 let branches: Vec<u32> = match v.get("branch").and_then(|b| b.as_u64()) { Some(b) if b < 1 << 31 => vec![b as u32], _ => o.ranges.change.clone().into_iter().chain([0, 1]).collect::<std::collections::BTreeSet<_>>().into_iter().collect() };
                 let cnt = if o.index_set { *o.ranges.index.iter().max().unwrap() + 1 } else { 10 };
-                for b in branches { for r in kr_core::derive_account(&master, kind, path, b, cnt) {
+                for b in branches { for r in blocktools_core::derive_account(&master, kind, path, b, cnt) {
                     emit(&Row { chain: "btc", kind: r.kind, path: r.path, address: r.address, secret_field: "wif", secret: r.secret }, &mut n); } }
                 continue;
             }
         }
-        let seed = Zeroizing::new(v.get("seed").and_then(|s| s.as_str()).and_then(kr_core::hex_dec).filter(|s| s.len() == 64));
+        let seed = Zeroizing::new(v.get("seed").and_then(|s| s.as_str()).and_then(blocktools_core::hex_dec).filter(|s| s.len() == 64));
         if seed.is_none() && o.specs.iter().any(|s| s.chain.enc == Enc::Sol) {
             outln!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"sol"}}"#);
         }
@@ -262,7 +262,7 @@ mod tests {
         let s = Secp256k1::new();
         for c in chains::CHAINS { for r in chains::derive_chain(&Xpriv::from_str(ROOT).unwrap(), c, 1, &s) {
             let l = format!(r#"{{"status":"ok","chain":"{}","kind":"{}","path":"{}","address":"{}"}}"#, r.chain, r.kind, r.path, r.address);
-            assert!(kr_schema::redact_line(&l).is_some(), "schema drops {l}");
+            assert!(blocktools_schema::redact_line(&l).is_some(), "schema drops {l}");
         } }
         assert_eq!(chains::derive_sol(&bip39_seed(), 1)[0].address, "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk");
     }

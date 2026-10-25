@@ -19,7 +19,7 @@ done
 # network crates may only appear in the host-side tools
 for m in $members; do
   p=$(sed -n 's/^name = "\(.*\)"/\1/p' "$m/Cargo.toml" | head -1)
-  case "$p" in kr-net|utxo-fetch|tx-broadcast) continue;; esac
-  if tree "$p" | grep -qxE 'minreq|rustls|ring|webpki-roots|kr-net'; then echo "FAIL $p: pulls a network crate"; rc=1; fi
+  case "$p" in blocktools-net|utxo-fetch|tx-broadcast) continue;; esac
+  if tree "$p" | grep -qxE 'minreq|rustls|ring|webpki-roots|blocktools-net'; then echo "FAIL $p: pulls a network crate"; rc=1; fi
 done
 exit $rc

@@ -1,8 +1,8 @@
 arrayvec
 bip39
 bitcoin_hashes
+blocktools-io
 hex-conservative
-kr-io
 serde
 serde_core
 tinyvec

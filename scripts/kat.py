@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Independent known-answer generator (Python, shares no code with the Rust tools).
 Prints first address per chain for the PUBLIC BIP39 phrase "abandon x11 about".
-Used to cross-check crates/kr-core chain encoders. Needs: cryptography, pycryptodome."""
+Used to cross-check crates/core chain encoders. Needs: cryptography, pycryptodome."""
 import hashlib, hmac, struct
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from cryptography.hazmat.primitives import serialization as S

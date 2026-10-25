@@ -3,12 +3,12 @@ name = "tx-sign"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "keyrescue tx-sign: sign after a human-typed confirmation code. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+description = "blocktools tx-sign: sign after a human-typed confirmation code. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-kr-tx = { path = "../../crates/kr-tx" }
-kr-io = { path = "../../crates/kr-io" }
+blocktools-tx = { path = "../../crates/tx" }
+blocktools-io = { path = "../../crates/io" }
 serde_json.workspace = true
-kr-core = { path = "../../crates/kr-core" }
-kr-tty = { path = "../../crates/kr-tty" }
+blocktools-core = { path = "../../crates/core" }
+blocktools-tty = { path = "../../crates/tty" }
 bitcoin.workspace = true
 zeroize.workspace = true

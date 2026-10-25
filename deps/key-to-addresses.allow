@@ -6,6 +6,8 @@ bitcoin-io
 bitcoin-units
 bitcoin_hashes
 block-buffer
+blocktools-core
+blocktools-io
 cfg-if
 cpufeatures
 crypto-common
@@ -19,8 +21,6 @@ hex-conservative
 hex_lit
 itoa
 keccak
-kr-core
-kr-io
 memchr
 proc-macro2
 quote
