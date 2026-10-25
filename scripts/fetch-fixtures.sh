@@ -26,5 +26,8 @@ a259d090e66e380d895175a7beb22d8356b470af72af0c2e0273edf1b0cdfdc7 multibit-wallet
 3f5c1f6e824d50e85cb8eab5b616ab55e1f22945f8d859f8650e3a75012682f1 multibit-wallet.key.privkeys.txt
 2b14b9c99d2095c42b477e1a8d6071a39fe7fd70ac34c2c4fa768b2c3713fd62 multibit.wallet.bitcoinj.clear
 050f408e2ab8146866b851923892a71e37af35ce02f454d4957a3e2146133961 multibit.wallet.bitcoinj.encrypted
+d1a67482ec75853b1cb84c4d8c4d65c3a3b7535dc15d8441121c3d1db79503ae multibit.wallet.bitcoinj.encrypted.txt
+ae67c31362bb46ce54cd81d905f386a3161875d3679d765a2c9eda1907cda2e6 bitcoinj-wallet.wallet
+05406a8604202edd7cae85530137542df38b99084d300d8defcbb8948f513f68 mbhd.wallet.aes
 LIST
 echo "fixtures ok: $(ls "$D" | wc -l) files in $D"

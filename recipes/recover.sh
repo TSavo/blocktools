@@ -39,7 +39,9 @@ case $class in
   mnemonic)        keys() { "$B/seed-repair" < "$FILE" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   electrum_seed)   keys() { "$B/seed-to-master" < "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   wallet_dat)      keys() { pw_then_file | "$B/dat-read" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
-  electrum_wallet) keys() { pw_then_file | "$B/electrum-read" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
+  # Electrum 2+: seed -> seed-to-master -> derive. Electrum 1.x: electrum-read emits the keys itself.
+  electrum_wallet) keys() { local e; e=$(pw_then_file | "$B/electrum-read" --count "$COUNT")
+                            if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e"; else printf '%s\n' "$e" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; fi; unset e; } ;;
   multibit_key)    keys() { pw_then_file | "$B/multibit-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain "$CHAIN" < "$FILE"; } ;;
   monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; view-key funds scan and sweep are not implemented yet (docs/ROADMAP.md)"; exit 3 ;;

@@ -518,3 +518,9 @@ Signing uses `STX\0`. secp256k1 signs sha512half of it with RFC6979, low-S and D
 chain. The checker also makes sure stdout holds no secret (the LEAK regex plus the literal secret values of the generated vectors). Vectors are made at test time, so
 nothing secret-shaped is committed. A recipe with no tested example fails the build. The schema allowlist now admits
 `xpub-addresses`, `xmr-keys` and `xrp-tx` lines, and 95-char Monero standard addresses (prefix 4/5/9). Every other long base58 string is still dropped.
+
+## Electrum 1.x
+
+electrum-read parses the Python-literal file (`py_to_json`), decrypts the seed (the same AES-CBC/sha256d scheme as 2.x), and derives the old-scheme
+keys in blocktools-secrets. The derived master public key must equal the file's `master_public_key`. This doubles as the wrong-password
+check, and nothing is emitted unless it matches. Output lines are derive-shaped (`wif`, `address`, `path m/change/i`), so tx-sign takes them directly.

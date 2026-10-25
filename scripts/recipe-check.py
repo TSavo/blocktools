@@ -31,7 +31,8 @@ subprocess.run([sys.executable, "scripts/make-fixtures.py", IN], check=True, std
 shutil.copy(os.path.join(IN, "descriptor-encrypted.sqlite"), os.path.join(IN, "wallet.dat"))
 shutil.copy("crates/tx/tests/vectors/block170.hex", os.path.join(IN, "block170.hex"))
 w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
-for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"),
+for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"), ("fixtures/external/electrum-wallet", "electrum1-wallet"),
+                 ("fixtures/external/multibit.wallet.bitcoinj.encrypted", "bitcoinj.wallet"), ("fixtures/external/multibit.wallet.bitcoinj.clear", "bitcoinj-clear.wallet"),
                  ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat")]:
     if os.path.exists(src): shutil.copy(src, os.path.join(IN, dst))
 for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"),

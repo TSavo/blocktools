@@ -37,7 +37,7 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
     if t.starts_with("U2FsdGVkX1") { return file("multibit_key") }
     if t.starts_with("QklFMQ") { return file("electrum_wallet_file_encrypted") }
     if t.starts_with('{') {
-        let has = |k: &str| t.contains(&format!("\"{k}\""));
+        let has = |k: &str| t.contains(&format!("\"{k}\"")) || t.contains(&format!("'{k}'"));
         if has("version") && (has("crypto") || has("Crypto")) { return file("keystore_v3") }
         if has("seed_version") || has("wallet_type") { return file("electrum_wallet") }
     }

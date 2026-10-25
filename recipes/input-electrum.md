@@ -19,4 +19,19 @@ the file because the sealed image has no shell. Test file: the btcrecover Electr
 <!-- e2e: expect=bc1qsz0dhew357cj6eznmcawgyf44jzpgcax2lvfvm ; needs=electrum-wallet -->
     ./blocktools run 'read-file /secrets/electrum.pw /in/electrum-wallet | electrum-read | seed-to-master | derive --chain btc --count 1'
 
-Old (1.x, hex-seed) Electrum wallets and `--preset electrum-old` are not built yet; see docs/ROADMAP.md.
+## Electrum 1.x wallet file (2011–2014, `seed_version: 4`, a Python dict)
+
+`classify` reports `electrum_wallet`. `electrum-read` decrypts the 32-hex-char seed and derives the
+"old" scheme keys itself (uncompressed P2PKH, receive `m/0/i` and change `m/1/i`, `--count N` per branch).
+It refuses the file unless the derived master public key equals the file's `master_public_key`.
+The tested vector is btcrecover's Electrum 1.x wallet. Its first receive and change addresses match the address
+lists Electrum wrote into that file.
+
+<!-- e2e: expect="scheme":"electrum-old" ; expect=1Ev9vpNwcSSZntyd86FxWox1r23jyc1Kqv ; expect=1CNATKB22T45VT5CtUk8mPjedHpbwd4vU8 ; needs=electrum1-wallet -->
+    ./blocktools run 'read-file /secrets/electrum.pw /in/electrum1-wallet | electrum-read --count 1'
+
+<!-- e2e: expect=179dvQyWSyEHwcyugmjNQGtoEXvQCqbPaa ; fund=179dvQyWSyEHwcyugmjNQGtoEXvQCqbPaa ; needs=electrum1-wallet -->
+    recipes/recover.sh /in/electrum1-wallet - --goal balance --password-file /secrets/electrum.pw
+
+The full sweep of this wallet runs in e2e (mock chain, both codes typed). NOT BUILT: the 12-word *old* Electrum
+mnemonic (1626-word list) as a typed seed. Only the wallet file is read.

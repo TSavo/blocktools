@@ -31,6 +31,7 @@ echo KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn > "$R/key.wif"
 rec wif "$R/key.wif" 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH
 rec wallet-dat "$R/descriptor-encrypted.sqlite" bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu blocktools-test-password
 rec electrum-wallet fixtures/external/electrum4_4_3_unencrypted bc1qsz0dhew357cj6eznmcawgyf44jzpgcax2lvfvm btcr-test-password
+rec electrum1-wallet fixtures/external/electrum-wallet 179dvQyWSyEHwcyugmjNQGtoEXvQCqbPaa btcr-test-password
 [ -f fixtures/external/multibit-wallet.key.privkeys.txt ] && MB=$("$B/key-to-addresses" --chain btc < fixtures/external/multibit-wallet.key.privkeys.txt | "$B/redact" | sed -n 's/.*"address":"\(1[^"]*\)".*/\1/p' | head -1)
 rec multibit fixtures/external/multibit-wallet.key "${MB:-}" btcr-test-password
 python3 -c 'import re;print(re.search(r"const V: &str = r#\"(.*?)\"#;", open("crates/secrets/src/keystore.rs").read()).group(1))' > "$R/keystore.json"
