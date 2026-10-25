@@ -92,6 +92,15 @@ pub fn check_tx(input_json: &str) -> String { blocktools::check::tx_json(input_j
 pub fn detect_address(addr: &str) -> String {
     json!(blocktools::address::detect(addr).iter().map(|(c, k)| json!({"chain": c, "kind": format!("{k:?}")})).collect::<Vec<_>>()).to_string()
 }
+/// Additive to detectAddress (whose shape is unchanged): JSON {candidates:[{chain,kind}], ambiguous, kinds_agree}.
+/// `ambiguous` = more than one chain; `kinds_agree` = every candidate has the same script kind.
+#[wasm_bindgen(js_name = detectAddressInfo)]
+pub fn detect_address_info(addr: &str) -> String {
+    let d = blocktools::address::detect(addr);
+    let kinds: Vec<String> = d.iter().map(|(_, k)| format!("{k:?}")).collect();
+    json!({"candidates": d.iter().zip(&kinds).map(|((c, _), k)| json!({"chain": c, "kind": k})).collect::<Vec<_>>(),
+           "ambiguous": d.len() > 1, "kinds_agree": kinds.windows(2).all(|w| w[0] == w[1])}).to_string()
+}
 /// Same hash, re-encoded for `to`; throws `ambiguous_address` when candidates disagree on the script type.
 #[wasm_bindgen(js_name = convertAddress)]
 pub fn convert_address(addr: &str, to: &str) -> Result<String, JsError> { blocktools::address::convert(addr, to).map_err(err) }

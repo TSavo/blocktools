@@ -39,6 +39,11 @@ assert.equal(ck({...q, max_fee: undefined}).ok, false);
 assert.equal(ck({...q, chain: 'wdc'}).ok, false);
 assert.equal(JSON.parse(bt.checkTx('{')).ok, false);
 // coins: detect (all candidates), convert, params, sweep
+{ const i = JSON.parse(bt.detectAddressInfo("1BoatSLRHtKNngkdXEeobR76b53LETtpyT"));
+  if (!i.ambiguous || !i.kinds_agree || !i.candidates.some(c => c.chain === "btc")) throw new Error("detectAddressInfo btc");
+  const j = JSON.parse(bt.detectAddressInfo("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"));
+  if (j.ambiguous || j.candidates.length !== 1 || j.candidates[0].chain !== "btc") throw new Error("detectAddressInfo bech32");
+  if (JSON.parse(bt.detectAddressInfo("nope")).candidates.length !== 0) throw new Error("detectAddressInfo empty"); }
 const det = a => JSON.parse(bt.detectAddress(a)).map(x => x.chain).sort();
 assert.deepEqual(det('DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE'), ['dgb', 'doge']);
 assert.deepEqual(det('t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), ['zec']);

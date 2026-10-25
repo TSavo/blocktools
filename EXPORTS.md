@@ -16,10 +16,24 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `addressValidate(chain, addr)` | `address::validate(chain, addr)` | kind string (`P2pkh`, `P2sh`, `SegwitV0`, `Taproot`, `Eth`, …); throws when the address is invalid or the chain is unverified |
 | `checkTx(json)` | `check::tx_json(json)` | see below; never throws |
 | `detectAddress(addr)` | `address::detect(addr)` | `[{chain,kind}]`, one entry for **every** verified chain the address is valid on (and `zec`). Collisions such as DGB/DOGE 30, VIA/VTC 71, version 50 (MONA/MEC p2pkh, LTC/QTUM p2sh) and version 0 (BTC/BCH/BSV/TRC) all come back; `[]` means unrecognised |
+| `detectAddressInfo(addr)` | `address::detect(addr)` | additive: `{candidates:[{chain,kind}], ambiguous, kinds_agree}`. `candidates` is exactly the detectAddress list. `ambiguous` = more than one chain; `kinds_agree` = all candidates have the same script kind (when false, convertAddress throws `ambiguous_address`) |
 | `convertAddress(addr, to)` | `address::convert(addr, to)` | the same hash, re-encoded for `to`; throws `unrecognised_address`, `ambiguous_address` (candidates disagree on p2pkh vs p2sh), `unknown_or_unverified_chain` or `no_equivalent` |
 | `convertAddressFrom(from, addr, to)` | `address::convert_from(from, addr, to)` | as above, with the source chain stated |
 | `chainParams()` | `address::params_json()` | the full table: `[{name,ticker,title,slip44,verified,p2pkh:[bytes],p2sh:[bytes],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,sources}]` |
 | `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy` and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` |
+
+### detectAddress semantics
+
+- It returns a **JSON string**, so call `JSON.parse` on it. Entries come in chain-table order (`chainParams()` order), not ranked by likelihood.
+- More than one entry means the address is **ambiguous**: the same bytes are valid on several chains. For example, a Monacoin `M…` address is also a valid LTC/QTUM/MEC P2SH. Ask the user for the chain, or use `detectAddressInfo` for `ambiguous`/`kinds_agree`. There is no ranking.
+- `zec` (transparent) appears in detect/validate only. It is **not** in `listChains`/`supportedChains`: ZEC is in `chains::EXCLUDED` (two-byte version prefixes, ZIP-243/244 sighash not implemented), so it has no derive or sweep. Groestlcoin stays out until there is a Groestl implementation with independent vectors.
+
+### Loading the module
+
+- `pkg/node` (CommonJS, the package `main`): synchronous. `const bt = require("blocktools")` and call right away.
+- `pkg/web`: `import init, * as bt from "./pkg/web/blocktools_wasm.js"; await init();` (or `initSync({module: bytes})`) before any call.
+- Bundlers: there is no `--target bundler` build. Use `pkg/web` and hand the wasm URL to init: `await init(new URL("blocktools_wasm_bg.wasm", import.meta.url))`. This works in Vite and webpack 5 (asset modules). UNTESTED in CI, which only runs pkg/node.
+- Building it: `PATH=$HOME/.cargo/bin:$PATH bash scripts/wasm-check.sh` (needs rustup's wasm32 target and wasm-bindgen on PATH).
 
 `addressValidate` also accepts `zec` (transparent t1/t3 only). Decode any built tx with `decodeTx(hex_or_psbt, chain)`.
 
