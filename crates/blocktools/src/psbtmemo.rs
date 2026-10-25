@@ -23,24 +23,15 @@ pub fn build_with(chain: &str, utxos_jsonl: &str, to: &str, send: Option<u64>, c
     if !matches!(c.enc, chains::Enc::Utxo { .. }) { return Err("not_utxo_chain".into()) }
     let opr = if memo.is_empty() { None } else { Some(op_return(memo)?) };
     let utxos = build::parse_utxos(c, utxos_jsonl)?;
-    let mut p = build::build_btc(c, utxos, &BtcPlan { to: to.into(), send, change: change.map(String::from), fee_rate, rbf, dust: 546, locktime: 0 })?;
-    // Size only the inputs build_btc selected (was: every supplied UTXO, which overcharged by 68 vB per unused input).
+    // The memo output is part of coin selection (build_btc counts its vbytes), so change is computed
+    // after the memo fee: sub-dust change folds into the fee, like btc.ts. (Was: select without the memo,
+    // then take its fee from change afterwards, which failed with "memo fee leaves dust" or under-selected.)
+    let p = build::build_btc(c, utxos, &BtcPlan { to: to.into(), send, change: change.map(String::from), fee_rate, rbf, dust: 546, op_return: opr, locktime: 0 })?;
     let kinds: Vec<&str> = p.inputs.iter().map(|i| i.witness_utxo.as_ref().and_then(|o| chains::script_to_address(c, o.script_pubkey.as_bytes())).map(|x| x.0).unwrap_or("unknown")).collect();
-    let tx = &mut p.unsigned_tx;
-    let had_change = tx.output.len() == 2;
-    if let Some(opr) = opr { tx.output.push(TxOut { value: Amount::ZERO, script_pubkey: ScriptBuf::from_bytes(opr) }) }
-    let vsize = 11 + kinds.iter().map(|k| build::in_vb(k)).sum::<u64>() + tx.output.iter().map(|o| build::out_vb(o.script_pubkey.as_bytes())).sum::<u64>();
+    let vsize = 11 + kinds.iter().map(|k| build::in_vb(k)).sum::<u64>() + p.unsigned_tx.output.iter().map(|o| build::out_vb(o.script_pubkey.as_bytes())).sum::<u64>();
     let total_in: u64 = p.inputs.iter().map(|i| i.witness_utxo.as_ref().map(|o| o.value.to_sat()).unwrap_or(0)).sum();
     let out = |t: &bitcoin::Transaction| t.output.iter().map(|o| o.value.to_sat()).sum::<u64>();
-    let need = vsize * fee_rate;
-    let have = total_in - out(tx);
-    if have < need {
-        let short = need - have;
-        // Take the memo's fee from change (last output when present), else from the swept output.
-        let idx = if had_change { 1 } else if send.is_none() { 0 } else { return Err("memo fee not covered: add inputs or lower the amount".into()) };
-        let v = tx.output[idx].value.to_sat().checked_sub(short).filter(|&v| v >= 546).ok_or("memo fee leaves dust")?;
-        tx.output[idx].value = Amount::from_sat(v);
-    }
+    let mut p = p;
     while p.outputs.len() < p.unsigned_tx.output.len() { p.outputs.push(Default::default()) }
     let fee = total_in - out(&p.unsigned_tx);
     let outs: Vec<Value> = p.unsigned_tx.output.iter().map(|o| json!({"address": chains::script_to_address(c, o.script_pubkey.as_bytes()).map(|x| x.1), "script": crate::hex_enc(o.script_pubkey.as_bytes()), "value": o.value.to_sat().to_string()})).collect();
@@ -64,6 +55,18 @@ mod t {
         assert_eq!(v["outputs"].as_array().unwrap().len(), 2); assert_eq!(v["vsize"], 141); assert_eq!(v["fee"], "705");
     }
     /// Default is non-RBF (0xffffffff); rbf=true gives 0xfffffffd. Otherwise byte-identical to the embit vectors.
+    /// SwapChan regression: 76-byte memo, feeRate 22, 5 UTXOs (89494 sats), send 44747. btc.ts folds the
+    /// sub-dust change into the fee; we used to fail with "memo fee leaves dust".
+    #[test] fn sub_dust_change_folds() {
+        let from = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+        let jl: String = [21259u64, 30300, 7443, 18169, 12323].iter().enumerate().map(|(i, v)| format!("{{\"txid\":\"{:b>64x}\",\"vout\":{},\"amount\":{v},\"address\":\"{from}\"}}\n", 0xc0de00 + i, i % 2)).collect();
+        let v = super::build("btc", &jl, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", Some(44747), Some(from), 22, &[b'y'; 76]).unwrap();
+        let o = v["outputs"].as_array().unwrap();
+        assert_eq!(o.len(), 2); assert_eq!(o[0]["value"], "44747"); assert_eq!(o[1]["value"], "0");
+        let fee: u64 = v["fee"].as_str().unwrap().parse().unwrap();
+        assert_eq!(fee, 30300 + 21259 - 44747);
+        assert!(fee >= v["vsize"].as_u64().unwrap() * 22 && fee < v["vsize"].as_u64().unwrap() * 22 + 546 + 22 * 31);
+    }
     #[test] fn rbf_flag() {
         use bitcoin::psbt::Psbt;
         let seqs = |v: &serde_json::Value| Psbt::deserialize(&blocktools_core::b64::decode(v["psbt"].as_str().unwrap()).unwrap()).unwrap()

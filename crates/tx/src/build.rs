@@ -47,13 +47,16 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
 pub fn in_vb(kind: &str) -> u64 { match kind { "p2wpkh" => 68, "p2sh" => 91, "p2tr" => 58, _ => 148 } }
 pub fn out_vb(script: &[u8]) -> u64 { 9 + script.len() as u64 }
 
-pub struct BtcPlan { pub to: String, pub send: Option<u64>, pub change: Option<String>, pub fee_rate: u64, pub rbf: bool, pub dust: u64, pub locktime: u32 }
+/// `op_return`: optional zero-value trailing output script (e.g. a THORChain memo). Its vbytes are
+/// counted during coin selection, so the memo is funded like any other output.
+pub struct BtcPlan { pub to: String, pub send: Option<u64>, pub change: Option<String>, pub fee_rate: u64, pub rbf: bool, pub dust: u64, pub op_return: Option<Vec<u8>>, pub locktime: u32 }
 
 pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, String> {
     let cap = chains::fee_warn(c.name).rate_cap();
     if p.fee_rate == 0 || p.fee_rate > cap { return Err(format!("fee_rate must be 1..{cap} sat/vB for {}", c.name)) }
     let to = chains::address_to_script(c, &p.to).ok_or("bad --to address")?;
-    let vsize = |ins: &[Utxo], outs: &[&[u8]]| 11 + ins.iter().map(|u| in_vb(u.kind)).sum::<u64>() + outs.iter().map(|s| out_vb(s)).sum::<u64>();
+    let opr_vb = p.op_return.as_deref().map(out_vb).unwrap_or(0);
+    let vsize = |ins: &[Utxo], outs: &[&[u8]]| 11 + opr_vb + ins.iter().map(|u| in_vb(u.kind)).sum::<u64>() + outs.iter().map(|s| out_vb(s)).sum::<u64>();
     let mut outs: Vec<(Vec<u8>, u64)> = Vec::new();
     let chosen: Vec<Utxo> = match p.send {
         None => { // sweep / consolidate: everything, one output
@@ -80,6 +83,7 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
             sel
         }
     };
+    if let Some(o) = &p.op_return { outs.push((o.clone(), 0)) }
     let seq = if p.rbf { Sequence::ENABLE_RBF_NO_LOCKTIME } else if p.locktime != 0 { Sequence::ENABLE_LOCKTIME_NO_RBF } else { Sequence::MAX };
     let tx = Transaction { version: Version::TWO, lock_time: LockTime::from_consensus(p.locktime),
         input: chosen.iter().map(|u| TxIn { previous_output: OutPoint { txid: u.txid, vout: u.vout }, script_sig: ScriptBuf::new(), sequence: seq, witness: Witness::new() }).collect(),

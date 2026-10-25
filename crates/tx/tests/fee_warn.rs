@@ -64,7 +64,7 @@ fn rate_cap_is_per_coin() {
     let pk = bitcoin::secp256k1::PublicKey::from_slice(&<Vec<u8> as bitcoin::hex::FromHex>::from_hex("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798").unwrap()).unwrap();
     let a = chains::pub_rows(c, "", &pk, false).into_iter().find(|r| r.kind == "p2pkh").unwrap().address;
     let u = build::parse_utxos(c, &common::line(c, 0, 5_000_000_000, &a)).unwrap();
-    let plan = |r| build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: r, rbf: false, dust: 546, locktime: 0 };
+    let plan = |r| build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: r, rbf: false, dust: 546, op_return: None, locktime: 0 };
     assert!(build::build_btc(c, u.clone(), &plan(100_312)).is_ok());
     assert!(build::build_btc(c, u.clone(), &plan(fee_warn("xpm").rate_cap() + 1)).is_err());
     assert!(build::build_btc(chains::chain("btc").unwrap(), vec![], &plan(2001)).unwrap_err().contains("1..2000"));

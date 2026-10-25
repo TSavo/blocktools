@@ -47,8 +47,11 @@ an input whose script is neither a witness program nor P2SH(-P2WPKH) must carry 
 or when its txid (chain digest: GRS single SHA-256) or output disagrees with the claimed amount/script; the PSBT gets
 `non_witness_utxo`, PoS envelopes get `pos_prevouts[i].prev_tx`. `tx-decode` reports `unproven_inputs`; `tx-verify`
 fails with `legacy_input_amount_unproven` (not waivable by `--allow-warnings`); `tx-sign` refuses to sign such an
-input. Zcash (ZIP-243/244) and forkid chains (BCH/BSV/BTG) commit to amounts in the sighash, so a lying amount only
-produces an invalid signature; the PSBT check still applies to them.
+input. **BCH/BSV/BTG are not exempt:** their fork-id sighash commits to the amount (a lying amount would only
+give an invalid signature), but blocktools does not sign fork-id inputs itself and every check keys on the script
+type, so a P2PKH input on these chains needs `prev_tx` exactly like BTC P2PKH (test `forkid_needs_prev_tx`;
+same rule for tx-build, `buildUnsignedSweep` in wasm, tx-decode/tx-verify and tx-sign). Only Zcash, whose
+transactions are not PSBTs and carry amounts in the `zec_prevouts` envelope committed by ZIP-243/244, is exempt.
 
 ## Terminal confirmation: residual risk (security review 2026-10-25)
 

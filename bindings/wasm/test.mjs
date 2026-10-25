@@ -159,6 +159,11 @@ console.log('wasm grs ok');
     assert.deepEqual(q.outputs.map(o => o.value), ['50000', '48980', '0']); assert.ok(q.outputs[2].script.startsWith('6a'));
     const e = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '50000', 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', 5, ''));
     assert.equal(e.outputs.length, 2); assert.equal(e.fee, '705'); assert.equal(e.vsize, 141);
+    // SwapChan regression: 76-byte memo, rate 22, 89494 sats over 5 UTXOs, send 44747 -> sub-dust change folds into the fee.
+    const F = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+    const R = [21259, 30300, 7443, 18169, 12323].map((v, i) => JSON.stringify({ txid: (0xc0de00 + i).toString(16).padStart(64, 'b'), vout: i % 2, amount: v, address: F })).join('\n');
+    const g = JSON.parse(bt.buildPsbtWithMemo('btc', R, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '44747', F, 22, Buffer.from('y'.repeat(76)).toString('hex')));
+    assert.deepEqual(g.outputs.map(o => o.value), ['44747', '0']); assert.equal(g.fee, String(30300 + 21259 - 44747));
   }
   const T = '0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431';
   assert.equal(bt.tronTxId(T), '07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00');

@@ -64,7 +64,7 @@ fn main() {
     if sweep == send.is_some() { fail("choose exactly one of --sweep/--consolidate or --send") }
     let plan = build::BtcPlan { to: a.get("--to").unwrap_or_else(|| fail("--to required")).into(), send, change: a.get("--change").map(Into::into),
         fee_rate: num(a.get("--fee-rate"), "--fee-rate").unwrap_or_else(|| fail("--fee-rate required")) as u64, rbf: a.has("--rbf"),
-        dust: num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64, locktime: num(a.get("--locktime"), "--locktime").unwrap_or(0) as u32 };
+        dust: num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64, op_return: None, locktime: num(a.get("--locktime"), "--locktime").unwrap_or(0) as u32 };
     let p = build::build_btc(c, utxos, &plan).unwrap_or_else(|e| fail(&e));
     blocktools_io::outln!("{}", json!({"tool":"tx-build","status":"ok","chain":chain,"type":"psbt","psbt":blocktools_core::b64::encode(&p.serialize())}));
 }

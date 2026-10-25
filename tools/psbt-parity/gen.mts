@@ -18,6 +18,16 @@ for (let n = 1; n <= 5; n++) for (const rate of [1, 2, 5, 8, 13, 22]) for (const
     out.push({ name, from: FROM, to: TO, amount: amount.toString(), memo, feeRate: rate, utxos, psbt });
   } catch (e: any) { out.push({ name, from: FROM, to: TO, amount: amount.toString(), memo, feeRate: rate, utxos, error: e.message }); }
 }
+// Regressions reported by SwapChan (exact inputs). 2026-10-25: 76-byte memo, rate 22, 5 UTXOs = 89494, send 44747:
+// btc.ts folds the sub-dust change into the fee; blocktools refused with "memo fee leaves dust".
+const regress: { name: string; vals: number[]; amount: bigint; memo: string; feeRate: number }[] = [
+  { name: "swapchan fold r22 m76", vals: [21259, 30300, 7443, 18169, 12323], amount: 44747n, memo: "y".repeat(76), feeRate: 22 },
+];
+for (const r of regress) {
+  const utxos: Utxo[] = r.vals.map((value, i) => ({ txid: (0xc0de00 + i).toString(16).padStart(64, "b"), vout: i % 2, value }));
+  const psbt = await buildBtcPsbt(async () => utxos, { from: FROM, to: TO, amount: r.amount, memo: r.memo, feeRate: r.feeRate });
+  out.push({ name: r.name, from: FROM, to: TO, amount: r.amount.toString(), memo: r.memo, feeRate: r.feeRate, utxos, psbt });
+}
 // btc.ts never sets nSequence, so every input is 0xffffffff (final, non-RBF): THORChain inbound txs must not be RBF.
 // Recorded per vector so the Rust parity test checks buildPsbtWithMemo's default (rbf=false) against it.
 for (const o of out) if (o.psbt) o.sequences = Psbt.fromBase64(o.psbt).txInputs.map(i => (i.sequence ?? 0xffffffff).toString(16));

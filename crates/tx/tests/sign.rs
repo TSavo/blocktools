@@ -48,7 +48,7 @@ fn build_then_sign_every_kind() {
     let tid = "a".repeat(64);
     let utxos: String = addrs.iter().enumerate().map(|(i, a)| common::line(c, i as u32, 10000 * (i as u64 + 1), a)).collect();
     let u = build::parse_utxos(c, &utxos).unwrap();
-    let mut p = build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[0].into(), send: None, change: None, fee_rate: 2, rbf: true, dust: 546, locktime: 0 }).unwrap();
+    let mut p = build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[0].into(), send: None, change: None, fee_rate: 2, rbf: true, dust: 546, op_return: None, locktime: 0 }).unwrap();
     assert_eq!(p.unsigned_tx.output.len(), 1);
     let fee = 100000 - p.unsigned_tx.output[0].value.to_sat();
     assert_eq!(fee, (11 + 68 + 148 + 148 + 91 + 31) * 2);
@@ -58,9 +58,9 @@ fn build_then_sign_every_kind() {
     let d = blocktools_tx::decode(&blocktools_core::hex_enc(&serialize(&tx)), "btc");
     assert!(d.is_ok());
     // send with change; insufficient funds; wrong key leaves inputs unsigned
-    let p2 = build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[1].into(), send: Some(30000), change: Some(addrs[0].into()), fee_rate: 1, rbf: false, dust: 546, locktime: 0 }).unwrap();
+    let p2 = build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[1].into(), send: Some(30000), change: Some(addrs[0].into()), fee_rate: 1, rbf: false, dust: 546, op_return: None, locktime: 0 }).unwrap();
     assert_eq!(p2.unsigned_tx.output.len(), 2);
-    assert!(build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[1].into(), send: Some(200000), change: Some(addrs[0].into()), fee_rate: 1, rbf: false, dust: 546, locktime: 0 }).is_err());
+    assert!(build::build_btc(c, u.clone(), &build::BtcPlan { to: addrs[1].into(), send: Some(200000), change: Some(addrs[0].into()), fee_rate: 1, rbf: false, dust: 546, op_return: None, locktime: 0 }).is_err());
     let mut p3 = p2.clone();
     assert_eq!(sign::sign_psbt(&mut p3, &[sk("0000000000000000000000000000000000000000000000000000000000000002")]).unwrap(), 0);
     assert!(sign::extract(&p3).is_err());
@@ -82,7 +82,7 @@ fn every_signature_verifies() {
     let tid = "b".repeat(64);
     let utxos: String = addrs.iter().enumerate().map(|(i, a)| common::line(c, i as u32, 10000 * (i as u64 + 1), a)).collect();
     let u = build::parse_utxos(c, &utxos).unwrap();
-    let mut p = build::build_btc(c, u, &build::BtcPlan { to: addrs[4].into(), send: None, change: None, fee_rate: 3, rbf: false, dust: 546, locktime: 0 }).unwrap();
+    let mut p = build::build_btc(c, u, &build::BtcPlan { to: addrs[4].into(), send: None, change: None, fee_rate: 3, rbf: false, dust: 546, op_return: None, locktime: 0 }).unwrap();
     assert_eq!(sign::sign_psbt(&mut p, &[sk(K)]).unwrap(), 5);
     let tx = sign::extract(&p).unwrap();
     let prev: Vec<TxOut> = p.inputs.iter().map(|i| i.witness_utxo.clone().unwrap()).collect();
@@ -119,7 +119,7 @@ fn legacy_lying_amount_refused() {
     let (txid, real) = common::prev_tx(c, 0, 300_000_000, a); // real prevout: 3 BTC
     let claim = |extra: &str| format!("{{\"txid\":\"{txid}\",\"vout\":0,\"amount\":30000,\"address\":\"{a}\"{extra}}}");
     // tx-build: no prev tx -> refused; prev tx that disagrees with the claim -> refused
-    let plan = build::BtcPlan { to: a.into(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, locktime: 0 };
+    let plan = build::BtcPlan { to: a.into(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, op_return: None, locktime: 0 };
     let u = build::parse_utxos(c, &claim("")).unwrap();
     assert!(build::build_btc(c, u.clone(), &plan).unwrap_err().contains("legacy_input_needs_prev_tx"));
     assert!(build::parse_utxos(c, &claim(&format!(",\"prev_tx\":\"{real}\""))).unwrap_err().contains("differs"));
@@ -151,7 +151,7 @@ fn legacy_lying_amount_refused() {
 fn grs_legacy_needs_prev_tx() {
     let c = blocktools_core::chains::chain("grs").unwrap();
     let a = blocktools_core::chains::pub_rows(c, "", &bitcoin::secp256k1::PublicKey::from_secret_key(&Secp256k1::new(), &sk(K)), true).into_iter().find(|r| r.kind == "p2pkh").unwrap().address;
-    let plan = build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, locktime: 0 };
+    let plan = build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, op_return: None, locktime: 0 };
     let u = build::parse_utxos(c, &common::line(c, 1, 50_000, &a)).unwrap();
     let mut p = build::build_btc(c, u, &plan).unwrap();
     assert_eq!(blocktools_tx::decode_bytes(&p.serialize(), "grs").unwrap().unproven_inputs, 0);

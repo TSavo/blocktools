@@ -139,3 +139,14 @@ fn utxo(c: &str) -> String {
     assert_eq!(r["tx_format"], "legacy");
     assert!(build_unsigned_sweep("dash", &utxo("btc"), BTC, 10).is_err()); // utxo address not a DASH address
 }
+
+/// BCH/BSV/BTG are NOT exempt from the prev_tx proof (decided 2026-10-25): their fork-id sighash commits
+/// to the amount, but the builder, tx-decode/tx-verify and tx-sign all key on script type, so a plain
+/// P2PKH line is refused like any legacy input. Same function backs the CLI and wasm buildUnsignedSweep.
+#[test] fn forkid_needs_prev_tx() {
+    for (c, a) in [("bch", BTC), ("bsv", BTC), ("btg", "GUXByHDZLvU4DnVH9imSFckt3HEQ5cFgE5")] {
+        let plain = format!("{{\"txid\":\"{}\",\"vout\":0,\"amount\":100000,\"address\":\"{a}\"}}\n", "ab".repeat(32));
+        assert!(build_unsigned_sweep(c, &plain, a, 10).unwrap_err().contains("legacy_input_needs_prev_tx"), "{c}");
+        assert!(build_unsigned_sweep(c, &common::line(chains::chain(c).unwrap(), 0, 100000, a), a, 10).is_ok(), "{c}");
+    }
+}

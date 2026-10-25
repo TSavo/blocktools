@@ -105,5 +105,5 @@ wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed
 - 2026-10-25: `buildPsbtWithMemo` output order `[to, change, OP_RETURN]` (THORChain), optional memo, selected-input fee fix.
 - 2026-10-25: Tron txID + raw_data decode (`tronDecodeTx`); BTC-family PSBT with OP_RETURN memo (`buildPsbtWithMemo`).
 
-Legacy-sighash chains (P2PKH everywhere, GRS, PoS-nTime) need `prev_tx` per input; zec and forkid chains commit amounts in the sighash.
+Every non-segwit input needs `prev_tx`: P2PKH on every chain including the fork-id chains BCH/BSV/BTG (their sighash commits the amount, but blocktools checks by script type and does not sign fork-id), GRS and PoS-nTime. Only zec is exempt (ZIP-243/244 amounts via `zec_prevouts`).
 - 2026-10-25: `buildPsbtWithMemo` defaults to non-RBF (0xffffffff); optional trailing `rbf` arg.
