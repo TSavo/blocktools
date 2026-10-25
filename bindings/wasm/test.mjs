@@ -175,3 +175,19 @@ console.log('wasm grs ok');
   assert.ok(t.standard_recovery.length > 30 && t.exit_deadline_max_s === 3600, Object.keys(t).join());
 }
 console.log('verifier + xrp ok');
+// addressToScript: zec t1/t3 and all-uppercase bech32 (BIP-173), mixed case rejected
+{
+  for (const s of ['76a914' + '11'.repeat(20) + '88ac', 'a914' + '22'.repeat(20) + '87']) {
+    const a = JSON.parse(bt.scriptToAddress('zec', s)).address;
+    assert.ok(/^t[13]/.test(a), a); assert.equal(bt.addressToScript('zec', a), s);
+  }
+  const p = '0014' + 'ab'.repeat(20);
+  for (const c of ['btc', 'btg', 'ltc', 'ftc', 'dgb', 'vtc', 'via', 'qtum', 'mona', 'grs', 'rdd', 'ppc', 'nmc', 'mec']) {
+    const r = JSON.parse(bt.scriptToAddress(c, p)); if (!r) { console.log('no bech32 for', c); continue }
+    const a = r.address;
+    assert.equal(bt.addressToScript(c, a.toUpperCase()), p, c);
+    const mixed = a.slice(0, -1) + a.slice(-1).toUpperCase();
+    if (mixed !== a) { assert.throws(() => bt.addressToScript(c, mixed), /bad_address/, c) }
+  }
+}
+console.log('addressToScript case + zec ok');

@@ -680,8 +680,10 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
     let Enc::Utxo { p2pkh, p2sh, hrp, .. } = c.enc else { return None };
     if let Some(h) = hrp {
         if a.to_ascii_lowercase().starts_with(&format!("{h}1")) {
+            // BIP-173: all-lowercase or all-uppercase; mixed case is invalid.
+            if a.bytes().any(|b| b.is_ascii_uppercase()) && a.bytes().any(|b| b.is_ascii_lowercase()) { return None }
             let (hh, v, p) = bech32::segwit::decode(a).ok()?;
-            if hh.as_str() != h { return None }
+            if !hh.as_str().eq_ignore_ascii_case(h) { return None }
             let v = v.to_u8();
             if !matches!((v, p.len()), (0, 20) | (0, 32) | (1, 32)) { return None }
             let mut s = vec![if v == 0 { 0 } else { 0x50 + v }, p.len() as u8]; s.extend(p); return Some(s);
@@ -699,6 +701,15 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
 mod pub_kat {
     use super::*;
     // Public key of private key 1 = generator G (textbook value); no secret involved.
+    #[test] fn bech32_case() {
+        let c = chain("btc").unwrap();
+        let lo = address_to_script(c, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4").unwrap();
+        assert_eq!(address_to_script(c, "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"), Some(lo));
+        assert_eq!(address_to_script(c, "bc1qW508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), None);
+        let l = chain("ltc").unwrap();
+        assert!(address_to_script(l, "LTC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KGMN4N9").is_some());
+        assert!(address_to_script(l, "ltc1qw508d6qejxtdg4y5r3zarvary0c5xw7kgmn4n9").is_some());
+    }
     #[test] fn generator_addresses() {
         let g = PublicKey::from_slice(&crate::hex_dec("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798").unwrap()).unwrap();
         let r = pub_rows(chain("btc").unwrap(), "", &g, true);

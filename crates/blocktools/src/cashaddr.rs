@@ -57,9 +57,9 @@ pub fn from_legacy(addr: &str, prefix: &str) -> Result<String, &'static str> {
 }
 /// Output script for a destination on `chain`. bch also accepts CashAddr (with or without prefix).
 pub fn address_to_script(chain: &str, addr: &str) -> Result<Vec<u8>, &'static str> {
+    if chain == "zec" { return blocktools_tx::zcash::address_to_script(addr).ok_or("bad_address") }
     let c = blocktools_core::chains::chain(chain).ok_or("unknown_chain")?;
     if chain == "bch" { if let Ok(l) = to_legacy(addr) { return blocktools_core::chains::address_to_script(c, &l).ok_or("bad_address") } }
-    if chain == "zec" { return blocktools_tx::zcash::address_to_script(addr).ok_or("bad_address") }
     blocktools_core::chains::address_to_script(c, addr).ok_or("bad_address")
 }
 /// Standard output script -> (kind, address). None for non-standard.
