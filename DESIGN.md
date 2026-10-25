@@ -128,7 +128,11 @@ secp256k1 `m/44'/118'/0'/0/{i}`, address = plain bech32(hrp, hash160(compressed 
 secret = 32-byte hex `private_key`. KAT: cosmjs Secp256k1HdWallet default address. Algorand (`algo`, Enc::Algo): native 25-word
 mnemonic only (BIP39 English words, 11-bit little-endian packing, checksum word = sha512/256(key)
 bits 0..10; core feature `algo`), address = base32(pub || sha512/256(pub)[28..]); not derived
-from BIP39 seeds (derive skips it, like Monero). KAT: py-algorand-sdk test mnemonic/address.
+from BIP39 seeds (derive skips it, like Monero). KAT: py-algorand-sdk test mnemonic/address. Polkadot (`dot`, Enc::Ss58{prefix:0}, core feature
+`sr25519` = schnorrkel): mini-secret = PBKDF2-HMAC-SHA512(BIP39 entropy, "mnemonic", 2048)[..32],
+sr25519 Ed25519-mode expansion, root account only (no `//hard` paths), SS58 checksum =
+blake2b-512("SS58PRE"||prefix||pub)[..2] (blake2b moved from tx to core). key-to-addresses takes
+the mnemonic; native mnemonics are only expanded on their own chain. KAT: subkey docs vector.
 Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 

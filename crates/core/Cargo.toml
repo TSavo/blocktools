@@ -12,6 +12,9 @@ groestl.workspace = true
 zeroize.workspace = true
 ed25519-dalek = { workspace = true, optional = true }
 bip39 = { workspace = true, optional = true }
+schnorrkel = { workspace = true, optional = true }
+pbkdf2 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 [features]
 # Solana / ed25519 addresses. Off by default so dat-read & co. stay small.
 ed25519 = ["dep:ed25519-dalek"]
@@ -19,6 +22,8 @@ ed25519 = ["dep:ed25519-dalek"]
 secrets = []
 # Algorand 25-word mnemonic (BIP39 English word list).
 algo = ["dep:bip39"]
+# Polkadot sr25519 (substrate mini-secret from BIP39 entropy).
+sr25519 = ["dep:schnorrkel", "dep:bip39", "dep:pbkdf2", "dep:sha2"]
 
 [dev-dependencies]
 blocktools-schema = { path = "../schema" }

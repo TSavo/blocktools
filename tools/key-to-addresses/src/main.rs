@@ -4,7 +4,7 @@
 //! or a JSON line {"key":"..."} / {"wif":"..."}. An ambiguous string is tried in every encoding that yields
 //! exactly 32 bytes; each decoding is a separate "candidate".
 //! Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: --chain a,b (default all).
-use blocktools_core::chains::{self, Chain};
+use blocktools_core::chains::{self, Chain, Enc};
 use blocktools_io::outln;
 use blocktools_secrets::keys;
 use std::io::{BufRead, Read};
@@ -31,9 +31,11 @@ fn main() {
         if tok.is_empty() { continue }
         let ds = keys::decodings(&tok);
         if ds.is_empty() { outln!(r#"{{"tool":"key-to-addresses","status":"unsupported","line":{lineno}}}"#); continue }
-        for (cand, (_enc, bytes, comp)) in ds.iter().enumerate() {
+        for (cand, (enc, bytes, comp)) in ds.iter().enumerate() {
             let seed: [u8; 32] = bytes[..].try_into().unwrap();
-            for c in &sel {
+            // A native mnemonic only means something on its own chain family.
+            let only = match *enc { "algo-mnemonic" => Some(Enc::Algo), "substrate-mnemonic" => Some(Enc::Ss58 { prefix: 0 }), _ => None };
+            for c in sel.iter().filter(|c| only.map_or(true, |e| matches!((e, c.enc), (Enc::Algo, Enc::Algo) | (Enc::Ss58 { .. }, Enc::Ss58 { .. })))) {
                 let rows = keys::rows_for(c, &seed, *comp);
                 for r in rows {
                     outln!(r#"{{"tool":"key-to-addresses","status":"ok","line":{lineno},"candidate":{cand},"chain":"{}","kind":"{}","address":"{}","{}":"{}"}}"#,

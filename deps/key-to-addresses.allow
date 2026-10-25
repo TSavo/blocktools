@@ -1,3 +1,4 @@
+arrayref
 arrayvec
 base58ck
 bech32
@@ -11,6 +12,7 @@ blocktools-core
 blocktools-io
 blocktools-monero
 blocktools-secrets
+byteorder
 cfg-if
 cpufeatures
 crypto-common
@@ -20,17 +22,24 @@ digest
 ed25519
 ed25519-dalek
 generic-array
+getrandom_or_panic
 groestl
 hex-conservative
 hex_lit
+hmac
 itoa
 keccak
 memchr
+merlin
+pbkdf2
 proc-macro2
 quote
+rand_core
+schnorrkel
 secp256k1
 secp256k1-sys
 serde
+serde_bytes
 serde_core
 serde_json
 sha2
@@ -43,4 +52,5 @@ typenum
 unicode-ident
 unicode-normalization
 zeroize
+zeroize_derive
 zmij

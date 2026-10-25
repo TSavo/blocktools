@@ -10,6 +10,8 @@ pub fn decodings(s: &str) -> Vec<(&'static str, Zeroizing<Vec<u8>>, Option<bool>
     let mut v = Vec::new();
     #[cfg(feature = "algo")]
     if let Ok(k) = chains::algo_mnemonic_key(s) { v.push(("algo-mnemonic", Zeroizing::new(k.to_vec()), None)); return v }
+    #[cfg(feature = "sr25519")]
+    if let Ok(k) = chains::substrate_mini_secret(s, "") { v.push(("substrate-mnemonic", Zeroizing::new(k.to_vec()), None)); return v }
     if s.len() > 120 { return v }
     let h = s.strip_prefix("0x").unwrap_or(s);
     if h.len() == 64 { if let Some(b) = blocktools_core::hex_dec(h) { v.push(("hex", Zeroizing::new(b), None)) } }
@@ -26,9 +28,13 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
     match (c.enc, SecretKey::from_slice(bytes).ok()) {
         #[cfg(feature = "ed25519")]
         (Enc::Algo, _) => vec![chains::algo_row("", bytes)],
+        #[cfg(feature = "sr25519")]
+        (Enc::Ss58 { .. }, _) => vec![chains::ss58_row(c, "", bytes)],
         (Enc::Sol | Enc::Xlm, _) => vec![chains::ed_row(c, "", bytes)],
         #[cfg(not(feature = "ed25519"))]
         (Enc::Sol | Enc::Xlm | Enc::Algo, _) => vec![],
+        #[cfg(not(feature = "sr25519"))]
+        (Enc::Ss58 { .. }, _) => vec![],
         (_, Some(sk)) => {
             let mut r = chains::secp_rows(c, "", &sk, comp != Some(true), &secp);
             if comp == Some(false) { r.retain(|r| r.kind == "p2pkh-uncompressed") }

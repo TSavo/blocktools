@@ -28,6 +28,8 @@ pub enum Enc {
     /// Algorand: ed25519 key from the native 25-word mnemonic (no BIP32 path); address =
     /// base32(pub || sha512/256(pub)[28..])
     Algo,
+    /// Substrate / Polkadot: sr25519 root key (no derivation path), SS58 address with this prefix.
+    Ss58 { prefix: u8 },
     /// Stellar: ed25519, SLIP-0010, SEP-0005 path m/44'/148'/i'; StrKey G... / S...
     Xlm,
     /// Monero: ed25519 spend/view keys from its own 25-word seed (crates/monero); not secp-derivable.
@@ -44,7 +46,7 @@ pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
 impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
     pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
     /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
-    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Xmr) } }
+    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Xmr | Enc::Ss58 { .. }) } }
 impl Sign { /// tx-build / tx-sign build and sign this scheme.
     pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
@@ -82,6 +84,7 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "xrp", ticker: "XRP", title: "XRP Ledger", coin: 144, enc: Enc::Xrp, default_count: 10, sign: Unknown, verified: true, source: "xrpl.org: account ID, ripple base58 alphabet", sources: &[] },
     Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos" }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
     Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
+    Chain { name: "dot", ticker: "DOT", title: "Polkadot", coin: 354, enc: Enc::Ss58 { prefix: 0 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey: mini-secret = PBKDF2(entropy), sr25519, SS58 prefix 0", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
@@ -207,7 +210,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Cosmos { hrp } => vec![row("cosmos", cosmos_address(hrp, &h160(&pk.serialize())))],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Xmr => vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ss58 { .. } | Enc::Xmr => vec![],
     }
 }
 /// Cosmos SDK account address: plain bech32 (not segwit) of a 20-byte hash.
@@ -305,6 +308,40 @@ pub fn algo_mnemonic_key(m: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'stat
     if ((h[0] as u32) | ((h[1] as u32) << 8)) & 2047 != ix[24] { return Err("bad checksum") }
     Ok(zeroize::Zeroizing::new(key))
 }
+/// SS58 address (1-byte prefix < 64): base58(prefix || pub || blake2b-512("SS58PRE" || prefix || pub)[..2]).
+pub fn ss58_address(prefix: u8, pubkey: &[u8; 32]) -> String {
+    let mut d = vec![prefix]; d.extend_from_slice(pubkey);
+    let mut pre = b"SS58PRE".to_vec(); pre.extend_from_slice(&d);
+    d.extend_from_slice(&crate::blake2b::blake2b(64, &[0; 16], &pre)[..2]);
+    bitcoin::base58::encode(&d)
+}
+/// SS58 address -> public key; checks prefix, length and checksum.
+pub fn ss58_decode(prefix: u8, a: &str) -> Result<[u8; 32], &'static str> {
+    let d = bitcoin::base58::decode(a).map_err(|_| "bad base58")?;
+    if d.len() != 35 { return Err("bad length") }
+    if d[0] != prefix { return Err("wrong network") }
+    let pk: [u8; 32] = d[1..33].try_into().unwrap();
+    if ss58_address(prefix, &pk) != a { return Err("bad checksum") }
+    Ok(pk)
+}
+/// Substrate mini-secret from a BIP39 mnemonic: PBKDF2-HMAC-SHA512(entropy, "mnemonic" || pw, 2048)[..32].
+#[cfg(feature = "sr25519")]
+pub fn substrate_mini_secret(m: &str, pw: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'static str> {
+    let mn = bip39::Mnemonic::parse_in_normalized(bip39::Language::English, m).map_err(|_| "bad mnemonic")?;
+    let ent = zeroize::Zeroizing::new(mn.to_entropy());
+    let mut out = zeroize::Zeroizing::new([0u8; 64]);
+    pbkdf2::pbkdf2_hmac::<sha2::Sha512>(&ent, format!("mnemonic{pw}").as_bytes(), 2048, &mut out[..]);
+    let mut k = zeroize::Zeroizing::new([0u8; 32]); k.copy_from_slice(&out[..32]);
+    Ok(k)
+}
+/// Polkadot row from a mini-secret: sr25519 (Ed25519 expansion, as substrate), SS58 address;
+/// `private_key` = 0x-hex mini-secret (the "raw seed" polkadot.js / subkey import).
+#[cfg(all(feature = "sr25519", feature = "secrets"))]
+pub fn ss58_row(c: &Chain, path: &str, mini: &[u8; 32]) -> Row {
+    let Enc::Ss58 { prefix } = c.enc else { panic!("not ss58") };
+    let pk = schnorrkel::MiniSecretKey::from_bytes(mini).expect("32 bytes").expand_to_public(schnorrkel::ExpansionMode::Ed25519).to_bytes();
+    Row { chain: c.name, kind: "sr25519", path: path.into(), address: ss58_address(prefix, &pk), secret_field: "private_key", secret: format!("0x{}", crate::hex_enc(mini)) }
+}
 /// Stellar account id (G...) of a 32-byte ed25519 public key.
 pub fn xlm_address(pubkey: &[u8; 32]) -> String { strkey_encode(6 << 3, pubkey) }
 /// Solana address of a 32-byte ed25519 public key (base58).
@@ -367,7 +404,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => &["p2pkh"],
-        Enc::Sol | Enc::Xlm | Enc::Algo => return vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ss58 { .. } => return vec![],
         _ => &[""],
     };
     let mut out = Vec::new();

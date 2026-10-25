@@ -8,7 +8,7 @@ pub mod policy;
 /// Signing (takes private keys). Feature `secrets` only.
 pub mod digest;
 pub mod pos;
-pub mod blake2b;
+pub use blocktools_core::blake2b;
 pub mod zcash;
 /// The `"chain"` field of a tx-build JSON line, if any, and the chain a tool should use given an
 /// optional `--chain`: the build's chain wins when no flag is given; a conflicting flag is an
