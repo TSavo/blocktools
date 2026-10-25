@@ -70,7 +70,7 @@ const BTC: &str = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
 #[test] fn params_rows() {
     let p = address::params_json();
     let r = |n: &str| p.as_array().unwrap().iter().find(|r| r["name"] == n).unwrap().clone();
-    assert_eq!(r("ppc")["decimals"], 6); assert_eq!(r("nvc")["decimals"], 6); assert_eq!(r("dash")["decimals"], 8);
+    assert_eq!(r("ppc")["decimals"], 6); assert_eq!(r("nvc")["decimals"], 6); assert_eq!(r("dash")["decimals"], 8); assert_eq!(r("qrk")["decimals"], 5);
     assert_eq!(r("btg")["forkid"], 79); assert_eq!(r("bsv")["tx_format"], "forkid"); assert_eq!(r("ppc")["tx_format"], "pos-ntime");
     assert_eq!(r("zec")["p2pkh"], serde_json::json!([0x1c, 0xb8])); assert_eq!(r("dash")["sweep_build"], true); assert_eq!(r("rdd")["sweep_build"], true); assert_eq!(r("pot")["sweep_build"], false);
 }
@@ -126,9 +126,14 @@ fn utxo(c: &str) -> String {
     assert_eq!(address::tx_format("zec"), ("zcash-v5", true));
 }
 #[test] fn sweep_refuses_unsupported_formats() {
-    for (c, why) in [("pot", "unsupported_tx_format:pos-ntime"), ("qrk", "unsupported_tx_format:unknown"), ("wdc", "unsupported_tx_format:legacy"),
+    for (c, why) in [("pot", "unsupported_tx_format:pos-ntime"), ("wdc", "unsupported_tx_format:legacy"),
                      ("eth", "unsupported_tx_format:evm")] {
         assert_eq!(build_unsigned_sweep(c, "", BTC, 10).unwrap_err(), why, "{c}");
     }
+    // qrk: Bitcoin-legacy since 2026-10-25 (tx/tests/qrk.rs), 5 decimals.
+    assert_eq!(address::tx_format("qrk"), ("legacy", true));
+    let q = "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59";
+    let r = build_unsigned_sweep("qrk", &format!("{{\"txid\":\"{}\",\"vout\":0,\"amount\":10000000,\"address\":\"{q}\"}}", "11".repeat(32)), q, 10).unwrap();
+    assert_eq!(r["tx_format"], "legacy");
     assert!(build_unsigned_sweep("dash", &utxo("btc"), BTC, 10).is_err()); // utxo address not a DASH address
 }

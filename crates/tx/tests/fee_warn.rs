@@ -35,9 +35,9 @@ fn psbt_n(n: usize, fee: u64) -> Vec<u8> {
     let spk = ScriptBuf::from_hex("76a914000102030405060708090a0b0c0d0e0f1011121388ac").unwrap();
     let ins = (0..n).map(|i| TxIn { previous_output: OutPoint { txid: bitcoin::Txid::from_raw_hash(bitcoin::hashes::Hash::all_zeros()), vout: i as u32 }, script_sig: ScriptBuf::new(), sequence: Sequence::MAX, witness: Witness::new() }).collect();
     let tx = Transaction { version: Version::TWO, lock_time: LockTime::ZERO, input: ins,
-        output: vec![TxOut { value: Amount::from_sat(n as u64 * 100_000_000 - fee), script_pubkey: spk.clone() }] };
+        output: vec![TxOut { value: Amount::from_sat(n as u64 * 100_000_000_000 - fee), script_pubkey: spk.clone() }] };
     let mut p = Psbt::from_unsigned_tx(tx).unwrap();
-    for i in &mut p.inputs { i.witness_utxo = Some(TxOut { value: Amount::from_sat(100_000_000), script_pubkey: spk.clone() }) }
+    for i in &mut p.inputs { i.witness_utxo = Some(TxOut { value: Amount::from_sat(100_000_000_000), script_pubkey: spk.clone() }) }
     p.serialize()
 }
 
@@ -67,4 +67,16 @@ fn rate_cap_is_per_coin() {
     assert!(build::build_btc(c, u.clone(), &plan(100_312)).is_ok());
     assert!(build::build_btc(c, u.clone(), &plan(fee_warn("xpm").rate_cap() + 1)).is_err());
     assert!(build::build_btc(chains::chain("btc").unwrap(), vec![], &plan(2001)).unwrap_err().contains("1..2000"));
+}
+
+/// SwapChan item 4: a tx paying the measured median rate (and MONA's 100 sat/vB wallet mode,
+/// and SwapChan's 220) raises no fee warning; 30 x the median does.
+#[test]
+fn measured_rows_doge_ftc_mona() {
+    let vs = blocktools_tx::decode_bytes(&psbt_n(1, 1000), "doge").unwrap().vsize.unwrap();
+    let w = |c: &str, rate: u64| blocktools_tx::decode_bytes(&psbt_n(1, rate * vs), c).unwrap().warnings;
+    for (c, r) in [("doge", 60_463), ("doge", 1000), ("ftc", 2000), ("mona", 3), ("mona", 100), ("mona", 220)] {
+        let x = w(c, r); assert!(!x.contains(&"high_fee") && !x.contains(&"high_fee_rate"), "{c} {r} {x:?}");
+    }
+    for (c, r) in [("doge", 30 * 60_463), ("ftc", 30 * 2000), ("mona", 3000)] { assert!(w(c, r).contains(&"high_fee_rate"), "{c}") }
 }

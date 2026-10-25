@@ -67,4 +67,4 @@ Fee warnings (`high_fee`, `high_fee_rate`) use per-coin limits from measured mai
 
 Zcash transparent (t1/t3) is a supported chain for validate/convert/sweep; shielded: [zcash-shielded.md](zcash-shielded.md).
 
-Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains unverified: no SLIP-44 path. Quark (qrk) tx format is unknown, so no sweep.
+Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains unverified: no SLIP-44 path. Quark (qrk) txs are Bitcoin-legacy (10 mainnet txids, 10 signatures checked) with 5 decimals; sweep build is supported (untested on mainnet).

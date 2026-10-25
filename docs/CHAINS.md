@@ -41,7 +41,7 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | blk | BLK | 10 | 19 | 55 | — | 153 | sha256d | 8 | — | legacy | yes | cryptoid chainz.cryptoid.info |
 | rdd | RDD | 4 | 3d | 05 | rdd | 189 | sha256d | 8 | — | pos-ntime | yes | blockbook blockbook.reddcoin.com |
 | pot | POT | 81 | 37 | 6e | — | 183 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
-| qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 8 | — | unknown | no | cryptoid chainz.cryptoid.info |
+| qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 5 | — | legacy | yes | cryptoid chainz.cryptoid.info |
 | zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | yes (transparent P2PKH) | none |
 | grs | GRS | 17 | 24 | 05 | grs | 128 | groestl512d | 8 | — | legacy-sha256 | yes | none listed |
 
@@ -58,9 +58,16 @@ Since 2026-10-25: (1) the `fee` limit is per started 1,000 vB of the tx (`FeeWar
 | qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info |
 | xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) |
 | vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703858, blockbook.vtc.zelcore.io |
+| doge | 1,200,000,000 | 1,200,000 | 60,463 sat/B (p10 2,418, p90 523,560) | 100 txs, blocks 6429664-6429671, blockbook.doge.zelcore.io, sha256d-checked. Policy minimum 1,000 sat/B (RECOMMENDED_MIN_TX_FEE 0.01 DOGE/kB) is far below what wallets pay |
+| ftc | 40,000,000 | 40,000 | 2,000 sat/vB (p10 600) | 100 txs (21 segwit), blocks 6407004-6408299, blockbook.feathercoin.com |
+| mona | 2,000,000 | 2,000 | 2.54 sat/vB; p75 and p90 = 100 | 100 txs, blocks 4142748-4143093, mona.insight.monaco-ex.org, exact vsize (witness stripped), 100/100 txids checked. Bimodal: ~2.5 (relay-minimum wallets) and 100 (Monacoin Core DEFAULT_TRANSACTION_MINFEE 100,000/kB); the limit is 20 x the 100 mode |
 | aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) |
 
-Measured and left at the default: mona (median 2.5 sat/vB, 60 txs, blocks 4142846-4143045, mona.insight.monaco-ex.org; node relayfee 0.001 MONA/kB), dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (14.8 sat/B, only 14 txs in 300 blocks 3327566-3327865, insight.terracoin.io), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). Also measured: wdc 5.4 sat/B (4 txs, block 11881187; default kept). Not measured (default applies): every other row, including zec, nmc, ftc, mec, nvc, clam, blk, rdd, pot, qrk, grs, bch, bsv, btg, ltc, doge.
+**MONA rate (SwapChan uses 220):** the chain data says 2.5 sat/vB is the median and 100 sat/vB the common wallet default; no sampled tx paid 220 (max 349, one outlier). 2.5 is right as "what the chain accepts" (node relayfee 0.001 MONA/kB = 1 sat/B); 100 matches Monacoin Core's default minimum tx fee. 220 is not supported by the data: it overpays ~2x the wallet default and ~90x the median. Suggest 100 (wallet-compatible) or a floor of 3.
+
+Measured and left at the default: dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (14.8 sat/B, only 14 txs in 300 blocks 3327566-3327865, insight.terracoin.io), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). Also measured: wdc 5.4 sat/B (4 txs, block 11881187; default kept). Not measured (default applies): every other row, including nmc, mec, nvc, clam, blk, pot, qrk, grs, bch, bsv, btg, ltc.
+
+**ZEC vs ZIP-317 (2026-10-25):** 200 txs, blocks 3529835-3529915, blockbook.zec.zelcore.io. Ratio fee / ZIP-317 conventional fee (5,000 x max(2, transparent inputs, transparent outputs)): median 1.48, p10 1.00, 73/199 exactly 1.00, 1 below 1. The upper tail (p90 ~125,000x) is not real overpayment: blockbook cannot see shielded value, so for shielding/unshielding txs inputs - outputs is not the fee; only transparent-only txs are meaningful there, and the ZIP-317 figure is a lower bound when shielded actions exist. Rate median 49.7 sat/B (ZIP-317 minimum on a 1-in-1-out tx). Default limits kept. **Immature coinbase:** the ZEC explorer SwapChan uses (blockbook.zec.zelcore.io) lists immature coinbase outputs as spendable UTXOs (reported by SwapChan; not re-measured here); consensus requires 100 confirmations (COINBASE_MATURITY). Consumers must drop UTXOs with `coinbase: true` and confirmations < 100 before `buildUnsignedSweep`; blocktools cannot tell from `{txid,vout,amount,address}` alone.
 
 ### Unverified (never returned as supported)
 
@@ -73,7 +80,7 @@ Zcash Sapling: `zec-sapling` CLI (ZIP-32, m/32'/133'/i', zs1 default address, op
 
 Zcash transparent is listed by wasm `listChains`/`supportedChains` (scope transparent) since 2026-10-25. Evidence: ZIP-243/244 official vectors, 7 mainnet txs (txid + signature), 21 mainnet script->address pairs from api.blockchair.com (crates/tx/tests/data/zec_addresses.txt). Untested: BIP44 m/44'/133' derivation, xpubs, broadcast, v6.
 
-WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid = sha256d, 357 P2PKH signatures verify under the legacy sighash, and every input address re-derives under p2pkh 73 (crates/tx/tests/wdc.rs). Still `verified: false`: no SLIP-44 coin type, so no derivation path can be checked. QRK: tx format still unknown; 0 non-coinbase txs found in 800 recent blocks (13909630 back) on chainz, so no mainnet tx to test against.
+WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid = sha256d, 357 P2PKH signatures verify under the legacy sighash, and every input address re-derives under p2pkh 73 (crates/tx/tests/wdc.rs). Still `verified: false`: no SLIP-44 coin type, so no derivation path can be checked. QRK (2026-10-25): tx format Bitcoin-legacy, found via chainz `api.dws?q=lasttxs` (block-by-block scanning saw only coinbase): 10/10 recent non-coinbase txs rebuild to their txid under sha256d, but only with values x 1e5, i.e. **QRK has 5 decimals** (COIN = 100000; the table said 8, now fixed: `decimals` 5). crates/tx/tests/qrk.rs: 2 txs (blocks 13906691, 13907052; 8 and 170 inputs), 10 P2PKH signatures verify under the legacy sighash and re-derive to the chainz input addresses under p2pkh 58; 168 P2PK inputs are not checked (pubkey lives in the prevout). Row now `Standard`, so `buildUnsignedSweep` supports qrk. Untested: a built QRK sweep broadcast on mainnet; QRK fee rates (default limits apply).
 
 ## Groestlcoin extended keys and taproot (2026-10-25)
 

@@ -302,6 +302,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
   `contract_creation`, `high_gas_price`, `token_approve`, `unlimited_approve`,
   `token_transfer_from`, `unknown_calldata`, `bad_signature`, `no_inputs_or_outputs`.
 - The `high_fee` limit scales per started 1,000 vB (`FeeWarn::fee_for`); sweep builders cap fee_rate at `FeeWarn::rate_cap()` = max(2,000, 4 x rate limit) per coin. Wasm outputs add `amount_str`/`fee_str` twins for values above 2^53 (EXPORTS.md).
+- QRK amounts are 5-decimal base units (COIN = 1e5), established from mainnet txids.
 - `high_fee` / `high_fee_rate` limits are per coin (`chains::fee_warn`, exposed as `chainParams().fee_warn`): 20 x the measured median fee rate, never below the Bitcoin default 1,000,000 / 500. Values and their measured basis: docs/CHAINS.md "Fee-warning limits". Test: crates/tx/tests/fee_warn.rs.
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec

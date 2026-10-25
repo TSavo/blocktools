@@ -119,7 +119,7 @@ pub const CHAINS: &[Chain] = &[
     u("blk", "BLK", "Blackcoin", 10, 25, 85, 153, None, Standard, true, "CoinBlack/blackcoin src/chainparams.cpp; tx layout: v2 Bitcoin format, no nTime (mainnet txs in tx/tests/data/pos_mainnet.txt)", &[cz("https://chainz.cryptoid.info/blk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/blk/api.dws")]),
     u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[bb("blockbook.reddcoin.com", "https://blockbook.reddcoin.com/address/{addr}", "blockbook:https://blockbook.reddcoin.com/api")]),
     u("pot", "POT", "Potcoin", 81, 55, 110, 183, None, PosTime, true, "potcoin/Potcoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/pot/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/pot/api.dws")]),
-    u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
+    u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Standard, true, "quark-project/quark src/chainparams.cpp; tx format Bitcoin-legacy, COIN = 1e5, confirmed on 10 mainnet txs (tx/tests/qrk.rs)", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
     Chain { name: "grs", ticker: "GRS", title: "Groestlcoin", coin: 17, enc: Enc::Utxo { p2pkh: 36, p2sh: 5, hrp: Some("grs"), wif: 128, taproot: true }, default_count: 10, sign: Sha256Single, verified: true,
             source: "Groestlcoin/groestlcoin src/kernel/chainparams.cpp; Groestl-512 base58 checksum; KAT groestlcoinjs-lib test/integration; p2tr: Groestlcoin bip341_wallet_vectors.json (identical to Bitcoin's)", sources: &[] },
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
@@ -823,6 +823,9 @@ pub const FEE_WARN: &[(&str, FeeWarn)] = &[
     ("qtum", FeeWarn { fee: 14_000_000, rate: 14_000, basis: "median 700 sat/vB over 100 txs, blocks 6253698-6255768 (qtum.info recent-txs)" }),
     ("xpm", FeeWarn { fee: 2_000_000_000, rate: 2_000_000, basis: "median 100312 sat/B over 30 txs (exact size, raw rebuilt and sha256d-checked), blocks 7064002-7064118 (chainz.cryptoid.info)" }),
     ("vtc", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 101 sat/vB over 60 txs, blocks 2703728-2703858 (blockbook.vtc.zelcore.io)" }),
+    ("doge", FeeWarn { fee: 1_200_000_000, rate: 1_200_000, basis: "median 60463 sat/B over 100 txs (sha256d-checked), blocks 6429664-6429671 (blockbook.doge.zelcore.io); policy min 1000 sat/B is far below" }),
+    ("ftc", FeeWarn { fee: 40_000_000, rate: 40_000, basis: "median 2000 sat/vB over 100 txs (21 segwit), blocks 6407004-6408299 (blockbook.feathercoin.com)" }),
+    ("mona", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "bimodal: median 2.54 sat/vB, p75/p90 100 sat/vB (Monacoin Core DEFAULT_TRANSACTION_MINFEE) over 100 txs, exact vsize, txid-checked, blocks 4142748-4143093 (mona.insight.monaco-ex.org); limit = 20 x the 100 mode" }),
     ("aur", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 102.8 sat/B over 30 txs (exact size, raw rebuilt and sha256d-checked), blocks 5913204-5913347 (chainz.cryptoid.info)" }),
 ];
 pub fn fee_warn(name: &str) -> FeeWarn { FEE_WARN.iter().find(|(n, _)| *n == name).map(|(_, f)| *f).unwrap_or(FEE_WARN_DEFAULT) }
