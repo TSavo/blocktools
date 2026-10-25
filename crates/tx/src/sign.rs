@@ -21,9 +21,13 @@ pub fn taproot_sig(tx: &Transaction, i: usize, prevouts: &[TxOut], sk: &SecretKe
     Ok(v)
 }
 
+pub use crate::digest::*;
+
 /// Sign every input whose script matches one of `keys`; finalize it. Returns the number signed.
 /// Supports p2pkh (compressed and uncompressed), p2wpkh, p2sh-p2wpkh, p2tr key-path (no script tree).
-pub fn sign_psbt(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str> {
+pub fn sign_psbt(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str> { sign_psbt_digest(p, keys, Digest::Sha256d) }
+/// As `sign_psbt`, under digest `d`. Taproot is refused for anything but sha256d.
+pub fn sign_psbt_digest(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<usize, &'static str> {
     let secp = Secp256k1::new();
     let tx = p.unsigned_tx.clone();
     let prev: Vec<TxOut> = p.inputs.iter().zip(&tx.input).map(|(i, ti)| i.witness_utxo.clone()
@@ -37,10 +41,12 @@ pub fn sign_psbt(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str
             let pk = PublicKey::from_secret_key(&secp, sk);
             let (c, u) = (pk.serialize(), pk.serialize_uncompressed());
             let ecdsa = |script_code: &[u8], segwit: bool| -> Result<Vec<u8>, &'static str> {
-                let mut cache = SighashCache::new(&tx);
-                let h: [u8; 32] = if segwit {
-                    cache.p2wpkh_signature_hash(i, &ScriptBuf::from_bytes(script_code.to_vec()), amt, EcdsaSighashType::All).map_err(|_| "sighash")?.to_byte_array()
-                } else { cache.legacy_signature_hash(i, &ScriptBuf::from_bytes(script_code.to_vec()), 1).map_err(|_| "sighash")?.to_byte_array() };
+                let h: [u8; 32] = if segwit && dg == Digest::Sha256d {
+                    SighashCache::new(&tx).p2wpkh_signature_hash(i, &ScriptBuf::from_bytes(script_code.to_vec()), amt, EcdsaSighashType::All).map_err(|_| "sighash")?.to_byte_array()
+                } else if segwit {
+                    let mut sc = vec![0x76, 0xa9, 20]; sc.extend(&script_code[2..]); sc.extend([0x88, 0xac]);
+                    bip143_all(&tx, i, &sc, amt.to_sat(), dg)?
+                } else { legacy_sighash(&tx, i, script_code, 1, dg)? };
                 let mut s = secp.sign_ecdsa(&Message::from_digest(h), sk).serialize_der().to_vec(); s.push(1); Ok(s)
             };
             let inp = &mut p.inputs[i];
@@ -57,7 +63,7 @@ pub fn sign_psbt(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str
                 let k: &[u8] = if spk == p2pkh(&c) { &c } else { &u };
                 let s = ecdsa(&spk, false)?; let mut ss = push(&s); ss.extend(push(k));
                 inp.final_script_sig = Some(ScriptBuf::from_bytes(ss));
-            } else if spk == tr.as_bytes() {
+            } else if spk == tr.as_bytes() && dg == Digest::Sha256d {
                 let s = taproot_sig(&tx, i, &prev, sk, None, TapSighashType::Default, &secp)?;
                 inp.final_script_witness = Some(Witness::from_slice(&[s]));
             } else { continue }

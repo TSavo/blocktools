@@ -47,6 +47,11 @@ pub fn parse_key_line(s: &str) -> Option<SecretKey> {
         let d = Zeroizing::new(d);
         if d.len() == 33 || (d.len() == 34 && d[33] == 1) { return SecretKey::from_slice(&d[1..33]).ok() }
     }
+    // Groestlcoin WIF (version 0x80, Groestl-512 double-hash checksum).
+    if let Ok(d) = blocktools_core::chains::decode_check_ck(blocktools_core::chains::Ck::Groestl, &tok) {
+        let d = Zeroizing::new(d);
+        if d.len() == 33 || (d.len() == 34 && d[33] == 1) { return SecretKey::from_slice(&d[1..33]).ok() }
+    }
     let h = tok.strip_prefix("0x").unwrap_or(&tok);
     if h.len() == 64 { return SecretKey::from_slice(&Zeroizing::new(blocktools_core::hex_dec(h)?)).ok() }
     None

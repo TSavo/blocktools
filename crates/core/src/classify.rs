@@ -61,6 +61,7 @@ fn line(l: &str, n: u64) -> Row {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
     if ["xprv", "yprv", "zprv", "tprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
     if let Ok(b) = base58::decode_check(l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && [0x80, 0xb0, 0x9e, 0xef].contains(&b[0]) { return row("wif", n, l.as_bytes()) } }
+    if let Ok(b) = crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && b[0] == 0x80 { return Row { chain: Some("grs"), ..row("wif", n, l.as_bytes()) } } }
     let h = l.strip_prefix("0x").unwrap_or(l);
     if h.len() == 64 && h.bytes().all(|c| c.is_ascii_hexdigit()) { return row("hex_key", n, l.as_bytes()) }
     let w: Vec<&str> = l.split_whitespace().collect();

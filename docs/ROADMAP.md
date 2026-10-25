@@ -43,12 +43,13 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 | L7 | Point SwapChan at path/git dep on `blocktools` (public decode/validate/policy first), **or** keep calling the CLIs. WASM binding of the same facade is optional later — both stay open; no pick required now. | library |
 | L8 | ~~Rename internal crates and tools off the old `kr` prefix~~ done: crates `blocktools-*` under `crates/{core,tx,io,schema,tty,net}`, tools `redact`, `sealed-run`, `read-file`, wrapper `./blocktools`. | done |
 
-- [x] Data-driven chain table: 30 verified rows + 2 unverified (wdc, anc); zec and grs excluded; KATs via scripts/kat-chains.py.
+- [x] Data-driven chain table: 31 verified rows (grs added) + 2 unverified (wdc, anc); zec excluded; KATs via scripts/kat-chains.py.
 - [x] Stable wasm API: version, supportedChains, unverifiedChains, deriveFromXpub, addressValidate, checkTx (EXPORTS.md).
 - [ ] Explorer sources for the rows that have none listed; signing for ForkId and PosTime chains; real-network test of any non-BTC signing.
 - [x] detect (all candidates) / convert / chainParams / buildUnsignedSweep (legacy + forkid); ZEC t-address validate/convert; SwapChan probe sources per row.
 - [ ] PoS nTime builder (PPC, RDD, NVC, BLK, CLAM): confirm per coin which tx versions carry nTime, from source and a real mainnet tx vector.
-- [ ] Zcash v5 (ZIP-225/244) unsigned builder + decode; Groestlcoin (Groestl checksum, SHA256 txid) with an independent Groestl KAT.
+- [x] Groestlcoin: Groestl-512 checksum (RustCrypto `groestl` 0.10), validate/convert/derive, `grs` row verified, single-SHA-256 txid + legacy/BIP143 sighash, sweep build+sign. KATs: groestlcoinjs-lib, Electrum-GRS, 2 real mainnet txs. e2e: scripts/e2e.d/sweep-alt.sh (GRS, LTC, DOGE through the pty driver). Untested: live GRS network/explorer; GRS xpubs (Groestl checksum) unsupported; taproot off.
+- [ ] Zcash v5 (ZIP-225/244) unsigned builder + decode.
 - [x] Monero slice 1: 25-word English seed decode + CRC32 checksum word, spend/view keys, standard address encode/validate (main/stage/test), classify `monero_seed`/`monero_address`, `xmr-keys` tool (public output only), recover.sh route (stops before scan). KAT: monero-python tests/test_seed.py test_keys.
 - [x] Monero slice 2: `xmr` row in the chain table (Enc::Xmr; validate via blocktools-monero; skipped by BIP32 presets), so wasm `validateAddress`/`addressValidate`/`supportedChains` cover it (wasm test.mjs checks the KAT address). No new wasm exports. `xmr-keys --scan-out FILE [--restore-height N]` writes a view-only wallet-rpc `generate_from_keys` request (0600, create-new, view key never on stdout/stderr; e2e-checked). Sweep design: docs/monero-sweep-design.md.
 - [ ] Monero (untested / not built): running the scan against a real wallet-rpc/LWS, sweep (via upstream wallet-rpc, do_not_relay + simulate), stagenet KAT, other seed languages, Polyseed, MyMonero 13-word, subaddresses, integrated addresses.

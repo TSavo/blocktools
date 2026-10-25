@@ -36,6 +36,7 @@ and see addresses and signed transactions only.
 |---|---|---|---|---|
 | Bitcoin | ✅ | ✅ | ✅ | [chain-bitcoin.md](chain-bitcoin.md) |
 | Litecoin, Dogecoin | ✅ | ✅ | ✅ (mock chain only) | [chain-litecoin-dogecoin.md](chain-litecoin-dogecoin.md) |
+| Groestlcoin | ✅ | ✗ | ✅ (e2e, no live network) | [chain-groestlcoin.md](chain-groestlcoin.md) |
 | Ethereum / EVM | ✅ | ✅ | ✅ ETH, ERC-20 | [chain-ethereum.md](chain-ethereum.md) |
 | XRP | ✅ | manual | ✅ Payment (xrp-tx) | [xrp.md](xrp.md) |
 | Qtum | ✅ | ✗ | ✗ | [chain-qtum.md](chain-qtum.md) |

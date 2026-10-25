@@ -20,13 +20,13 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `convertAddress(addr, to)` | `address::convert(addr, to)` | the same hash, re-encoded for `to`; throws `unrecognised_address`, `ambiguous_address` (candidates disagree on p2pkh vs p2sh), `unknown_or_unverified_chain` or `no_equivalent` |
 | `convertAddressFrom(from, addr, to)` | `address::convert_from(from, addr, to)` | as above, with the source chain stated |
 | `chainParams()` | `address::params_json()` | the full table: `[{name,ticker,title,slip44,verified,p2pkh:[bytes],p2sh:[bytes],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,sources}]` |
-| `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy` and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` |
+| `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy`, `legacy-sha256` (GRS) and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` |
 
 ### detectAddress semantics
 
 - It returns a **JSON string**, so call `JSON.parse` on it. Entries come in chain-table order (`chainParams()` order), not ranked by likelihood.
 - More than one entry means the address is **ambiguous**: the same bytes are valid on several chains. For example, a Monacoin `M…` address is also a valid LTC/QTUM/MEC P2SH. Ask the user for the chain, or use `detectAddressInfo` for `ambiguous`/`kinds_agree`. There is no ranking.
-- `zec` (transparent) appears in detect/validate only. It is **not** in `listChains`/`supportedChains`: ZEC is in `chains::EXCLUDED` (two-byte version prefixes, ZIP-243/244 sighash not implemented), so it has no derive or sweep. Groestlcoin stays out until there is a Groestl implementation with independent vectors.
+- `zec` (transparent) appears in detect/validate only. It is **not** in `listChains`/`supportedChains`: ZEC is in `chains::EXCLUDED` (two-byte version prefixes, ZIP-243/244 sighash not implemented), so it has no derive or sweep. `grs` is in every list since 2026-10-24 (Groestl checksum and single-SHA-256 digests, independent KATs). Its `3…` P2SH does not collide with BTC: the checksum differs, so `detectAddress` returns `grs` only.
 
 ### Loading the module
 
@@ -43,7 +43,7 @@ Tx formats:
 - `pos-ntime` (PPC/NVC/CLAM/BLK/RDD/POT): not built.
 - `zcash-v5`: ZEC is address-only for now.
 - `unknown` (QRK): not built.
-- Groestlcoin (`grs`) is not in the table: it uses a Groestl base58 checksum and single-SHA256 txid/sighash, and there is no independent implementation to make a KAT from yet.
+- `legacy-sha256` (GRS): Bitcoin serialization, but the txid and the legacy/BIP143 signature hashes use single SHA-256, and base58 uses a Groestl-512 double-hash checksum (`checksum: "groestl512d"`). Vectors: groestlcoinjs-lib (addresses, bip32), Electrum-GRS (WIF), and real GRS mainnet txs whose signatures verify only under our single-SHA-256 sighash. `deriveFromXpub` takes Bitcoin-checksummed xpubs only; Groestl-checksummed GRS xpubs are NOT supported. Taproot is off for GRS.
 
 ### checkTx (fail-closed)
 
@@ -72,7 +72,7 @@ Source tags: `blockbook`/`insight`/`qtuminfo`/`woc` sources give balance and UTX
 
 A row is `verified` when its version bytes match the coin's own source code and it has a SLIP-44 entry.
 Any row marked "none listed" has no explorer that could be reached and checked from the build box. It is still verified from source.
-Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash) and `grs` (Groestl checksum). See docs/CHAINS.md.
+Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash). See docs/CHAINS.md.
 
 ### Supported (verified)
 
@@ -109,6 +109,7 @@ Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash) and `
 | pot | POT | 81 | 37 | 6e | — | 183 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
 | qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 8 | — | unknown | no | cryptoid chainz.cryptoid.info |
 | zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | no | none |
+| grs | GRS | 17 | 24 | 05 | grs | 128 | groestl512d | 8 | — | legacy-sha256 | yes | none listed |
 
 ### Unverified (never returned as supported)
 

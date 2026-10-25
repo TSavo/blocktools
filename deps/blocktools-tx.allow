@@ -11,6 +11,7 @@ blocktools-monero
 crypto-common
 digest
 generic-array
+groestl
 hex-conservative
 hex_lit
 itoa

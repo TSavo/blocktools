@@ -19,6 +19,7 @@ digest
 ed25519
 ed25519-dalek
 generic-array
+groestl
 hex-conservative
 hex_lit
 itoa

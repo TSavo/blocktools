@@ -6,6 +6,19 @@ pub mod build;
 pub mod evm;
 pub mod policy;
 /// Signing (takes private keys). Feature `secrets` only.
+pub mod digest;
+/// The `"chain"` field of a tx-build JSON line, if any, and the chain a tool should use given an
+/// optional `--chain`: the build's chain wins when no flag is given; a conflicting flag is an
+/// error (signing a GRS tx with the BTC sighash would produce an invalid tx).
+pub fn resolve_chain(txt: &str, flag: Option<String>) -> Result<String, &'static str> {
+    let hint = txt.lines().find_map(|l| serde_json::from_str::<serde_json::Value>(l.trim()).ok()?.get("chain")?.as_str().map(String::from));
+    match (flag, hint) {
+        (Some(f), Some(h)) if f != h => Err("chain_mismatch: --chain differs from the tx file's chain"),
+        (Some(f), _) => Ok(f),
+        (None, Some(h)) => Ok(h),
+        (None, None) => Ok("btc".into()),
+    }
+}
 #[cfg(feature = "secrets")]
 pub mod sign;
 pub mod rlp;
@@ -113,7 +126,7 @@ fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Deco
     if lt != 0 { w.push("locktime_set") }
     if !signed { w.push("unsigned") }
     if tx.input.is_empty() || tx.output.is_empty() { w.push("no_inputs_or_outputs") }
-    Decoded { chain: c.name.into(), ty: "btc-tx", signed, txid: Some(tx.compute_txid().to_string()), inputs, outputs, fee, vsize: Some(vsize),
+    Decoded { chain: c.name.into(), ty: "btc-tx", signed, txid: Some(digest::txid_hex(tx, digest::Digest::for_chain(c))), inputs, outputs, fee, vsize: Some(vsize),
         locktime: Some(lt), rbf: Some(rbf), evm: None, warnings: w }
 }
 
@@ -122,7 +135,7 @@ fn psbt(c: &Chain, p: &Psbt) -> Decoded {
     let prev: Vec<Option<TxOut>> = p.inputs.iter().zip(&p.unsigned_tx.input).map(|(i, ti)| {
         if let Some(o) = &i.witness_utxo { return Some(o.clone()) }
         let t = i.non_witness_utxo.as_ref()?;
-        if t.compute_txid() != ti.previous_output.txid { bad = true; return None }
+        if digest::txid(t, digest::Digest::for_chain(c)) != ti.previous_output.txid { bad = true; return None }
         t.output.get(ti.previous_output.vout as usize).cloned()
     }).collect();
     let mut d = btc_tx(c, &p.unsigned_tx, Some(prev));

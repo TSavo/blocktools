@@ -17,3 +17,7 @@ secrets = ["blocktools-core/secrets"]
 [[test]]
 name = "sign"
 required-features = ["secrets"]
+
+[[test]]
+name = "grs"
+required-features = ["secrets"]

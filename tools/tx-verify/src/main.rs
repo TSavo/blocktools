@@ -11,12 +11,12 @@ fn main() {
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
-    let chain = one("--chain").unwrap_or("btc".into());
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
         max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))), allow_warnings: a.iter().any(|x| x == "--allow-warnings") };
     let mut s = String::new();
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
+    let chain = blocktools_tx::resolve_chain(&s, one("--chain")).unwrap_or_else(|e| bad(e));
     let d = blocktools_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
     let f = check(&d, &p);
     blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":if f.is_empty() {"ok"} else {"failed"},"failures":f,"warnings":d.warnings}));

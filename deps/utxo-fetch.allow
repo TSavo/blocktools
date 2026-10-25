@@ -15,6 +15,7 @@ crypto-common
 digest
 generic-array
 getrandom
+groestl
 hex-conservative
 hex_lit
 itoa

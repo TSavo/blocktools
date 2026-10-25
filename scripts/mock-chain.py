@@ -4,8 +4,9 @@ usage: mock-chain.py PORTFILE LOGFILE EXPECTFILE   (writes chosen port, logs eve
 import hashlib, http.server, json, os, sys
 TID = "c" * 64
 UT = [{"txid": TID, "vout": 0, "value": 50000, "status": {"confirmed": True}}]
-def txid(h):
-    """Bitcoin txid of a raw tx hex (witness stripped), so tests need not precompute it."""
+def txid(h, single=False):
+    """Bitcoin txid of a raw tx hex (witness stripped), so tests need not precompute it.
+    single=True: Groestlcoin's single-SHA-256 txid."""
     b = bytes.fromhex(h); i = 4
     def vi():
         nonlocal i
@@ -25,6 +26,7 @@ def txid(h):
         for _ in range(nin):
             for _ in range(vi()): skip(0)
     raw = b[:4] + body + b[i:i + 4]
+    if single: return hashlib.sha256(raw).digest()[::-1].hex()
     return hashlib.sha256(hashlib.sha256(raw).digest()).digest()[::-1].hex()
 def keccak256(m):
     """Keccak-256 (Ethereum's, not NIST SHA3) for eth tx hashes; test helper only."""
@@ -101,5 +103,6 @@ class H(http.server.BaseHTTPRequestHandler):
                "eth_gasPrice": "0x3b9aca00", "eth_maxPriorityFeePerGas": "0x5f5e100"}.get(m)
         if m == "eth_sendRawTransaction": res = "0x" + (exp or keccak256(bytes.fromhex(r["params"][0][2:])).hex())
         self.send(200, json.dumps({"jsonrpc": "2.0", "id": 1, "result": res}))
-s = http.server.HTTPServer(("127.0.0.1", 0), H)
-open(sys.argv[1], "w").write(str(s.server_address[1])); s.serve_forever()
+if __name__ == "__main__":
+    s = http.server.HTTPServer(("127.0.0.1", 0), H)
+    open(sys.argv[1], "w").write(str(s.server_address[1])); s.serve_forever()

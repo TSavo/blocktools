@@ -57,3 +57,11 @@ assert.equal(sw.fee, '1930'); assert.equal(sw.tx_format, 'legacy');
 assert.ok(JSON.stringify(JSON.parse(bt.decodeTx(sw.unsigned_tx, 'dash'))).includes(dashA));
 assert.throws(() => bt.buildUnsignedSweep('ppc', '', dashA, 10));
 console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');
+// Groestlcoin (groestlcoinjs-lib vectors): Groestl checksum, unique F.../grs1, and a 3... that BTC rejects
+assert.equal(bt.validateAddress('grs', 'Fob4maNwBGVRPmMcRLS6qtTJfKeySAMsWq'), 'P2pkh');
+assert.equal(bt.validateAddress('grs', 'grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5'), 'SegwitV0');
+assert.deepEqual(JSON.parse(bt.detectAddress('3JvL6Ymt8MVWiCNHC7oWU6nLeHNJFpSXbA')).map(c => c.chain), ['grs']);
+assert.throws(() => bt.validateAddress('btc', '3JvL6Ymt8MVWiCNHC7oWU6nLeHNJFpSXbA'));
+{ const g = JSON.parse(bt.chainParams()).find(c => c.name === 'grs');
+  assert.equal(g.checksum, 'groestl512d'); assert.equal(g.tx_format, 'legacy-sha256'); assert.equal(g.verified, true); }
+console.log('wasm grs ok');

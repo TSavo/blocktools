@@ -30,7 +30,12 @@ pub enum Enc {
 /// sighash, Bitcoin tx serialisation) is built and signed by tx-build/tx-sign; the others are
 /// derive / validate / decode-address only until implemented and tested.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub enum Sign { Standard, ForkId(u8), PosTime, Unknown }
+pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
+    /// Bitcoin serialisation and sighash layout, but txid, legacy sighash and the BIP143 digest
+    /// (and its hashPrevouts/hashSequence/hashOutputs) are single SHA-256 (Groestlcoin).
+    Sha256Single }
+impl Sign { /// tx-build / tx-sign build and sign this scheme.
+    pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
 #[derive(Clone, Copy, Debug)]
 pub struct Source { pub name: &'static str, pub url: &'static str, pub api: &'static str, pub checked: &'static str }
@@ -90,13 +95,40 @@ pub const CHAINS: &[Chain] = &[
     u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[bb("blockbook.reddcoin.com", "https://blockbook.reddcoin.com/address/{addr}", "blockbook:https://blockbook.reddcoin.com/api")]),
     u("pot", "POT", "Potcoin", 81, 55, 110, 183, None, PosTime, true, "potcoin/Potcoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/pot/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/pot/api.dws")]),
     u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
+    u("grs", "GRS", "Groestlcoin", 17, 36, 5, 128, Some("grs"), Sha256Single, true, "Groestlcoin/groestlcoin src/kernel/chainparams.cpp; Groestl-512 base58 checksum; KAT groestlcoinjs-lib test/integration", &[]),
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
     u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
     u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
 ];
-/// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) and Groestlcoin
-/// (Groestl-512 base58 checksum) need encoders this crate does not have.
-pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes and ZIP-243/244 sighash: not implemented"), ("grs", "Groestl hash in base58check: not implemented")];
+/// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
+/// this crate does not have.
+pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes and ZIP-243/244 sighash: not implemented")];
+/// Base58check checksum flavour. Groestlcoin uses groestl512(groestl512(x))[..4] for addresses,
+/// WIF and extended keys (groestlcoin src/base58.cpp, hash.h `HashGroestl`); everyone else sha256d.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Ck { Sha256d, Groestl }
+impl Chain { pub fn ck(&self) -> Ck { if self.name == "grs" { Ck::Groestl } else { Ck::Sha256d } } }
+fn groestl4(b: &[u8]) -> [u8; 4] {
+    use groestl::{Digest as _, Groestl512};
+    let h = Groestl512::digest(Groestl512::digest(b));
+    [h[0], h[1], h[2], h[3]]
+}
+/// Base58check with the chain's checksum.
+pub fn b58check_ck(ck: Ck, payload: &[u8]) -> String {
+    match ck { Ck::Sha256d => bitcoin::base58::encode_check(payload), Ck::Groestl => { let mut v = payload.to_vec(); v.extend_from_slice(&groestl4(payload)); bitcoin::base58::encode(&v) } }
+}
+pub fn decode_check_ck(ck: Ck, s: &str) -> Result<Vec<u8>, &'static str> {
+    match ck {
+        Ck::Sha256d => bitcoin::base58::decode_check(s).map_err(|_| "bad base58check"),
+        Ck::Groestl => {
+            let mut v = bitcoin::base58::decode(s).map_err(|_| "bad base58check")?;
+            if v.len() < 5 { return Err("bad base58check") }
+            let n = v.len() - 4;
+            if v[n..] != groestl4(&v[..n]) { return Err("bad base58check") }
+            v.truncate(n); Ok(v)
+        }
+    }
+}
 pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.name == name) }
 /// Supported = verified row. Tools refuse unverified rows unless the caller opts in.
 pub fn supported(name: &str) -> Option<&'static Chain> { chain(name).filter(|c| c.verified) }
@@ -115,10 +147,14 @@ fn h160(b: &[u8]) -> [u8; 20] { hash160::Hash::hash(b).to_byte_array() }
 fn ver(v: u8, b: &[u8]) -> Vec<u8> { let mut x = vec![v]; x.extend_from_slice(b); x }
 
 #[cfg(feature = "secrets")]
-pub fn wif(version: u8, sk: &SecretKey, compressed: bool) -> String {
+pub fn wif(version: u8, sk: &SecretKey, compressed: bool) -> String { wif_ck(Ck::Sha256d, version, sk, compressed) }
+#[cfg(feature = "secrets")]
+pub fn wif_ck(ck: Ck, version: u8, sk: &SecretKey, compressed: bool) -> String {
     let mut p = ver(version, &sk.secret_bytes());
     if compressed { p.push(1) }
-    b58check(&p)
+    let s = b58check_ck(ck, &p);
+    zeroize::Zeroize::zeroize(&mut p);
+    s
 }
 fn segwit_v0(hrp: &str, prog: &[u8]) -> String {
     bech32::segwit::encode_v0(Hrp::parse(hrp).expect("static hrp"), prog).expect("20-byte program")
@@ -139,6 +175,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
     match c.enc {
         Enc::Utxo { p2pkh, p2sh, hrp, taproot, .. } => {
             let cpk = pk.serialize();
+            let b58check = |p: &[u8]| b58check_ck(c.ck(), p);
             let mut v = vec![row("p2pkh", b58check(&ver(p2pkh, &h160(&cpk))))];
             if uncompressed { v.push(row("p2pkh-uncompressed", b58check(&ver(p2pkh, &h160(&pk.serialize_uncompressed()))))) }
             if let Some(h) = hrp {
@@ -167,7 +204,7 @@ pub fn secp_rows(c: &Chain, path: &str, sk: &SecretKey, uncompressed: bool, secp
     let pk = PublicKey::from_secret_key(secp, sk);
     pub_rows(c, path, &pk, uncompressed).into_iter().map(|r| {
         let (secret_field, secret) = match c.enc {
-            Enc::Utxo { wif: wv, .. } => ("wif", wif(wv, sk, r.kind != "p2pkh-uncompressed")),
+            Enc::Utxo { wif: wv, .. } => ("wif", wif_ck(c.ck(), wv, sk, r.kind != "p2pkh-uncompressed")),
             _ => ("private_key", crate::hex_enc(sk.secret_bytes())),
         };
         Row { chain: r.chain, kind: r.kind, path: r.path, address: r.address, secret_field, secret }
@@ -274,6 +311,7 @@ pub fn script_to_address(c: &Chain, s: &[u8]) -> Option<(&'static str, String)> 
         let h = Hrp::parse(hrp?).ok()?;
         bech32::segwit::encode(h, bech32::Fe32::try_from(v).ok()?, p).ok()
     };
+    let b58check = |p: &[u8]| b58check_ck(c.ck(), p);
     match s {
         [0x76, 0xa9, 0x14, h @ .., 0x88, 0xac] if h.len() == 20 => Some(("p2pkh", b58check(&ver(p2pkh, h)))),
         [0xa9, 0x14, h @ .., 0x87] if h.len() == 20 => Some(("p2sh", b58check(&ver(p2sh, h)))),
@@ -298,7 +336,7 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
             let mut s = vec![if v == 0 { 0 } else { 0x50 + v }, p.len() as u8]; s.extend(p); return Some(s);
         }
     }
-    let b = bitcoin::base58::decode_check(a).ok()?;
+    let b = decode_check_ck(c.ck(), a).ok()?;
     if b.len() != 21 { return None }
     let h = &b[1..];
     if b[0] == p2pkh { let mut s = vec![0x76, 0xa9, 0x14]; s.extend(h); s.extend([0x88, 0xac]); Some(s) }
@@ -365,7 +403,50 @@ mod kat_long_tail {
         }
         for c in CHAINS { if let Enc::Utxo { hrp: Some(h), .. } = c.enc { assert!(blocktools_schema::HRPS.contains(&h), "schema HRPS missing {h}") } }
         for c in CHAINS { assert!(blocktools_schema::CHAINS.contains(&c.name), "schema CHAINS missing {}", c.name) }
-        // every UTXO row in the table has a vector
-        for c in CHAINS.iter().filter(|c| matches!(c.enc, Enc::Utxo { .. })) { assert!(V.iter().any(|v| v.0 == c.name), "{} has no KAT", c.name) }
+        // every UTXO row in the table has a vector (grs: Groestl checksum, covered by grs_kats /
+        // grs_wif_and_bip32_kats below from groestlcoinjs-lib and Electrum-GRS)
+        for c in CHAINS.iter().filter(|c| matches!(c.enc, Enc::Utxo { .. }) && c.name != "grs") { assert!(V.iter().any(|v| v.0 == c.name), "{} has no KAT", c.name) }
+    }
+    /// Groestlcoin KATs from groestlcoinjs-lib test/integration (addresses.spec.ts, bip32.spec.ts),
+    /// an implementation independent of this crate.
+    #[test] fn grs_kats() {
+        let c = chain("grs").unwrap();
+        let one = PublicKey::from_slice(&crate::hex_dec("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798").unwrap()).unwrap();
+        let r = pub_rows(c, "", &one, false);
+        let get = |k: &str| r.iter().find(|x| x.kind == k).unwrap().address.clone();
+        assert_eq!(get("p2pkh"), "Ffqz14cyvZYJavD76t6oHNDJnGiWcZMVxR");
+        assert_eq!(get("p2sh-p2wpkh"), "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJFpSXbA");
+        assert_eq!(get("p2wpkh"), "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5");
+        for a in ["Ffqz14cyvZYJavD76t6oHNDJnGiWcZMVxR", "Fob4maNwBGVRPmMcRLS6qtTJfKeySAMsWq", "FnTgcvXm6QMPVrYsYptMCCAVk8hVnEzS4Y", "36NUkt6FWUi3LAWBqWRdDmdTWbt94yx2nc",
+                  "grs1q75f6dv4q8ug7zhujrsp5t0hzf33lllnr3fe7e2pra3v24mzl8rrqy6wvnm"] {
+            assert!(crate::validate::validate("grs", a).is_ok(), "{a}");
+        }
+        // sha256d-checksummed lookalikes are rejected: same payload, Bitcoin checksum
+        let p = decode_check_ck(Ck::Groestl, "Ffqz14cyvZYJavD76t6oHNDJnGiWcZMVxR").unwrap();
+        assert_eq!(crate::validate::validate("grs", &bitcoin::base58::encode_check(&p)), Err("bad base58check"));
+        assert!(crate::validate::validate("btc", "Ffqz14cyvZYJavD76t6oHNDJnGiWcZMVxR").is_err());
+    }
+    /// Electrum-GRS tests/test_bitcoin.py Test_keyImport (Groestl-checksummed WIF -> address) and
+    /// groestlcoinjs-lib bip32.spec.ts (seed dd..dd, m/0'/0/0 and m/44'/0'/0'/0/0).
+    #[cfg(feature = "secrets")]
+    #[test] fn grs_wif_and_bip32_kats() {
+        let secp = Secp256k1::new();
+        let c = chain("grs").unwrap();
+        for (w, kind, addr) in [("KzMFjMC2MPadjvX5Cd7b8AKKjjpBSoRKUTpoAtN6B3J9ezXB3Zhj", "p2pkh", "FbkiHMrpZbJLsNXSRMiWwFnda7zWRSX12q"),
+                                ("5Hxn5C4SQuiV6e62A1MtZmbSeQyrLFhu5uYks62pU5VBUva3Y5H", "p2pkh-uncompressed", "FkYzwNGW2hqKQhm6GAt4UyLdbdsBBnEF2p"),
+                                ("Kz6SuyPM5VktY5dr2d2YqdVgBA6LCWkiHqXJaC3BzxnMPSUjPJw2", "p2wpkh", "grs1qqmpt7u5e9hfznljta5gnvhyvfd2kdd0rc7t09c"),
+                                ("Kz9XebiCXL2BZzhYJViiHDzn5iup1povWV8aqstzWU4sz1JQ3L2h", "p2sh-p2wpkh", "3GeVJB3oKr7psgKR6BTXSxKtWUkfrFK6LQ")] {
+            let d = decode_check_ck(Ck::Groestl, w).unwrap();
+            assert_eq!(d[0], 0x80);
+            let sk = SecretKey::from_slice(&d[1..33]).unwrap();
+            let rows = secp_rows(c, "", &sk, d.len() == 33, &secp);
+            let r = rows.iter().find(|r| r.kind == kind).unwrap();
+            assert_eq!(r.address, addr); assert_eq!(r.secret, w);
+        }
+        let root = Xpriv::new_master(bitcoin::Network::Bitcoin, &[0xdd; 32]).unwrap();
+        for (p, a) in [("m/0'/0/0", "FnTgcvXm6QMPVrYsYptMCCAVk8hVnEzS4Y"), ("m/44'/0'/0'/0/0", "FWdhNkjqgejN6E87pTDwXrvwcCXzkN8RTM")] {
+            let k = root.derive_priv(&secp, &DerivationPath::from_str(p).unwrap()).unwrap();
+            assert_eq!(secp_rows(c, p, &k.private_key, false, &secp)[0].address, a);
+        }
     }
 }

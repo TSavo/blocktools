@@ -8,6 +8,7 @@ description = "blocktools library. DANGEROUS: use at your own risk. Code that ha
 blocktools-monero = { path = "../monero", default-features = false }
 bitcoin.workspace = true
 sha3.workspace = true
+groestl.workspace = true
 zeroize.workspace = true
 ed25519-dalek = { workspace = true, optional = true }
 [features]

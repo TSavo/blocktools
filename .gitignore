@@ -23,3 +23,4 @@ UTC--*
 *.db
 *.bdb
 !crates/tx/tests/vectors/block170.hex
+__pycache__/

@@ -151,6 +151,7 @@ dependencies = [
  "blocktools-monero",
  "blocktools-schema",
  "ed25519-dalek",
+ "groestl",
  "sha3",
  "zeroize",
 ]
@@ -446,6 +447,15 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+]
+
+[[package]]
+name = "groestl"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "343cfc165f92a988fd60292f7a0bfde4352a5a0beff9fbec29251ca4e9676e4d"
+dependencies = [
+ "digest",
 ]
 
 [[package]]

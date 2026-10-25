@@ -25,9 +25,9 @@ fn main() {
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
-    let chain = one("--chain").unwrap_or("btc".into());
     let mut txt = String::new();
     std::fs::File::open(one("--tx").unwrap_or_else(|| bad("--tx FILE required"))).and_then(|f| f.take(blocktools_tx::MAX_INPUT as u64).read_to_string(&mut txt)).unwrap_or_else(|_| bad("cannot read --tx file"));
+    let chain = blocktools_tx::resolve_chain(&txt, one("--chain")).unwrap_or_else(|e| bad(e));
     let d = blocktools_tx::decode(&txt, &chain).unwrap_or_else(|e| bad(e));
     if d.signed { bad("already_signed") }
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
@@ -70,7 +70,7 @@ fn main() {
         let b = t.encode_signed().unwrap_or_else(|| bad("encode")); (b.clone(), from, b)
     } else {
         let mut ps = Psbt::deserialize(&raw).unwrap_or_else(|_| bad("UTXO signing needs a PSBT (from tx-build)"));
-        let n = blocktools_tx::sign::sign_psbt(&mut ps, &keys).unwrap_or_else(|e| bad(e));
+        let n = blocktools_tx::sign::sign_psbt_digest(&mut ps, &keys, blocktools_core::chains::chain(&chain).map(blocktools_tx::sign::Digest::for_chain).unwrap_or(blocktools_tx::sign::Digest::Sha256d)).unwrap_or_else(|e| bad(e));
         if n != ps.inputs.len() { out("refused", json!({"failures":["input_without_key"],"inputs":ps.inputs.len(),"signed_inputs":n})) }
         let tx = blocktools_tx::sign::extract(&ps).unwrap_or_else(|e| bad(e));
         let mut bare = tx.clone();

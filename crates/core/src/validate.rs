@@ -31,7 +31,7 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
                     return Ok(match (ver.to_u8(), prog.len()) { (0, 20 | 32) => AddrKind::SegwitV0, (1, 32) => AddrKind::Taproot, (0, _) => return Err("bad program"), _ => AddrKind::SegwitOther });
                 }
             }
-            let b = base58::decode_check(addr).map_err(|_| "bad base58check")?;
+            let b = chains::decode_check_ck(c.ck(), addr)?;
             match (b.len(), b[0]) { (21, v) if v == p2pkh => Ok(AddrKind::P2pkh), (21, v) if v == p2sh => Ok(AddrKind::P2sh), (21, _) => Err("wrong network"), _ => Err("bad length") }
         }
         Enc::Eth => eth(addr).map(|_| AddrKind::Eth),

@@ -493,7 +493,7 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 
 ## Coins: detect, convert, sweep per tx format (2026-10-24)
 
-`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds only the `legacy` and `forkid` formats; PoS-nTime, Zcash v4/v5 and Groestl are refused until each has its own builder and an independent KAT. ZEC is address-only.
+`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds only the `legacy` and `forkid` formats; PoS-nTime and Zcash v4/v5 are refused until each has its own builder and an independent KAT. ZEC is address-only.
 
 ## Non-Bitcoin-family chains are their own crates (2026-10-24)
 
@@ -524,3 +524,27 @@ nothing secret-shaped is committed. A recipe with no tested example fails the bu
 electrum-read parses the Python-literal file (`py_to_json`), decrypts the seed (the same AES-CBC/sha256d scheme as 2.x), and derives the old-scheme
 keys in blocktools-secrets. The derived master public key must equal the file's `master_public_key`. This doubles as the wrong-password
 check, and nothing is emitted unless it matches. Output lines are derive-shaped (`wif`, `address`, `path m/change/i`), so tx-sign takes them directly.
+
+## Groestlcoin (2026-10-24)
+
+`grs` is a normal UTXO row with two chain-specific digests, both keyed off the row (no new struct field):
+`Chain::ck()` picks the base58 checksum (`Ck::Groestl` = first 4 bytes of groestl512(groestl512(x))) for addresses
+and WIF, and `Sign::Sha256Single` / `blocktools_tx::digest::Digest::Sha256` makes the txid and the legacy and
+BIP143 signature hashes single SHA-256 (source: groestlcoinjs-lib src/transaction.js). rust-bitcoin's sighash
+cache hardcodes sha256d, so `digest.rs` reuses its legacy encoder (`legacy_encode_signing_data_to`, which
+keeps the SIGHASH_SINGLE bug) and carries its own BIP143 encoder, SIGHASH_ALL only. Taproot is off for GRS.
+`digest` is a public, key-free module (the decoder needs the txid), so it builds without `secrets` and
+lands in wasm; signing stays in `sign`.
+
+Dependency: RustCrypto `groestl` 0.10 (`default-features = false`), the same `digest` 0.10 family as the
+`sha2`/`sha3` already in the tree, so it adds exactly one crate (`groestl`) to each allowlist. Writing our own
+Groestl would be more code to audit than an established, test-vectored crate.
+
+Vectors (independent of this repo): groestlcoinjs-lib addresses.spec.ts and bip32.spec.ts (p2pkh, p2sh-p2wpkh,
+p2wpkh, BIP32 paths); Electrum-GRS Test_keyImport (Groestl-checksummed WIFs, compressed and not); groestlcoinjs
+transaction.json (txids = single SHA-256) and hashForWitnessV0 fixtures; two real GRS mainnet txs (P2PKH and
+P2WPKH, from api.blockchair.com) whose signatures verify under our single-SHA-256 sighash and fail under sha256d.
+groestlcoinjs' own WIF strings and its signed-tx fixture are Bitcoin's (sha256d) and are not used.
+
+tx-sign and tx-verify now take the chain from the tx-build JSON when `--chain` is not given, and refuse a
+conflicting `--chain` (signing a GRS PSBT with the BTC sighash would make an invalid tx).

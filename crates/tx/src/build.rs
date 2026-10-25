@@ -24,7 +24,7 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
         let kind = chains::script_to_address(c, &script).map(|x| x.0).unwrap_or("unknown");
         let prev_tx = match j["prev_tx"].as_str() {
             Some(h) => { let t: Transaction = bitcoin::consensus::deserialize(&blocktools_core::hex_dec(h).ok_or_else(|| e("prev_tx hex"))?).map_err(|_| e("prev_tx"))?;
-                if t.compute_txid() != txid { return Err(e("prev_tx does not match txid")) }
+                if crate::digest::txid(&t, crate::digest::Digest::for_chain(c)) != txid { return Err(e("prev_tx does not match txid")) }
                 if t.output.get(vout as usize).map(|o| (o.value.to_sat(), o.script_pubkey.as_bytes().to_vec())) != Some((amount, script.clone())) { return Err(e("prev_tx output differs from amount/address")) }
                 Some(t) }
             None => None,

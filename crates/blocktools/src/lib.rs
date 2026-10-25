@@ -111,6 +111,7 @@ pub mod address {
                 (Enc::Utxo { .. }, Sign::ForkId(_)) => ("forkid", c.verified),
                 (Enc::Utxo { .. }, Sign::PosTime) => ("pos-ntime", false),
                 (Enc::Utxo { .. }, Sign::Unknown) => ("unknown", false),
+                (Enc::Utxo { .. }, Sign::Sha256Single) => ("legacy-sha256", c.verified),
                 (Enc::Eth, _) => ("evm", false), // EVM builds go through tx::build::build_evm, not the sweep
                 _ => ("account", false),
             },
@@ -127,7 +128,7 @@ pub mod address {
             let (p2pkh, p2sh, hrp, wif) = match c.enc { Enc::Utxo { p2pkh, p2sh, hrp, wif, .. } => (json!([p2pkh]), json!([p2sh]), json!(hrp), json!(wif)), _ => (json!(null), json!(null), json!(null), json!(null)) };
             let forkid = match c.sign { Sign::ForkId(f) => json!(f), _ => json!(null) };
             json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
-                   "p2pkh": p2pkh, "p2sh": p2sh, "hrp": hrp, "wif": wif, "checksum": if matches!(c.enc, Enc::Utxo{..}) { json!("sha256d") } else { json!(null) },
+                   "p2pkh": p2pkh, "p2sh": p2sh, "hrp": hrp, "wif": wif, "checksum": if matches!(c.enc, Enc::Utxo{..}) { json!(if c.ck() == chains::Ck::Groestl { "groestl512d" } else { "sha256d" }) } else { json!(null) },
                    "decimals": decimals(c.name), "forkid": forkid, "tx_format": fmt, "sweep_build": sweep,
                    "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
         }).collect();

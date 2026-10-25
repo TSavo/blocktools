@@ -15,7 +15,7 @@ pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystor
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -36,7 +36,7 @@ fn is_b58(c: char) -> bool { B58.contains(c) }
 /// Address shapes: base58 (btc/ltc/doge/tron/xrp 25-35 chars; sol 32-44 is only accepted with
 /// "chain":"sol", see redact_line), bech32 bc1/ltc1, 0x+40 hex.
 /// Segwit hrps of the chain table (blocktools-core chains.rs; a core test checks they match).
-pub const HRPS: &[&str] = &["bc", "ltc", "qc", "fc", "nc", "vtc", "dgb", "via", "mona", "mec", "btg", "pc", "rdd"];
+pub const HRPS: &[&str] = &["bc", "ltc", "qc", "fc", "nc", "vtc", "dgb", "via", "mona", "mec", "btg", "pc", "rdd", "grs"];
 fn is_bech(s: &str) -> bool {
     HRPS.iter().any(|h| s.len() > h.len() + 1 && s.starts_with(h) && s.as_bytes()[h.len()] == b'1'
         && (40..=60).contains(&(s.len() - h.len())) && all_in(&s[h.len() + 1..], BECH))

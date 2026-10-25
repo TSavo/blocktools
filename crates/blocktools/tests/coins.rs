@@ -90,10 +90,19 @@ fn utxo(c: &str) -> String {
         assert_eq!(d.fee, Some(1930), "{c} psbt fee");
     }
 }
+#[test] fn grs_sweep_builds_and_decodes() {
+    let to = "Fob4maNwBGVRPmMcRLS6qtTJfKeySAMsWq";
+    let r = build_unsigned_sweep("grs", &utxo("grs"), to, 10).unwrap();
+    assert_eq!(r["amount"], "98070");
+    let d = tx::decode(r["unsigned_tx"].as_str().unwrap(), "grs").unwrap();
+    assert_eq!(d.outputs[0].address.as_deref(), Some(to));
+    let d = tx::decode(r["psbt"].as_str().unwrap(), "grs").unwrap();
+    assert_eq!(d.fee, Some(1930));
+}
 #[test] fn sweep_refuses_unsupported_formats() {
     for (c, why) in [("ppc", "unsupported_tx_format:pos-ntime"), ("rdd", "unsupported_tx_format:pos-ntime"), ("clam", "unsupported_tx_format:pos-ntime"),
                      ("qrk", "unsupported_tx_format:unknown"), ("zec", "unsupported_tx_format:zcash-v5"), ("wdc", "unsupported_tx_format:legacy"),
-                     ("grs", "unsupported_tx_format:unknown"), ("eth", "unsupported_tx_format:evm")] {
+                     ("eth", "unsupported_tx_format:evm")] {
         assert_eq!(build_unsigned_sweep(c, "", BTC, 10).unwrap_err(), why, "{c}");
     }
     assert!(build_unsigned_sweep("dash", &utxo("btc"), BTC, 10).is_err()); // utxo address not a DASH address
