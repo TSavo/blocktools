@@ -8,6 +8,7 @@ jobs:
       - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
       - run: sh scripts/check-deps.sh
       - run: sh scripts/secret-scan.sh
+      - run: sh scripts/fetch-fixtures.sh
       - run: sh scripts/e2e-local.sh
   wasm:
     runs-on: ubuntu-latest

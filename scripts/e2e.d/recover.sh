@@ -8,6 +8,7 @@ python3 scripts/make-fixtures.py "$R" >/dev/null
 while [ ! -s "$R/port" ]; do sleep 0.1; done; RU=http://127.0.0.1:$(cat "$R/port")
 # rec NAME FILE FUNDED_ADDR [PASSWORD] : fund one address, recover FILE, expect one broadcast
 rec() {
+  if [ ! -f "$2" ]; then echo "skip recover $1: $2 absent (scripts/fetch-fixtures.sh)"; return 0; fi
   echo "$3" > "$R/funded"; : > "$R/log"; printf '%s\n' "${4:-}" > "$R/pw"
   dst=$D; case $3 in 0x*) dst=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF ;; esac
   BIN=$B python3 scripts/tty-drive.py right /dev/null "$R/$1.out" "$PWD/docs/recipes/recover.sh" "$2" "$dst" \
@@ -27,8 +28,8 @@ echo KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn > "$R/key.wif"
 rec wif "$R/key.wif" 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH
 rec wallet-dat "$R/descriptor-encrypted.sqlite" bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu blocktools-test-password
 rec electrum-wallet fixtures/external/electrum4_4_3_unencrypted bc1qsz0dhew357cj6eznmcawgyf44jzpgcax2lvfvm btcr-test-password
-MB=$("$B/key-to-addresses" --chain btc < fixtures/external/multibit-wallet.key.privkeys.txt | "$B/redact" | sed -n 's/.*"address":"\(1[^"]*\)".*/\1/p' | head -1)
-rec multibit fixtures/external/multibit-wallet.key "$MB" btcr-test-password
+[ -f fixtures/external/multibit-wallet.key.privkeys.txt ] && MB=$("$B/key-to-addresses" --chain btc < fixtures/external/multibit-wallet.key.privkeys.txt | "$B/redact" | sed -n 's/.*"address":"\(1[^"]*\)".*/\1/p' | head -1)
+rec multibit fixtures/external/multibit-wallet.key "${MB:-}" btcr-test-password
 python3 -c 'import re;print(re.search(r"const V: &str = r#\"(.*?)\"#;", open("crates/secrets/src/keystore.rs").read()).group(1))' > "$R/keystore.json"
 rec keystore "$R/keystore.json" 0x008AeEda4D805471dF9b2A5B0f38A0C3BCBA786b testpassword
 # watch-only and wrong-code cases: nothing may be signed or sent
