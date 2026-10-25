@@ -53,3 +53,35 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
     let f = check(&d, &p);
     Ok(json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings}).to_string())
 }
+
+// ---- Stable API (EXPORTS.md). Everything below refuses unverified chains. ----
+
+/// Library version (semver string, same as the `blocktools` crate).
+#[wasm_bindgen]
+pub fn version() -> String { blocktools::VERSION.to_string() }
+
+fn row(c: &chains::Chain) -> serde_json::Value {
+    json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
+           "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
+}
+/// Verified (supported) chains: JSON [{name,ticker,title,slip44,verified:true,sources:[{name,url,api,checked}]}].
+#[wasm_bindgen(js_name = supportedChains)]
+pub fn supported_chains() -> String { json!(chains::CHAINS.iter().filter(|c| c.verified).map(row).collect::<Vec<_>>()).to_string() }
+/// Known but unverified chains (NOT supported by the other calls): same shape, verified:false.
+#[wasm_bindgen(js_name = unverifiedChains)]
+pub fn unverified_chains() -> String { json!(chains::CHAINS.iter().filter(|c| !c.verified).map(row).collect::<Vec<_>>()).to_string() }
+
+/// `derive::from_xpub(chain, xpub, path, index)`: JSON [{chain,kind,path,address}] for every script kind.
+#[wasm_bindgen(js_name = deriveFromXpub)]
+pub fn derive_from_xpub(chain: &str, xpub_str: &str, path: &str, index: u32) -> Result<String, JsError> {
+    let rows = blocktools::derive::from_xpub(chain, xpub_str, path, index).map_err(err)?;
+    Ok(json!(rows.iter().map(|r| json!({"chain": r.chain, "kind": r.kind, "path": r.path, "address": r.address})).collect::<Vec<_>>()).to_string())
+}
+/// `address::validate(chain, addr)`: address kind string; throws on invalid / unverified chain.
+#[wasm_bindgen(js_name = addressValidate)]
+pub fn address_validate(chain: &str, addr: &str) -> Result<String, JsError> {
+    blocktools::address::validate(chain, addr).map(|k| format!("{k:?}")).map_err(err)
+}
+/// Fail-closed tx check, JSON in / JSON out; never throws. See EXPORTS.md for the schema.
+#[wasm_bindgen(js_name = checkTx)]
+pub fn check_tx(input_json: &str) -> String { blocktools::check::tx_json(input_json) }

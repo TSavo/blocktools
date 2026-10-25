@@ -14,3 +14,6 @@ ed25519-dalek = { workspace = true, optional = true }
 ed25519 = ["dep:ed25519-dalek"]
 # APIs that take or emit private keys (WIF/hex rows, xprv derivation). Off by default.
 secrets = []
+
+[dev-dependencies]
+blocktools-schema = { path = "../schema" }

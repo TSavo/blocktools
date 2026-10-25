@@ -15,7 +15,7 @@ use zeroize::Zeroizing;
 
 const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -> addresses + keys
 
-  --chain LIST         btc,ltc,doge,eth,tron,xrp,sol or all (repeatable). Default btc,eth
+  --chain LIST         any verified row of `chains` (docs/CHAINS.md) or all (repeatable). Default btc,eth
   --preset NAME        common (default), exhaustive, recovery, exodus, tronlink, ledger-live, legacy-hd
   --list-presets       list presets and what they cover
   --address-type LIST  p2pkh,p2sh-p2wpkh,p2wpkh,p2tr,evm|eth,tron,xrp,solana|sol (filters, or with

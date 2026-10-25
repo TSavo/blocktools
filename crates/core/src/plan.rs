@@ -133,7 +133,7 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
             "--explain" => { explain = true; takes = false }
             "--compressed" | "--uncompressed" | "--both" => { comp = Some(&flag[2..]); takes = false }
             "--chain" => for n in val()?.split(',') {
-                if n == "all" { chains_sel.extend(chains::CHAINS.iter()) } else { chains_sel.push(chains::chain(n).ok_or("unsupported")?) } },
+                if n == "all" { chains_sel.extend(chains::CHAINS.iter().filter(|c| c.verified)) } else { chains_sel.push(chains::supported(n).ok_or("unsupported or unverified chain")?) } },
             "--preset" => { preset_name = val()?; if !PRESETS.iter().any(|p| p.0 == preset_name) { return Err("unsupported") } }
             "--address-type" => types = Some(val()?.split(',').map(|t| match t { "evm" => "eth", "solana" => "sol", x => x }.to_string()).collect()),
             "--purpose" => purposes = Some(val()?.split(',').map(|p| p.parse().ok().filter(|n: &u32| *n < 1 << 31).ok_or("bad_input")).collect::<Result<Vec<_>, _>>()?),

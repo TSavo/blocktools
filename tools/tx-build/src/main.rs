@@ -30,6 +30,10 @@ fn main() {
     let chain = a.get("--chain").unwrap_or("btc");
     if chain == "eth" { return evm_build(&a) }
     let c = blocktools_core::chains::chain(chain).filter(|c| matches!(c.enc, blocktools_core::chains::Enc::Utxo { .. })).unwrap_or_else(|| fail("unknown chain"));
+    // Only verified rows with Bitcoin-standard signing are built; fork-id (BCH/BSV/BTG), PoS
+    // tx-time (PPC/NVC/CLAM/BLK/RDD/POT) and unknown formats are refused, not guessed.
+    if !c.verified { fail("unverified chain parameters: not supported") }
+    if c.sign != blocktools_core::chains::Sign::Standard { fail("unsupported signing scheme for this chain (fork-id / PoS tx time / unknown)") }
     let utxos = build::parse_utxos(c, &file(a.get("--utxos").unwrap_or_else(|| fail("--utxos FILE required")), 16 << 20)).unwrap_or_else(|e| fail(&e));
     let sweep = a.has("--sweep") || a.has("--consolidate");
     let send = num(a.get("--send"), "--send").map(|x| x as u64);

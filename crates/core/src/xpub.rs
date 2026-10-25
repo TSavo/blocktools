@@ -28,12 +28,28 @@ pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], in
     Ok(out)
 }
 
+/// Addresses at `xpub / steps...` (all non-hardened), every script kind the chain supports.
+/// Row paths are relative to the xpub ("m/0/5").
+pub fn at_path(xpub: &str, chain: &Chain, steps: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
+    let x = Xpub::from_str(xpub.trim()).map_err(|_| "bad_xpub")?;
+    if chain.enc == chains::Enc::Sol { return Err("unsupported") }
+    if steps.len() > 16 { return Err("bad_path") }
+    let p: Vec<ChildNumber> = steps.iter().map(|&n| ChildNumber::from_normal_idx(n).map_err(|_| "bad_path")).collect::<Result<_, _>>()?;
+    let k = x.derive_pub(&Secp256k1::verification_only(), &p).map_err(|_| "bad_path")?;
+    let path = std::iter::once("m".to_string()).chain(steps.iter().map(|n| n.to_string())).collect::<Vec<_>>().join("/");
+    Ok(chains::pub_rows(chain, &path, &k.public_key, false))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     // BIP84 test vector (public): zpub of "abandon x11 about", given here as the xpub form.
     // Account m/84'/0'/0' of the BIP39 root; first receive address from BIP84.
     const ACCT84: &str = "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+    #[test] fn at_path_matches_from_xpub() {
+        let r = at_path(ACCT84, chains::chain("btc").unwrap(), &[0, 1]).unwrap();
+        assert!(r.iter().any(|r| r.kind == "p2wpkh" && r.address == "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g" && r.path == "m/0/1"));
+    }
     #[test] fn bip84_first_address() {
         let r = from_xpub(ACCT84, chains::chain("btc").unwrap(), &["p2wpkh"], &[0], &[0, 1]).unwrap();
         assert_eq!(r[0].address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");

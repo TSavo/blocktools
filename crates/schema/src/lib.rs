@@ -15,7 +15,7 @@ pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystor
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -35,11 +35,16 @@ fn is_b58(c: char) -> bool { B58.contains(c) }
 
 /// Address shapes: base58 (btc/ltc/doge/tron/xrp 25-35 chars; sol 32-44 is only accepted with
 /// "chain":"sol", see redact_line), bech32 bc1/ltc1, 0x+40 hex.
+/// Segwit hrps of the chain table (blocktools-core chains.rs; a core test checks they match).
+pub const HRPS: &[&str] = &["bc", "ltc", "qc", "fc", "nc", "vtc", "dgb", "via", "mona", "mec", "btg", "pc", "rdd"];
+fn is_bech(s: &str) -> bool {
+    HRPS.iter().any(|h| s.len() > h.len() + 1 && s.starts_with(h) && s.as_bytes()[h.len()] == b'1'
+        && (40..=60).contains(&(s.len() - h.len())) && all_in(&s[h.len() + 1..], BECH))
+}
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
     ((25..=44).contains(&n) && all_in(s, B58))
-        || (s.starts_with("bc1") && (42..=62).contains(&n) && all_in(&s[3..], BECH))
-        || (s.starts_with("ltc1") && (43..=63).contains(&n) && all_in(&s[4..], BECH))
+        || is_bech(s)
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
 pub fn is_path(s: &str) -> bool {
@@ -135,7 +140,7 @@ pub fn redact_line(raw: &str) -> Option<String> {
     if !out.contains_key("status") { return None; }
     // A 32-44 char base58 "address" is only plausible for Solana (a base58 32-byte key has the same shape).
     if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
-        if a.len() > 35 && all_in(a, B58) && out.get("chain").and_then(|c| c.as_str()) != Some("sol") { return None; }
+        if a.len() > 35 && all_in(a, B58) && !is_bech(a) && out.get("chain").and_then(|c| c.as_str()) != Some("sol") { return None; }
     }
     let line = serde_json::to_string(&Value::Object(out)).ok()?;
     if line.len() > 512 || looks_secret(&line) { return None; }
@@ -175,6 +180,10 @@ mod tests {
             r#"{"tool":"derive"}"#.into(),
         ];
         for c in cases { assert!(redact_line(&c).is_none(), "leaked: {c}"); }
+    }
+    #[test] fn bech_without_zero_is_not_sol_shaped() {
+        let l = r#"{"status":"ok","chain":"vtc","kind":"p2wpkh","address":"vtc1qfe8v6c4r39fq8xnjgcpunt5spdfcxw63zzfwru"}"#;
+        assert!(redact_line(l).is_some());
     }
     #[test] fn sol_shape_only_with_chain_sol() {
         let a = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"; // public vector address

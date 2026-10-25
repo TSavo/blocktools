@@ -13,7 +13,7 @@ use zeroize::Zeroizing;
 fn main() {
     blocktools_io::help(r#"key-to-addresses [--chain LIST] < raw 32-byte key (hex, WIF, base58, base64, {"key":...}) -> addresses on every chain"#);
     let a: Vec<String> = std::env::args().collect();
-    let mut sel: Vec<&'static Chain> = chains::CHAINS.iter().collect();
+    let mut sel: Vec<&'static Chain> = chains::CHAINS.iter().filter(|c| c.verified).collect();
     match a.get(1).map(String::as_str) {
         None => {}
         Some("--chain") if a.len() == 3 => sel = a[2].split(',').filter_map(chains::chain).collect(),

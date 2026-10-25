@@ -19,4 +19,21 @@ const v = JSON.parse(bt.verifyTx(b170, 'btc', ['1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jv
 assert.equal(typeof v.ok, 'boolean');
 const v2 = JSON.parse(bt.verifyTx(b170, 'btc', ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'], [], undefined, '', true));
 assert.equal(v2.ok, false);
+// Stable API (EXPORTS.md)
+assert.match(bt.version(), /^\d+\.\d+\.\d+/);
+const sup = JSON.parse(bt.supportedChains()), unv = JSON.parse(bt.unverifiedChains());
+assert.ok(sup.every(c => c.verified === true) && unv.every(c => c.verified === false));
+assert.ok(sup.some(c => c.name === 'qtum') && sup.some(c => c.name === 'xpm') && unv.some(c => c.name === 'wdc'));
+assert.ok(!sup.some(c => unv.some(u => u.name === c.name)));
+const d = JSON.parse(bt.deriveFromXpub('btc', X, 'm/0', 1));
+assert.ok(d.some(r => r.kind === 'p2wpkh' && r.address === 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g' && r.path === 'm/0/1'));
+assert.throws(() => bt.deriveFromXpub('wdc', X, '0', 0));
+assert.equal(bt.addressValidate('btc', '1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3'), 'P2pkh');
+assert.throws(() => bt.addressValidate('wdc', 'WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV'));
+const ck = q => JSON.parse(bt.checkTx(JSON.stringify(q)));
+const q = {chain: 'btc', raw_tx_hex: b170.trim(), expected_outputs: [{address: '1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3', amount: '1000000000'}], max_fee: 0, owner_addr: '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S', input_values: [5000000000]};
+assert.deepEqual(ck(q).reasons, []); assert.equal(ck(q).ok, true);
+assert.equal(ck({...q, max_fee: undefined}).ok, false);
+assert.equal(ck({...q, chain: 'wdc'}).ok, false);
+assert.equal(JSON.parse(bt.checkTx('{')).ok, false);
 console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');

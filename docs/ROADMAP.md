@@ -42,3 +42,7 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 | L6 | Known-answer tests call the library directly (not only via CLI). CLI tests stay smoke-level. | done: `crates/blocktools/tests/{public,secrets}.rs` + module KATs |
 | L7 | Point SwapChan at path/git dep on `blocktools` (public decode/validate/policy first), **or** keep calling the CLIs. WASM binding of the same facade is optional later — both stay open; no pick required now. | library |
 | L8 | ~~Rename internal crates and tools off the old `kr` prefix~~ done: crates `blocktools-*` under `crates/{core,tx,io,schema,tty,net}`, tools `redact`, `sealed-run`, `read-file`, wrapper `./blocktools`. | done |
+
+- [x] Data-driven chain table: 30 verified rows + 2 unverified (wdc, anc); zec and grs excluded; KATs via scripts/kat-chains.py.
+- [x] Stable wasm API: version, supportedChains, unverifiedChains, deriveFromXpub, addressValidate, checkTx (EXPORTS.md).
+- [ ] Explorer sources for the rows that have none listed; signing for ForkId and PosTime chains; real-network test of any non-BTC signing.

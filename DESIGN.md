@@ -486,3 +486,7 @@ No business logic left in `main` beyond argv and I/O. Composition stays `a | b |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) rows **L1–L8**. Order of work: freeze the public modules → move remaining tool-local logic into crates → add `secrets` feature gates → introduce the `blocktools` facade → thin the CLIs → point SwapChan at the facade with default features → rename crates/docs when ready.
 
+
+## Chain table and stable wasm API (2026-10-24)
+
+The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `verified`, sources); see docs/CHAINS.md. Unverified rows are not supported by derive, validate, tx-build or the wasm stable API. The stable JS/Rust API is listed in EXPORTS.md; `checkTx` is fail-closed and takes public inputs only.

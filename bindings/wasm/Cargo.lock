@@ -99,6 +99,7 @@ version = "0.1.0"
 dependencies = [
  "blocktools-core",
  "blocktools-tx",
+ "serde_json",
 ]
 
 [[package]]

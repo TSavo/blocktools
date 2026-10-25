@@ -139,6 +139,7 @@ dependencies = [
  "blocktools-schema",
  "blocktools-secrets",
  "blocktools-tx",
+ "serde_json",
 ]
 
 [[package]]
@@ -146,6 +147,7 @@ name = "blocktools-core"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
+ "blocktools-schema",
  "ed25519-dalek",
  "sha3",
  "zeroize",

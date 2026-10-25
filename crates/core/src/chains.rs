@@ -24,19 +24,76 @@ pub enum Enc {
     /// ed25519, SLIP-0010, path m/44'/501'/i'/0' (Phantom/Solflare/solana-keygen style).
     Sol,
 }
+/// How transactions are signed on a UTXO chain. Only `Standard` (Bitcoin legacy/BIP143
+/// sighash, Bitcoin tx serialisation) is built and signed by tx-build/tx-sign; the others are
+/// derive / validate / decode-address only until implemented and tested.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Sign { Standard, ForkId(u8), PosTime, Unknown }
+/// A public block explorer / API. Only listed when it answered from this project's CI box.
 #[derive(Clone, Copy, Debug)]
-pub struct Chain { pub name: &'static str, pub coin: u32, pub enc: Enc, pub default_count: u32 }
-
+pub struct Source { pub name: &'static str, pub url: &'static str, pub api: &'static str, pub checked: &'static str }
+#[derive(Clone, Copy, Debug)]
+pub struct Chain {
+    pub name: &'static str, pub ticker: &'static str, pub title: &'static str,
+    /// SLIP-44 coin type (BIP44 path). Rows with no SLIP-44 entry are `verified: false`.
+    pub coin: u32, pub enc: Enc, pub default_count: u32, pub sign: Sign,
+    /// true = every parameter checked against the coin's own source (chainparams/base58.h) and
+    /// SLIP-44, and an independent known-answer test passes. false rows are never "supported".
+    pub verified: bool,
+    /// Where the parameters came from (repo/path), for review.
+    pub source: &'static str,
+    pub sources: &'static [Source],
+}
+const fn u(name: &'static str, ticker: &'static str, title: &'static str, coin: u32, p2pkh: u8, p2sh: u8, wif: u8, hrp: Option<&'static str>,
+           sign: Sign, verified: bool, source: &'static str, sources: &'static [Source]) -> Chain {
+    Chain { name, ticker, title, coin, enc: Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot: false }, default_count: 10, sign, verified, source, sources }
+}
+const D: &str = "2026-10-24";
+const fn cz(t: &'static str, api: &'static str) -> Source { Source { name: "chainz.cryptoid.info", url: t, api, checked: D } }
+use Sign::*;
 pub const CHAINS: &[Chain] = &[
-    Chain { name: "btc", coin: 0, enc: Enc::Utxo { p2pkh: 0x00, p2sh: 0x05, hrp: Some("bc"), wif: 0x80, taproot: true }, default_count: 10 },
-    Chain { name: "ltc", coin: 2, enc: Enc::Utxo { p2pkh: 0x30, p2sh: 0x32, hrp: Some("ltc"), wif: 0xb0, taproot: false }, default_count: 10 },
-    Chain { name: "doge", coin: 3, enc: Enc::Utxo { p2pkh: 0x1e, p2sh: 0x16, hrp: None, wif: 0x9e, taproot: false }, default_count: 10 },
-    Chain { name: "eth", coin: 60, enc: Enc::Eth, default_count: 5 },
-    Chain { name: "tron", coin: 195, enc: Enc::Tron, default_count: 10 },
-    Chain { name: "xrp", coin: 144, enc: Enc::Xrp, default_count: 10 },
-    Chain { name: "sol", coin: 501, enc: Enc::Sol, default_count: 10 },
+    Chain { name: "btc", ticker: "BTC", title: "Bitcoin", coin: 0, enc: Enc::Utxo { p2pkh: 0x00, p2sh: 0x05, hrp: Some("bc"), wif: 0x80, taproot: true }, default_count: 10, sign: Standard, verified: true,
+            source: "bitcoin/bitcoin src/kernel/chainparams.cpp", sources: &[Source { name: "blockstream.info", url: "https://blockstream.info/address/{addr}", api: "esplora:https://blockstream.info/api", checked: D }] },
+    u("ltc", "LTC", "Litecoin", 2, 48, 50, 176, Some("ltc"), Standard, true, "litecoin-project/litecoin src/chainparams.cpp", &[Source { name: "litecoinspace.org", url: "https://litecoinspace.org/address/{addr}", api: "esplora:https://litecoinspace.org/api", checked: D }]),
+    u("doge", "DOGE", "Dogecoin", 3, 30, 22, 158, None, Standard, true, "dogecoin/dogecoin src/chainparams.cpp", &[]),
+    Chain { name: "eth", ticker: "ETH", title: "Ethereum / EVM", coin: 60, enc: Enc::Eth, default_count: 5, sign: Standard, verified: true, source: "EIP-55, EIP-155, EIP-1559", sources: &[] },
+    Chain { name: "tron", ticker: "TRX", title: "Tron", coin: 195, enc: Enc::Tron, default_count: 10, sign: Unknown, verified: true, source: "tronprotocol docs: 0x41 || keccak20, base58check", sources: &[] },
+    Chain { name: "xrp", ticker: "XRP", title: "XRP Ledger", coin: 144, enc: Enc::Xrp, default_count: 10, sign: Unknown, verified: true, source: "xrpl.org: account ID, ripple base58 alphabet", sources: &[] },
+    Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
+    // ---- Bitcoin-family long tail. Bytes are decimal as written in each coin's source. ----
+    u("qtum", "QTUM", "Qtum", 2301, 58, 50, 128, Some("qc"), Standard, true, "qtumproject/qtum src/kernel/chainparams.cpp", &[]),
+    u("ftc", "FTC", "Feathercoin", 8, 14, 5, 142, Some("fc"), Standard, true, "FeatherCoin/Feathercoin src/chainparams.cpp", &[]),
+    u("nmc", "NMC", "Namecoin", 7, 52, 13, 180, Some("nc"), Standard, true, "namecoin/namecoin-core src/kernel/chainparams.cpp", &[]),
+    u("dash", "DASH", "Dash", 5, 76, 16, 204, None, Standard, true, "dashpay/dash src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/dash/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/dash/api.dws")]),
+    u("vtc", "VTC", "Vertcoin", 28, 71, 5, 128, Some("vtc"), Standard, true, "vertcoin-project/vertcoin-core src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/vtc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/vtc/api.dws")]),
+    u("dgb", "DGB", "DigiByte", 20, 30, 63, 128, Some("dgb"), Standard, true, "DigiByte-Core/digibyte src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/dgb/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/dgb/api.dws")]),
+    u("via", "VIA", "Viacoin", 14, 71, 33, 199, Some("via"), Standard, true, "viacoin/viacoin src/chainparams.cpp", &[]),
+    u("mona", "MONA", "Monacoin", 22, 50, 55, 176, Some("mona"), Standard, true, "monacoinproject/monacoin src/chainparams.cpp", &[]),
+    u("rvn", "RVN", "Ravencoin", 175, 60, 122, 128, None, Standard, true, "RavenProject/Ravencoin src/chainparams.cpp", &[Source { name: "blockbook.ravencoin.org", url: "https://blockbook.ravencoin.org/address/{addr}", api: "blockbook:https://blockbook.ravencoin.org/api", checked: D }]),
+    u("xpm", "XPM", "Primecoin", 24, 23, 83, 151, None, Standard, true, "primecoin/primecoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/xpm/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/xpm/api.dws")]),
+    u("trc", "TRC", "Terracoin", 83, 0, 5, 128, None, Standard, true, "terracoin/terracoin src/chainparams.cpp", &[]),
+    u("mec", "MEC", "Megacoin", 217, 50, 5, 178, Some("mec"), Standard, true, "LIMXTEC/Megacoin src/chainparams.cpp", &[]),
+    u("aur", "AUR", "Auroracoin", 85, 23, 5, 176, None, Standard, true, "aurarad/auroracoin src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/aur/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/aur/api.dws")]),
+    u("bch", "BCH", "Bitcoin Cash (legacy addresses)", 145, 0, 5, 128, None, ForkId(0), true, "same legacy bytes as Bitcoin; SIGHASH_FORKID", &[]),
+    u("bsv", "BSV", "Bitcoin SV (legacy addresses)", 236, 0, 5, 128, None, ForkId(0), true, "same legacy bytes as Bitcoin; SIGHASH_FORKID", &[]),
+    u("btg", "BTG", "Bitcoin Gold", 156, 38, 23, 128, Some("btg"), ForkId(79), true, "BTCGPU/BTCGPU src/chainparams.cpp", &[]),
+    u("ppc", "PPC", "Peercoin", 6, 55, 117, 183, Some("pc"), PosTime, true, "peercoin/peercoin src/kernel/chainparams.cpp", &[cz("https://chainz.cryptoid.info/ppc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/ppc/api.dws")]),
+    u("nvc", "NVC", "Novacoin", 50, 8, 20, 136, None, PosTime, true, "novacoin-project/novacoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/nvc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/nvc/api.dws")]),
+    u("clam", "CLAM", "Clams", 23, 137, 13, 133, None, PosTime, true, "nochowderforyou/clams src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/clam/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/clam/api.dws")]),
+    u("blk", "BLK", "Blackcoin", 10, 25, 85, 153, None, PosTime, true, "CoinBlack/blackcoin src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/blk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/blk/api.dws")]),
+    u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[]),
+    u("pot", "POT", "Potcoin", 81, 55, 110, 183, None, PosTime, true, "potcoin/Potcoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/pot/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/pot/api.dws")]),
+    u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
+    // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
+    u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
+    u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
 ];
+/// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) and Groestlcoin
+/// (Groestl-512 base58 checksum) need encoders this crate does not have.
+pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes and ZIP-243/244 sighash: not implemented"), ("grs", "Groestl hash in base58check: not implemented")];
 pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.name == name) }
+/// Supported = verified row. Tools refuse unverified rows unless the caller opts in.
+pub fn supported(name: &str) -> Option<&'static Chain> { chain(name).filter(|c| c.verified) }
 
 #[cfg(feature = "secrets")]
 pub struct Row { pub chain: &'static str, pub kind: &'static str, pub path: String, pub address: String, pub secret_field: &'static str, pub secret: String }
@@ -255,5 +312,54 @@ mod pub_kat {
         assert_eq!(r.iter().find(|r| r.kind == "p2wpkh").unwrap().address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
         assert_eq!(pub_rows(chain("eth").unwrap(), "", &g, false)[0].address, "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf");
         assert_eq!(pub_rows(chain("tron").unwrap(), "", &g, false)[0].address, "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC");
+    }
+}
+
+#[cfg(all(test, feature = "secrets"))]
+mod kat_long_tail {
+    use super::*;
+    // Generated by scripts/kat-chains.py (independent base58check, version bytes copied from each
+    // coin's source). Private key 1 / generator G are textbook public values.
+    const V: &[(&str, &str, &str)] = &[
+        ("btc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("ltc", "LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ", "T33ydQRKp4FCW5LCLLUB7deioUMoveiwekdwUwyfRDeGZm76aUjV"),
+        ("doge", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE", "QNcdLVw8fHkixm6NNyN6nVwxKek4u7qrioRbQmjxac5TVoTtZuot"),
+        ("qtum", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("ftc", "6pQiLg4eJbM2bP9CZemnccDzwB3kz2Ae1x", "N1LYBvAjrq6XNUt5Xm3p3iSALhXdYRWE7jTWTWCSix24zWLX171A"),
+        ("nmc", "N7FdkoPbHSxKfrSVVbRu3NZtrLqc1oKpAR", "TdNVv3rvWfukQ9PGYe3kJL2foDARGKorJX8TimN3P8f7h5uGyJzz"),
+        ("dash", "XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE", "XBHddvWWiMu3nZhhpTXBQWJMmdz5JNKJD85b9fgKAckCT2coW3Y4"),
+        ("vtc", "Vkg6Ts44mskyD668xZkxFkjqovjXX9yUzZ", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("dgb", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("via", "Vkg6Ts44mskyD668xZkxFkjqovjXX9yUzZ", "WSPUn7i1qbKMuyds45YiRdpvXTyp8GxfPuxwMPwqiDye3Nc8SkGq"),
+        ("mona", "MJaRnao1s62a2zAKSkmG582KbLKianqb7v", "T33ydQRKp4FCW5LCLLUB7deioUMoveiwekdwUwyfRDeGZm76aUjV"),
+        ("rvn", "RKxTdfmtxtfLDKZBgx6SvNkBtNu9jRYnLh", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3", "PLZDLNQqSDLm98zzWSbrDHHYacLW4Bwmai4gVbKJ9FoUXV7pNBkk"),
+        ("trc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("mec", "MJaRnao1s62a2zAKSkmG582KbLKianqb7v", "TLDEmj98AN5UT7MjSVFxhyqhJLm7bVGPydtCbrfrQB9h8RTVrfwH"),
+        ("aur", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3", "T33ydQRKp4FCW5LCLLUB7deioUMoveiwekdwUwyfRDeGZm76aUjV"),
+        ("bch", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("bsv", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("btg", "GUXByHDZLvU4DnVH9imSFckt3HEQ5cFgE5", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9", "U57PdXwd38fAKhRaCsERgrK8YWmNmad2nqzrQ8QKrZvFY5Su3RGB"),
+        ("nvc", "4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR", "M7rkkx1LoubhXNoUDJgTGfsEr6KiXuss95ij6n7sn5VoJX3uPDSV"),
+        ("clam", "xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx", "Lg7s3TveHSrHbpmAZ5Vmt9an6nim2f4gekrLRR5bJeEfTXVDHAET"),
+        ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX", "PdiUUh8dnXB36B2XcbPdodUX5Ujoj2VDubJwcW1V8DJu69XHZWGg"),
+        ("rdd", "RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa", "UxbB4W72649zAoWBXKbnTtt437yHn6FPmVjdkrUtoSSXE4gwagjA"),
+        ("pot", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9", "U57PdXwd38fAKhRaCsERgrK8YWmNmad2nqzrQ8QKrZvFY5Su3RGB"),
+        ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59", "UWrHM22KZbQaFFTss6R75NbbHpNLGqSDHAsF5VScL1BPP51rGEYX"),
+        ("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV", "WjYjvSRpBu9ds1fQAELW1z1u2LP7o7W7ioDCUJe2hBV4c2yyqEp3"),
+        ("anc", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3", "PLZDLNQqSDLm98zzWSbrDHHYacLW4Bwmai4gVbKJ9FoUXV7pNBkk"),
+    ];
+    #[test] fn every_utxo_row_matches_independent_vector() {
+        let s = Secp256k1::new(); let mut b = [0u8; 32]; b[31] = 1; let k = SecretKey::from_slice(&b).unwrap();
+        for (n, p2pkh, w) in V {
+            let r = secp_rows(chain(n).unwrap(), "", &k, false, &s);
+            assert_eq!(r[0].address, *p2pkh, "{n} p2pkh"); assert_eq!(r[0].secret, *w, "{n} wif");
+            assert!(crate::validate::validate(n, p2pkh).is_ok(), "{n} validate");
+        }
+        for c in CHAINS { if let Enc::Utxo { hrp: Some(h), .. } = c.enc { assert!(blocktools_schema::HRPS.contains(&h), "schema HRPS missing {h}") } }
+        for c in CHAINS { assert!(blocktools_schema::CHAINS.contains(&c.name), "schema CHAINS missing {}", c.name) }
+        // every UTXO row in the table has a vector
+        for c in CHAINS.iter().filter(|c| matches!(c.enc, Enc::Utxo { .. })) { assert!(V.iter().any(|v| v.0 == c.name), "{} has no KAT", c.name) }
     }
 }
