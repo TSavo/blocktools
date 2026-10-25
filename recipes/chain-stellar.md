@@ -33,3 +33,13 @@ NOT BUILT: broadcast (submit the `signed` base64 to Horizon `POST /transactions`
 non-native assets, multi-op transactions, fee-bump. UNTESTED: a real network submit; `utxo-fetch` was run once against
 horizon.stellar.org (2026-10-25) and is not in CI.
 UNTESTED: wallets that use non-SEP-0005 paths beyond the three tried by the recovery preset.
+
+## Worked sweep (tested)
+
+Unsigned sweep for the SEP-0005 vector-1 accounts 0 -> 1 (AccountMerge), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="to":"GBAW5XGWORWVFE2XTJYDTLDHXTY2Q2MO73HYCGB3XMFMQ562Q2W2GJQX" ; expect="fee":100 ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain xlm --from GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6 --to GBAW5XGWORWVFE2XTJYDTLDHXTY2Q2MO73HYCGB3XMFMQ562Q2W2GJQX --sweep --fee 100 --seq 123456789013 | acct-tx decode --chain xlm'
+

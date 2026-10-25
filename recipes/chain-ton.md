@@ -27,3 +27,13 @@ Output: base64 BOC (crc32c, no index) plus `pubkey` and the external-message has
 KAT: unsigned signing hash, signed BOC and message hash byte-equal to tonsdk 1.0.15 WalletV4ContractR2 (crates/acct/tests/kat.rs,
 scripts/e2e.d/acct.sh). UNTESTED: a real broadcast; `utxo-fetch --chain ton` was run once against toncenter.com (2026-10-25), not in CI.
 NOT BUILT: broadcast, deploy (StateInit) message, comments over 120 bytes (snake cells), jettons/NFTs, v3r2/v5r1 wallets.
+
+## Worked sweep (tested)
+
+Unsigned sweep for the test-mnemonic v4r2 wallet (send mode 128, so no amount is shown), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="from":"UQCCZtVXlbxxKJbbZti9ESdAkizMyK_CTl0x65osWV1TnALb" ; expect="to":"UQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOdQl" ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain ton --from UQCCZtVXlbxxKJbbZti9ESdAkizMyK_CTl0x65osWV1TnALb --to UQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOdQl --sweep --seqno 5 --valid-until 1767225600 | acct-tx decode --chain ton'
+

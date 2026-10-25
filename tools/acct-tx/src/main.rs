@@ -23,6 +23,19 @@ use serde_json::{json, Value};
 use std::io::Read;
 use zeroize::Zeroizing;
 
+/// Print the full decode, then one schema-clean public line (tool/status/chain/from/to/amount/fee/signed)
+/// so the decoded payment survives `redact` behind sealed-run.
+fn emit(v: Value) {
+    println!("{v}");
+    let n = |pre: &str| v.as_object().and_then(|o| o.iter().find(|(k, x)| k.starts_with(pre) && k.as_str() != "amount_str" && k.as_str() != "fee_str"
+        && (x.as_u64().is_some() || x.as_str().map_or(false, |s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())))).map(|(_, x)| x.as_u64().unwrap_or_else(|| x.as_str().unwrap().parse().unwrap_or(0))));
+    let mut o = serde_json::Map::new();
+    o.insert("tool".into(), json!("acct-tx")); o.insert("status".into(), json!("ok"));
+    for k in ["chain", "from", "to", "signed"] { if let Some(x) = v.get(k).filter(|x| !x.is_null()) { o.insert(k.into(), x.clone()); } }
+    if let Some(a) = n("amount_") { o.insert("amount".into(), json!(a)); }
+    if let Some(f) = n("fee_") { o.insert("fee".into(), json!(f)); }
+    println!("{}", Value::Object(o));
+}
 fn fail(e: &str) -> ! { println!("{}", json!({"status":"error","error":e})); std::process::exit(1) }
 fn opt<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
 fn req<'a>(a: &'a [String], k: &str) -> &'a str { opt(a, k).unwrap_or_else(|| fail(&format!("missing {k}"))) }
@@ -215,7 +228,7 @@ fn main() {
             let mut inputs = vec![]; let mut total = 0u128;
             for u in all(&a, "--utxo") {
                 let (hi, v) = u.split_once(':').unwrap_or_else(|| fail("utxo_must_be_TXID#IX:LOVELACE"));
-                let (h, i) = hi.split_once('#').unwrap_or_else(|| fail("utxo_must_be_TXID#IX:LOVELACE"));
+                let (h, i) = hi.split_once('#').or_else(|| hi.split_once('.')).unwrap_or_else(|| fail("utxo_must_be_TXID#IX:LOVELACE"));
                 let h: [u8; 32] = unhex(h).try_into().unwrap_or_else(|_| fail("utxo_txid_must_be_32_bytes"));
                 inputs.push((h, i.parse::<u32>().unwrap_or_else(|_| fail("bad_utxo_index")))); total += v.parse::<u64>().unwrap_or_else(|_| fail("bad_utxo_amount")) as u128;
             }
@@ -249,13 +262,13 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             let mut o = dot_json(&t, "unsigned"); o["summary"] = d; println!("{o}");
         }
-        (Some("decode"), "dot") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); println!("{}", dot_describe(&dot_read(&s))) }
-        (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); println!("{}", ada_describe(&t, f.as_deref(), i)) }
-        (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); println!("{}", ton_describe(&t, pk.as_ref())) }
+        (Some("decode"), "dot") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); emit(dot_describe(&dot_read(&s))) }
+        (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); emit(ada_describe(&t, f.as_deref(), i)) }
+        (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); emit(ton_describe(&t, pk.as_ref())) }
         (Some("keys"), "atom") => {
             let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
             let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
-            println!("{}", json!({"chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
+            println!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
         }
         (Some("build"), "atom") => {
             let pubkey: [u8; 33] = unhex(req(&a, "--pubkey")).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"));
@@ -273,12 +286,12 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             println!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
         }
-        (Some("decode"), "atom") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = atom_read(&s); println!("{}", atom_describe(&t, sig.as_ref())) }
+        (Some("decode"), "atom") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = atom_read(&s); emit(atom_describe(&t, sig.as_ref())) }
         (Some("decode"), c) => {
             let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok();
             let b = read_tx(&s);
-            match c { "xlm" => println!("{}", xlm_describe(&xlm::Tx::decode(&b).unwrap_or_else(|e| fail(&e)), net)),
-                "algo" => println!("{}", algo_describe(&algo::Pay::decode(&b).unwrap_or_else(|e| fail(&e)))), _ => fail("unsupported --chain") }
+            match c { "xlm" => emit(xlm_describe(&xlm::Tx::decode(&b).unwrap_or_else(|e| fail(&e)), net)),
+                "algo" => emit(algo_describe(&algo::Pay::decode(&b).unwrap_or_else(|e| fail(&e)))), _ => fail("unsupported --chain") }
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));

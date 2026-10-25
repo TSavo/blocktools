@@ -24,3 +24,18 @@ other messages, extra coins, timeout/granter/extension fields, and a from addres
 A missing memo is warned about. KAT: body, auth_info, signed TxRaw and txid byte-equal to @cosmjs/proto-signing
 (crates/acct/tests/kat.rs, scripts/e2e.d/acct.sh). Gas is not estimated: pass it yourself (200000 covers a plain send).
 UNTESTED: a real network submit; `utxo-fetch --chain atom` was run once against cosmos-rest.publicnode.com (2026-10-25), not in CI.
+
+## Worked sweep (tested)
+
+Unsigned sweep for key 1's account (balance 1 ATOM, sweep = balance - fee), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="amount":995000 ; expect="fee":5000 ; expect="to":"cosmos1jhg0e7s6gn44tfc5k37kr04sznyhedtc9rzys5" ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain atom --from cosmos1w508d6qejxtdg4y5r3zarvary0c5xw7k6ah60c --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --to cosmos1jhg0e7s6gn44tfc5k37kr04sznyhedtc9rzys5 --sweep --balance 1000000 --fee 5000 --gas 200000 --sequence 7 --account-number 123456 | acct-tx decode --chain atom'
+
+Address check for key 1. The boundary drops the 33-byte `pubkey` (long hex looks secret to redact), so read `--pubkey` from
+plain `acct-tx keys --chain atom < key.txt` on your own machine. That output is public only.
+
+<!-- e2e: expect=cosmos1w508d6qejxtdg4y5r3zarvary0c5xw7k6ah60c ; expect="tool":"acct-tx" -->
+    ./blocktools run 'acct-tx keys --chain atom < /in/key.hex'

@@ -38,3 +38,13 @@ by the node as BadProof, it cannot redirect funds).
 NOT BUILT: relay-chain transfers, paying fees in other assets, CheckMetadataHash mode 1 (Ledger
 generic app), ed25519/ecdsa accounts, derivation paths, Kusama, staking/unbonding (bonded DOT
 needs unbond + 28 days before it can be swept), vesting, proxies/multisig.
+
+## Worked sweep (tested)
+
+Unsigned sweep for the test mnemonic (transfer_all; the layout itself is UNVERIFIED, see above), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="from":"15rRgsWxz4H5LTnNGcCFsszfXD8oeAFd8QRsR6MbQE2f6XFF" ; expect="to":"14E5nqKAp3oAJcmzgZhUD2RcptBeUBScxKHgJKU4HPNcKVf3" ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain dot --from 15rRgsWxz4H5LTnNGcCFsszfXD8oeAFd8QRsR6MbQE2f6XFF --to 14E5nqKAp3oAJcmzgZhUD2RcptBeUBScxKHgJKU4HPNcKVf3 --sweep --nonce 7 --block-number 22273316 --block-hash 88f4f46ebfaa624519daaa82d9f52ffbf0045df9bb7c032d964a1f195e178043 | acct-tx decode --chain dot'
+

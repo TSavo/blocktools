@@ -31,3 +31,13 @@ Lookup tested live against Koios on an empty address only.
 NOT BUILT: UTxOs carrying native assets / tokens (utxo-fetch flags them; never pass them), multi-asset
 outputs, staking/delegation certificates, withdrawals, metadata, Byron inputs, protocol-parameter fetch
 (fee constants are hardcoded mainnet values), testnet.
+
+## Worked sweep (tested)
+
+Unsigned sweep for abandon...about account 0, address 0 -> address 1, one 5 ADA UTxO. Inside `./blocktools run` write the UTxO as `TXID.IX:LOVELACE` (the boundary refuses `#`), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="amount":4827779 ; expect="fee":172221 ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain ada --from addr1qy8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mq4afdhv --to addr1qyz85693g4fr8c55mfyxhae8j2u04pydxrgqr73vmwpx3a8927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqu2c0f9 --utxo 87dac51506d06652be02110bd1e34c2156faa5fa37253dc885da93b840b4bdec.1:5000000 --sweep --fee 172221 --ttl 150000000 | acct-tx decode --chain ada'
+

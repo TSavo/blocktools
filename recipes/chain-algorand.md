@@ -26,3 +26,13 @@ account closes. Algorand refuses this while ASAs are opted in. Decode refuses re
 
 NOT BUILT: Ledger-style BIP32-Ed25519 paths (m/44'/283'/...), broadcast, ASA transfers, rekeyed accounts.
 UNTESTED: a real network submit; `utxo-fetch` was run once against mainnet-api.algonode.cloud (2026-10-25) and is not in CI.
+
+## Worked sweep (tested)
+
+Unsigned sweep for the test-mnemonic account (close-to sweep: amount 0, everything to the close address), decoded through the agent boundary. Only public fields come back (from, to, amount, fee in base
+units, signed=false). Signing is the TTY step above (`acct-tx sign ... --expect-to`). It is a human-typed code, so
+recipe-check can't run it here; scripts/e2e.d/acct.sh drives it through a pty.
+
+<!-- e2e: expect="to":"GD64YIY3TWGDMCNPP553DZPPR6LDUSFQOIJVFDPPXWEG3FVOJCCDBBHU5A" ; expect="amount":0 ; expect="fee":1000 ; expect="signed":false -->
+    ./blocktools run 'acct-tx build --chain algo --from 47YPQTIGQEO7T4Y4RWDYWEKV6RTR2UNBQXBABEEGM72ESWDQNCQ52OPASU --to GD64YIY3TWGDMCNPP553DZPPR6LDUSFQOIJVFDPPXWEG3FVOJCCDBBHU5A --sweep --fee 1000 --first-round 40000000 | acct-tx decode --chain algo'
+

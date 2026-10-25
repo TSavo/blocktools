@@ -95,7 +95,7 @@ impl Transfer {
         if b.get(i..i + 2) != Some(&[0, 0]) { return Err("asset/metadata-hash mode not supported") } i += 2;
         if b.get(i) != Some(&PALLET_BALANCES) || b.get(i + 2) != Some(&0) { return Err("not a Balances transfer") }
         let c = b[i + 1]; let to: [u8; 32] = b.get(i + 3..i + 35).ok_or("short")?.try_into().unwrap(); i += 35;
-        let kind = match c { CALL_KEEP_ALIVE => Kind::Pay(read_compact(b, &mut i)?), CALL_TRANSFER_ALL => { if b.get(i) != Some(&0) { return Err("keep_alive must be false") } i += 1; Kind::Sweep } _ => return Err("unsupported call") };
+        let kind = match c { CALL_KEEP_ALIVE => Kind::Pay(read_compact(b, &mut i)?), CALL_TRANSFER_ALL => { if b.get(i) != Some(&0) { return Err("keep_alive must be false") } Kind::Sweep } _ => return Err("unsupported call") };
         let t = Transfer { from, to, kind, era, nonce, tip, spec, tx_version, genesis, sig: Some(sig) };
         if t.encode() != b { return Err("non-canonical encoding") } Ok(t)
     }
