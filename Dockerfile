@@ -5,7 +5,9 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 COPY tools tools
-RUN cargo test --release --locked && cargo build --release --locked
+COPY deps deps
+COPY scripts/check-deps.sh scripts/check-deps.sh
+RUN sh scripts/check-deps.sh && cargo test --release --locked && cargo build --release --locked
 
 # Runtime: a small Unix (busybox sh, coreutils) + the keyrescue toolset. No network tools.
 FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc

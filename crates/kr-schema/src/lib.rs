@@ -2,9 +2,7 @@
 //! boundary toward the agent is a line produced by `redact_line`.
 //! Design: allowlist of fields, each with a strict type validator, followed by
 //! a defense-in-depth leak scan over the serialized line.
-use regex::Regex;
 use serde_json::{Map, Value};
-use std::sync::OnceLock;
 
 pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
@@ -13,21 +11,27 @@ pub const STATUSES: &[&str] = &[
 pub const TOOLS: &[&str] = &["seed-repair", "derive", "keystore-open", "kr-redact"];
 pub const KINDS: &[&str] = &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth"];
 
-fn re(cell: &'static OnceLock<Regex>, pat: &str) -> &'static Regex {
-    cell.get_or_init(|| Regex::new(pat).unwrap())
-}
-static R_BTC_B58: OnceLock<Regex> = OnceLock::new();
-static R_BECH: OnceLock<Regex> = OnceLock::new();
-static R_ETH: OnceLock<Regex> = OnceLock::new();
-static R_PATH: OnceLock<Regex> = OnceLock::new();
+const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const BECH: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+fn all_in(s: &str, set: &str) -> bool { s.chars().all(|c| set.contains(c)) }
+fn is_b58(c: char) -> bool { B58.contains(c) }
 
 pub fn is_address(s: &str) -> bool {
-    re(&R_BTC_B58, r"^[13][1-9A-HJ-NP-Za-km-z]{25,34}$").is_match(s)
-        || re(&R_BECH, r"^bc1[02-9ac-hj-np-z]{39,59}$").is_match(s)
-        || re(&R_ETH, r"^0x[0-9a-fA-F]{40}$").is_match(s)
+    let n = s.len();
+    ((s.starts_with('1') || s.starts_with('3')) && (26..=35).contains(&n) && all_in(s, B58))
+        || (s.starts_with("bc1") && (42..=62).contains(&n) && all_in(&s[3..], BECH))
+        || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
 pub fn is_path(s: &str) -> bool {
-    s.len() <= 64 && re(&R_PATH, r"^m(/[0-9]{1,10}'?){0,8}$").is_match(s)
+    let Some(rest) = s.strip_prefix('m') else { return false };
+    if s.len() > 64 { return false; }
+    if rest.is_empty() { return true; }
+    let Some(rest) = rest.strip_prefix('/') else { return false };
+    let parts: Vec<&str> = rest.split('/').collect();
+    parts.len() <= 8 && parts.iter().all(|p| {
+        let d = p.strip_suffix('\'').unwrap_or(p);
+        (1..=10).contains(&d.len()) && d.chars().all(|c| c.is_ascii_digit())
+    })
 }
 fn small_uint(v: &Value) -> bool {
     v.as_u64().map_or(false, |n| n <= 1_000_000_000)
@@ -48,15 +52,21 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
     })
 }
 
-static R_HEX64: OnceLock<Regex> = OnceLock::new();
-static R_XKEY: OnceLock<Regex> = OnceLock::new();
-static R_WIF: OnceLock<Regex> = OnceLock::new();
-
 /// Defense in depth: true if the text looks like it contains key material.
 pub fn looks_secret(text: &str) -> bool {
-    if re(&R_HEX64, r"(?i)(0x)?[0-9a-f]{64}").is_match(text) { return true; }
-    if re(&R_XKEY, r"[xyztuv]prv[1-9A-HJ-NP-Za-km-z]{20,}").is_match(text) { return true; }
-    if re(&R_WIF, r"(^|[^1-9A-HJ-NP-Za-km-z])[5KLc9][1-9A-HJ-NP-Za-km-z]{50,51}($|[^1-9A-HJ-NP-Za-km-z])").is_match(text) { return true; }
+    let cs: Vec<char> = text.chars().collect();
+    // Maximal runs of hex digits / base58 chars.
+    let run = |pred: &dyn Fn(char) -> bool| -> Vec<String> {
+        let mut out = vec![]; let mut cur = String::new();
+        for &c in &cs { if pred(c) { cur.push(c) } else if !cur.is_empty() { out.push(std::mem::take(&mut cur)) } }
+        if !cur.is_empty() { out.push(cur) } out
+    };
+    if run(&|c: char| c.is_ascii_hexdigit()).iter().any(|r| r.len() >= 64) { return true; }
+    for r in run(&is_b58) {
+        if r.len() >= 24 && ["xprv", "yprv", "zprv", "tprv", "uprv", "vprv"].iter().any(|p| r.contains(p)) { return true; }
+        // WIF-shaped: 51-52 base58 chars starting 5/9/K/L/c.
+        if (51..=52).contains(&r.len()) && r.starts_with(['5', '9', 'K', 'L', 'c']) { return true; }
+    }
     // Mnemonic: 3+ consecutive BIP39 words.
     let wl = bip39::Language::English;
     let mut run = 0;

@@ -11,11 +11,13 @@ use std::io::{BufRead, Read};
 use std::str::FromStr;
 use zeroize::Zeroizing;
 
+fn hex_enc(b: impl AsRef<[u8]>) -> String { b.as_ref().iter().map(|x| format!("{x:02x}")).collect() }
+
 pub fn eth_address(sk: &bitcoin::secp256k1::SecretKey, secp: &Secp256k1<All>) -> String {
     let pk = bitcoin::secp256k1::PublicKey::from_secret_key(secp, sk).serialize_uncompressed();
     let h = Keccak256::digest(&pk[1..]);
-    let a = hex::encode(&h[12..]);
-    let ch = hex::encode(Keccak256::digest(a.as_bytes()));
+    let a = hex_enc(&h[12..]);
+    let ch = hex_enc(Keccak256::digest(a.as_bytes()));
     let s: String = a.chars().zip(ch.chars()).map(|(c, k)| if k.to_digit(16).unwrap() >= 8 { c.to_ascii_uppercase() } else { c }).collect();
     format!("0x{s}")
 }
@@ -33,7 +35,7 @@ pub fn derive_all(m: &Mnemonic, passphrase: &str, count: u32) -> Vec<Row> {
             let xk = master.derive_priv(&secp, &DerivationPath::from_str(&path).unwrap()).unwrap();
             let sk = xk.private_key;
             let (address, secret) = if kind == "eth" {
-                (eth_address(&sk, &secp), hex::encode(sk.secret_bytes()))
+                (eth_address(&sk, &secp), hex_enc(sk.secret_bytes()))
             } else {
                 let cpk = CompressedPublicKey::from_private_key(&secp, &PrivateKey::new(sk, Network::Bitcoin)).unwrap();
                 let a = match kind {
@@ -82,7 +84,8 @@ fn main() {
             println!(r#"{{"tool":"derive","status":"checksum_fail","candidate":{cand}}}"#); continue };
         for r in derive_all(&m, &pass, count) {
             let key = if r.kind == "eth" { "private_key" } else { "wif" };
-            println!("{}", serde_json::json!({"tool":"derive","status":"ok","candidate":cand,"kind":r.kind,"path":r.path,"address":r.address, key: r.secret}));
+            // All values are fixed enums, paths, addresses or hex/base58: no escaping needed.
+            println!(r#"{{"tool":"derive","status":"ok","candidate":{cand},"kind":"{}","path":"{}","address":"{}","{key}":"{}"}}"#, r.kind, r.path, r.address, r.secret);
             n += 1;
         }
     }

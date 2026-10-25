@@ -142,6 +142,46 @@ Values are zeroized after use (`zeroize`).
 | **Deviation:** passwords staged as files in `/secrets` | The human stores them, and the tool still receives them via stdin. Alternative: a dedicated fd (e.g. `3< /secrets/pw`) if mixing with data on stdin proves awkward. |
 | Naming | `derive` is generic. Planned names: `dat-read`, `keystore-open`, `seed-repair`, `seed-to-master`, `derive`, `tx-verify`, `tx-sign`. |
 
+## 5b. Minimal dependencies
+
+Each utility depends on as few crates as possible: ideally one cryptography
+library and little else. Non-crypto helpers (hex encoding, output JSON lines,
+address/path validators, leak scanner) are plain std code. Crypto primitives are
+never hand-rolled. `scripts/check-deps.sh` (also run in the Docker build) fails
+if any crate's dependency tree gains a crate not listed in `deps/<crate>.allow`.
+
+Measured with `cargo tree -e normal` (unique crates excluding the crate itself):
+
+| crate | before: direct / total | after: direct / total | direct deps now |
+|---|---|---|---|
+| seed-repair | 12 / 52 | 1 / 8 | bip39 |
+| derive | 12 / 52 | 5 / 28 | bip39, bitcoin, sha3, zeroize, serde_json |
+| keystore-open | 12 / 52 | 9 / 27 | secp256k1, sha3, scrypt, pbkdf2, sha2, aes, ctr, zeroize, serde_json |
+| kr-schema | 4 / 21 | 2 / 12 | bip39 (wordlist), serde_json |
+| kr-redact | 2 / 22 | 2 / 13 | kr-schema, serde_json |
+
+Removed: `regex`, `hex`, `serde` (derive), and every unused crate the tools had
+inherited. Justification for what stays:
+
+* **bip39**: BIP39 wordlist, checksum, PBKDF2-HMAC-SHA512 seed (rust-bitcoin project).
+* **bitcoin** (derive only): BIP32, address encodings incl. bech32m/taproot tweak, WIF; brings secp256k1 (libsecp256k1).
+* **secp256k1** (keystore-open): public key from private key for the ETH address, without all of `bitcoin`.
+* **sha3**: Keccak-256 for ETH addresses and keystore MAC (not in the rust-bitcoin stack).
+* **scrypt, pbkdf2, sha2, aes, ctr** (keystore-open): the Web3 v3 keystore KDFs and cipher, all RustCrypto.
+* **serde_json**: parsing *hostile* JSON input (keystore files, pipe input in derive/kr-redact) must be robust. A hand-rolled parser on untrusted input is a bigger risk than one well-fuzzed crate. Output JSON is hand-written.
+* **zeroize**: wiping secrets from memory.
+
+Deferred (to decide):
+* **One crypto family.** Today there are two: rust-bitcoin (bip39/bitcoin/secp256k1)
+  and RustCrypto (sha3, scrypt, pbkdf2, sha2, aes, ctr). One option is RustCrypto
+  only (`k256` + `bip32` crates + own address encoding), which drops libsecp256k1's
+  C code but replaces a very widely audited library. The other is rust-bitcoin
+  only, but it has no Keccak, scrypt or AES, so keystore-open still needs RustCrypto.
+* **Dropping serde_json** with a minimal bounded JSON-lines reader shared by the
+  tools: possible, but deferred because it means a hand-written parser of hostile input.
+* `cargo-deny` (license/advisory checks) is not installed. The allowlist script
+  covers growth only.
+
 ## 6. Signing flow (phase 2, designed only)
 
 1. Host: the agent uses SwapChan `find_money` to locate funds for the public

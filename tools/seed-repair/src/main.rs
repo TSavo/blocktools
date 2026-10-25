@@ -98,7 +98,8 @@ fn main() {
     match repair(&tokens, max_out) {
         Ok(v) => {
             for (n, (w, c)) in v.iter().enumerate() {
-                println!("{}", serde_json::json!({"tool":"seed-repair","status":"checksum_ok","candidate":n,"changed_words":c,"mnemonic":w.join(" ")}));
+                // Words come from the BIP39 wordlist (a-z only), so no JSON escaping is needed.
+                println!(r#"{{"tool":"seed-repair","status":"checksum_ok","candidate":{n},"changed_words":{c},"mnemonic":"{}"}}"#, w.join(" "));
             }
             println!(r#"{{"tool":"seed-repair","status":"{}","count":{}}}"#, if v.is_empty() {"no_candidates"} else {"done"}, v.len());
         }
