@@ -9,8 +9,6 @@
 //! (utxo-fetch writes it); flags override it. ERC-20 sends need native gas at the old address:
 //! build the gas top-up first with --topup GAS_UNITS from a funded address.
 use blocktools_tx::build;
-use blocktools_tx::evm::{self, Kind, Tx};
-use blocktools_tx::rlp::Rlp;
 use serde_json::{json, Value};
 use std::io::Read;
 
@@ -58,21 +56,12 @@ fn evm_build(a: &A) {
     let legacy = a.has("--legacy");
     let prio = if legacy { None } else { Some(pick("--priority-fee", "max_priority_fee_per_gas").unwrap_or(1_000_000_000).min(max_fee)) };
     let to = eaddr(a.get("--to").unwrap_or_else(|| fail("--to required")));
-    let token = a.get("--token").map(eaddr);
-    let gas = num(a.get("--gas"), "--gas").unwrap_or(if token.is_some() { 100_000 } else { 21_000 }) as u64;
-    let fee = max_fee.checked_mul(gas as u128).unwrap_or_else(|| fail("fee overflow"));
-    let (dest, value, data) = if let Some(t) = token {
-        let amt = num(a.get("--token-amount"), "--token-amount").unwrap_or_else(|| fail("--token-amount required"));
-        (t, 0, evm::transfer_calldata(&to, amt))
-    } else if let Some(units) = num(a.get("--topup"), "--topup") {
-        (to, units.checked_mul(max_fee).unwrap_or_else(|| fail("overflow")), vec![])
-    } else if a.has("--sweep") {
-        let bal = pick("--balance", "balance").unwrap_or_else(|| fail("--sweep needs --balance or account balance"));
-        (to, bal.checked_sub(fee).filter(|&v| v > 0).unwrap_or_else(|| fail("balance does not cover gas")), vec![])
-    } else {
-        (to, num(a.get("--send"), "--send").unwrap_or_else(|| fail("choose --send, --sweep, --topup or --token")), vec![])
-    };
-    let tx = Tx { kind: if legacy { Kind::Legacy } else { Kind::Eip1559 }, chain_id: Some(chain_id), nonce, max_fee_per_gas: max_fee,
-        max_priority_fee_per_gas: prio, gas, to: Some(dest), value, data, access_list: Rlp::L(vec![]), sig: None };
+    let amount = if let Some(t) = a.get("--token").map(eaddr) {
+        build::EvmAmount::Token { token: t, amount: num(a.get("--token-amount"), "--token-amount").unwrap_or_else(|| fail("--token-amount required")) }
+    } else if let Some(units) = num(a.get("--topup"), "--topup") { build::EvmAmount::Topup(units) }
+    else if a.has("--sweep") { build::EvmAmount::Sweep { balance: pick("--balance", "balance").unwrap_or_else(|| fail("--sweep needs --balance or account balance")) } }
+    else { build::EvmAmount::Send(num(a.get("--send"), "--send").unwrap_or_else(|| fail("choose --send, --sweep, --topup or --token"))) };
+    let gas = num(a.get("--gas"), "--gas").map(|g| g as u64);
+    let tx = build::build_evm(&build::EvmPlan { chain_id, nonce, max_fee, priority_fee: prio, gas, to, amount }).unwrap_or_else(|e| fail(e));
     blocktools_io::outln!("{}", json!({"tool":"tx-build","status":"ok","chain":"eth","type":if legacy {"evm-legacy"} else {"evm-1559"},"unsigned_tx":blocktools_core::hex_enc(tx.encode_unsigned())}));
 }

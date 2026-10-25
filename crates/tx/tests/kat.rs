@@ -87,3 +87,19 @@ fn h(s: &str) -> Vec<u8> { blocktools_core::hex_dec(s).unwrap() }
     assert_eq!(a, decode(&blocktools_core::hex_enc(&raw), "btc").unwrap().json_lines());
     assert_eq!(a, decode(&format!("{{\"psbt\":\"{b64}\"}}"), "btc").unwrap().json_lines());
 }
+
+#[test]
+fn build_evm_plans() {
+    use blocktools_tx::build::{build_evm, EvmAmount, EvmPlan};
+    use blocktools_tx::evm::Tx;
+    let to = [0x11u8; 20];
+    let p = EvmPlan { chain_id: 1, nonce: 7, max_fee: 30_000_000_000, priority_fee: Some(2_000_000_000), gas: None, to, amount: EvmAmount::Send(1_000) };
+    let tx = build_evm(&p).unwrap();
+    let back = Tx::parse(&tx.encode_unsigned()).unwrap();
+    assert_eq!((back.nonce, back.gas, back.value, back.to), (7, 21_000, 1_000, Some(to)));
+    let sweep = EvmPlan { amount: EvmAmount::Sweep { balance: 21_000 * 30_000_000_000 + 5 }, ..p.clone() };
+    assert_eq!(build_evm(&sweep).unwrap().value, 5);
+    assert_eq!(build_evm(&EvmPlan { amount: EvmAmount::Sweep { balance: 1 }, ..p.clone() }).unwrap_err(), "balance does not cover gas");
+    let tok = build_evm(&EvmPlan { amount: EvmAmount::Token { token: [0x22; 20], amount: 5 }, priority_fee: None, ..p }).unwrap();
+    assert_eq!((tok.gas, tok.value, tok.to, tok.data.len()), (100_000, 0, Some([0x22; 20]), 68));
+}

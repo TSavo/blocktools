@@ -435,6 +435,26 @@ blocktools::wallet::{dat_read, electrum_open, …}
 
 Errors are plain enums/`&'static str` today; a single `blocktools::Error` can wrap them later without pulling anyhow. No async, no HTTP in the default tree, no Tokio.
 
+### Implemented (2026-10-24)
+
+Steps L1–L6 are in. What exists today (names are the real ones; the sketch above is the target):
+
+| crate | default build | with features |
+|---|---|---|
+| `blocktools` (facade, `crates/blocktools`) | re-exports `chains`, `plan`, `validate`, `xpub`, `b64`, `hex_enc/dec`, `eth_address_from_pubkey`, and `tx` (`build`, `evm`, `policy`, `rlp`) | `secrets` → `blocktools::secrets`, `tx::sign`, key rows; `ed25519`; `schema`; `net` |
+| `blocktools-core` | `chains::{AddrRow, pub_rows, sol_address}`, `xpub::from_xpub`, `plan::{from_args, explain, preset, expand, …}`, `validate` | `secrets`: `Row`, `secp_rows`, `derive_chain`, `derive_account`, `eth_address(sk)`, `slip10_ed25519` |
+| `blocktools-tx` | `build::{build_btc, build_evm, parse_utxos}`, `evm::Tx::{parse, encode_*, from}`, `policy` | `secrets`: `sign`, `evm::Tx::sign` |
+| `blocktools-secrets` | (nothing without a feature) | `repair` (BIP39 typo repair), `seed` (BIP39/Electrum → master), `dat` (wallet.dat BDB/SQLite), `keystore` (Web3 v3), `keys` (raw key decodings, signing-key lines), `walk` (plan × master → key rows) |
+
+`blocktools-secrets` has one feature per area so each CLI links only the crypto it uses (e.g.
+`seed-repair` pulls `repair` = bip39 only; `keystore-open` pulls scrypt/aes-ctr but not cbc).
+Every CLI enables what it needs explicitly; `check-deps.sh` fails if `blocktools`,
+`blocktools-core` or `blocktools-tx` with default features reach `blocktools-secrets`, bip39,
+scrypt, pbkdf2, aes/cbc/ctr, or any network crate. KATs: `crates/blocktools/tests/public.rs`
+(default features) and `tests/secrets.rs` (`required-features = ["secrets"]`) call the library
+directly; per-module KATs live beside the code. Not yet in the library: `classify`, Electrum
+wallet files, MultiBit, Armory (planned items; see ROADMAP).
+
 ### CLI contract (unchanged for humans/agents)
 
 Each `tools/*` binary:

@@ -1,0 +1,25 @@
+[package]
+name = "blocktools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools library facade: addresses, xpub watch-only derivation, path plans, address validation, transaction decode/build/verify. Default features take no private keys and do no I/O. DANGEROUS: use at your own risk; read and audit before trusting it with real funds."
+[dependencies]
+blocktools-core = { path = "../core" }
+blocktools-tx = { path = "../tx" }
+blocktools-schema = { path = "../schema", optional = true }
+blocktools-secrets = { path = "../secrets", optional = true, features = ["repair", "seed", "dat", "keystore", "keys", "walk"] }
+blocktools-net = { path = "../net", optional = true }
+[features]
+default = []
+# Everything that takes or returns private keys: seeds, wallet files, keystores, signing.
+secrets = ["dep:blocktools-secrets", "blocktools-core/secrets", "blocktools-tx/secrets"]
+# Solana / ed25519 addresses.
+ed25519 = ["blocktools-core/ed25519", "blocktools-secrets?/ed25519"]
+# The JSON-lines output schema the CLIs follow.
+schema = ["dep:blocktools-schema"]
+# Blocking HTTPS (UTXO lookup, broadcast). Host-side only.
+net = ["dep:blocktools-net"]
+[[test]]
+name = "secrets"
+required-features = ["secrets"]

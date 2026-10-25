@@ -22,4 +22,10 @@ for m in $members; do
   case "$p" in blocktools-net|utxo-fetch|tx-broadcast) continue;; esac
   if tree "$p" | grep -qxE 'minreq|rustls|ring|webpki-roots|blocktools-net'; then echo "FAIL $p: pulls a network crate"; rc=1; fi
 done
+# the library facade and the public crates, with default features, carry no secret-handling
+# or network crates (DESIGN.md §11)
+for p in blocktools blocktools-core blocktools-tx; do
+  if tree "$p" | grep -qxE 'blocktools-secrets|blocktools-net|bip39|scrypt|pbkdf2|aes|cbc|ctr|minreq|rustls|ring'; then echo "FAIL $p: default features pull secret/network crates"; rc=1
+  else echo "ok   $p default features: no secrets/net crates"; fi
+done
 exit $rc

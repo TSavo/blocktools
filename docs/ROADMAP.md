@@ -33,12 +33,12 @@ Rows 9–16 come from docs/prior-art-crypto-plugins.md.
 
 Rows L1–L8: library facade for SwapChan (DESIGN §11).
 
-| L1 | Freeze public modules in `blocktools-core` / `blocktools-tx`: `address::validate`, `plan`, `derive::from_xpub`, `tx::decode` / `build` / `policy`. Document in DESIGN §11. No new deps. | library |
-| L2 | Move any remaining business logic out of `tools/*/src/main.rs` into the crates (derive flags → `plan`+`derive`, tx-* → `blocktools-tx`). Each `main` becomes argv + stdin + one call + `outln!`. | library |
-| L3 | Gate secret-producing APIs behind Cargo feature `secrets` (off by default): seed→master, xprv derive rows with WIF/hex, keystore/DAT/Electrum parsers, `tx::sign`. Default `blocktools-core`/`blocktools-tx` builds must not expose those symbols. | library |
-| L4 | Add facade crate `blocktools` that re-exports public modules; optional features `secrets`, `ed25519`, `schema`, `net`. SwapChan depends on `blocktools` default features only. | library |
+| L1 | Freeze public modules in `blocktools-core` / `blocktools-tx`: `address::validate`, `plan`, `derive::from_xpub`, `tx::decode` / `build` / `policy`. Document in DESIGN §11. No new deps. | done (names as built: `validate`, `plan`, `xpub::from_xpub`, `tx::{build,evm,policy}`; see DESIGN §11 Implemented) |
+| L2 | Move any remaining business logic out of `tools/*/src/main.rs` into the crates (derive flags → `plan`+`derive`, tx-* → `blocktools-tx`). Each `main` becomes argv + stdin + one call + `outln!`. | done: every tool main is argv + stdin + one library call + output; logic in `blocktools-core::plan`, `blocktools-tx::build`, `blocktools-secrets` |
+| L3 | Gate secret-producing APIs behind Cargo feature `secrets` (off by default): seed→master, xprv derive rows with WIF/hex, keystore/DAT/Electrum parsers, `tx::sign`. Default `blocktools-core`/`blocktools-tx` builds must not expose those symbols. | done: `secrets` feature on core/tx; secret parsers in `blocktools-secrets` (per-area features) |
+| L4 | Add facade crate `blocktools` that re-exports public modules; optional features `secrets`, `ed25519`, `schema`, `net`. SwapChan depends on `blocktools` default features only. | done: `crates/blocktools` with `secrets`, `ed25519`, `schema`, `net` |
 | L4b | **WASM + npm wrapper** (approved): `wasm-bindgen` build of the facade with **default features only** (`secrets` off) → generated TypeScript package for SwapChan. CI test: `nm`/wasm-objdump / string scan of the `.wasm` must find **no** secrets-feature symbols (no `sign_psbt`, seed→master, keystore open, WIF emit paths). Publish or path-link the npm package; no Tokio/HTTP in the wasm tree. | library |
-| L5 | `check-deps.sh` + allowlists: facade default tree excludes secrets/net; sealed image tools may enable `secrets` explicitly. | library |
-| L6 | Known-answer tests call the library directly (not only via CLI). CLI tests stay smoke-level. | library |
+| L5 | `check-deps.sh` + allowlists: facade default tree excludes secrets/net; sealed image tools may enable `secrets` explicitly. | done: facade/core/tx default trees checked for secrets/net crates |
+| L6 | Known-answer tests call the library directly (not only via CLI). CLI tests stay smoke-level. | done: `crates/blocktools/tests/{public,secrets}.rs` + module KATs |
 | L7 | Point SwapChan at path/git dep on `blocktools` (public decode/validate/policy first), **or** keep calling the CLIs. WASM binding of the same facade is optional later — both stay open; no pick required now. | library |
 | L8 | ~~Rename internal crates and tools off the old `kr` prefix~~ done: crates `blocktools-*` under `crates/{core,tx,io,schema,tty,net}`, tools `redact`, `sealed-run`, `read-file`, wrapper `./blocktools`. | done |

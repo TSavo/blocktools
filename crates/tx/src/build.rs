@@ -81,3 +81,35 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
     }
     Ok(psbt)
 }
+
+/// What an EVM transaction moves.
+#[derive(Debug, Clone, PartialEq)]
+pub enum EvmAmount {
+    /// Native value in wei.
+    Send(u128),
+    /// Whole balance minus max gas cost (balance in wei).
+    Sweep { balance: u128 },
+    /// `units` × max_fee_per_gas wei: gas money for a later token move.
+    Topup(u128),
+    /// ERC-20 `transfer(to, amount)` on the token contract.
+    Token { token: [u8; 20], amount: u128 },
+}
+/// Parameters of an unsigned EVM transaction. `priority_fee` None = legacy (type 0).
+#[derive(Debug, Clone, PartialEq)]
+pub struct EvmPlan { pub chain_id: u64, pub nonce: u64, pub max_fee: u128, pub priority_fee: Option<u128>, pub gas: Option<u64>, pub to: [u8; 20], pub amount: EvmAmount }
+
+/// Build the unsigned EVM transaction. Default gas: 21000, or 100000 for a token transfer.
+pub fn build_evm(p: &EvmPlan) -> Result<crate::evm::Tx, &'static str> {
+    use crate::evm::{transfer_calldata, Kind, Tx};
+    let gas = p.gas.unwrap_or(if matches!(p.amount, EvmAmount::Token { .. }) { 100_000 } else { 21_000 });
+    let fee = p.max_fee.checked_mul(gas as u128).ok_or("fee overflow")?;
+    let (dest, value, data) = match p.amount {
+        EvmAmount::Token { token, amount } => (token, 0, transfer_calldata(&p.to, amount)),
+        EvmAmount::Topup(units) => (p.to, units.checked_mul(p.max_fee).ok_or("overflow")?, vec![]),
+        EvmAmount::Sweep { balance } => (p.to, balance.checked_sub(fee).filter(|&v| v > 0).ok_or("balance does not cover gas")?, vec![]),
+        EvmAmount::Send(v) => (p.to, v, vec![]),
+    };
+    Ok(Tx { kind: if p.priority_fee.is_none() { Kind::Legacy } else { Kind::Eip1559 }, chain_id: Some(p.chain_id), nonce: p.nonce,
+        max_fee_per_gas: p.max_fee, max_priority_fee_per_gas: p.priority_fee.map(|x| x.min(p.max_fee)), gas, to: Some(dest), value, data,
+        access_list: crate::rlp::Rlp::L(vec![]), sig: None })
+}

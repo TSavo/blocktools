@@ -131,6 +131,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools"
+version = "0.1.0"
+dependencies = [
+ "blocktools-core",
+ "blocktools-net",
+ "blocktools-schema",
+ "blocktools-secrets",
+ "blocktools-tx",
+]
+
+[[package]]
 name = "blocktools-core"
 version = "0.1.0"
 dependencies = [
