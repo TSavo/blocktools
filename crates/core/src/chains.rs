@@ -122,7 +122,7 @@ pub const CHAINS: &[Chain] = &[
     u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
     u("grs", "GRS", "Groestlcoin", 17, 36, 5, 128, Some("grs"), Sha256Single, true, "Groestlcoin/groestlcoin src/kernel/chainparams.cpp; Groestl-512 base58 checksum; KAT groestlcoinjs-lib test/integration", &[]),
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
-    u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
+    u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry; tx format Bitcoin-legacy confirmed on 4 mainnet txs (tx/tests/wdc.rs)", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
     u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
 ];
 /// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
@@ -810,8 +810,8 @@ pub const FEE_WARN: &[(&str, FeeWarn)] = &[
     ("dgb", FeeWarn { fee: 10_000_000, rate: 10_000, basis: "median 512 sat/vB over 60 txs, blocks 24444779-24445073 (blockbook.dgb.zelcore.io)" }),
     ("rvn", FeeWarn { fee: 20_000_000, rate: 20_000, basis: "median 1004 sat/vB over 60 txs, blocks 4596227-4596275 (blockbook.rvn.zelcore.io)" }),
     ("qtum", FeeWarn { fee: 14_000_000, rate: 14_000, basis: "median 700 sat/vB over 100 txs, blocks 6253698-6255768 (qtum.info recent-txs)" }),
-    ("xpm", FeeWarn { fee: 2_000_000_000, rate: 2_000_000, basis: "median 100000 sat/B (size estimated from in/out counts) over 40 txs, blocks 7063926-7064103 (chainz.cryptoid.info)" }),
+    ("xpm", FeeWarn { fee: 2_000_000_000, rate: 2_000_000, basis: "median 100312 sat/B over 30 txs (exact size, raw rebuilt and sha256d-checked), blocks 7064002-7064118 (chainz.cryptoid.info)" }),
     ("vtc", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 101 sat/vB over 60 txs, blocks 2703728-2703858 (blockbook.vtc.zelcore.io)" }),
-    ("aur", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 102 sat/B (size estimated from in/out counts) over 41 txs, blocks 5913113-5913344 (chainz.cryptoid.info)" }),
+    ("aur", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 102.8 sat/B over 30 txs (exact size, raw rebuilt and sha256d-checked), blocks 5913204-5913347 (chainz.cryptoid.info)" }),
 ];
 pub fn fee_warn(name: &str) -> FeeWarn { FEE_WARN.iter().find(|(n, _)| *n == name).map(|(_, f)| *f).unwrap_or(FEE_WARN_DEFAULT) }

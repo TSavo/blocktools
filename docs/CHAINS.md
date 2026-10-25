@@ -54,11 +54,11 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io |
 | rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596275, blockbook.rvn.zelcore.io |
 | qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info |
-| xpm | 2,000,000,000 | 2,000,000 | 100,000 sat/B (est. size) | 40 txs, blocks 7063926-7064103, chainz.cryptoid.info |
+| xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) |
 | vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703858, blockbook.vtc.zelcore.io |
-| aur | 2,000,000 | 2,000 | 102 sat/B (est. size) | 41 txs, blocks 5913113-5913344, chainz.cryptoid.info |
+| aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) |
 
-Measured and left at the default: mona (median 2.5 sat/vB, 60 txs, blocks 4142846-4143045, mona.insight.monaco-ex.org; node relayfee 0.001 MONA/kB), dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (14.8 sat/B, only 14 txs in 300 blocks 3327566-3327865, insight.terracoin.io), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). "est. size" = 10 + 148/input + 34/output (P2PKH), because chainz does not return tx size. Not measured (default applies): every other row, including zec, nmc, ftc, mec, nvc, clam, blk, rdd, pot, qrk, grs, bch, bsv, btg, ltc, doge.
+Measured and left at the default: mona (median 2.5 sat/vB, 60 txs, blocks 4142846-4143045, mona.insight.monaco-ex.org; node relayfee 0.001 MONA/kB), dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (14.8 sat/B, only 14 txs in 300 blocks 3327566-3327865, insight.terracoin.io), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). Also measured: wdc 5.4 sat/B (4 txs, block 11881187; default kept). Not measured (default applies): every other row, including zec, nmc, ftc, mec, nvc, clam, blk, rdd, pot, qrk, grs, bch, bsv, btg, ltc, doge.
 
 ### Unverified (never returned as supported)
 
@@ -70,3 +70,5 @@ Measured and left at the default: mona (median 2.5 sat/vB, 60 txs, blocks 414284
 Zcash Sapling: `zec-sapling` CLI (ZIP-32, m/32'/133'/i', zs1 default address, optional 0600 viewing-key file). No spend/scan.
 
 Zcash transparent is listed by wasm `listChains`/`supportedChains` (scope transparent) since 2026-10-25. Evidence: ZIP-243/244 official vectors, 7 mainnet txs (txid + signature), 21 mainnet script->address pairs from api.blockchair.com (crates/tx/tests/data/zec_addresses.txt). Untested: BIP44 m/44'/133' derivation, xpubs, broadcast, v6.
+
+WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid = sha256d, 357 P2PKH signatures verify under the legacy sighash, and every input address re-derives under p2pkh 73 (crates/tx/tests/wdc.rs). Still `verified: false`: no SLIP-44 coin type, so no derivation path can be checked. QRK: tx format still unknown; 0 non-coinbase txs found in 800 recent blocks (13909630 back) on chainz, so no mainnet tx to test against.

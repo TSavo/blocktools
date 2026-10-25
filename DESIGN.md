@@ -602,6 +602,10 @@ Explorer JSON (chainz) reports block time, not tx time; the vectors' nTime was r
 
 Since 2026-10-25 `zec` is in wasm `listChains`/`supportedChains` with `scope: "transparent"`; addresses are additionally checked against 21 mainnet script->address pairs from blockchair.
 
+## WDC / QRK tx format (2026-10-25)
+
+WDC: Bitcoin-legacy confirmed on 4 mainnet txs (sha256d txid, 357 legacy-sighash P2PKH signatures, input addresses re-derive under byte 73). The row stays `verified: false` (no SLIP-44). QRK: no mainnet non-coinbase tx found in 800 recent blocks, so its Sign stays `Unknown`.
+
 ## bitcoinj / MultiBit HD
 
 `blocktools-secrets::bitcoinj` (feature `multibit`, tool `multibit-read`) reads bitcoinj wallet protobufs (cleartext or scrypt+AES-256-CBC, UTF-16BE password bytes) and MultiBit HD `mbhd.wallet.aes` (outer scrypt with the fixed MBHD salt, AES-256-CBC with the fixed IV a344391f538311b329548616c489723e, measured by recovering it from the btcrecover test file). Every decrypted key must reproduce its stored public key, and an HD seed must reproduce the stored root key; otherwise the result is `wrong_password`, never a key. HD wallets output the master xprv; MultiBit HD accounts are at m/0'. Measured on the btcrecover public wallets: the encrypted MultiBit wallet's key equals btcrecover's published WIF; the other two bitcoinj wallets match their stored public keys; the MBHD xprv derives the stored m/0'/0/0 and m/0'/0/1 keys. Untested: wallets written by other bitcoinj versions, watching/married wallets, testnet ids (refused), wallets with a bitcoinj passphrase on the seed, Armory (no independent vector fetched).
