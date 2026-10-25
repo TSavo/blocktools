@@ -18,6 +18,15 @@ const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common'])
 assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));
 const b170 = readFileSync(new URL('../../crates/tx/tests/vectors/block170.hex', import.meta.url), 'utf8');
 const lines = JSON.parse(bt.decodeTx(b170, 'btc'));
+{ // Novacoin explorer JSON -> raw hex, hash-checked
+  const t = 'c053a3fddd508df8cadd90bf8c987c35802c2779a8a19b4efc8c83124d11df20';
+  const j = readFileSync(new URL('../../crates/tx/tests/data/nvc_c053a3fd.json', import.meta.url), 'utf8');
+  const hex = bt.serializeNvcTxFromJson(j, t);
+  assert.equal(hex.length, 180 * 2);
+  assert.ok(JSON.stringify(JSON.parse(bt.decodeTx(hex, 'nvc'))).includes(t));
+  const bad = JSON.parse(j); bad.time += 1;
+  assert.throws(() => bt.serializeNvcTxFromJson(JSON.stringify(bad), t));
+}
 assert.ok(JSON.stringify(lines).includes('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16'));
 const v = JSON.parse(bt.verifyTx(b170, 'btc', ['1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3'], ['12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S'], undefined, '', true));
 assert.equal(typeof v.ok, 'boolean');

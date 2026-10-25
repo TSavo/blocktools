@@ -60,6 +60,13 @@ pub fn decode_tx(input: &str, chain: &str) -> Result<String, JsError> {
     let mut v = json!(tx::decode(input, chain).map_err(err)?.json_lines()); twins(&mut v); Ok(v.to_string())
 }
 
+/// Novacoin: raw tx hex from api.novaco.in `/gettransaction/<txid>` decoded JSON (nTime layout).
+/// Throws unless reverse(sha256d(raw)) equals `expected_txid` and the JSON `txid`.
+#[wasm_bindgen(js_name = serializeNvcTxFromJson)]
+pub fn serialize_nvc_tx_from_json(json: &str, expected_txid: &str) -> Result<String, JsError> {
+    tx::nvc_json::serialize_nvc_tx_from_json(json, expected_txid).map_err(err)
+}
+
 /// Plain-text summary of a transaction (what tx-decode --text prints).
 #[wasm_bindgen(js_name = describeTx)]
 pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx::decode(input, chain).map_err(err)?.text()) }

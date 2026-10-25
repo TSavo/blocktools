@@ -65,6 +65,8 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 
 `addressValidate` also accepts `zec` (transparent t1/t3 only). Decode any built tx with `decodeTx(hex_or_psbt, chain)`.
 
+`serializeNvcTxFromJson(json: string, expected_txid: string) -> string` (raw hex; throws): rebuilds a Novacoin tx from api.novaco.in `/gettransaction/<txid>` decoded JSON (version, nTime, vin, vout sorted by `index`, locktime; values are integer base units, 1 NVC = 1e6, or a decimal NVC string with at most 6 decimals; a coinbase vin's `coinbase` is its scriptSig, hex-encoded twice by the API (verified on PoS coinbase 72b702b1…, block 1106297)). Fails closed unless reverse(sha256d(raw)) equals `expected_txid` and the JSON `txid`, and the length equals `size` when present. CLI: `tx-decode --nvc-json TXID < tx.json`.
+
 Tx formats:
 - `legacy`: Bitcoin format, including segwit where the chain has it.
 - `forkid` (BCH/BSV/BTG): the unsigned bytes are the same as legacy, but the signer must use SIGHASH_FORKID with the input amounts, which the PSBT carries. Only the unsigned build is done here.

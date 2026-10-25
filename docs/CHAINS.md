@@ -123,6 +123,7 @@ names a test that does not exist, or lacks a source, and if a chain with a quirk
 | groestl-single-sha256-legacy | grs | grs.rs::mainnet_signatures_verify_under_single_sha256 | Groestlcoin mainnet txs, api.blockchair.com raw/transaction (data/grs_mainnet.txt) |
 | pos-ntime-after-version | ppc nvc clam | pos.rs::mainnet_txids_and_signatures | PPC raw hex from Blockbook; NVC/CLAM from chainz.cryptoid.info JSON, txid-checked (data/pos_mainnet.txt) |
 | pos-ntime-after-locktime | rdd | pos.rs::mainnet_txids_and_signatures | RDD mainnet raw hex from Blockbook (data/pos_mainnet.txt) |
+| pos-nvc-json-serialize | nvc | nvc_json.rs::mainnet_json_reserializes_to_txid | api.novaco.in gettransaction JSON, coinstake + regular + PoS coinbase, txid-checked (data/nvc_*.json) |
 | blk-bitcoin-layout | blk | pos.rs::blackcoin_is_bitcoin_layout | Blackcoin mainnet txs (data/pos_mainnet.txt `blk` rows) |
 | zcash-v5-zip244 | zec | zcash.rs::zip244_vectors | zcash-test-vectors zip_0244.json (data/zec_zip244.txt) |
 | zcash-v4-zip243 | zec | zcash.rs::zip243_vectors | zcash-test-vectors zip_0243.json (data/zec_zip243.txt) |

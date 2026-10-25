@@ -20,6 +20,7 @@ pub fn json_amount(v: &serde_json::Value, max: u64) -> Option<u64> {
 /// Checked sum of amounts.
 pub fn sum_amounts(it: impl IntoIterator<Item = u64>) -> Option<u64> { it.into_iter().try_fold(0u64, |a, x| a.checked_add(x)) }
 pub mod pos;
+pub mod nvc_json;
 pub use blocktools_core::blake2b;
 pub mod zcash;
 /// The `"chain"` field of a tx-build JSON line, if any, and the chain a tool should use given an
