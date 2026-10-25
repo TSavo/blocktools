@@ -1,0 +1,15 @@
+[package]
+name = "blocktools-monero"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+curve25519-dalek = { version = "4", default-features = false, features = ["zeroize"], optional = true }
+sha3 = { workspace = true }
+zeroize = { workspace = true }
+
+[features]
+default = ["keys"]
+# keys: seed -> spend/view keys and the on-curve check in validate (pulls curve25519-dalek)
+keys = ["dep:curve25519-dalek"]

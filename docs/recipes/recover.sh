@@ -36,7 +36,8 @@ case $class in
   electrum_wallet) keys() { pw_then_file | "$B/electrum-read" | "$B/seed-to-master" | "$B/derive" --chain btc --count "$COUNT"; } ;;
   multibit_key)    keys() { pw_then_file | "$B/multibit-read" | "$B/key-to-addresses" --chain btc; } ;;
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain btc < "$FILE"; } ;;
-  address|xpub)    say "watch-only ($class): no private key here, nothing can be signed"; exit 3 ;;
+  monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; view-key funds scan and sweep are not implemented yet (docs/ROADMAP.md)"; exit 3 ;;
+  address|xpub|monero_address)    say "watch-only ($class): no private key here, nothing can be signed"; exit 3 ;;
   keystore_v3)     CHAIN=eth; keys() { pw_then_file | "$B/keystore-open"; } ;;
   *)               say "no reader for $class yet (see docs/ROADMAP.md)"; exit 3 ;;
 esac

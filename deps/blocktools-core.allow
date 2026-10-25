@@ -6,6 +6,7 @@ bitcoin-io
 bitcoin-units
 bitcoin_hashes
 block-buffer
+blocktools-monero
 crypto-common
 digest
 generic-array

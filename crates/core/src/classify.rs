@@ -8,7 +8,7 @@ use bitcoin::hashes::{hmac, sha256, sha512, Hash, HashEngine};
 pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub public: Option<String>, pub chain: Option<&'static str> }
 
 /// Every class name classify can print.
-pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address",
+pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address",
     "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
@@ -54,6 +54,8 @@ fn line(l: &str, n: u64) -> Row {
     for c in ["btc", "ltc", "doge", "eth", "tron", "xrp"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
+    if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
+    if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).is_ok() {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
     if ["xprv", "yprv", "zprv", "tprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
@@ -72,6 +74,11 @@ fn line(l: &str, n: u64) -> Row {
 mod t {
     use super::*;
     fn c(s: &str) -> &'static str { classify(s.as_bytes())[0].class }
+    #[test] fn monero() {
+        // public test seed/address from monero-python tests/test_seed.py
+        assert_eq!(c("adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy"), "monero_seed");
+        assert_eq!(c("44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH"), "monero_address");
+    }
     #[test] fn kinds() {
         assert_eq!(c("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"), "mnemonic");
         assert_eq!(c("abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot"), "mnemonic");

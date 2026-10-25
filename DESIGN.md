@@ -494,3 +494,7 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 ## Coins: detect, convert, sweep per tx format (2026-10-24)
 
 `address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds only the `legacy` and `forkid` formats; PoS-nTime, Zcash v4/v5 and Groestl are refused until each has its own builder and an independent KAT. ZEC is address-only.
+
+## Non-Bitcoin-family chains are their own crates (2026-10-24)
+
+Monero is `crates/monero` (blocktools-monero). The default `keys` feature carries curve25519-dalek for seed→keys and the on-curve check. `blocktools-core` (classify) uses it with `default-features = false`, so every other binary gains only wordlist + base58 + keccak, no curve or proc-macro crates. Classify adds `monero_seed` (25 words from the 1626-word English list, 3-letter prefixes) and `monero_address` (standard 69-byte addresses; integrated and subaddresses are refused for now).

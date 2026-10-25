@@ -1,0 +1,9 @@
+[package]
+name = "xmr-keys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools xmr-keys: Monero 25-word seed (stdin) -> public address and public keys. Prints no secrets."
+[dependencies]
+blocktools-monero = { path = "../../crates/monero" }
+zeroize = { workspace = true }

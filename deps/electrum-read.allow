@@ -10,6 +10,7 @@ block-buffer
 block-padding
 blocktools-core
 blocktools-io
+blocktools-monero
 blocktools-secrets
 cbc
 cfg-if

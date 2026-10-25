@@ -8,6 +8,7 @@ bitcoin_hashes
 block-buffer
 blocktools-core
 blocktools-io
+blocktools-monero
 blocktools-secrets
 blocktools-tty
 blocktools-tx
