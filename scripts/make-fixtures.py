@@ -72,7 +72,8 @@ def wallet(path, encrypted):
             put(cs(kt) + extra + cs(p), cs(aes_enc(master, sha256d(p)[:16], key.to_bytes(32, "big"))))
     db.commit(); db.execute("VACUUM"); db.close()
 
-out = sys.argv[1] if len(sys.argv) > 1 else "fixtures/self-made"
+if len(sys.argv) != 2: sys.exit("usage: make-fixtures.py <output-dir>  (use a temp dir; never commit the output)")
+out = sys.argv[1]
 wallet(f"{out}/descriptor-plain.sqlite", False)
 wallet(f"{out}/descriptor-encrypted.sqlite", True)
 print("wrote", out)

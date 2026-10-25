@@ -13,5 +13,15 @@ echo "$hits" | while IFS= read -r h; do
   grep -qxF "$v" scripts/public-vectors.txt 2>/dev/null || { echo "UNLISTED secret-shaped string: $h"; exit 1; }
 done || rc=1
 grep -rInE "/Users/|/home/[a-z]+/|@gmail|\.local\b" $(git ls-files -co --exclude-standard) | grep -v "^scripts/secret-scan.sh" && { echo "personal path/email found"; rc=1; }
+# No wallet-like files in the repo (fixtures are generated at test time; see docs/FIXTURES.md).
+for f in $(git ls-files -co --exclude-standard); do
+  case "${f##*/}" in
+    *.dat|*.sqlite|*.sqlite3|*.db|*.wallet|*.key|*.keys|*.aes.json|UTC--*|wallet*|*keystore*.json|*.bdb) echo "wallet-like file name: $f"; rc=1; continue ;;
+  esac
+  [ -f "$f" ] || continue
+  if head -c 16 "$f" | grep -q "SQLite format 3" 2>/dev/null; then echo "SQLite file: $f"; rc=1; fi
+  m=$(od -An -tx1 -j12 -N4 "$f" 2>/dev/null | tr -d ' \n')
+  case "$m" in 62310500|00053162) echo "Berkeley DB file: $f"; rc=1 ;; esac
+done
 [ $rc = 0 ] && echo "secret-scan ok"
 exit $rc

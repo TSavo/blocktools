@@ -1,4 +1,4 @@
-//! dat-read against wallets: self-made (committed, public/throwaway keys) and
+//! dat-read against wallets: self-made (generated at test time, public/throwaway keys) and
 //! optional third-party public test wallets (scripts/fetch-fixtures.sh).
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -13,10 +13,26 @@ fn run(pw: &str, file: &[u8]) -> (i32, String) {
     (o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).into_owned())
 }
 fn fx(p: &str) -> Option<Vec<u8>> { std::fs::read(root().join(p)).ok() }
+/// Generate self-made wallets once per test binary into a temp dir (see docs/FIXTURES.md).
+fn self_made(name: &str) -> Option<Vec<u8>> {
+    static DIR: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+    let dir = DIR.get_or_init(|| {
+        let d = std::env::temp_dir().join(format!("kr-fixtures-{}", std::process::id()));
+        std::fs::create_dir_all(&d).ok()?;
+        let ok = Command::new("python3").arg(root().join("scripts/make-fixtures.py")).arg(&d)
+            .stdout(Stdio::null()).stderr(Stdio::null()).status().map(|s| s.success()).unwrap_or(false);
+        if ok { Some(d) } else {
+            assert!(std::env::var("KR_REQUIRE_FIXTURES").is_err(), "make-fixtures.py failed");
+            eprintln!("skip: python3 + cryptography needed for self-made fixtures"); None
+        }
+    });
+    std::fs::read(dir.as_ref()?.join(name)).ok()
+}
 
 #[test] fn self_made_plain_and_encrypted() {
-    for (f, pw) in [("fixtures/self-made/descriptor-plain.sqlite", ""), ("fixtures/self-made/descriptor-encrypted.sqlite", "keyrescue-test-password")] {
-        let (rc, out) = run(pw, &fx(f).unwrap());
+    for (f, pw) in [("descriptor-plain.sqlite", ""), ("descriptor-encrypted.sqlite", "keyrescue-test-password")] {
+        let Some(b) = self_made(f) else { return };
+        let (rc, out) = run(pw, &b);
         assert_eq!(rc, 0, "{f}: {out}");
         assert!(out.contains(r#""kind":"p2wpkh","path":"m/84'/0'/0'","branch":0,"xprv":"xprv"#), "{f}: {out}");
         // throwaway bare key; address computed independently by scripts/make-fixtures.py
@@ -24,11 +40,12 @@ fn fx(p: &str) -> Option<Vec<u8>> { std::fs::read(root().join(p)).ok() }
     }
 }
 #[test] fn wrong_password() {
-    let (rc, out) = run("nope", &fx("fixtures/self-made/descriptor-encrypted.sqlite").unwrap());
+    let Some(b) = self_made("descriptor-encrypted.sqlite") else { return };
+    let (rc, out) = run("nope", &b);
     assert_eq!(rc, 2); assert!(out.contains("wrong_password")); assert!(!out.contains("xprv") && !out.contains("wif"));
 }
 #[test] fn hostile_inputs_do_not_panic() {
-    let good = fx("fixtures/self-made/descriptor-plain.sqlite").unwrap();
+    let Some(good) = self_made("descriptor-plain.sqlite") else { return };
     let mut seed = 0x1234_5678u64;
     let mut rnd = || { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; seed };
     for n in 0..300 {

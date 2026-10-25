@@ -29,7 +29,7 @@ then the wallet bytes. Every decrypted key is checked against its stored public 
 ```
 
 Tested: 3 public Core test wallets (BDB 0.x, 0.20.1 HD, 0.21.1 SQLite) when fetched with
-`scripts/fetch-fixtures.sh`, and committed self-made wallets that must reproduce a known
+`scripts/fetch-fixtures.sh`, and self-made (generated at test time) wallets that must reproduce a known
 BIP84 address. Statuses: `ok`, `wrong_password`, `unsupported`, `bad_input`.
 Tools read stdin and write stdout only (see DESIGN.md "Pipe principles").
 Dev: `cargo test --release && sh scripts/e2e-local.sh`.

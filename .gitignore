@@ -18,3 +18,7 @@ UTC--*
 *.hex
 .env*
 /fixtures/external/
+*.sqlite
+*.sqlite3
+*.db
+*.bdb
