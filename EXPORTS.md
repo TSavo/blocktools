@@ -40,6 +40,9 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `cashAddrToLegacy(addr)` / `legacyToCashAddr(addr, prefix)` | `cashaddr::to_legacy` / `from_legacy` | address string; `prefix` `""` = `bitcoincash` (also `bchtest`, `ecash`) |
 | `addressToScript(chain, addr)` | `cashaddr::address_to_script` | scriptPubKey hex (p2pkh, p2sh, p2wpkh, p2wsh, p2tr); bch accepts CashAddr; zec t-addresses; throws `unknown_chain`, `bad_address` |
 | `scriptToAddress(chain, scriptHex)` | `cashaddr::script_to_address` | `{kind, address}` or `null` for non-standard (OP_RETURN, bare multisig) |
+| `buildPsbtWithMemo(chain, utxos, to, amount, change, feeRate, memoHex)` | `psbtmemo::build` | `{psbt (base64), fee, vsize, outputs:[{address\|null, script, value}]}`; outputs are `[to, OP_RETURN memo, change?]`; `amount` `""` = sweep (no change); memo 1..80 bytes; RBF sequence, locktime 0, `witness_utxo` on every input; throws `memo_length`, `unknown_or_unverified_chain`, `not_utxo_chain`, UTXO-line errors, `insufficient funds`, `memo fee leaves dust` |
+| `tronTxId(rawDataHex)` | `tron::txid` | hex `sha256(raw_data)` |
+| `tronDecodeTx(hex)` | `tron::decode` | raw_data hex or full Transaction hex → `{txid, ref_block_bytes, ref_block_hash, expiration, timestamp, fee_limit_sun, memo, contracts:[{type, type_id, owner, ...}], signatures (count), raw_data_hex}`. TransferContract adds `to, amount_sun`; TransferAssetContract `asset, to, amount`; TriggerSmartContract `contract, call_value_sun, data` and `trc20_transfer{to,amount}` / `trc20_approve{spender,amount}`; sun/amounts are decimal strings. Throws `truncated`, `bad_varint`, `bad_wire_type`, `no_parameter`, `no_contract` |
 
 ### detectAddress semantics
 

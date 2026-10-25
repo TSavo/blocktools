@@ -260,3 +260,20 @@ pub fn address_to_script(chain: &str, addr: &str) -> Result<String, JsError> { O
 pub fn script_to_address(chain: &str, script_hex: &str) -> Result<String, JsError> {
     Ok(match cashaddr::script_to_address(chain, &hx(script_hex)?).map_err(err)? { Some((k, a)) => json!({"kind": k, "address": a}), None => json!(null) }.to_string())
 }
+
+// ---- PSBT with OP_RETURN memo; Tron tx id / decode (public data) ----
+/// Unsigned PSBT paying `to` with an OP_RETURN `memo_hex` (1..80 bytes) and change.
+/// `amount` "" = sweep all UTXOs to `to` (no change). `utxos` = JSON lines {txid,vout,amount,address}.
+/// Returns {psbt (base64), fee, vsize, outputs:[{address|null, script, value}]}; amounts are decimal strings.
+#[wasm_bindgen(js_name = buildPsbtWithMemo)]
+pub fn build_psbt_with_memo(chain: &str, utxos: &str, to: &str, amount: &str, change: &str, fee_rate: u32, memo_hex: &str) -> Result<String, JsError> {
+    let send = if amount.is_empty() { None } else { Some(amount.parse::<u64>().map_err(|_| err("bad_amount"))?) };
+    let ch = if change.is_empty() { None } else { Some(change) };
+    Ok(blocktools::psbtmemo::build(chain, utxos, to, send, ch, fee_rate as u64, &hx(memo_hex)?).map_err(err)?.to_string())
+}
+/// Tron txID (hex) = sha256(raw_data). Input is raw_data hex (tronweb raw_data_hex).
+#[wasm_bindgen(js_name = tronTxId)]
+pub fn tron_tx_id(raw_data_hex: &str) -> Result<String, JsError> { Ok(blocktools::tron::txid(&hx(raw_data_hex)?)) }
+/// Decode Tron raw_data hex or a full signed Transaction hex. JSON: see EXPORTS.md.
+#[wasm_bindgen(js_name = tronDecodeTx)]
+pub fn tron_decode_tx(hex: &str) -> Result<String, JsError> { Ok(blocktools::tron::decode(&hx(hex)?).map_err(err)?.to_string()) }

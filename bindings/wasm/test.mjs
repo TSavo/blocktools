@@ -134,3 +134,14 @@ console.log('wasm grs ok');
   assert.equal(bt.scriptToAddress('btc', '6a0568656c6c6f'), 'null');
   console.log('wasm cashaddr ok');
 }
+{ // PSBT+memo (embit byte-for-byte) and Tron (mainnet block 60,000,000)
+  const U = JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'});
+  const p = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, Buffer.from('hi').toString('hex')));
+  assert.equal(p.psbt, 'cHNidP8BAF8CAAAAAcmXpeVuEEEC+iCcaoUt2QZgogstnDUkI+3OJYV/zTcEAAAAAAD9////AjmEAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIAAAAAAAAAAARqAmhpAAAAAAABAR+ghgEAAAAAABYAFHUedugZkZbUVJQcRdGzoyPxQzvWAAAA');
+  assert.equal(p.fee, '615'); assert.equal(p.outputs[1].address, null);
+  const T = '0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431';
+  assert.equal(bt.tronTxId(T), '07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00');
+  const d = JSON.parse(bt.tronDecodeTx(T)); assert.equal(d.contracts[0].type, 'TransferContract'); assert.equal(d.contracts[0].amount_sun, '1');
+  assert.equal(bt.validateAddress('tron', d.contracts[0].to), 'Tron');
+  console.log('wasm psbt-memo + tron ok');
+}

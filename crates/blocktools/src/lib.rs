@@ -225,3 +225,5 @@ pub mod check;
 pub mod substrate;
 pub mod sol;
 pub mod cashaddr;
+pub mod psbtmemo;
+pub mod tron;
