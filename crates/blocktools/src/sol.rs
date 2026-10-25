@@ -311,3 +311,80 @@ mod t {
         let mut p2 = p0; p2[0] = 0xef; assert!(!is_on_curve(&p2)); // y = p+2 (2 is not a valid y)
     }
 }
+
+// ---- Unsigned transfer builder (no keys; the signer fills the zero signature slot) ----
+
+/// Base fee per signature (lamports), Solana's fixed fee for a one-signature transaction.
+pub const LAMPORTS_PER_SIGNATURE: u64 = 5000;
+
+/// What to move. `Sweep` sends `balance - fee` (closes a plain system account, so no rent is left).
+#[derive(Clone, Debug)]
+pub enum SolAmount { Send(u64), Sweep { balance: u64 }, Token { mint: [u8; 32], amount: u64, decimals: u8, token_program: [u8; 32], create_ata: bool } }
+
+#[derive(Clone, Debug)]
+pub struct SolPlan { pub from: [u8; 32], pub to: [u8; 32], pub blockhash: [u8; 32], pub amount: SolAmount,
+    /// Compute-unit price (micro-lamports) and limit; both or neither.
+    pub priority: Option<(u64, u32)> }
+
+fn sv(n: usize, o: &mut Vec<u8>) { let mut n = n; loop { let b = (n & 0x7f) as u8; n >>= 7; if n == 0 { o.push(b); break } o.push(b | 0x80) } }
+
+/// Order of base58 addresses used by @solana/kit and web3.js when compiling a message
+/// (ICU "en" collation, caseFirst lower): digits before letters, letters case-insensitive first,
+/// then lowercase before uppercase at the first case difference. Exact for base58's alphabet.
+pub fn address_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let prim = |s: &str| s.bytes().map(|c| c.to_ascii_lowercase()).collect::<Vec<_>>();
+    prim(a).cmp(&prim(b)).then_with(|| {
+        let t = |s: &str| s.bytes().map(|c| c.is_ascii_uppercase()).collect::<Vec<_>>();
+        t(a).cmp(&t(b))
+    })
+}
+
+/// Build an unsigned legacy wire transaction: one zeroed signature + message. Accounts are ordered
+/// fee payer, then writable non-signers, then read-only non-signers, each group sorted by
+/// [`address_cmp`]: the layout @solana/kit and web3.js compile (checked in tests/sol_build.rs).
+pub fn build_transfer(p: &SolPlan) -> Result<Vec<u8>, &'static str> {
+    if p.from == p.to { return Err("from_equals_to") }
+    let sys = pubkey(SYSTEM)?; let cb = pubkey(COMPUTE_BUDGET)?;
+    // (program, [(account, writable)], data)
+    let mut ixs: Vec<([u8; 32], Vec<([u8; 32], bool)>, Vec<u8>)> = vec![];
+    let mut fee = LAMPORTS_PER_SIGNATURE as u128;
+    if let Some((price, limit)) = p.priority {
+        let mut d = vec![2]; d.extend(limit.to_le_bytes()); ixs.push((cb, vec![], d));
+        let mut d = vec![3]; d.extend(price.to_le_bytes()); ixs.push((cb, vec![], d));
+        fee += (price as u128 * limit as u128).div_ceil(1_000_000);
+    }
+    match &p.amount {
+        SolAmount::Send(_) | SolAmount::Sweep { .. } => {
+            let lam = match p.amount { SolAmount::Send(v) => v, SolAmount::Sweep { balance } => (balance as u128).checked_sub(fee).filter(|&v| v > 0).ok_or("balance does not cover fee")? as u64, _ => unreachable!() };
+            if lam == 0 { return Err("zero_amount") }
+            let mut d = 2u32.to_le_bytes().to_vec(); d.extend(lam.to_le_bytes());
+            ixs.push((sys, vec![(p.from, true), (p.to, true)], d));
+        }
+        SolAmount::Token { mint, amount, decimals, token_program, create_ata } => {
+            if *amount == 0 { return Err("zero_amount") }
+            let ata = pubkey(ATA)?;
+            let src = associated_token_address(&p.from, mint, token_program)?.0;
+            let dst = associated_token_address(&p.to, mint, token_program)?.0;
+            if *create_ata { ixs.push((ata, vec![(p.from, true), (dst, true), (p.to, false), (*mint, false), (sys, false), (*token_program, false)], vec![1])) }
+            let mut d = vec![12]; d.extend(amount.to_le_bytes()); d.push(*decimals);
+            ixs.push((*token_program, vec![(src, true), (*mint, false), (dst, true), (p.from, false)], d));
+        }
+    }
+    // Account table: fee payer (writable signer), then writable, then read-only (programs last among read-only by first use).
+    let mut w: Vec<[u8; 32]> = vec![]; let mut ro: Vec<[u8; 32]> = vec![];
+    for (prog, accs, _) in &ixs {
+        for &(a, wr) in accs { if a == p.from { continue } if wr { ro.retain(|x| *x != a); if !w.contains(&a) { w.push(a) } } else if !w.contains(&a) && !ro.contains(&a) { ro.push(a) } }
+        if !w.contains(prog) && !ro.contains(prog) { ro.push(*prog) }
+    }
+    let by = |a: &[u8; 32], b: &[u8; 32]| address_cmp(&b58enc(a), &b58enc(b));
+    w.sort_by(by); ro.sort_by(by);
+    let keys: Vec<[u8; 32]> = std::iter::once(p.from).chain(w).chain(ro.iter().copied()).collect();
+    let idx = |k: &[u8; 32]| keys.iter().position(|x| x == k).unwrap() as u8;
+    let mut m = vec![1, 0, ro.len() as u8];
+    sv(keys.len(), &mut m); for k in &keys { m.extend(k) }
+    m.extend(p.blockhash);
+    sv(ixs.len(), &mut m);
+    for (prog, accs, d) in &ixs { m.push(idx(prog)); sv(accs.len(), &mut m); for (a, _) in accs { m.push(idx(a)) } sv(d.len(), &mut m); m.extend(d) }
+    let mut out = vec![1]; out.extend([0u8; 64]); out.extend(m);
+    Ok(out)
+}

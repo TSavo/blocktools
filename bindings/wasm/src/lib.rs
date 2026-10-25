@@ -94,6 +94,28 @@ pub fn check_tx_policy(input: &str, chain: &str, policy_json: &str) -> Result<St
     Ok(json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings, "policy_sha256": pf.sha256}).to_string())
 }
 
+/// Build an unsigned Solana legacy transfer (one zeroed signature + message; byte-identical to
+/// @solana/kit). `plan` JSON: {from, to, blockhash, priority?:[micro_lamports_str, cu_limit]} plus one of
+/// lamports:"N" | sweep_balance:"N" | token:{mint, amount:"N", decimals, token_program, create_ata}.
+/// Returns hex. Takes no keys; sign elsewhere.
+#[wasm_bindgen(js_name = solBuildTransfer)]
+pub fn sol_build_transfer(plan: &str) -> Result<String, JsError> {
+    use blocktools::sol::{self, SolAmount, SolPlan};
+    let v: serde_json::Value = serde_json::from_str(plan).map_err(|_| JsError::new("bad_plan_json"))?;
+    let pk = |x: &serde_json::Value| x.as_str().ok_or("bad_address").and_then(|s| sol::pubkey(s).map_err(|_| "bad_address"));
+    let n = |x: &serde_json::Value| x.as_str().and_then(|s| s.parse::<u64>().ok()).ok_or("bad_number");
+    let amount = if !v["lamports"].is_null() { SolAmount::Send(n(&v["lamports"]).map_err(err)?) }
+        else if !v["sweep_balance"].is_null() { SolAmount::Sweep { balance: n(&v["sweep_balance"]).map_err(err)? } }
+        else if v["token"].is_object() { let t = &v["token"]; SolAmount::Token { mint: pk(&t["mint"]).map_err(err)?, amount: n(&t["amount"]).map_err(err)?,
+            decimals: t["decimals"].as_u64().filter(|d| *d <= 255).ok_or_else(|| JsError::new("bad_number"))? as u8,
+            token_program: pk(&t["token_program"]).map_err(err)?, create_ata: t["create_ata"].as_bool().unwrap_or(false) } }
+        else { return Err(JsError::new("missing_amount")) };
+    let priority = match v["priority"].as_array() { Some(p) if p.len() == 2 => Some((n(&p[0]).map_err(err)?,
+        p[1].as_u64().filter(|l| *l <= u32::MAX as u64).ok_or_else(|| JsError::new("bad_number"))? as u32)), None => None, _ => return Err(JsError::new("bad_priority")) };
+    let p = SolPlan { from: pk(&v["from"]).map_err(err)?, to: pk(&v["to"]).map_err(err)?, blockhash: pk(&v["blockhash"]).map_err(err)?, amount, priority };
+    Ok(blocktools::hex_enc(sol::build_transfer(&p).map_err(err)?))
+}
+
 // ---- Stable API (EXPORTS.md). Everything below refuses unverified chains. ----
 
 /// Library version (semver string, same as the `blocktools` crate).

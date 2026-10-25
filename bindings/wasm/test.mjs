@@ -40,6 +40,17 @@ assert.equal(typeof v.ok, 'boolean');
   assert.throws(() => bt.checkTxPolicy(b170, 'btc', '{"version":2,"chains":{}}'), /policy_bad_version/);
   console.log('ok checkTxPolicy');
 }
+{
+  const cs = JSON.parse(readFileSync(new URL('../../crates/blocktools/tests/data/sol-build-corpus.json', import.meta.url), 'utf8'));
+  for (const c of cs.slice(0, 12)) {
+    const plan = { from: c.from, to: c.to, blockhash: c.blockhash, priority: c.priority ?? undefined };
+    if (c.kind === 'send') plan.lamports = c.lamports; else if (c.kind === 'sweep') plan.sweep_balance = c.balance;
+    else plan.token = { mint: c.mint, amount: c.amount, decimals: c.decimals, token_program: c.token_program, create_ata: c.create_ata };
+    assert.equal(bt.solBuildTransfer(JSON.stringify(plan)), c.tx);
+  }
+  assert.throws(() => bt.solBuildTransfer(JSON.stringify({ from: cs[0].from, to: cs[0].from, blockhash: cs[0].blockhash, lamports: '1' })), /from_equals_to/);
+  console.log('ok solBuildTransfer');
+}
 const v2 = JSON.parse(bt.verifyTx(b170, 'btc', ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'], [], undefined, '', true));
 assert.equal(v2.ok, false);
 // Stable API (EXPORTS.md)
