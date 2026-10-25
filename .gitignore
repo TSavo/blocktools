@@ -22,3 +22,4 @@ UTC--*
 *.sqlite3
 *.db
 *.bdb
+!crates/tx/tests/vectors/block170.hex
