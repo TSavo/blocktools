@@ -233,3 +233,17 @@ console.log('addressToScript case + zec ok');
   const v = JSON.parse(bt.solVerifyTx('810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901', '{}')); assert.equal(v.fully_signed, true);
   console.log('sol v1 ok');
 }
+// lift 7: buildEvmTransfer / selectUtxos
+{
+  const to = '0x' + '01'.repeat(20);
+  const b = JSON.parse(bt.buildEvmTransfer(JSON.stringify({ chainId: 61, nonce: 0, gas: 21000, gasPrice: '1000000000', to, balance: '1000000000000000000' })));
+  assert.equal(b.kind, 'legacy'); assert.equal(b.value, (10n ** 18n - 21000n * 10n ** 9n).toString()); assert.equal(b.fee, '21000000000000');
+  assert.ok(b.unsigned.startsWith('0x') && b.sighash.length === 66);
+  const t = JSON.parse(bt.buildEvmTransfer(JSON.stringify({ chainId: 56, nonce: 1, gas: 65000, gasPrice: '3', to, value: '5', token: '0x' + 'ee'.repeat(20), maxPriorityFeePerGas: '1' })));
+  assert.equal(t.kind, 'eip1559'); assert.equal(t.value, '0'); assert.equal(t.recipient, to); assert.equal(t.amount, '5'); assert.ok(t.data.startsWith('0xa9059cbb'));
+  assert.throws(() => bt.buildEvmTransfer(JSON.stringify({ chainId: 1, nonce: 0, gas: 21000, gasPrice: '1', to, balance: '100' })), /insufficient_balance/);
+  const own = '0014' + 'ab'.repeat(20);
+  const s = JSON.parse(bt.selectUtxos(JSON.stringify([{ txid: '00', vout: 0, value: 100, script: own }, { txid: '01', vout: 0, value: 90000, script: own }, { txid: '02', vout: 1, value: 50000, script: '00' }]), own, 10));
+  assert.deepEqual([s.count, s.total, s.dropped_uneconomic, s.dropped_foreign, s.min_value], [1, '90000', 1, 1, '29600']);
+}
+console.log('lift7 ok');

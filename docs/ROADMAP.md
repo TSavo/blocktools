@@ -93,3 +93,4 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 
 - 2026-10-25 security review 1: legacy inputs must prove their amount with `prev_tx` (`legacy_input_needs_prev_tx`, `legacy_input_amount_unproven`); see SECURITY.md.
 - [x] buildPsbtWithMemo non-RBF default + optional `rbf` (SwapChan, THORChain inbound).
+- [x] SwapChan lift 7: wasm `buildEvmTransfer` (legacy/1559, native/ERC-20, balance-sweep) and `selectUtxos` (own script, 5% economic cut, largest-first, 200 cap). Parity: 129 viem `serializeTransaction` vectors + 40 selection cases (tools/build-parity). Untested: utxochains.ts/ethforks.ts originals were not in the handoff, so selection follows the documented policy, not a line-by-line TS diff; per-chain gas defaults stay in TS.

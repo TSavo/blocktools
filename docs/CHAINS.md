@@ -100,6 +100,7 @@ Scan and sweep: host tool `xmr-wallet` over a loopback monero-wallet-rpc. 2026-1
 ## Solana public data (2026-10-25)
 wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed25519 signature check, `solVerifyTx` policy. No Solana builder yet (planned: acct-tx style, solders vectors).
 - 2026-10-25: BCH CashAddr accepted by `addressToScript('bch', …)` and converted by `cashAddrToLegacy` / `legacyToCashAddr`.
+- 2026-10-25: EVM transfer builder for any chain id (`buildEvmTransfer`); UTXO selection (`selectUtxos`).
 - 2026-10-25: EVM recovery/sweep verifier (SwapChan parity, raw tx entry points).
 - 2026-10-25: Solana v1 transactions (SIMD-0385) decode + verify; XRP X-address kind `xaddress` in detectAddressInfo.
 - 2026-10-25: `buildPsbtWithMemo` output order `[to, change, OP_RETURN]` (THORChain), optional memo, selected-input fee fix.

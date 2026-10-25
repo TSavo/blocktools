@@ -325,3 +325,16 @@ pub fn verify_sweep_raw(raw_hex: &str, owner: &str, chain_id: f64, token: &str) 
 /// The verifier's allowlists: standard sigs/owner slots, pinned contracts, MultiSend, deadline cap.
 #[wasm_bindgen(js_name = recoveryTables)]
 pub fn recovery_tables() -> String { blocktools::verifier::tables().to_string() }
+/// Unsigned EIP-155 transfer (ETH forks / extra EVM chains, native or ERC-20). Request JSON:
+/// {chainId, nonce, gas, gasPrice, to, value | balance, token?, maxPriorityFeePerGas?, from?}.
+/// Returns {unsigned, sighash, kind, chainId, nonce, gas, gasPrice, to, value, data, fee, ...}.
+#[wasm_bindgen(js_name = buildEvmTransfer)]
+pub fn build_evm_transfer(req_json: &str) -> Result<String, JsError> {
+    blocktools::build::build_evm_transfer(&tx_json(req_json)?).map(|v| v.to_string()).map_err(err)
+}
+/// SwapChan coin selection: own script only, drop value < rate×148×20 (fee > 5%), largest first, max 200 inputs.
+#[wasm_bindgen(js_name = selectUtxos)]
+pub fn select_utxos(utxos_json: &str, script_hex: &str, fee_rate: f64) -> Result<String, JsError> {
+    let r = js_u64(fee_rate, "rate")? as u128;
+    blocktools::build::select_utxos(&tx_json(utxos_json)?, script_hex, r).map(|v| v.to_string()).map_err(err)
+}

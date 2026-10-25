@@ -668,3 +668,10 @@ by `tools/verifier-parity/gen.ts` from the TS sources with real viem, and parses
 Raw entry points decode a legacy/2930/1559 tx with `blocktools-tx`, require the chain id, recover the signer and
 require it to be the owner. Intentional differences (SwapChan-approved, flagged `intentional_diff` in the corpus with the TS verdict kept as `ts_expect`; the runner asserts Rust refuses): non-hex `data`, multicall nesting > 32, a MultiSend leg whose length runs past the blob, a sweep `value` that is an array/object. Also a malformed `value`
 returns a verdict instead of throwing, viem error texts only keep the `unverifiable: ` prefix.
+
+## EVM transfer builder and coin selection (2026-10-25)
+
+`blocktools::build` replaces SwapChan's `forkSweep`/`evmSweep` tx assembly and the `utxochains.ts` selection policy.
+The builder never signs; it emits the unsigned RLP and the signing hash so the existing sign → decode → checkTx path
+stays the gate. Selection drops inputs whose spend fee (rate × 148 vB) exceeds 5% of value, sorts largest-first and
+caps at 200 inputs. Parity corpus: `tools/build-parity/gen.ts` (viem as the serializer oracle).

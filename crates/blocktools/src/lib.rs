@@ -228,3 +228,4 @@ pub mod cashaddr;
 pub mod psbtmemo;
 pub mod tron;
 pub mod verifier;
+pub mod build;
