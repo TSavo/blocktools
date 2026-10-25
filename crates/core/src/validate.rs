@@ -4,6 +4,15 @@ use crate::chains::{self, Enc, BTC_ALPHA, XRP_ALPHA};
 use bitcoin::base58;
 use bitcoin::bech32::segwit;
 
+/// Ripple-alphabet base58check decode (addresses, X-addresses, family seeds).
+pub fn xrp_decode_check(s: &str) -> Result<Vec<u8>, &'static str> {
+    let t: String = s.bytes().map(|ch| XRP_ALPHA.iter().position(|x| *x == ch).map(|i| BTC_ALPHA[i] as char)).collect::<Option<_>>().ok_or("bad alphabet")?;
+    base58::decode_check(&t).map_err(|_| "bad base58check")
+}
+/// XRP family seed: "s..." secp256k1 (21 || 16 bytes) or "sEd..." ed25519 (01 E1 4B || 16 bytes).
+pub fn is_xrp_seed(s: &str) -> bool {
+    s.starts_with('s') && xrp_decode_check(s).map_or(false, |b| (b.len() == 17 && b[0] == 0x21) || (b.len() == 19 && b[..3] == [0x01, 0xe1, 0x4b]))
+}
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol }
 
@@ -28,9 +37,11 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
         Enc::Eth => eth(addr).map(|_| AddrKind::Eth),
         Enc::Tron => tron_to_hex(addr).map(|_| AddrKind::Tron),
         Enc::Xrp => {
-            let t: String = addr.bytes().map(|ch| XRP_ALPHA.iter().position(|x| *x == ch).map(|i| BTC_ALPHA[i] as char)).collect::<Option<_>>().ok_or("bad alphabet")?;
-            let b = base58::decode_check(&t).map_err(|_| "bad base58check")?;
-            if b.len() == 21 && b[0] == 0 { Ok(AddrKind::Xrp) } else { Err("bad length") }
+            let b = xrp_decode_check(addr)?;
+            if b.len() == 21 && b[0] == 0 && addr.starts_with('r') { return Ok(AddrKind::Xrp) }
+            // X-address (XLS-5d, mainnet 0544 only): id, tag flag 0/1, u32 LE tag, 4 zero bytes
+            if b.len() == 31 && b[..2] == [0x05, 0x44] && b[22] <= 1 && b[27..] == [0; 4] && (b[22] == 1 || b[23..27] == [0; 4]) { return Ok(AddrKind::Xrp) }
+            Err("bad length")
         }
         Enc::Sol => { let b = base58::decode(addr).map_err(|_| "bad base58")?; if b.len() == 32 { Ok(AddrKind::Sol) } else { Err("32-byte") } }
     }
@@ -136,6 +147,12 @@ mod tests {
         assert_eq!(validate("xrp", "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3"), Ok(AddrKind::Xrp));
         assert_eq!(validate("xrp", "rrrrrrrrrrrrrrrrrrrrrhoLvTp"), Ok(AddrKind::Xrp));
         assert!(validate("xrp", "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v4").is_err());
+        // ripple-address-codec vectors: X-address with and without tag; testnet T-address is not mainnet
+        assert_eq!(validate("xrp", "X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A"), Ok(AddrKind::Xrp));
+        assert_eq!(validate("xrp", "XVZVpQj8YSVpNyiwXYSqvQoQqgBttTxAZwMcuJd4xteQHyt"), Ok(AddrKind::Xrp));
+        assert!(validate("xrp", "T719a5UwUCnEs54UsxG9CJYYDhwmFCqkr7wxCcNcfZ6p5GZ").is_err());
+        assert!(is_xrp_seed("sp5fghtJtpUorTwvof1NpDXAzNwf5") && is_xrp_seed("sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r"));
+        assert!(!is_xrp_seed("rU6K7V3Po4snVhBBaU29sesqs2qTQJWDw1"));
         assert_eq!(validate("sol", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"), Ok(AddrKind::Sol));
         for n in [0usize, 20, 33] { assert_eq!(validate("sol", &base58::encode(&vec![7u8; n])).err(), Some(if n == 0 { "bad length" } else { "32-byte" })) }
     }

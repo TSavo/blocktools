@@ -46,3 +46,4 @@ xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqH
 09ed72c713d3e9e19bef2f5204cf85f6cb25de7842aa0722abeb12697f171903
 4ee576f52b9c6a824a3d5c2832d117177d2bb9992507c2c78788bb8dbaf4b640
 e1ef99d66312ec0b16b17c66c591ab59594e21621588b63b62fa69fe615a768e
+# xrpl.js public test vectors (ripple-keypairs api.json, wallet sign memo test): keys, signatures, blobs, hashes

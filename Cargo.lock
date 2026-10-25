@@ -224,6 +224,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-xrp"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "ed25519-dalek",
+ "secp256k1",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
 name = "cbc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1068,6 +1079,16 @@ name = "xmr-keys"
 version = "0.1.0"
 dependencies = [
  "blocktools-monero",
+ "zeroize",
+]
+
+[[package]]
+name = "xrp-tx"
+version = "0.1.0"
+dependencies = [
+ "blocktools-tty",
+ "blocktools-xrp",
+ "serde_json",
  "zeroize",
 ]
 

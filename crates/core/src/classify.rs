@@ -8,7 +8,7 @@ use bitcoin::hashes::{hmac, sha256, sha512, Hash, HashEngine};
 pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub public: Option<String>, pub chain: Option<&'static str> }
 
 /// Every class name classify can print.
-pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address",
+pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed",
     "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
@@ -55,6 +55,7 @@ fn line(l: &str, n: u64) -> Row {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
+    if crate::validate::is_xrp_seed(l) { return row("xrp_seed", n, l.as_bytes()) }
     if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).is_ok() {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
@@ -74,6 +75,12 @@ fn line(l: &str, n: u64) -> Row {
 mod t {
     use super::*;
     fn c(s: &str) -> &'static str { classify(s.as_bytes())[0].class }
+    #[test] fn xrp() {
+        // xrpl.js ripple-keypairs fixtures (public), ripple-address-codec X-address vector
+        assert_eq!(c("sp5fghtJtpUorTwvof1NpDXAzNwf5"), "xrp_seed");
+        assert_eq!(c("sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r"), "xrp_seed");
+        assert_eq!(c("X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A"), "address");
+    }
     #[test] fn monero() {
         // public test seed/address from monero-python tests/test_seed.py
         assert_eq!(c("adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy"), "monero_seed");

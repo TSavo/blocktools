@@ -37,6 +37,7 @@ case $class in
   multibit_key)    keys() { pw_then_file | "$B/multibit-read" | "$B/key-to-addresses" --chain btc; } ;;
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain btc < "$FILE"; } ;;
   monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; view-key funds scan and sweep are not implemented yet (docs/ROADMAP.md)"; exit 3 ;;
+  xrp_seed)        "$B/xrp-tx" keys < "$FILE"; say "xrp: address shown; sweep with xrp-tx build/sign (docs/recipes/xrp.md). Balance/sequence lookup is not automated yet"; exit 3 ;;
   address|xpub|monero_address)    say "watch-only ($class): no private key here, nothing can be signed"; exit 3 ;;
   keystore_v3)     CHAIN=eth; keys() { pw_then_file | "$B/keystore-open"; } ;;
   *)               say "no reader for $class yet (see docs/ROADMAP.md)"; exit 3 ;;

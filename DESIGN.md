@@ -498,3 +498,15 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 ## Non-Bitcoin-family chains are their own crates (2026-10-24)
 
 Monero is `crates/monero` (blocktools-monero). The default `keys` feature carries curve25519-dalek for seed→keys and the on-curve check. `blocktools-core` (classify) uses it with `default-features = false`, so every other binary gains only wordlist + base58 + keccak, no curve or proc-macro crates. Classify adds `monero_seed` (25 words from the 1626-word English list, 3-letter prefixes) and `monero_address` (standard 69-byte addresses; integrated and subaddresses are refused for now).
+
+## XRP Ledger (2026-10-24)
+
+`crates/xrp` (blocktools-xrp) has:
+- its own Ripple-alphabet base58;
+- family seeds, both secp256k1 (root plus account-0 tweak) and ed25519 (sha512half of the seed);
+- classic and X-addresses (XLS-5d);
+- a Payment-only binary codec. Fields are written in canonical (type, field) order, and any other field is refused on decode.
+
+Signing uses `STX\0`. secp256k1 signs sha512half of it with RFC6979, low-S and DER. ed25519 signs the bytes directly. The txid is sha512half(`TXN\0` || blob).
+
+`xrp-tx` is the CLI. `sign` needs `--expect-to` and a typed code on /dev/tty, and it warns when the destination tag is missing. Core only gets `is_xrp_seed` and X-address validation, written against its existing base58, so classify does not pull in ed25519.

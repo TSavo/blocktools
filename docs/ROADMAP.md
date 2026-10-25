@@ -51,4 +51,6 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 - [ ] Zcash v5 (ZIP-225/244) unsigned builder + decode; Groestlcoin (Groestl checksum, SHA256 txid) with an independent Groestl KAT.
 - [x] Monero slice 1: 25-word English seed decode + CRC32 checksum word, spend/view keys, standard address encode/validate (main/stage/test), classify `monero_seed`/`monero_address`, `xmr-keys` tool (public output only), recover.sh route (stops before scan). KAT: monero-python tests/test_seed.py test_keys.
 - [ ] Monero: other seed languages, Polyseed (16 words), MyMonero 13-word, subaddresses and integrated addresses, view-key funds scan input (needs a daemon/LWS source), sweep (CLSAG + Bulletproofs+, the hard part).
-- [ ] Then, in order: XRP full coverage (added by T), Zcash shielded, Cardano, Stellar, Algorand, Cosmos-family, Polkadot, TON, each with a verified flag, independent KATs, a recipe and classify shapes.
+- [x] XRP: family seeds (secp256k1 + ed25519), r- and X-addresses, Payment encode/decode/sign/verify, destination-tag warning, classify `xrp_seed`, xrp-tx, recipe docs/recipes/xrp.md. KATs: xrpl.js fixtures (keypairs, X-address codec, signed Payment blob + hash).
+- [ ] XRP: account_info/submit over JSON-RPC (balance, sequence, reserve), AccountDelete sweep, issued currencies; real network submit untested.
+- [ ] Then, in order: Zcash shielded, Cardano, Stellar, Algorand, Cosmos-family, Polkadot, TON, each with a verified flag, independent KATs, a recipe and classify shapes.
