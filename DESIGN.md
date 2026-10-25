@@ -86,6 +86,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | tool | in | out (raw, may contain secrets) | phase |
 |---|---|---|---|
 | `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
+`pw-candidates` expands a token list into a bounded set of password guesses (case/swap/digit/typo) for piping into the existing openers; see docs/ROADMAP-PARITY.md.
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
 | `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |

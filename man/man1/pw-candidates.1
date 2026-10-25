@@ -1,0 +1,22 @@
+.TH PW\-CANDIDATES 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+pw\-candidates \- expand a token list into password candidates (btcrecover\-style, from public
+.SH SYNOPSIS
+.nf
+pw\-candidates [\-\-max N] [\-\-rules case,swap,typo,digit] [FILE]: expand a token list (one token per line, or space\-separated on stdin) into password candidates. Output CONTAINS SECRETS (one candidate per line). Default rules: case,swap,digit. Default \-\-max 1000. Pipe into a wallet opener.
+.fi
+.SH DESCRIPTION
+docs only: product of tokens, case variants, adjacent swaps, digit append/prepend,
+keyboard\-adjacent substitutions). Bounded by \-\-max. Output CONTAINS SECRETS (one
+candidate per line). Pipe into a wallet opener: `pw\-candidates T | while read p; do
+printf '%s\en' "$p"; cat FILE; done | opener`.
+.SH WARNING
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+.br
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+.br
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+.br
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, recipes/README.md

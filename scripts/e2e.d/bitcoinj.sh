@@ -61,3 +61,13 @@ printf 'btcr-test-password\n' > $T/pw; cp $F/mbhd.wallet.aes $T/mbhd.wallet.aes
 BIN=$B recipes/recover.sh $T/mbhd.wallet.aes - --goal addresses --count 2 --password-file $T/pw > $T/r 2>/dev/null || f "mbhd recover.sh"
 while read -r a; do grep -qF "\"$a\"" $T/r || f "mbhd recover.sh address"; done < $T/mbhd.want
 echo "ok   mbhd.wallet.aes: classify (by name) -> recover.sh routes to multibit-read + derive m/0'/c/i, both stored keys found"
+# pw-candidates -> multibit-read finds the known fixture password
+printf 'btcr-test-password\n' > $T/tok
+$B/pw-candidates --max 20 --rules case $T/tok | grep -qx 'btcr-test-password' || f "pw-candidates retains token"
+$B/pw-candidates --max 30 --rules case $T/tok > $T/cands
+found=
+while IFS= read -r p; do
+  if { printf '%s\n' "$p"; cat $F/mbhd.wallet.aes; } | $B/multibit-read >/dev/null 2>&1; then found=1; break; fi
+done < $T/cands
+[ -n "$found" ] || f "pw-candidates -> multibit-read"
+echo "ok   pw-candidates: token retained; opens mbhd.wallet.aes via multibit-read"
