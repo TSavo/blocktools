@@ -1,0 +1,12 @@
+[package]
+name = "blocktools-c"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools C ABI (secrets-off): version, chain table, common signing envelope. DANGEROUS: use at your own risk; read and audit before trusting with real funds."
+[lib]
+name = "blocktools_c"
+crate-type = ["cdylib", "staticlib", "rlib"]
+[dependencies]
+blocktools = { path = "../blocktools" }
+blocktools-core = { path = "../core" }

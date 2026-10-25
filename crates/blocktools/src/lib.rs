@@ -222,6 +222,7 @@ pub mod derive {
 
 /// Fail-closed transaction check for wallets / swap front-ends: JSON in, JSON out, public data only.
 pub mod check;
+pub mod envelope;
 pub mod substrate;
 pub mod sol;
 pub mod cashaddr;

@@ -70,6 +70,9 @@ build an UNSIGNED transaction offline from files and flags. Never touches the ne
 \fBtx\-decode\fR(1)
 one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
 .TP
+\fBtx\-envelope\fR(1)
+common signing envelope (public half). Reads one JSON object from stdin
+.TP
 \fBtx\-sign\fR(1)
 sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .TP

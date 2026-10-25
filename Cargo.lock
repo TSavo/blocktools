@@ -267,6 +267,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-c"
+version = "0.1.0"
+dependencies = [
+ "blocktools",
+ "blocktools-core",
+]
+
+[[package]]
 name = "blocktools-core"
 version = "0.1.0"
 dependencies = [
@@ -1669,6 +1677,14 @@ dependencies = [
  "blocktools-io",
  "blocktools-tx",
  "serde_json",
+]
+
+[[package]]
+name = "tx-envelope"
+version = "0.1.0"
+dependencies = [
+ "blocktools",
+ "blocktools-io",
 ]
 
 [[package]]

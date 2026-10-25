@@ -173,3 +173,17 @@ Outside the chain table: `zec` (2-byte prefixes), handled by the blocktools-tx z
 | anc | ANC | 0 | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |
 
 - Monero scan/sweep is host-only (`tools/xmr-wallet`, CLI JSON lines kinds `scan`, `received`, `sweep-plan`, `sweep-relayed`); not exported to wasm.
+
+## C ABI (`blocktools-c`, secrets-off)
+
+Native `cdylib`/`staticlib` in `crates/cabi`. Header: `crates/cabi/include/blocktools.h`.
+
+| C symbol | Rust | Notes |
+|---|---|---|
+| `bt_version` | `CARGO_PKG_VERSION` | Static string; do not free |
+| `bt_chain_table` | `chains::table_json` | Heap JSON array; free with `bt_free` |
+| `bt_envelope` | `blocktools::envelope::run` | `blocktools.sign/v1` JSON in/out; free with `bt_free` |
+| `bt_free` | `CString::from_raw` | No-op on NULL |
+
+Same public-data rules as wasm: no private keys, no network. CLI twin: `tx-envelope`.
+
