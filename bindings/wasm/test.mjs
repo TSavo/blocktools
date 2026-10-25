@@ -9,6 +9,8 @@ assert.equal(rows[0].address, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
 assert.equal(rows[1].address, 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g');
 assert.equal(bt.validateAddress('btc', rows[0].address), 'SegwitV0');
 assert.throws(() => bt.validateAddress('btc', rows[0].address.slice(0, -1) + 'x'));
+assert.equal(bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH'), 'Xmr');
+assert.throws(() => bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdx'));
 assert.ok(JSON.parse(bt.listChains()).includes('eth'));
 const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common']));
 assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));

@@ -14,7 +14,7 @@ pub fn is_xrp_seed(s: &str) -> bool {
     s.starts_with('s') && xrp_decode_check(s).map_or(false, |b| (b.len() == 17 && b[0] == 0x21) || (b.len() == 19 && b[..3] == [0x01, 0xe1, 0x4b]))
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol }
+pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xmr }
 
 /// Validate `addr` for `chain`. Errors are short static strings.
 pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
@@ -36,6 +36,7 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
         }
         Enc::Eth => eth(addr).map(|_| AddrKind::Eth),
         Enc::Tron => tron_to_hex(addr).map(|_| AddrKind::Tron),
+        Enc::Xmr => blocktools_monero::validate(addr).map(|_| AddrKind::Xmr),
         Enc::Xrp => {
             let b = xrp_decode_check(addr)?;
             if b.len() == 21 && b[0] == 0 && addr.starts_with('r') { return Ok(AddrKind::Xrp) }
@@ -79,6 +80,12 @@ pub fn hex_to_tron(h: &str) -> Result<String, &'static str> {
 
 #[cfg(test)]
 mod tests {
+    #[test] fn xmr_row_validates_monero_addresses() {
+        let a = "44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH";
+        assert_eq!(validate("xmr", a), Ok(AddrKind::Xmr));
+        let mut bad = a.to_string(); bad.replace_range(10..11, "Z"); assert!(validate("xmr", &bad).is_err());
+        assert!(validate("xmr", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH").is_err());
+    }
     use super::*;
     use bitcoin::bip32::{ChildNumber, Xpub};
     use bitcoin::secp256k1::Secp256k1;

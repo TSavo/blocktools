@@ -497,7 +497,7 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 
 ## Non-Bitcoin-family chains are their own crates (2026-10-24)
 
-Monero is `crates/monero` (blocktools-monero). The default `keys` feature carries curve25519-dalek for seed→keys and the on-curve check. `blocktools-core` (classify) uses it with `default-features = false`, so every other binary gains only wordlist + base58 + keccak, no curve or proc-macro crates. Classify adds `monero_seed` (25 words from the 1626-word English list, 3-letter prefixes) and `monero_address` (standard 69-byte addresses; integrated and subaddresses are refused for now).
+Monero is `crates/monero` (blocktools-monero). The default `keys` feature carries curve25519-dalek for seed→keys and the on-curve check. `blocktools-core` (classify) uses it with `default-features = false`, so every other binary gains only wordlist + base58 + keccak, no curve or proc-macro crates. Classify adds `monero_seed` (25 words from the 1626-word English list, 3-letter prefixes) and `monero_address` (standard 69-byte addresses; integrated and subaddresses are refused for now). The chain table has an `xmr` row (`Enc::Xmr`): address validation goes through blocktools-monero, and the BIP32 presets skip it because Monero keys come from its own seed, not paths. `xmr-keys --scan-out` writes the view-only wallet-rpc `generate_from_keys` request to a new 0600 file. The private view key is secret (it reveals incoming funds), so it never goes to stdout or stderr. Sweep is designed but not built: see docs/monero-sweep-design.md.
 
 ## XRP Ledger (2026-10-24)
 

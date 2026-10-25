@@ -44,3 +44,11 @@ kill $RM 2>/dev/null; wait $RM 2>/dev/null || true
 echo "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy" > "$R/xmr-seed.txt"
 set +e; BIN=$B bash docs/recipes/recover.sh "$R/xmr-seed.txt" "$D" > "$R/xmr.out" 2> "$R/xmr.err"; rc=$?; set -e
 if [ $rc = 3 ] && grep -q '"address":"44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH"' "$R/xmr.out" && grep -q "classified as monero_seed" "$R/xmr.err"; then echo "ok  recover xmr-seed: monero_seed -> address (KAT), stops before scan"; else echo "FAIL recover xmr-seed"; cat "$R/xmr.out" "$R/xmr.err"; exit 1; fi
+# Monero view-only scan input: written to a new 0600 file, view key never on stdout/stderr, no overwrite
+VK=$(grep -o 'view_secret\[..\]), "[0-9a-f]*' crates/monero/tests/kat.rs | grep -o '[0-9a-f]\{64\}')
+"$B/xmr-keys" --scan-out "$R/xmr-scan.json" --restore-height 100 < "$R/xmr-seed.txt" > "$R/xs.out" 2> "$R/xs.err"
+if [ "$(stat -c %a "$R/xmr-scan.json")" = 600 ] && grep -q '"method":"generate_from_keys"' "$R/xmr-scan.json" && grep -q "\"viewkey\":\"$VK\"" "$R/xmr-scan.json" \
+   && grep -q '"restore_height":100' "$R/xmr-scan.json" && ! grep -q spendkey "$R/xmr-scan.json" && ! grep -q "$VK" "$R/xs.out" "$R/xs.err"; then
+  echo "ok  xmr-keys --scan-out: view-only generate_from_keys request, 0600, view key only in file"
+else echo "FAIL xmr-keys --scan-out"; exit 1; fi
+if "$B/xmr-keys" --scan-out "$R/xmr-scan.json" < "$R/xmr-seed.txt" >/dev/null 2>&1; then echo "FAIL xmr-keys --scan-out overwrote"; exit 1; else echo "ok  xmr-keys --scan-out refuses to overwrite"; fi
