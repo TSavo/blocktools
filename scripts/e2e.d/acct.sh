@@ -12,7 +12,7 @@ grep -q '"txid":"6f3d9d0e3539e9080977adf0f908e25c17de3f7ba9147a0e90da34ae7d7dc1c
 grep -q '"txid":"ZKIVMCE4N2INEZVB2VCJNA7QZVOJWIWDWD6HPBPDJ44E4QATNWKA"' "$X/au.json" && grep -q close_to "$X/au.err" || { echo "FAIL acct algo sweep build"; exit 1; }
 python3 scripts/tty-drive.py wrong "$X/xlm.key" "$X/xs0.json" "$(cd "$B" && pwd)/acct-tx" sign --chain xlm --tx "$X/xu.json" --expect-to $XT > "$X/t0" 2>&1 || true
 grep -q '"status":"aborted"' "$X/xs0.json" || { echo "FAIL acct wrong code must abort"; exit 1; }
-for c in xlm:$XT:xu algo:$AT:au; do IFS=: read -r ch to u <<< "$c"
+for c in xlm:$XT:xu algo:$AT:au; do ch=${c%%:*}; r=${c#*:}; to=${r%%:*}; u=${r#*:}
   python3 scripts/tty-drive.py right "$X/$ch.key" "$X/$ch-s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain $ch --tx "$X/$u.json" --expect-to $to > "$X/t-$ch" 2>&1
   grep -q '"status":"ok"' "$X/$ch-s.json" || { echo "FAIL acct $ch sign"; cat "$X/t-$ch"; exit 1; }
   "$B/acct-tx" decode --chain $ch < "$X/$ch-s.json" | grep -q '"signature_valid":true' || { echo "FAIL acct $ch signed decode"; exit 1; }
