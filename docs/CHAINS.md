@@ -45,6 +45,21 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | yes (transparent P2PKH) | none |
 | grs | GRS | 17 | 24 | 05 | grs | 128 | groestl512d | 8 | — | legacy-sha256 | yes | none listed |
 
+### Fee-warning limits (verify-tx / wasm `verifyTx`, `chainParams().fee_warn`)
+
+`high_fee` fires above `fee` base units, `high_fee_rate` above `rate` base units per vbyte. Default 1,000,000 / 500 (Bitcoin-tuned). A per-coin row is 20 x the measured median fee rate x a 1,000 vB sweep (rate limit 20 x median), never below the default. Measured 2026-10-24 from recent mainnet blocks (non-coinbase txs, fee = inputs - outputs); scripts in the commit message basis strings.
+
+| chain | fee limit | rate limit | measured median | sample |
+|---|---|---|---|---|
+| dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io |
+| rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596275, blockbook.rvn.zelcore.io |
+| qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info |
+| xpm | 2,000,000,000 | 2,000,000 | 100,000 sat/B (est. size) | 40 txs, blocks 7063926-7064103, chainz.cryptoid.info |
+| vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703858, blockbook.vtc.zelcore.io |
+| aur | 2,000,000 | 2,000 | 102 sat/B (est. size) | 41 txs, blocks 5913113-5913344, chainz.cryptoid.info |
+
+Measured and left at the default: mona (median 2.5 sat/vB, 60 txs, blocks 4142846-4143045, mona.insight.monaco-ex.org; node relayfee 0.001 MONA/kB), dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (14.8 sat/B, only 14 txs in 300 blocks 3327566-3327865, insight.terracoin.io), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). "est. size" = 10 + 148/input + 34/output (P2PKH), because chainz does not return tx size. Not measured (default applies): every other row, including zec, nmc, ftc, mec, nvc, clam, blk, rdd, pot, qrk, grs, bch, bsv, btg, ltc, doge.
+
 ### Unverified (never returned as supported)
 
 | name | ticker | SLIP-44 | p2pkh | p2sh | hrp | wif | checksum | decimals | forkid | tx format | sweep build | sources |

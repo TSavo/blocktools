@@ -301,6 +301,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
   `locktime_set`, `unsigned`, `partially_signed`, `utxo_txid_mismatch`, `no_chain_id`,
   `contract_creation`, `high_gas_price`, `token_approve`, `unlimited_approve`,
   `token_transfer_from`, `unknown_calldata`, `bad_signature`, `no_inputs_or_outputs`.
+- `high_fee` / `high_fee_rate` limits are per coin (`chains::fee_warn`, exposed as `chainParams().fee_warn`): 20 x the measured median fee rate, never below the Bitcoin default 1,000,000 / 500. Values and their measured basis: docs/CHAINS.md "Fee-warning limits". Test: crates/tx/tests/fee_warn.rs.
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from

@@ -798,3 +798,20 @@ mod kat_long_tail {
         }
     }
 }
+/// Fee-warning limits used by verify-tx (`high_fee` above `fee` base units, `high_fee_rate`
+/// above `rate` base units per vbyte). Default is the Bitcoin-tuned 1,000,000 / 500.
+/// Per-coin rows: limit = 20 x the measured median fee rate x a 1,000 vB sweep (rate limit =
+/// 20 x median), never below the default. Measured 2026-10-24 from recent mainnet blocks;
+/// coins whose measured median keeps them under the default (DASH, MONA, TRC, PPC, ...) use it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FeeWarn { pub fee: u64, pub rate: u64, pub basis: &'static str }
+pub const FEE_WARN_DEFAULT: FeeWarn = FeeWarn { fee: 1_000_000, rate: 500, basis: "default (Bitcoin-tuned)" };
+pub const FEE_WARN: &[(&str, FeeWarn)] = &[
+    ("dgb", FeeWarn { fee: 10_000_000, rate: 10_000, basis: "median 512 sat/vB over 60 txs, blocks 24444779-24445073 (blockbook.dgb.zelcore.io)" }),
+    ("rvn", FeeWarn { fee: 20_000_000, rate: 20_000, basis: "median 1004 sat/vB over 60 txs, blocks 4596227-4596275 (blockbook.rvn.zelcore.io)" }),
+    ("qtum", FeeWarn { fee: 14_000_000, rate: 14_000, basis: "median 700 sat/vB over 100 txs, blocks 6253698-6255768 (qtum.info recent-txs)" }),
+    ("xpm", FeeWarn { fee: 2_000_000_000, rate: 2_000_000, basis: "median 100000 sat/B (size estimated from in/out counts) over 40 txs, blocks 7063926-7064103 (chainz.cryptoid.info)" }),
+    ("vtc", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 101 sat/vB over 60 txs, blocks 2703728-2703858 (blockbook.vtc.zelcore.io)" }),
+    ("aur", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 102 sat/B (size estimated from in/out counts) over 41 txs, blocks 5913113-5913344 (chainz.cryptoid.info)" }),
+];
+pub fn fee_warn(name: &str) -> FeeWarn { FEE_WARN.iter().find(|(n, _)| *n == name).map(|(_, f)| *f).unwrap_or(FEE_WARN_DEFAULT) }

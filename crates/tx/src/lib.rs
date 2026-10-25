@@ -90,7 +90,7 @@ pub fn decode(text: &str, utxo_chain: &str) -> Result<Decoded, &'static str> {
 /// Decoded view of a Zcash v4/v5 tx: transparent part only (shielded value flows are reported
 /// as a `shielded_components` warning, never summed). Input amounts only when `prev` is given.
 pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded {
-    let mut w = Vec::new();
+    let mut w = Vec::new(); let fw = chains::fee_warn("zec");
     let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
     let io = |amount: u64, s: &[u8]| -> Io {
         let (kind, address) = match zcash::script_to_address(s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
@@ -109,7 +109,7 @@ pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded 
     if in_sum.is_none() { w.push("input_amounts_unknown") }
     if !shielded && in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     if let Some(f) = fee {
-        if f > 1_000_000 { w.push("high_fee") }
+        if f > fw.fee { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
     }
     if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
@@ -124,7 +124,7 @@ pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded 
 
 /// Decoded view of a PoS-nTime tx (amounts of inputs only when `prev` is given).
 pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded {
-    let mut w = Vec::new();
+    let mut w = Vec::new(); let fw = chains::fee_warn(c.name);
     let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
     let io = |amount: u64, s: &[u8]| -> Io {
         let (kind, address) = match chains::script_to_address(c, s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
@@ -142,7 +142,7 @@ pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) 
     if in_sum.is_none() { w.push("input_amounts_unknown") }
     if in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     if let Some(f) = fee {
-        if f > 1_000_000 { w.push("high_fee") }
+        if f > fw.fee { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
     }
     if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
@@ -186,7 +186,7 @@ fn out_io(c: &Chain, o: &TxOut) -> Io {
 fn sig_vbytes(kind: &str) -> u64 { match kind { "p2wpkh" => 27, "p2sh" => 50, "p2tr" => 17, _ => 107 } }
 
 fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Decoded {
-    let mut w = Vec::new();
+    let mut w = Vec::new(); let fw = chains::fee_warn(c.name);
     let signed = tx.input.iter().any(|i| !i.script_sig.is_empty() || !i.witness.is_empty());
     let inputs: Vec<Io> = tx.input.iter().enumerate().map(|(n, i)| {
         let p = prev.as_ref().and_then(|v| v.get(n).cloned().flatten());
@@ -201,9 +201,9 @@ fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Deco
     if in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     let vsize = tx.vsize() as u64 + if signed { 0 } else { inputs.iter().map(|i| sig_vbytes(i.kind)).sum() };
     if let Some(f) = fee {
-        if f > 1_000_000 { w.push("high_fee") }
+        if f > fw.fee { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
-        if vsize > 0 && f / vsize > 500 { w.push("high_fee_rate") }
+        if vsize > 0 && f / vsize > fw.rate { w.push("high_fee_rate") }
     }
     if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
     if outputs.iter().any(|o| o.kind == "op_return") { w.push("op_return_output") }

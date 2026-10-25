@@ -121,6 +121,7 @@ pub mod address {
     }
 
     /// The parameter table as JSON rows (what SwapChan imports instead of its own literals).
+    fn fee_warn_json(n: &str) -> serde_json::Value { let f = chains::fee_warn(n); serde_json::json!({"fee": f.fee, "rate": f.rate, "basis": f.basis}) }
     pub fn params_json() -> serde_json::Value {
         use serde_json::json;
         let mut rows: Vec<serde_json::Value> = chains::CHAINS.iter().map(|c| {
@@ -130,11 +131,12 @@ pub mod address {
             json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
                    "p2pkh": p2pkh, "p2sh": p2sh, "hrp": hrp, "wif": wif, "checksum": if matches!(c.enc, Enc::Utxo{..}) { json!(if c.ck() == chains::Ck::Groestl { "groestl512d" } else { "sha256d" }) } else { json!(null) },
                    "decimals": decimals(c.name), "forkid": forkid, "tx_format": fmt, "sweep_build": sweep,
+                   "fee_warn": fee_warn_json(c.name),
                    "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
         }).collect();
         rows.push(json!({"name": "zec", "ticker": "ZEC", "title": "Zcash (transparent)", "slip44": 133, "verified": true, "scope": "transparent",
             "p2pkh": ZEC_P2PKH, "p2sh": ZEC_P2SH, "hrp": null, "wif": 128, "checksum": "sha256d", "decimals": 8, "forkid": null,
-            "tx_format": "zcash-v5", "sweep_build": true, "sources": []}));
+            "tx_format": "zcash-v5", "sweep_build": true, "fee_warn": fee_warn_json("zec"), "sources": []}));
         json!(rows)
     }
 }

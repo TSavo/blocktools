@@ -88,3 +88,17 @@ pub fn check_mainnet(txid: &str, amounts: &str, spks: &str, raw: &str, branch: u
     }
     assert!(v4 >= 3 && v5 >= 3, "{v4} {v5}");
 }
+
+/// Independent address vectors: blockchair's decoded recipient for every input/output script
+/// of the mainnet txs (20 P2PKH + 1 P2SH scripts).
+#[test]
+fn mainnet_scripts_match_explorer_addresses() {
+    let mut n = 0;
+    for l in include_str!("data/zec_addresses.txt").lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
+        let (s, a) = l.split_once(' ').unwrap();
+        let script = blocktools_core::hex_dec(s).unwrap();
+        assert_eq!(blocktools_tx::zcash::script_to_address(&script).map(|(_, x)| x).as_deref(), Some(a), "{s}");
+        n += 1;
+    }
+    assert_eq!(n, 21);
+}

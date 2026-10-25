@@ -43,7 +43,7 @@ data shows the fee and fee rate.
    (EVM) `from` must match step 2.
 6. **Broadcast** (host only).
 
-Warnings worth stopping for: `high_fee*`, `unlimited_approve`/`token_approve` (you're
+Warnings worth stopping for: `high_fee*` (limits are per coin, see docs/CHAINS.md "Fee-warning limits"), `unlimited_approve`/`token_approve` (you're
 granting spending rights, not sending), `no_chain_id` (replayable on other chains),
 `unknown_calldata`, `nonstandard_output`, `utxo_txid_mismatch`, `contract_creation`.
 

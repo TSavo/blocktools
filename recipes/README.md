@@ -61,4 +61,6 @@ and see addresses and signed transactions only.
 | Check whether anything is left | [goal-check-balance.md](goal-check-balance.md) |
 | Move everything to a new address | [goal-sweep.md](goal-sweep.md) |
 | Read a transaction before signing/sending | [decode-a-transaction.md](decode-a-transaction.md) |
+
+Fee warnings (`high_fee`, `high_fee_rate`) use per-coin limits from measured mainnet fee rates (docs/CHAINS.md "Fee-warning limits").
 | Verify, and sign on an offline machine | [goal-verify-and-offline.md](goal-verify-and-offline.md) |
