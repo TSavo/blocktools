@@ -7,13 +7,15 @@
 //!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
 //! acct-tx build   --chain ton  --from UQ.. --to EQ..|UQ.. (--amount NANOTON | --sweep) --seqno N --valid-until UNIX [--comment T]
 //!                 (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the --to form)
+//! acct-tx build   --chain ada  --from addr1.. --to addr1.. --utxo TXID#IX:LOVELACE [--utxo ..] (--amount LOVELACE | --sweep) --fee LOVELACE --ttl SLOT
+//!                 (ADA-only legacy outputs, change back to --from; hex CBOR like cardano-cli; UTXOs carrying native assets must not be used)
 //! acct-tx decode  --chain C [--testnet] < unsigned-or-signed (JSON from build/sign, or bare base64)
 //! acct-tx sign    --chain C --tx FILE --expect-to ADDR [--testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
-//!   (ton: 24 TON words or 64-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
+//!   (ada: 128-hex extended payment key kL||kR as printed by recover; ton: 24 TON words or 64-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
 //!   shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
 //! --sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
 //!          algo = amount 0 + close-to (sends everything and closes the account; fails while ASAs are opted in).
-use blocktools_acct::{algo, atom, fmt_units, ton, xlm};
+use blocktools_acct::{ada, algo, atom, fmt_units, ton, xlm};
 use blocktools_core::b64;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -101,6 +103,29 @@ fn ton_read(s: &str) -> (ton::Transfer, Option<[u8; 32]>) {
     (ton::Transfer::decode(&read_tx(s)).unwrap_or_else(|e| fail(e)), pk)
 }
 
+fn all<'a>(a: &'a [String], k: &str) -> Vec<&'a str> { a.windows(2).filter(|w| w[0] == k).map(|w| w[1].as_str()).collect() }
+fn ada_describe(t: &ada::Tx, from: Option<&str>, input_total: Option<u128>) -> Value {
+    let fb = from.map(|f| ada::decode_address(f).unwrap_or_else(|e| fail(e)));
+    let pays: Vec<&(Vec<u8>, u64)> = t.outputs.iter().filter(|o| Some(&o.0) != fb.as_ref()).collect();
+    let mut w = vec![];
+    if t.outputs.iter().any(|o| o.1 < ada::MIN_OUTPUT) { w.push("output_below_1_ada: the ledger minimum UTxO is about 1 ADA; the node will reject it") }
+    if t.fee < t.min_fee() { w.push("fee_below_size_minimum (44*bytes+155381)") }
+    if let Some(i) = input_total { if i != t.input_total_needed() { w.push("inputs_do_not_balance: input total != outputs + fee; the node will reject it") } }
+    if t.wit.is_some() && fb.as_ref().is_some_and(|f| ada::payment_key_hash(f).ok() != Some(&ada::key_hash(&t.wit.unwrap().0)[..])) { w.push("witness_key_not_from_address") }
+    json!({"chain":"ada","type":if fb.is_some() && t.outputs.len() == 1 {"sweep"} else {"payment"},"from":from,"to":(pays.len() == 1).then(|| ada::address(&pays[0].0)),
+        "amount_lovelace":(pays.len() == 1).then(|| pays[0].1),"amount_str":(pays.len() == 1).then(|| fmt_units(pays[0].1 as u128, 6)),
+        "outputs":t.outputs.iter().map(|o| json!({"address":ada::address(&o.0),"lovelace":o.1,"change":Some(&o.0) == fb.as_ref()})).collect::<Vec<_>>(),
+        "inputs":t.inputs.iter().map(|i| format!("{}#{}", hex(&i.0), i.1)).collect::<Vec<_>>(),"input_lovelace":input_total.map(|v| v.to_string()),
+        "fee_lovelace":t.fee,"fee_str":fmt_units(t.fee as u128, 6),"min_fee":t.min_fee(),"ttl":t.ttl,"network":"mainnet","txid":hex(&t.txid()),
+        "signed":t.wit.is_some(),"signature_valid":t.wit.is_some().then(|| t.verify()),"warnings":w})
+}
+fn ada_read(s: &str) -> (ada::Tx, Option<String>, Option<u128>) {
+    let v: Value = serde_json::from_str(s).unwrap_or_else(|_| json!({"unsigned": s.trim()}));
+    let h = v["signed"].as_str().or(v["unsigned"].as_str()).unwrap_or_else(|| fail("missing tx"));
+    let t = ada::Tx::decode(&unhex(h.trim())).unwrap_or_else(|e| fail(e));
+    (t, v["from"].as_str().map(String::from), v["input_lovelace"].as_str().and_then(|x| x.parse().ok()))
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let chain = opt(&a, "--chain").unwrap_or("");
@@ -154,6 +179,36 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             println!("{}", json!({"chain":"ton","unsigned":b64::encode(&t.encode()),"summary":d}));
         }
+        (Some("build"), "ada") => {
+            let from = req(&a, "--from"); let fb = ada::decode_address(from).unwrap_or_else(|e| fail(e));
+            ada::payment_key_hash(&fb).unwrap_or_else(|e| fail(e));
+            let tb = ada::decode_address(req(&a, "--to")).unwrap_or_else(|e| fail(e));
+            if tb == fb { fail("destination_is_source") }
+            let mut inputs = vec![]; let mut total = 0u128;
+            for u in all(&a, "--utxo") {
+                let (hi, v) = u.split_once(':').unwrap_or_else(|| fail("utxo_must_be_TXID#IX:LOVELACE"));
+                let (h, i) = hi.split_once('#').unwrap_or_else(|| fail("utxo_must_be_TXID#IX:LOVELACE"));
+                let h: [u8; 32] = unhex(h).try_into().unwrap_or_else(|_| fail("utxo_txid_must_be_32_bytes"));
+                inputs.push((h, i.parse::<u32>().unwrap_or_else(|_| fail("bad_utxo_index")))); total += v.parse::<u64>().unwrap_or_else(|_| fail("bad_utxo_amount")) as u128;
+            }
+            if inputs.is_empty() { fail("missing --utxo") }
+            inputs.sort(); if inputs.windows(2).any(|w| w[0] == w[1]) { fail("duplicate_utxo") }
+            let fee: u64 = num(&a, "--fee").unwrap_or_else(|| fail("missing --fee"));
+            let outputs = if flag(&a, "--sweep") {
+                vec![(tb, total.checked_sub(fee as u128).and_then(|v| u64::try_from(v).ok()).unwrap_or_else(|| fail("inputs_below_fee")))]
+            } else {
+                let amt: u64 = num(&a, "--amount").unwrap_or_else(|| fail("missing --amount or --sweep"));
+                let change = total.checked_sub(amt as u128 + fee as u128).unwrap_or_else(|| fail("inputs_below_amount_plus_fee"));
+                if change > 0 && change < ada::MIN_OUTPUT as u128 { fail("change_below_1_ada: raise the fee to absorb it, add an input, or use --sweep") }
+                let mut o = vec![(tb, amt)]; if change > 0 { o.push((fb, change as u64)) } o
+            };
+            let t = ada::Tx { inputs, outputs, fee, ttl: num(&a, "--ttl").unwrap_or_else(|| fail("missing --ttl")), wit: None };
+            if fee < t.min_fee() { fail(&format!("fee_below_size_minimum: need >= {} lovelace", t.min_fee())) }
+            let d = ada_describe(&t, Some(from), Some(total));
+            for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
+            println!("{}", json!({"chain":"ada","unsigned":hex(&t.encode()),"from":from,"input_lovelace":total.to_string(),"summary":d}));
+        }
+        (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); println!("{}", ada_describe(&t, f.as_deref(), i)) }
         (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); println!("{}", ton_describe(&t, pk.as_ref())) }
         (Some("keys"), "atom") => {
             let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
@@ -185,7 +240,7 @@ fn main() {
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
-            let b = if c == "atom" || c == "ton" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
+            let b = if c == "atom" || c == "ton" || c == "ada" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
             let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
             let (d, out): (Value, Box<dyn FnOnce() -> Value>) = match c {
                 "xlm" => {
@@ -210,6 +265,17 @@ fn main() {
                     (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
                         json!({"status":"ok","chain":"atom","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":atom::Send::txid(&r)}) }))
                 }
+                "ada" => {
+                    let (mut t, from, total) = ada_read(&raw);
+                    if t.wit.is_some() { fail("already_signed") }
+                    let from = from.unwrap_or_else(|| fail("ada sign needs the JSON from build (it carries --from)"));
+                    let d = ada_describe(&t, Some(&from), total);
+                    if d["to"] != want { fail("destination_mismatch") }
+                    if !d["warnings"].as_array().unwrap().is_empty() { fail("refusing_to_sign_with_warnings") }
+                    let sk = Zeroizing::new(unhex(secret.trim())); let xk: Zeroizing<[u8; 64]> = Zeroizing::new(sk[..].try_into().unwrap_or_else(|_| fail("ada_key_must_be_128_hex (kL||kR)")));
+                    if ada::payment_key_hash(&ada::decode_address(&from).unwrap()).ok() != Some(&ada::key_hash(&ada::ext_pub(&xk))[..]) { fail("key_does_not_match_from") }
+                    (d, Box::new(move || { t.sign(&xk); json!({"status":"ok","chain":"ada","signed":hex(&t.encode()),"from":from,"txid":hex(&t.txid())}) }))
+                }
                 "ton" => {
                     let (mut t, _) = ton_read(&raw);
                     if t.signed() { fail("already_signed") }
@@ -229,6 +295,6 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             println!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton (see source header)"); std::process::exit(2) }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton|ada (see source header)"); std::process::exit(2) }
     }
 }

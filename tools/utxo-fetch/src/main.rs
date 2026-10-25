@@ -32,6 +32,7 @@ fn main() {
     if addrs.is_empty() || addrs.len() > 1000 { die("give 1..1000 addresses") }
     let vchain = if chain == "eth" { "eth" } else { chain.as_str() };
     for x in &addrs { if blocktools_core::validate::validate(vchain, x).is_err() { die("invalid address for chain") } }
+    if chain == "ada" { return ada(url.as_deref().unwrap_or("https://api.koios.rest/api/v1"), &addrs) }
     if chain == "xlm" || chain == "algo" || chain == "atom" || chain == "ton" { return acct(&chain, url.as_deref(), &addrs) }
     if chain == "eth" { return eth(url.as_deref().unwrap_or("https://ethereum-rpc.publicnode.com"), &addrs) }
     let base = url.unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(), _ => die("--url ESPLORA_BASE required for this chain") });
@@ -56,6 +57,23 @@ fn main() {
         }
     }
     eprintln!("{}", json!({"tool":"utxo-fetch","status":"done","chain":chain,"count":n,"amount":total}));
+}
+/// Cardano UTxOs via Koios: one line per UTxO, ready for `acct-tx build --chain ada --utxo TXID#IX:LOVELACE`.
+fn ada(url: &str, addrs: &[String]) {
+    let body = blocktools_net::post(&format!("{}/address_utxos", url.trim_end_matches('/')), json!({"_addresses":addrs}).to_string().as_bytes(), "application/json").unwrap_or_else(|e| die(&e));
+    let list: Vec<Value> = serde_json::from_slice(&body).unwrap_or_else(|_| die("bad utxo response"));
+    let (mut n, mut total) = (0u64, 0u64);
+    for u in list {
+        let txid = u["tx_hash"].as_str().filter(|t| t.len() == 64 && t.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| die("bad txid from server"));
+        let ix = u["tx_index"].as_u64().filter(|&v| v <= u32::MAX as u64).unwrap_or_else(|| die("bad index from server"));
+        let value: u64 = u["value"].as_str().and_then(|v| v.parse().ok()).unwrap_or_else(|| die("bad value from server"));
+        let assets = u["asset_list"].as_array().is_some_and(|a| !a.is_empty());
+        let mut o = json!({"txid":txid,"vout":ix,"amount":value,"address":u["address"],"utxo":format!("{txid}#{ix}:{value}")});
+        if assets { o["warning"] = json!("carries_native_assets: acct-tx ada builds ADA-only outputs, spending this would burn/strand the assets; do not pass it (NOT BUILT)") }
+        blocktools_io::outln!("{o}"); n += 1; if !assets { total = total.saturating_add(value) }
+        if n > 2000 { die("more than 2000 utxos") }
+    }
+    eprintln!("{}", json!({"tool":"utxo-fetch","status":"done","chain":"ada","count":n,"amount_ada_only":total,"source":url}));
 }
 fn eth(url: &str, addrs: &[String]) {
     if addrs.len() != 1 { die("eth: give exactly one address") }

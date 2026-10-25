@@ -121,3 +121,31 @@ fn ton_v4r2_matches_tonsdk() {
         assert!(t.clone().sign(&[2; 32]).is_err());
     }
 }
+
+// pycardano 0.19.2 (/tmp/vec/ada.py): "abandon x11 about", m/1852'/1815'/0'/0/0 -> 0/1, two inputs, fee 172221, ttl 150000000.
+#[test]
+fn ada_matches_pycardano() {
+    use blocktools_acct::ada;
+    let m = blocktools_core::chains::ada_icarus_master("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "").unwrap();
+    let rows = blocktools_core::chains::ada_rows(&m, 2);
+    let (src, dst) = ("addr1qy8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mq4afdhv", "addr1qyz85693g4fr8c55mfyxhae8j2u04pydxrgqr73vmwpx3a8927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqu2c0f9");
+    assert_eq!((rows[0].address.as_str(), rows[1].address.as_str()), (src, dst));
+    let xk: [u8; 64] = blocktools_core::hex_dec(&rows[0].secret).unwrap().try_into().unwrap();
+    let (s, d) = (ada::decode_address(src).unwrap(), ada::decode_address(dst).unwrap());
+    assert_eq!(ada::payment_key_hash(&s).unwrap(), &ada::key_hash(&ada::ext_pub(&xk))[..]);
+    let ins = vec![(blocktools_core::hex_dec("1ca4b3296f0b31b9f584e06c4dfc59119ecc408ba0395047c8d616f4c88a20c6").unwrap().try_into().unwrap(), 0),
+                   (blocktools_core::hex_dec("87dac51506d06652be02110bd1e34c2156faa5fa37253dc885da93b840b4bdec").unwrap().try_into().unwrap(), 1)];
+    let pay_tx = "84a400828258201ca4b3296f0b31b9f584e06c4dfc59119ecc408ba0395047c8d616f4c88a20c60082582087dac51506d06652be02110bd1e34c2156faa5fa37253dc885da93b840b4bdec01018282583901047a68b1455233e294da486bf72792b8fa848d30d001fa2cdb8268f4e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d1761a0016e360825839010fdc780023d8be7c9ff3a6bdc0d8d3b263bd0cc12448c40948efbf42e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d1761a007f1263021a0002a0bd031a08f0d180a100818258207ea09a34aebb13c9841c71397b1cabfec5ddf950405293dee496cac2f437480a5840502db032be107f0e8b98e1df645f421427796ad80c8589b723dd077935b470b28582cc8212104f44a7e4758da93d308de7b6d1e1ccab3adf2e9794105783fb03f5f6";
+    let sweep_tx = "84a400828258201ca4b3296f0b31b9f584e06c4dfc59119ecc408ba0395047c8d616f4c88a20c60082582087dac51506d06652be02110bd1e34c2156faa5fa37253dc885da93b840b4bdec01018182583901047a68b1455233e294da486bf72792b8fa848d30d001fa2cdb8268f4e557890352095f1cf6fd2b7d1a28e3c3cb029f48cf34ff890a28d1761a0095f5c3021a0002a0bd031a08f0d180a100818258207ea09a34aebb13c9841c71397b1cabfec5ddf950405293dee496cac2f437480a5840050d5d1d6cd669fe4730bdde9d69b5844b96a615cde0bea5dc92f7ed3d1110d734541e473f018a6abec03df2bdf25bed5e330042672c0086bf011868f5fc3f08f5f6";
+    for (outs, txid, raw) in [(vec![(d.clone(), 1_500_000), (s.clone(), 8_327_779)], "6a43c08a66cd05f196353499e9f8851847a097f6b0e20d0ea3f987bdc5e83da3", pay_tx),
+                              (vec![(d.clone(), 9_827_779)], "3fad6a20aea89730f508185de6cc28fe03fcad4f09c681b54368439abf002a5e", sweep_tx)] {
+        let mut t = ada::Tx { inputs: ins.clone(), outputs: outs, fee: 172_221, ttl: 150_000_000, wit: None };
+        assert_eq!(hex(&t.txid()), txid);
+        assert_eq!(ada::Tx::decode(&t.encode()).unwrap(), t);
+        t.sign(&xk);
+        assert_eq!(hex(&t.encode()), raw);
+        let back = ada::Tx::decode(&blocktools_core::hex_dec(raw).unwrap()).unwrap();
+        assert!(back.verify() && back == t);
+        assert!(t.min_fee() <= t.fee);
+    }
+}

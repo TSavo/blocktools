@@ -86,7 +86,7 @@ WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid 
 
 ## Account payments (2026-10-25)
 
-xlm, algo, atom and ton have payment/sweep builders in `acct-tx` (see recipes/chain-ton.md, chain-stellar.md, chain-algorand.md, chain-cosmos.md). The table's
+xlm, algo, atom, ton and ada have payment/sweep builders in `acct-tx` (see recipes/chain-cardano.md, chain-ton.md, chain-stellar.md, chain-algorand.md, chain-cosmos.md). The table's
 `sweep build` column is the wasm/UTXO builder only and stays `no` for them.
 
 ## Groestlcoin extended keys and taproot (2026-10-25)

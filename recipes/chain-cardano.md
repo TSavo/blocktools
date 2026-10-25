@@ -11,4 +11,23 @@ mainnet base addresses `addr1q...`.
 `private_key` is the hex extended payment key (kL||kR), redacted by `redact`.
 NOT BUILT: Ledger / Trezor master-key derivations (different from Icarus for 24 words), Byron
 addresses (Ae2.../DdzFF...) and legacy Daedalus, spending passphrase, accounts > 0, change
-addresses, transfers and balance lookup. Look the addresses up on a block explorer.
+addresses. Look the addresses up on a block explorer, or use utxo-fetch below.
+
+## Transfers (payment / sweep)
+
+    utxo-fetch --chain ada addr1...SOURCE       # Koios: one line per UTxO with "utxo":"TXID#IX:LOVELACE"
+    acct-tx build --chain ada --from addr1...SOURCE --to addr1...DEST \
+        --utxo TXID#IX:LOVELACE [--utxo ...] (--amount LOVELACE | --sweep) --fee 180000 --ttl SLOT > unsigned.json
+    acct-tx decode --chain ada < unsigned.json  # review
+    acct-tx sign --chain ada --tx unsigned.json --expect-to addr1...DEST > signed.json
+    # signed.json "signed" is hex CBOR (cardano-cli cborHex); submit it from a networked host.
+
+The secret for sign is the 128-hex `private_key` from key-to-addresses (the row whose address is
+`--from`); sign refuses a key whose hash is not the from address's payment part. Change (inputs -
+amount - fee) goes back to `--from`; change between 0 and 1 ADA is refused. build refuses a fee below
+44*size+155381 lovelace; TTL is an absolute slot (current tip slot + e.g. 7200).
+KAT: signed tx bytes == pycardano 0.19.2 for payment-with-change and sweep (abandon...about vector).
+Lookup tested live against Koios on an empty address only.
+NOT BUILT: UTxOs carrying native assets / tokens (utxo-fetch flags them; never pass them), multi-asset
+outputs, staking/delegation certificates, withdrawals, metadata, Byron inputs, protocol-parameter fetch
+(fee constants are hardcoded mainnet values), testnet.

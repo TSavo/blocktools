@@ -9,6 +9,10 @@ description = "Account-model payment builders (xlm, algo, ...). DANGEROUS: audit
 blocktools-core = { path = "../core", default-features = false, features = ["ed25519"] }
 bitcoin = { workspace = true }
 ed25519-dalek = { workspace = true }
+curve25519-dalek = { workspace = true }
 sha2 = { workspace = true }
 secp256k1 = { workspace = true }
 zeroize = { workspace = true }
+
+[dev-dependencies]
+blocktools-core = { path = "../core", default-features = false, features = ["ed25519", "cardano", "secrets"] }

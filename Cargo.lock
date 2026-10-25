@@ -214,6 +214,7 @@ version = "0.1.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
+ "curve25519-dalek",
  "ed25519-dalek",
  "secp256k1",
  "sha2",
