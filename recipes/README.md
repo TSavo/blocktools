@@ -49,7 +49,7 @@ and see addresses and signed transactions only.
 | Algorand | ✅ (own mnemonic) | ✅ utxo-fetch (host-side, manual) | ✅ pay / close-to (acct-tx, TTY confirm) | [chain-algorand.md](chain-algorand.md) |
 | Cardano | ✅ (Shelley base, Icarus) | ✗ | ✗ | [chain-cardano.md](chain-cardano.md) |
 | Zcash shielded (Sapling) | ✅ (address + viewing key) | ✗ | ✗ | [zcash-shielded.md](zcash-shielded.md) |
-| TON | ✅ (wallet v4r2) | ✗ | ✗ | [chain-ton.md](chain-ton.md) |
+| TON | ✅ (wallet v4r2) | ✅ utxo-fetch (host-side, manual) | ✅ v4r2 transfer/sweep (acct-tx, TTY confirm) | [chain-ton.md](chain-ton.md) |
 | Polkadot | ✅ (root sr25519) | ✗ | ✗ | [chain-polkadot.md](chain-polkadot.md) |
 | Stellar | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ Payment / AccountMerge (acct-tx, TTY confirm) | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | ✅ xmr-wallet scan (stagenet) | ✅ xmr-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |

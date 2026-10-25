@@ -2,6 +2,7 @@
 use blocktools_acct::*;
 fn b64(s: &str) -> Vec<u8> { blocktools_core::b64::decode(s).unwrap() }
 const S1: [u8; 32] = [1; 32];
+fn hex(b: &[u8]) -> String { blocktools_core::hex_enc(b) }
 
 #[test]
 fn xlm_payment_and_merge_match_stellar_sdk() {
@@ -88,4 +89,35 @@ fn atom_msgsend_matches_cosmjs() {
     assert!(d.verify(&s2));
     let (d, s2) = Send::decode_tx_raw(&raw, "cosmoshub-4", 123457).unwrap();
     assert!(!d.verify(&s2));
+}
+
+// tonsdk 1.0.15 WalletV4ContractR2, key [1;32] -> key [2;32]'s wallet, seqno 5, valid_until 1767225600, to_boc(False) (/tmp/vec/ton.py).
+#[test]
+fn ton_v4r2_matches_tonsdk() {
+    use blocktools_acct::ton;
+    let src = "UQDvr_S6wiD4iy6Y6x2c_8yjv-O2bs4xp9bFiQ0w39evpYZV";
+    let (wallet, _) = ton::parse_address(src).unwrap();
+    let pk = blocktools_acct::ed_sign(&[1; 32], b"").0;
+    assert_eq!(blocktools_core::chains::ton_v4r2_account(&pk), wallet);
+    let cases = [
+        ("UQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOdQl", 1_500_000_000u128, ton::MODE_PAY, Some("42"),
+         "77a057991b08a34eb83d38cbf34cc220f55011c7701962baf08d95d3813abc32", "5c166d6404936aa257cd9b49985af86f1c61428907fbd96cb7e0728072433958",
+         "te6cckEBAgEAsAAB4YgB31/pdYRB8RZdMdY7Of+ZR3/HbN2cY0+tixIaYb+vX0oC4DnmBK3Xbv0PF4xWODy1x9N0Rq24MYojMh3TvGtp6ItF2mrZdCPnBxL2MyOHIvcpGvdg0Ha7vo8HSTHMdEDAQU1NGLtKrcgAAAAAKAAcAQB0QgANBqC4Kfm2LFlahgcqpC+aFXyx881g/H9Ffb4YgR3GHKLLQXgAAAAAAAAAAAAAAAAAAAAAAAA0Mnt4ook="),
+        ("EQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOYng", 0, ton::MODE_SWEEP, None,
+         "f85d605def9adb7403a3f2d99be557a914b148bf64c4761bcba6a3d3a2fcbf2b", "42ff468128bff5dea49c820ad9c42db8cb43a86b16b9effa8e461308ceee0c41",
+         "te6cckEBAgEApgAB4YgB31/pdYRB8RZdMdY7Of+ZR3/HbN2cY0+tixIaYb+vX0oDqbA3thDZPkxSQqYbPH5FgtYyYQSDkfED1yc3NV/TeYuP6pMI4V5YgPdcONMhxOBgT+NwbZ2gRl6yYEZOnjcYUU1NGLtKrcgAAAAAKAQEAQBgYgANBqC4Kfm2LFlahgcqpC+aFXyx881g/H9Ffb4YgR3GHIAAAAAAAAAAAAAAAAAAzM64ww=="),
+    ];
+    for (to, amount, mode, c, sh, mh, b) in cases {
+        let (to, bounce) = ton::parse_address(to).unwrap();
+        let mut t = ton::Transfer { wallet, wallet_id: ton::WALLET_ID, valid_until: 1767225600, seqno: 5, mode, to, bounce, amount, comment: c.map(String::from), sig: [0; 64] };
+        assert_eq!(hex(&t.signing_hash()), sh);
+        let u = t.encode();
+        assert_eq!(ton::Transfer::decode(&u).unwrap(), t);
+        t.sign(&[1; 32]).unwrap();
+        assert_eq!(hex(&t.msg_hash()), mh);
+        assert_eq!(blocktools_core::b64::encode(&t.encode()), b);
+        let d = ton::Transfer::decode(&blocktools_core::b64::decode(b).unwrap()).unwrap();
+        assert!(d.verify(&pk) && d == t);
+        assert!(t.clone().sign(&[2; 32]).is_err());
+    }
 }

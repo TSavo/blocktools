@@ -30,5 +30,12 @@ python3 scripts/tty-drive.py right "$X/atom.key" "$X/atom-s.json" "$(cd "$B" && 
 grep -q '"txid":"EA467ABCA0270EBC959BEBC2A256A7592FD3C05F985CE04F4D5D49C54ED28F03"' "$X/atom-s.json" || { echo "FAIL acct atom txid != cosmjs"; cat "$X/t-atom"; exit 1; }
 "$B/acct-tx" decode --chain atom < "$X/atom-s.json" | grep -q '"signature_valid":true' || { echo "FAIL acct atom signed decode"; exit 1; }
 "$B/acct-tx" sign --chain atom --tx "$X/cu.json" --expect-to $CF < "$X/atom.key" | grep -q destination_mismatch || { echo "FAIL acct atom expect-to"; exit 1; }
+TF=UQDvr_S6wiD4iy6Y6x2c_8yjv-O2bs4xp9bFiQ0w39evpYZV; TT=UQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOdQl
+"$B/acct-tx" build --chain ton --from $TF --to $TT --amount 1500000000 --seqno 5 --valid-until 1767225600 --comment 42 > "$X/tu.json" 2>/dev/null
+python3 scripts/tty-drive.py right "$X/atom.key" "$X/ton-s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain ton --tx "$X/tu.json" --expect-to EQAaDUFwU_NsWLK1DA5VSF80Kvlj55rB-P6K-3wxAjuMOYng > "$X/t-ton" 2>&1
+grep -q '"signed":"te6cckEBAgEAsAAB4YgB31/pdYRB8RZdMdY7Of+ZR3/HbN2cY0+tixIaYb+vX0oC4DnmBK3Xbv0PF4xWODy1x9N0Rq24MYojMh3TvGtp6ItF2mrZdCPnBxL2MyOHIvcpGvdg0Ha7vo8HSTHMdEDAQU1NGLtKrcgAAAAAKAAcAQB0QgANBqC4Kfm2LFlahgcqpC+aFXyx881g/H9Ffb4YgR3GHKLLQXgAAAAAAAAAAAAAAAAAAAAAAAA0Mnt4ook="' "$X/ton-s.json" || { echo "FAIL acct ton boc != tonsdk"; cat "$X/t-ton"; exit 1; }
+"$B/acct-tx" decode --chain ton < "$X/ton-s.json" | grep -q '"signature_valid":true' || { echo "FAIL acct ton signed decode"; exit 1; }
+"$B/acct-tx" sign --chain ton --tx "$X/tu.json" --expect-to $TF < "$X/atom.key" | grep -q destination_mismatch || { echo "FAIL acct ton expect-to"; exit 1; }
+"$B/acct-tx" build --chain ton --from $TF --to $TT --amount 1 --seqno 0 --valid-until 1 | grep -q seqno_0 || { echo "FAIL acct ton seqno0"; exit 1; }
 if grep -rqF -e "$(cat "$X/atom.key")" -e "$(cat "$X/xlm.key")" -e "$(cat "$X/algo.key")" "$X"/*.json "$X"/t*; then echo "LEAK acct key in output"; exit 1; fi
-echo "ok  acct-tx: xlm payment + algo close-to + atom MsgSend (== cosmjs) built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"
+echo "ok  acct-tx: xlm payment + algo close-to + atom MsgSend (== cosmjs) + ton v4r2 (== tonsdk) built (SDK txids), wrong code aborts, signed == SDK bytes, verified, wrong dest refused"

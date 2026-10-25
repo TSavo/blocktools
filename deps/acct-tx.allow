@@ -23,10 +23,12 @@ generic-array
 groestl
 hex-conservative
 hex_lit
+hmac
 itoa
 keccak
 libc
 memchr
+pbkdf2
 proc-macro2
 quote
 secp256k1

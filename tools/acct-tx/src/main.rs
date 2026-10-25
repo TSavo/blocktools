@@ -5,13 +5,15 @@
 //! acct-tx keys    --chain atom < hex-private-key                    -> {"address","pubkey"} (public only; build needs --pubkey)
 //! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
 //!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
+//! acct-tx build   --chain ton  --from UQ.. --to EQ..|UQ.. (--amount NANOTON | --sweep) --seqno N --valid-until UNIX [--comment T]
+//!                 (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the --to form)
 //! acct-tx decode  --chain C [--testnet] < unsigned-or-signed (JSON from build/sign, or bare base64)
 //! acct-tx sign    --chain C --tx FILE --expect-to ADDR [--testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
-//!   (atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
+//!   (ton: 24 TON words or 64-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
 //!   shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
 //! --sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
 //!          algo = amount 0 + close-to (sends everything and closes the account; fails while ASAs are opted in).
-use blocktools_acct::{algo, atom, fmt_units, xlm};
+use blocktools_acct::{algo, atom, fmt_units, ton, xlm};
 use blocktools_core::b64;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -81,6 +83,24 @@ fn atom_read(s: &str) -> (atom::Send, Option<[u8; 64]>) {
     }
 }
 
+fn ton_describe(t: &ton::Transfer, pk: Option<&[u8; 32]>) -> Value {
+    let mut w = vec![];
+    if t.comment.is_none() && t.mode != ton::MODE_SWEEP { w.push("comment_missing: exchanges credit deposits by comment (memo); without one the funds may not be credited") }
+    if t.mode == ton::MODE_SWEEP { w.push("sweep: send mode 128 carries the entire remaining balance (fees come out of it); the wallet stays deployed with ~0 balance") }
+    else if t.mode != ton::MODE_PAY { w.push("unusual_send_mode") }
+    if t.bounce { w.push("bounceable: if the destination is not an active contract the funds bounce back minus fees (use the UQ.. form for a fresh wallet)") }
+    if t.wallet_id != ton::WALLET_ID { w.push("subwallet_id_not_default") }
+    json!({"chain":"ton","type":if t.mode == ton::MODE_SWEEP {"sweep"} else {"transfer"},"from":ton::address(&t.wallet, false),"to":ton::address(&t.to, t.bounce),
+        "amount_nanoton":(t.mode != ton::MODE_SWEEP).then(|| t.amount.to_string()),"amount_str":(t.mode != ton::MODE_SWEEP).then(|| fmt_units(t.amount, 9)),
+        "fee_str":"taken from the wallet balance by the network (not part of the message)","send_mode":t.mode,"seqno":t.seqno,"valid_until":t.valid_until,
+        "subwallet_id":t.wallet_id,"comment":t.comment,"network":"mainnet","signed":t.signed(),"signature_valid":pk.map(|k| t.verify(k)),
+        "msg_hash":t.signed().then(|| hex(&t.msg_hash())),"warnings":w})
+}
+fn ton_read(s: &str) -> (ton::Transfer, Option<[u8; 32]>) {
+    let pk = serde_json::from_str::<Value>(s).ok().and_then(|v| v["pubkey"].as_str().map(|p| unhex(p).try_into().unwrap_or_else(|_| fail("pubkey_must_be_32_bytes"))));
+    (ton::Transfer::decode(&read_tx(s)).unwrap_or_else(|e| fail(e)), pk)
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let chain = opt(&a, "--chain").unwrap_or("");
@@ -118,6 +138,23 @@ fn main() {
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             println!("{}", json!({"chain":"algo","unsigned":b64::encode(&p.encode()),"summary":d}));
         }
+        (Some("build"), "ton") => {
+            let (wallet, _) = ton::parse_address(req(&a, "--from")).unwrap_or_else(|e| fail(e));
+            let (to, bounce) = ton::parse_address(req(&a, "--to")).unwrap_or_else(|e| fail(e));
+            if wallet == to { fail("destination_is_source") }
+            let sweep = flag(&a, "--sweep");
+            let amount: u128 = if sweep { 0 } else { num(&a, "--amount").filter(|&v: &u128| v > 0).unwrap_or_else(|| fail("missing --amount (>0) or --sweep")) };
+            let seqno: u32 = num(&a, "--seqno").unwrap_or_else(|| fail("missing --seqno"));
+            if seqno == 0 { fail("seqno_0: wallet not deployed; the deploy (StateInit) message is NOT BUILT") }
+            let comment = opt(&a, "--comment").map(String::from);
+            if comment.as_ref().is_some_and(|c| c.is_empty() || c.len() > ton::MAX_COMMENT) { fail("comment_must_be_1_to_120_bytes") }
+            let t = ton::Transfer { wallet, wallet_id: ton::WALLET_ID, valid_until: num(&a, "--valid-until").unwrap_or_else(|| fail("missing --valid-until")), seqno,
+                mode: if sweep { ton::MODE_SWEEP } else { ton::MODE_PAY }, to, bounce, amount, comment, sig: [0; 64] };
+            let d = ton_describe(&t, None);
+            for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
+            println!("{}", json!({"chain":"ton","unsigned":b64::encode(&t.encode()),"summary":d}));
+        }
+        (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); println!("{}", ton_describe(&t, pk.as_ref())) }
         (Some("keys"), "atom") => {
             let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
             let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
@@ -148,7 +185,7 @@ fn main() {
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
-            let b = if c == "atom" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
+            let b = if c == "atom" || c == "ton" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
             let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
             let (d, out): (Value, Box<dyn FnOnce() -> Value>) = match c {
                 "xlm" => {
@@ -173,6 +210,15 @@ fn main() {
                     (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
                         json!({"status":"ok","chain":"atom","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":atom::Send::txid(&r)}) }))
                 }
+                "ton" => {
+                    let (mut t, _) = ton_read(&raw);
+                    if t.signed() { fail("already_signed") }
+                    let d = ton_describe(&t, None);
+                    if ton::parse_address(want).map(|x| x.0) != Ok(t.to) { fail("destination_mismatch") }
+                    let k = if secret.split_whitespace().count() == 24 { blocktools_core::chains::ton_mnemonic_key(&secret).unwrap_or_else(|e| fail(e)) } else { hex32(&secret) };
+                    (d, Box::new(move || { let pk = t.sign(&k).unwrap_or_else(|e| fail(e));
+                        json!({"status":"ok","chain":"ton","signed":b64::encode(&t.encode()),"pubkey":hex(&pk),"msg_hash":hex(&t.msg_hash())}) }))
+                }
                 _ => fail("unsupported --chain"),
             };
             let summary = format!("{} {} {}\n  amount {}  fee {}\n  from {}\n  to   {}{}\n{}", c.to_uppercase(), d["type"].as_str().unwrap(),
@@ -183,6 +229,6 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             println!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom (see source header)"); std::process::exit(2) }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton (see source header)"); std::process::exit(2) }
     }
 }
