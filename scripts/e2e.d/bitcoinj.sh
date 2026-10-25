@@ -57,3 +57,7 @@ done
 [ "$(grep -c '"address"' $T/h)" = 2 ] || f "mbhd hits"
 { echo nope; cat $F/mbhd.wallet.aes; } | $B/multibit-read > $T/w && f "mbhd wrong pw accepted"; grep -q wrong_password $T/w || f "mbhd wrong pw status"
 echo "ok   mbhd.wallet.aes: multibit-read xprv -> derive m/0'/0/0..1 hits both stored keys; wrong password refused"
+printf 'btcr-test-password\n' > $T/pw; cp $F/mbhd.wallet.aes $T/mbhd.wallet.aes
+BIN=$B recipes/recover.sh $T/mbhd.wallet.aes - --goal addresses --count 2 --password-file $T/pw > $T/r 2>/dev/null || f "mbhd recover.sh"
+while read -r a; do grep -qF "\"$a\"" $T/r || f "mbhd recover.sh address"; done < $T/mbhd.want
+echo "ok   mbhd.wallet.aes: classify (by name) -> recover.sh routes to multibit-read + derive m/0'/c/i, both stored keys found"

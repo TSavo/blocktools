@@ -52,8 +52,8 @@ case $class in
   # BIP32 master xprv (one line): wrapped as {"xprv":...} by sed (streamed, never a shell variable) for derive.
   xprv)            keys() { sed -n '1s/^[[:space:]]*\([1-9A-Za-z]*\).*/{"status":"ok","xprv":"\1"}/p' "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   armory_wallet)   keys() { pw_then_file | "$B/armory-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
-  # bitcoinj / MultiBit Classic .wallet: loose keys (wif) or an HD seed (xprv, MultiBit HD path m/0'/c/i).
-  bitcoinj_wallet) keys() { local e; e=$(pw_then_file | "$B/multibit-read")
+  # bitcoinj / MultiBit Classic .wallet, MultiBit HD mbhd.wallet.aes (by name): loose keys (wif) or an HD seed (xprv, MultiBit HD path m/0'/c/i).
+  bitcoinj_wallet|multibit_hd_wallet) keys() { local e; e=$(pw_then_file | "$B/multibit-read")
                             if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e" | "$B/key-to-addresses" --chain "$CHAIN"; else printf '%s\n' "$e" | "$B/derive" --chain "$CHAIN" --path "m/0'/{change}/{i}" --change 0,1 --index "0..$((COUNT-1))" --address-type p2pkh --compressed; fi; unset e; } ;;
   xpub)            WATCH=1; keys() { "$B/xpub-addresses" --chain "$CHAIN" --count "$COUNT" --change 0,1 < "$FILE"; } ;;
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;

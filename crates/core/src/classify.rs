@@ -9,7 +9,7 @@ pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub pub
 
 /// Every class name classify can print.
 pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
-    "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "armory_wallet", "unknown"];
+    "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
     let h = crate::hex_enc(sha256::Hash::hash(b).to_byte_array());
@@ -24,6 +24,14 @@ pub fn electrum_version(words: &str) -> Option<&'static str> {
     e.input(norm.as_bytes());
     let h = crate::hex_enc(hmac::Hmac::<sha512::Hash>::from_engine(e).to_byte_array());
     [("01", "standard"), ("100", "segwit"), ("101", "2fa"), ("102", "2fa-segwit")].iter().find(|(p, _)| h.starts_with(p)).map(|x| x.1)
+}
+
+/// `classify` plus file-name hints for formats with no magic: MultiBit HD `mbhd.wallet.aes` is
+/// raw AES-CBC (IV + ciphertext), so only the name and a block-aligned length identify it.
+pub fn classify_named(name: &str, data: &[u8]) -> Vec<Row> {
+    let base = name.rsplit('/').next().unwrap_or(name).to_ascii_lowercase();
+    if base.ends_with(".wallet.aes") && data.len() >= 32 && data.len() % 16 == 0 && std::str::from_utf8(data).is_err() { return vec![row("multibit_hd_wallet", 0, data)] }
+    classify(data)
 }
 
 /// Whole-file formats first (binary magics, JSON wallets); otherwise one row per non-empty line.
@@ -115,5 +123,16 @@ mod t {
         assert_eq!(c("hello"), "unknown");
         let r = &classify(b"0000000000000000000000000000000000000000000000000000000000000001")[0];
         assert!(r.public.is_none() && r.fp.len() == 10);
+    }
+}
+
+#[cfg(test)]
+mod named_tests {
+    #[test]
+    fn mbhd_by_name() {
+        let bin: Vec<u8> = (0..64u8).map(|i| i.wrapping_mul(37) | 0x80).collect();
+        assert_eq!(super::classify_named("/in/mbhd.wallet.aes", &bin)[0].class, "multibit_hd_wallet");
+        assert_ne!(super::classify_named("x/other.bin", &bin)[0].class, "multibit_hd_wallet");
+        assert_ne!(super::classify_named("mbhd.wallet.aes", &bin[..40])[0].class, "multibit_hd_wallet");
     }
 }

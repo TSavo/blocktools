@@ -36,6 +36,7 @@ The front door routes `bitcoinj_wallet` the same way (wif lines -> key-to-addres
 <!-- e2e: expect=19VvSJ13F5LYWV9rhywnjUA8v5n3pPaxeA ; needs=bitcoinj.wallet -->
     recipes/recover.sh /in/bitcoinj.wallet - --goal addresses --password-file /secrets/multibit.pw
 
-MultiBit HD `mbhd.wallet.aes` has no magic bytes, so classify says `unknown` and recover.sh can't route it. Run the
+MultiBit HD `mbhd.wallet.aes` has no magic bytes; classify recognises it by file name (`*.wallet.aes`, binary,
+block-aligned) as `multibit_hd_wallet` and recover.sh routes it like a bitcoinj HD seed. Renamed files need the
 host pipeline above (`multibit-read | derive --path "m/0'/{change}/{i}" ...`); `./blocktools run` refuses `'` and
 `{}` in arguments. Covered by scripts/e2e.d/bitcoinj.sh (btcrecover's mbhd fixture, both addresses matched).

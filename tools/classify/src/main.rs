@@ -3,7 +3,7 @@
 //! Reads FILE (one argument) or stdin, at most 16 MiB. Never echoes secrets: secret items get a
 //! SHA-256 fingerprint (first/last 4 hex); only addresses ("address") and xpubs ("xpub") are echoed.
 //! Classes: see blocktools_core::classify::CLASSES. Use it to pick the reader (recipes/recover.sh).
-use blocktools_core::classify::classify;
+use blocktools_core::classify::classify_named;
 use serde_json::json;
 use std::io::Read;
 
@@ -20,7 +20,7 @@ fn main() {
     // A password file (/secrets/pw, pw*, *pass*): type only. A SHA-256 fingerprint of a
     // low-entropy password is a dictionary oracle, so no fp/public fields (security review 2026-10-25).
     let pw = a.first().map_or(false, |f| is_pw_path(f));
-    for row in classify(&buf) {
+    for row in classify_named(a.first().map_or("", String::as_str), &buf) {
         if pw || row.class == "unknown" {
             let mut v = json!({"tool":"classify","status":"ok","class":row.class,"line":row.line});
             if pw { v["source"] = json!("password_file") }
