@@ -150,3 +150,36 @@ pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u32) -
 pub fn build_unsigned_sweep_at(chain: &str, utxos: &str, to: &str, fee_rate: u32, time: u32) -> Result<String, JsError> {
     blocktools::sweep::build_unsigned_sweep_at(chain, utxos, to, fee_rate as u64, time).map(|mut v| { twins(&mut v); v.to_string() }).map_err(err)
 }
+
+// ---- Substrate / BLAKE2b (public data) ----
+fn hx(s: &str) -> Result<Vec<u8>, JsError> { blocktools::hex_dec(s.trim_start_matches("0x")).ok_or_else(|| err("bad_hex")) }
+fn acct32(s: &str) -> Result<[u8; 32], JsError> {
+    if let Ok((_, a)) = blocktools::substrate::ss58_decode(s) { return Ok(a) }
+    hx(s)?.try_into().map_err(|_| err("bad_account"))
+}
+/// BLAKE2b of hex `data_hex` with `out_len` bytes (1..64) and a UTF-8 personalization (<= 16 bytes, "" for none). Returns hex.
+#[wasm_bindgen(js_name = blake2b)]
+pub fn blake2b_hex(data_hex: &str, out_len: u32, personal: &str) -> Result<String, JsError> {
+    Ok(blocktools::hex_enc(blocktools::substrate::blake2b_hash(&hx(data_hex)?, out_len as usize, personal.as_bytes()).map_err(err)?))
+}
+/// Substrate twox_128 of UTF-8 `text`. Returns hex.
+#[wasm_bindgen(js_name = twox128)]
+pub fn twox128_hex(text: &str) -> String { blocktools::hex_enc(blocktools::substrate::twox128(text.as_bytes())) }
+/// SS58 address from a 32-byte account id (hex) and prefix (0 Polkadot, 2 Kusama, 42 generic; up to 16383).
+#[wasm_bindgen(js_name = ss58Encode)]
+pub fn ss58_encode(account_hex: &str, prefix: u32) -> Result<String, JsError> {
+    let a: [u8; 32] = hx(account_hex)?.try_into().map_err(|_| err("bad_account"))?;
+    blocktools::substrate::ss58_encode(u16::try_from(prefix).map_err(|_| err("bad_prefix"))?, &a).map_err(err)
+}
+/// JSON {prefix, account} (account id hex) for an SS58 address; throws bad_base58/bad_prefix/bad_length/bad_checksum.
+#[wasm_bindgen(js_name = ss58Decode)]
+pub fn ss58_decode(addr: &str) -> Result<String, JsError> {
+    let (p, a) = blocktools::substrate::ss58_decode(addr).map_err(err)?;
+    Ok(json!({"prefix": p, "account": blocktools::hex_enc(a)}).to_string())
+}
+/// System.Account storage key (hex, no 0x) for an SS58 address or a 32-byte account id hex.
+#[wasm_bindgen(js_name = polkadotAccountStorageKey)]
+pub fn polkadot_account_storage_key(account: &str) -> Result<String, JsError> { Ok(blocktools::hex_enc(blocktools::substrate::system_account_key(&acct32(account)?))) }
+/// SCALE AccountInfo (80 bytes hex, as returned by state_getStorage) -> JSON {nonce,consumers,providers,sufficients,data:{free,reserved,frozen,flags}}; u128 as decimal strings.
+#[wasm_bindgen(js_name = decodeAccountInfo)]
+pub fn decode_account_info(hex: &str) -> Result<String, JsError> { Ok(blocktools::substrate::decode_account_info(&hx(hex)?).map_err(err)?.to_string()) }

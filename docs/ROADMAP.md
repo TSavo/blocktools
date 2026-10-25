@@ -82,3 +82,4 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 - [x] Qtum sweep: tx-build (P2PKH, legacy sighash) checked against 5 qtum.info mainnet txs (crates/tx/tests/qtum.rs). Untested: broadcast, contract outputs, P2PK inputs.
 - [ ] Potcoin sweep: blocked, no reachable explorer to source mainnet vectors for its PoSV nTime layout.
 - [x] SwapChan lift 1: offline recipe docs (recipes/offline-recovery-guide.md): seed -> EVM/Tron/BTC/LTC/DOGE, key -> BTC, and seed-repair missing-word search (`?` token, or one word short at any position; `repair_missing`). Untested: two missing words (not attempted).
+- [x] SwapChan lift 2: wasm `blake2b`, `twox128`, `ss58Encode`, `ss58Decode`, `polkadotAccountStorageKey`, `decodeAccountInfo` (crate `blocktools::substrate`; vectors from hashlib, xxhash, py-scale-codec, the Alice dev account). Untested: AccountInfo layouts other than the 80-byte one; ss58 for non-32-byte account ids.

@@ -22,6 +22,12 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `chainParams()` | `address::params_json()` | the full table: `[{name,ticker,title,slip44,verified,p2pkh:[bytes],p2sh:[bytes],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,fee_warn:{fee,rate,basis},sources}]`. `fee_warn` is the verifyTx limit: `high_fee` above `fee` base units, `high_fee_rate` above `rate` per vbyte (see docs/CHAINS.md "Fee-warning limits") |
 | `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy`, `legacy-sha256` (GRS) and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` (pos-ntime: see `buildUnsignedSweepAt`) |
 | `buildUnsignedSweepAt(chain, utxos, to, feeRate, time)` | `sweep::build_unsigned_sweep_at(...)` | As above plus tx `time` (unix s). pos-ntime chains return `{chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts:[{amount,script}],inputs,amount,fee}`; other chains ignore `time`. Throws `pos_ntime_needs_time` if time is 0 |
+| `blake2b(dataHex, outLen, personal)` | `substrate::blake2b_hash` | hex digest; `outLen` 1..64; `personal` UTF-8 ≤16 bytes (`""` none); throws `bad_hex`, `bad_out_len`, `bad_personal` |
+| `twox128(text)` | `substrate::twox128` | hex (16 bytes): xxh64 seed 0 ‖ seed 1, little-endian (Substrate pallet/storage prefixes) |
+| `ss58Encode(accountHex, prefix)` | `substrate::ss58_encode` | SS58 string; prefix 0..16383 (one- and two-byte forms); throws `bad_hex`, `bad_account`, `bad_prefix` |
+| `ss58Decode(addr)` | `substrate::ss58_decode` | `{prefix, account}` (account id hex); throws `bad_base58`, `bad_prefix`, `bad_length`, `bad_checksum` |
+| `polkadotAccountStorageKey(account)` | `substrate::system_account_key` | hex key `twox128("System")‖twox128("Account")‖blake2_128(id)‖id`; `account` is an SS58 address (any prefix) or 32-byte hex (optional `0x`) |
+| `decodeAccountInfo(hex)` | `substrate::decode_account_info` | `{nonce,consumers,providers,sufficients,data:{free,reserved,frozen,flags}}` from the 80-byte SCALE AccountInfo; u32 as numbers, u128 as decimal strings; throws `bad_hex`, `bad_length` |
 
 ### detectAddress semantics
 

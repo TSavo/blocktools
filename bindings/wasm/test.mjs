@@ -88,3 +88,19 @@ assert.throws(() => bt.validateAddress('btc', '3JvL6Ymt8MVWiCNHC7oWU6nLeHNJFpSXb
 { const g = JSON.parse(bt.chainParams()).find(c => c.name === 'grs');
   assert.equal(g.checksum, 'groestl512d'); assert.equal(g.tx_format, 'legacy-sha256'); assert.equal(g.verified, true); }
 console.log('wasm grs ok');
+{ // Substrate / BLAKE2b (vectors: Python hashlib, xxhash, py-scale-codec, Alice dev account)
+  const A = 'd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d';
+  assert.equal(bt.blake2b('', 32, ''), '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8');
+  assert.equal(bt.blake2b('616263', 32, 'ZcashSigHash'), '63d3a98d9443ac4fbad669a9fd31cb2ec8db244e8d27878b19129da671f11ef4');
+  assert.throws(() => bt.blake2b('zz', 32, ''));
+  assert.equal(bt.twox128('System'), '26aa394eea5630e07c48ae0c9558cef7');
+  assert.equal(bt.ss58Encode(A, 0), '15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5');
+  assert.equal(bt.ss58Encode(A, 1284), 'VdvKmYJfD4VXA9fzz1SbmCo2eYHSzUFbaDCZSuaNKJAe8YNg6');
+  assert.deepEqual(JSON.parse(bt.ss58Decode('5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY')), {prefix: 42, account: A});
+  const K = '26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59f' + A;
+  assert.equal(bt.polkadotAccountStorageKey('15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5'), K);
+  assert.equal(bt.polkadotAccountStorageKey('0x' + A), K);
+  const ai = JSON.parse(bt.decodeAccountInfo('07000000010000000100000000000000d20a1feb8ca954ab0000000000000000050000000000000000000000000000000010a5d4e8000000000000000000000000000000000000000000000000000080'));
+  assert.equal(ai.nonce, 7); assert.equal(ai.data.free, '12345678901234567890');
+  console.log('wasm substrate ok');
+}
