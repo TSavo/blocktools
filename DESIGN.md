@@ -366,6 +366,20 @@ with a remote context like Battleaxe, `in/` and `secrets/` must exist there; the
 and `reveal` with a real TTY. (The alpine runtime measured above was replaced by `scratch` afterwards; see the
 newest verified-status section.)
 
+### Re-verified (2026-10-24, Battleaxe via the Mac docker context, linux/amd64, 32 CPUs, commit 38b386d)
+
+Measured: `docker --context battleaxe build` of 38b386d succeeds in about 2 min (build stage runs the dependency
+allowlist check and `cargo test`); the runtime image is 40.4 MB (was 18.2 MB before the newer chains were added).
+Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), through `sealed-run agent`, on the public
+"abandon … about" vector:
+* `zec-sapling --count 2`: 2 rows, first address = local KAT zs188wzu…f0nta; no mnemonic or zxviews in output.
+* `key-to-addresses --chain ada`: 5 rows, first = bip_utils addr1qy8ac7…4afdhv. `--chain dot`: 1 row, 13KVd4…Vd7xo.
+  Their `private_key` fields come out only as `[REDACTED]`; no 64-hex value, mnemonic, xprv or WIF in output.
+* `seed-repair | seed-to-master | derive --count 1`: 5 address rows.
+* `sealed-run human` with no TTY refuses (exit 2).
+Not re-run this time: the network/rootfs/caps probes (same flags as the earlier run), `reveal` with a TTY, bind-mount
+inputs on the remote host.
+
 ## 9. Out of scope
 
 Brute-forcing unknown passwords at scale (GPU cracking), any network access in
