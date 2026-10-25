@@ -25,3 +25,4 @@ UTC--*
 !crates/tx/tests/vectors/block170.hex
 __pycache__/
 *.whl
+dist/

@@ -170,8 +170,8 @@ Outside the chain table: `zec` (2-byte prefixes), handled by the blocktools-tx z
 
 | name | ticker | SLIP-44 | p2pkh | p2sh | hrp | wif | checksum | decimals | forkid | tx format | sweep build | sources |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| wdc | WDC | 0 | 49 | 05 | — | 201 | sha256d | 8 | — | legacy | no | cryptoid chainz.cryptoid.info |
-| anc | ANC | 0 | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |
+| wdc | WDC | — (null) | 49 | 05 | — | 201 | sha256d | 8 | — | legacy | no | cryptoid chainz.cryptoid.info |
+| anc | ANC | — (null) | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |
 
 - Monero scan/sweep is host-only (`tools/xmr-wallet`, CLI JSON lines kinds `scan`, `received`, `sweep-plan`, `sweep-relayed`); not exported to wasm.
 
@@ -188,3 +188,7 @@ Native `cdylib`/`staticlib` in `crates/cabi`. Header: `crates/cabi/include/block
 
 Same public-data rules as wasm: no private keys, no network. CLI twin: `tx-envelope`.
 
+## Language wrappers (`bindings/`, secrets-off)
+
+Thin wrappers over `libblocktools_c` + `blocktools.h` (same symbols as the C ABI table above).
+See `bindings/README.md`. Measured smoke tests: Python ctypes, Go cgo, C++ header, Zig (`-dynamic` shared link). Not published to language registries.

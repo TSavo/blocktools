@@ -425,7 +425,7 @@ Other projects (notably SwapChan) depend on **library code**. Two consumption pa
 
 The native CLIs remain first-class: each is a thin stdin/stdout wrapper around the library. The sealed Docker image and `sealed-run` / `redact` boundary are unchanged for agent use. WASM is a binding option for host-side consumers, not a second product.
 
-3. **C ABI** — `crates/cabi` (`blocktools-c`, secrets-off): `bt_version`, `bt_chain_table`, `bt_envelope`, `bt_free` (header `crates/cabi/include/blocktools.h`). Shared JSON schema: `blocktools::envelope` / `tx-envelope` (`blocktools.sign/v1` decode|verify|check|chain_table). No private keys. Account-family ops, signing, and language wrappers are follow-on work.
+3. **C ABI** — `crates/cabi` (`blocktools-c`, secrets-off): `bt_version`, `bt_chain_table`, `bt_envelope`, `bt_free` (header `crates/cabi/include/blocktools.h`). Shared JSON schema: `blocktools::envelope` / `tx-envelope` (`blocktools.sign/v1` decode|verify|check|chain_table). No private keys. Thin language wrappers: `bindings/{python,go,cpp,zig}` (see `bindings/README.md`). Account-family ops and signing half are follow-on work.
 
 ### Crate layout (target)
 
