@@ -64,7 +64,8 @@ case $class in
 esac
 
 # 3. Public addresses only (redact strips every secret field), then ask the chain.
-keys | "$B/redact" | grep -E "\"(chain|kind)\":\"$CHAIN\"" | grep '"address"' > "$W/pub" || true
+keys | "$B/redact" > "$W/red"   # reader/redact failures stop the script (pipefail)
+{ grep -E "\"(chain|kind)\":\"$CHAIN\"" "$W/red" | grep '"address"' > "$W/pub"; } || [ $? -eq 1 ]  # no match = no addresses (checked below); grep errors stay fatal
 sed -n 's/.*"address":"\([^"]*\)".*/\1/p' "$W/pub" | sort -u > "$W/addrs"
 say "$(wc -l < "$W/addrs") candidate addresses on $CHAIN"
 [ -s "$W/addrs" ] || { say "no $CHAIN addresses from this input (wrong --chain?)"; exit 4; }

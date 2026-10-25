@@ -1,6 +1,7 @@
 # Armory .wallet (gurnec/btcrecover public test wallet, scripts/fetch-fixtures.sh; skipped when absent).
 # Expected addresses: hash160 of the 65-byte PUBLIC keys stored in each entry, read by an independent
 # Python parser. armory-read -> key-to-addresses must hit all of them; a wrong password must fail.
+set -eu
 F=fixtures/external
 f() { echo "FAIL $1"; exit 1; }
 if [ ! -f $F/armory-wallet.wallet ]; then echo "skip armory (no fixture)"; else

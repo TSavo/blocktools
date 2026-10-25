@@ -1,6 +1,8 @@
 #!/bin/sh
 # Docs-versus-code checks that can be automated (security review 2026-10-25).
 set -eu
+# pipefail where the shell has it (dash >= 0.5.11, bash); a shell without it just lacks the extra check
+if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 export LC_ALL=C
 cd "$(dirname "$0")/.."
 rc=0; D="README.md DESIGN.md docs/SECURITY.md"

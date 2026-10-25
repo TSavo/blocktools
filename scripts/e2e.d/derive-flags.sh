@@ -1,4 +1,5 @@
 # derive flag system: --explain needs no stdin and emits no keys; --match prints only hits.
+set -eu
 out=$("$B/derive" --explain --preset recovery --chain all </dev/null)
 echo "$out" | grep -q '"status":"done"' && ! echo "$out" | grep -Eq 'wif|private_key' && echo "ok  derive-explain: plan only" || { echo "FAIL derive-explain"; exit 1; }
 printf 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el\nTSeJkUh4Qv67VNFwY8LaAxERygNdy6NQZK\n' > "$T/targets"

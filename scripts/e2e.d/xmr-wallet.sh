@@ -1,5 +1,6 @@
 # xmr-wallet against a loopback mock wallet-rpc: scan from the 0600 scan request, sweep plan check,
 # no relay without a TTY, remote RPC refused; seed/view key reach the RPC body but never stdout/stderr.
+set -eu
 XS="adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy"
 TO=$(printf '%s\n' "$XS" | "$B/xmr-keys" --net stage | sed 's/.*"address":"\([^"]*\)".*/\1/')
 printf '%s\n' "$XS" | "$B/xmr-keys" --net stage --scan-out "$T/xw-req.json" --restore-height 2236100 >/dev/null 2>&1

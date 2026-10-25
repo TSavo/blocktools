@@ -1,5 +1,6 @@
 # TON (test-only mnemonic generated with tonsdk, never funded): classify -> ton_mnemonic;
 # key-to-addresses --chain ton = tonsdk wallet v4r2 address; a BIP39 mnemonic is not TON. Redacted output only.
+set -eu
 TM="elbow ramp code slogan cigar note auto solution leaf bunker process essence armed burger item blossom achieve normal vault whip switch artefact parrot coffee"
 printf '%s\n' "$TM" > "$T/ton.txt"
 "$B/classify" "$T/ton.txt" | grep -q '"class":"ton_mnemonic"' || { echo "FAIL ton classify"; exit 1; }

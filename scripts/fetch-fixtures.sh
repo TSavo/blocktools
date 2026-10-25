@@ -4,6 +4,8 @@
 # passwords ("btcr-test-password"). They hold no real funds. Tests that need them
 # are skipped when the files are absent.
 set -eu
+# pipefail where the shell has it (dash >= 0.5.11, bash); a shell without it just lacks the extra check
+if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 cd "$(dirname "$0")/.."
 B=https://raw.githubusercontent.com/3rdIteration/btcrecover/master/btcrecover/test/test-wallets
 D=fixtures/external; mkdir -p "$D"

@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # acct-tx (xlm, algo): build -> decode -> sign behind the typed code -> decode verifies. Keys are the public
 # test seeds [1;32] / [2;32] used by crates/acct/tests/kat.rs (vectors from py-stellar-sdk / py-algorand-sdk).
+set -eu
 X=$T/acct; mkdir -p "$X"
 echo SAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC5MY > "$X/xlm.key"; echo AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQGKiOPddAnxlf1S2y08ul1yymcJvx2UEhvzdIgBtA9vXA== > "$X/algo.key"
 XF=GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR; XT=GCATS5YOVB6ROX2WUNKGNQ2MP3GMXDMKSG2O4N5CLX3A6W4PZGZZI55U
@@ -10,7 +11,7 @@ grep -q '"txid":"6f3d9d0e3539e9080977adf0f908e25c17de3f7ba9147a0e90da34ae7d7dc1c
 "$B/acct-tx" build --chain xlm --from $XF --to $XT --amount 1 --fee 100 --seq 1 2>&1 >/dev/null | grep -q "WARNING memo_missing" || { echo "FAIL acct xlm memo warning"; exit 1; }
 "$B/acct-tx" build --chain algo --from $AF --to $AT --sweep --fee 1000 --first-round 40000000 --last-round 40001000 > "$X/au.json" 2>"$X/au.err"
 grep -q '"txid":"ZKIVMCE4N2INEZVB2VCJNA7QZVOJWIWDWD6HPBPDJ44E4QATNWKA"' "$X/au.json" && grep -q close_to "$X/au.err" || { echo "FAIL acct algo sweep build"; exit 1; }
-python3 scripts/e2e-only/tty-drive.py wrong "$X/xlm.key" "$X/xs0.json" "$(cd "$B" && pwd)/acct-tx" sign --chain xlm --tx "$X/xu.json" --expect-to $XT > "$X/t0" 2>&1 || true
+python3 scripts/e2e-only/tty-drive.py wrong "$X/xlm.key" "$X/xs0.json" "$(cd "$B" && pwd)/acct-tx" sign --chain xlm --tx "$X/xu.json" --expect-to $XT > "$X/t0" 2>&1 || true  # allow-true: nonzero exit is the expected refusal; the outcome is asserted on the next line
 grep -q '"status":"aborted"' "$X/xs0.json" || { echo "FAIL acct wrong code must abort"; exit 1; }
 for c in xlm:$XT:xu algo:$AT:au; do ch=${c%%:*}; r=${c#*:}; to=${r%%:*}; u=${r#*:}
   python3 scripts/e2e-only/tty-drive.py right "$X/$ch.key" "$X/$ch-s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain $ch --tx "$X/$u.json" --expect-to $to > "$X/t-$ch" 2>&1

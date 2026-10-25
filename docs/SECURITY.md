@@ -129,3 +129,13 @@ transaction's id. The network (e.g. BNB Smart Chain = 56) is a machine check, no
 The summary starts with a boxed `CHECK THESE` block: chain id and name, NATIVE vs TOKEN, final recipient,
 value and max fee in the chain's native symbol (ETH, BNB, POL, AVAX), with a marker when native coin is
 sent to a token contract.
+
+### Script strictness (review F, 2026-10-25)
+Every script in scripts/, scripts/e2e.d/ and recipes/ runs with `set -eu`; the check scripts and
+recipes/recover.sh add `pipefail`. e2e-local.sh deliberately does not: its checks assert on a tool's
+output (`tool | grep -q EXPECTED`), where the tool's nonzero exit is the refusal under test. grep
+"no match" is tolerated only as exit 1 (`|| [ $? -eq 1 ]`), so grep errors stay fatal. Any
+remaining `|| true` / `|| :` must carry an `# allow-true: reason` comment on the same line;
+scripts/hygiene-check.sh fails otherwise. The audit found two real swallowed errors: secret-scan's
+`xargs grep 2>/dev/null || true` (now `git grep`, fatal on error) and an e2e tx-broadcast no-tty
+check whose result was discarded (its stdin was also overridden; now asserted).

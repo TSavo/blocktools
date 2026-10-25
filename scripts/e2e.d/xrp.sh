@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # XRP: family seed -> keys; build a Payment to an X-address (tag carried); sign behind the typed code; decode verifies.
 # Seeds are the public xrpl.js ripple-keypairs fixtures. Sourced by e2e-local.sh ($B, $T set).
+set -eu
 X=$T/xrp; mkdir -p "$X"
 echo sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r > "$X/ed.seed"; echo sp5fghtJtpUorTwvof1NpDXAzNwf5 > "$X/secp.seed"
 "$B/xrp-tx" keys < "$X/ed.seed" | grep -q '"address":"rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD"' || { echo "FAIL xrp keys ed25519"; exit 1; }
@@ -10,7 +11,7 @@ echo sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r > "$X/ed.seed"; echo sp5fghtJtpUorTwvof1NpD
   --sweep --balance 30000000 --fee 12 --sequence 7 --last-ledger 9000000 > "$X/u.json" 2> "$X/u.err"
 grep -q '"destination_tag":11747' "$X/u.json" && ! grep -q destination_tag_missing "$X/u.err" || { echo "FAIL xrp build tag"; cat "$X/u.json"; exit 1; }
 "$B/xrp-tx" build --account rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD --to r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59 --amount 1 --fee 12 --sequence 7 2>&1 >/dev/null | grep -q "WARNING destination_tag_missing" || { echo "FAIL xrp tag warning"; exit 1; }
-python3 scripts/e2e-only/tty-drive.py wrong "$X/ed.seed" "$X/s0.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t0" 2>&1 || true
+python3 scripts/e2e-only/tty-drive.py wrong "$X/ed.seed" "$X/s0.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t0" 2>&1 || true  # allow-true: nonzero exit is the expected refusal; the outcome is asserted on the next line
 grep -q '"status":"aborted"' "$X/s0.json" || { echo "FAIL xrp wrong code must abort"; cat "$X/s0.json"; exit 1; }
 python3 scripts/e2e-only/tty-drive.py right "$X/ed.seed" "$X/s.json" "$PWD/$B/xrp-tx" sign --tx "$X/u.json" --expect-to X7AcgcsBL6XDcUb289X4mJ8djcdyKaLFuhLRuNXPrDeJd9A > "$X/t" 2>&1
 grep -q '"status":"ok"' "$X/s.json" || { echo "FAIL xrp sign"; cat "$X/s.json" "$X/t"; exit 1; }

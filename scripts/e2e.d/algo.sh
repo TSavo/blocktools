@@ -1,5 +1,6 @@
 # Algorand (py-algorand-sdk public test mnemonic): classify -> algo_mnemonic; key-to-addresses
 # --chain algo gives the SDK's address; a changed word is rejected. Redacted output only.
+set -eu
 AM="advice pudding treat near rule blouse same whisper inner electric quit surface sunny dismiss leader blood seat clown cost exist hospital century reform able sponsor"
 printf '%s\n' "$AM" > "$T/algo.txt"
 "$B/classify" "$T/algo.txt" | grep -q '"class":"algo_mnemonic"' || { echo "FAIL algo classify"; exit 1; }

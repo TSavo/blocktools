@@ -1,3 +1,4 @@
+set -eu
 . scripts/e2e-only/portable.sh
 # Zcash Sapling: zec-sapling -> redact keeps zs1 rows, no secrets on stdout, 0600 viewing-key file, no overwrite.
 AM="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"

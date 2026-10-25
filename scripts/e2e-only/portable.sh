@@ -1,5 +1,6 @@
 # Portable helpers for the e2e scripts (Linux and macOS). Sourced, not executed.
 # fmode FILE: octal permission bits (GNU stat -c / BSD stat -f).
+set -eu
 fmode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
 # nosid CMD...: run CMD in a new session with no controlling terminal (setsid(1) is not on macOS).
 nosid() {

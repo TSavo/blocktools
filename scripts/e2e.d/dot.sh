@@ -1,6 +1,7 @@
 # Polkadot (subkey docs public mnemonic): key-to-addresses --chain dot gives the prefix-0 address
 # of subkey's published public key. Expected value is recomputed here in Python (base58 + hashlib
 # blake2b SS58 checksum over the published pubkey). Redacted output only.
+set -eu
 DM="caution juice atom organ advance problem want pledge someone senior holiday very"
 exp=$(python3 -c "
 import hashlib

@@ -1,4 +1,5 @@
 # dat-read through the boundary (sourced by e2e-local.sh). Wallets generated into $T, never committed.
+set -eu
 . scripts/e2e-only/portable.sh
 have_pymod cryptography || { echo "skip dat-read (fixtures need python3 module cryptography: pip install cryptography)"; exit 0; }
 python3 scripts/make-fixtures.py "$T" >/dev/null

@@ -2,6 +2,8 @@
 # Local (no Docker) end-to-end checks of the agent boundary.
 # Only public test vectors / throwaway self-made fixtures are used.
 set -eu
+# No pipefail here on purpose: checks are `tool | grep -q EXPECTED && ok || fail`, where the tool's
+# nonzero exit IS the refusal under test; the asserted output, not the exit code, decides pass/fail.
 . scripts/e2e-only/portable.sh
 B="$PWD/target/release"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 # Secret VALUES (field names may appear: redact keeps them with a "[REDACTED]" placeholder).
