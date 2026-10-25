@@ -139,6 +139,12 @@ console.log('wasm grs ok');
   const p = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, Buffer.from('hi').toString('hex')));
   assert.equal(p.psbt, 'cHNidP8BAF8CAAAAAcmXpeVuEEEC+iCcaoUt2QZgogstnDUkI+3OJYV/zTcEAAAAAAD9////AjmEAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIAAAAAAAAAAARqAmhpAAAAAAABAR+ghgEAAAAAABYAFHUedugZkZbUVJQcRdGzoyPxQzvWAAAA');
   assert.equal(p.fee, '615'); assert.equal(p.outputs[1].address, null);
+  { // THORChain order [vault, change, OP_RETURN]; empty memo = no OP_RETURN
+    const q = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '50000', 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', 5, Buffer.from('=:ETH.ETH:0x0000000000000000000000000000000000000001').toString('hex')));
+    assert.deepEqual(q.outputs.map(o => o.value), ['50000', '48980', '0']); assert.ok(q.outputs[2].script.startsWith('6a'));
+    const e = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '50000', 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', 5, ''));
+    assert.equal(e.outputs.length, 2); assert.equal(e.fee, '705'); assert.equal(e.vsize, 141);
+  }
   const T = '0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431';
   assert.equal(bt.tronTxId(T), '07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00');
   const d = JSON.parse(bt.tronDecodeTx(T)); assert.equal(d.contracts[0].type, 'TransferContract'); assert.equal(d.contracts[0].amount_sun, '1');

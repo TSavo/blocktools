@@ -283,6 +283,8 @@ tx-decode  (offline)        ->  on the SIGNED output: same outputs, fee and send
 tx-broadcast (host)         ->  submit the raw bytes (mock-tested only)
 ```
 
+**Swap-deposit PSBTs** (`buildPsbtWithMemo`) follow THORChain's UTXO output order: vault, change, then OP_RETURN memo (optional).
+
 **Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host
 builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with a chain id,
 or EIP-1559 type 2). Tron (protobuf with energy/bandwidth) is planned. Multisig is planned,
