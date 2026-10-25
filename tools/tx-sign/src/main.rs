@@ -1,6 +1,6 @@
 //! tx-sign: sign ONE transaction after a human reads its summary and types a code on /dev/tty.
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
-//!           [--chain-id N] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token]  < keys
+//!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token]  < keys
 //! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).

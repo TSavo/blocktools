@@ -35,6 +35,8 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
         if let Some(m) = p.max_fee { if fee > m { f.push("fee_above_cap") } }
         match (p.chain_id, t.chain_id) { (Some(a), Some(b)) if a != b => f.push("chain_id_mismatch"), (Some(_), None) => f.push("no_chain_id"), _ => {} }
         if t.chain_id.is_none() { f.push("no_replay_protection") }
+        // Machine check, not the human: the caller must say which network it means (e.g. BSC = 56).
+        if p.chain_id.is_none() { f.push("chain_id_not_pinned") }
         let dest = match crate::evm::token_call(&t.data) {
             Some(tc) if tc.method == "transfer" => {
                 if t.value > 0 && !p.allow_value_with_token { f.push("eth_value_with_token_call") }

@@ -121,3 +121,11 @@ reappears undisclosed. `scripts/e2e-local.sh` runs on Linux and macOS: `scripts/
 replaces `setsid` (Python `os.setsid` fallback) and `stat -c` (BSD `stat -f`); checks whose fixtures need
 the Python `cryptography` module (dat-read, recover, bitcoinj) print `skip ... pip install cryptography`
 instead of failing. Each e2e.d script now runs in its own subshell, so one script's skip no longer ends the suite.
+
+### EVM network pinning (review B, 2026-10-25)
+For every EVM transaction, `tx-verify`, `tx-sign` and wasm `verifyTx` fail with `chain_id_not_pinned`
+unless the caller passes `--chain-id` (`chain_id`), and with `chain_id_mismatch` when it differs from the
+transaction's id. The network (e.g. BNB Smart Chain = 56) is a machine check, not left to the human.
+The summary starts with a boxed `CHECK THESE` block: chain id and name, NATIVE vs TOKEN, final recipient,
+value and max fee in the chain's native symbol (ETH, BNB, POL, AVAX), with a marker when native coin is
+sent to a token contract.

@@ -1,5 +1,5 @@
 //! tx-verify: check a transaction (stdin; any format tx-decode reads) against what you expect.
-//!   tx-verify [--chain btc|ltc|doge] [--expect-to ADDR]... [--change ADDR]... [--chain-id N]
+//!   tx-verify [--chain btc|ltc|doge] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)]
 //!             [--max-fee SATS_OR_WEI] [--allow-warnings] [--allow-value-with-token]
 //! EVM default fee cap: 0.01 ETH (same as tx-sign); UTXO: no cap unless --max-fee.
 //! Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
@@ -7,7 +7,7 @@ use blocktools_tx::policy::{self, check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--allow-warnings] [--allow-value-with-token] < tx");
+    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)] [--max-fee N] [--allow-warnings] [--allow-value-with-token] < tx");
     let a: Vec<String> = std::env::args().collect();
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();

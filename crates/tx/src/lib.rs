@@ -336,6 +336,22 @@ impl Decoded {
         use std::fmt::Write;
         let _ = writeln!(s, "=== TRANSACTION ({} {}, {}) ===", self.chain, self.ty, if self.signed { "SIGNED" } else { "unsigned" });
         if let Some(t) = &self.evm {
+            // Critical lines first, boxed and upper-case, so they cannot be missed.
+            let sym = evm::native_symbol(t.chain_id);
+            let tc = evm::token_call(&t.data);
+            let mf = t.max_fee_per_gas.saturating_mul(t.gas as u128);
+            let _ = writeln!(s, "################ CHECK THESE ################");
+            let _ = writeln!(s, "## CHAIN ID  : {}", t.chain_id.map_or("NONE - REPLAYABLE ON ANY CHAIN".into(), |c| format!("{c} = {}", evm::chain_name(c).to_uppercase())));
+            match &tc {
+                Some(c) => { let _ = writeln!(s, "## KIND      : TOKEN {} (contract {})", c.method.to_uppercase(), t.to.map_or(String::new(), |a| addr(&a)));
+                    let _ = writeln!(s, "## RECIPIENT : {}", addr(&c.to));
+                    let _ = writeln!(s, "## AMOUNT    : {} token raw units", evm::dec(&c.amount)); }
+                None => { let _ = writeln!(s, "## KIND      : {}", if t.data.is_empty() { format!("NATIVE {sym}") } else { "CONTRACT CALL (UNRECOGNISED)".into() });
+                    let _ = writeln!(s, "## RECIPIENT : {}", t.to.map_or("(contract creation)".into(), |a| addr(&a))); }
+            }
+            let _ = writeln!(s, "## VALUE     : {} {sym}{}", wei_amt(t.value), if tc.is_some() && t.value > 0 { "  <-- NATIVE COIN SENT TO A TOKEN CONTRACT" } else { "" });
+            let _ = writeln!(s, "## MAX FEE   : {} {sym}", wei_amt(mf));
+            let _ = writeln!(s, "#############################################");
             let cid = t.chain_id.map_or("NONE (replayable on any chain!)".to_string(), |c| format!("{c} ({})", evm::chain_name(c)));
             let _ = writeln!(s, "network chain id : {cid}");
             if let Some(a) = self.inputs.first().and_then(|i| i.address.as_ref()) { let _ = writeln!(s, "from             : {a}"); }

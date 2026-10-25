@@ -28,7 +28,7 @@ grep -q '"status":"ok"' $T/o && grep -q "^/tx " $T/log && grep -q BROADCAST $T/t
 python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U/wrongid >/dev/null || true
 grep -q server_id_differs $T/o && echo "ok   tx-broadcast flags server id mismatch" || f mism
 $B/tx-build --chain eth --chain-id 1 --account $T/acct --to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --sweep > $T/e
-python3 scripts/e2e-only/tty-drive.py right $T/k $T/es $PWD/$B/tx-sign --tx $T/e --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF >/dev/null
+python3 scripts/e2e-only/tty-drive.py right $T/k $T/es $PWD/$B/tx-sign --tx $T/e --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF >/dev/null
 $B/tx-decode < $T/es | python3 -c 'import json,sys;print([json.loads(l) for l in sys.stdin if "txid" in l][0]["txid"].removeprefix("0x"))' > $T/exp
 python3 scripts/e2e-only/tty-drive.py right $T/es $T/o $PWD/$B/tx-broadcast --chain eth --url $U >/dev/null
 grep -q '"status":"ok"' $T/o && grep -q eth_sendRawTransaction $T/log && echo "ok   tx-broadcast eth -> eth_sendRawTransaction, id matches" || f eth2

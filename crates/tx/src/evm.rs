@@ -160,6 +160,10 @@ pub fn dec(be: &[u8]) -> String {
     }
     out.reverse(); String::from_utf8(out).unwrap()
 }
+/// Native coin symbol for a chain id ("native" when unknown).
+pub fn native_symbol(id: Option<u64>) -> &'static str {
+    match id { Some(1 | 10 | 8453 | 42161 | 11155111 | 17000) => "ETH", Some(56) => "BNB", Some(137) => "POL", Some(43114) => "AVAX", _ => "native" }
+}
 pub fn chain_name(id: u64) -> &'static str {
     match id { 1 => "Ethereum mainnet", 10 => "Optimism", 56 => "BNB Smart Chain", 137 => "Polygon", 8453 => "Base",
         42161 => "Arbitrum One", 43114 => "Avalanche C-Chain", 11155111 => "Sepolia testnet", 17000 => "Holesky testnet", _ => "unknown chain" }

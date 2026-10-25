@@ -111,7 +111,7 @@ fn build_evm_plans() {
     let mut t = Tx::parse(&h(E1559_ERC20)).unwrap();
     let unsigned = |t: &Tx| blocktools_core::hex_enc(t.encode_unsigned());
     let to = blocktools_tx::addr(&evm::token_call(&t.data).unwrap().to);
-    let pol = Policy { expect_to: vec![to], max_fee: Some(DEFAULT_MAX_FEE_WEI), ..Default::default() };
+    let pol = Policy { expect_to: vec![to], max_fee: Some(DEFAULT_MAX_FEE_WEI), chain_id: Some(137), ..Default::default() };
     let d = decode(&unsigned(&t), "eth").unwrap();
     assert_eq!(default_max_fee(&d), DEFAULT_MAX_FEE_WEI);
     assert!(check(&d, &pol).is_empty(), "{:?}", check(&d, &pol));
@@ -122,4 +122,22 @@ fn build_evm_plans() {
     t.value = 0; t.max_fee_per_gas = DEFAULT_MAX_FEE_WEI / t.gas as u128 + 1;
     let d = decode(&unsigned(&t), "eth").unwrap();
     assert!(check(&d, &pol).contains(&"fee_above_cap"));
+}
+
+/// Review B: the network is a machine check (BSC = 56), and the summary's critical lines are boxed.
+#[test] fn evm_chain_id_pinned_and_summary_critical_lines() {
+    use blocktools_tx::policy::{check, Policy};
+    let mut t = Tx::parse(&h(E1559_ETH)).unwrap();
+    t.chain_id = Some(56);
+    let d = decode(&blocktools_core::hex_enc(t.encode_unsigned()), "eth").unwrap();
+    let pol = Policy { max_fee: Some(u128::MAX), ..Default::default() };
+    assert!(check(&d, &pol).contains(&"chain_id_not_pinned"));
+    assert!(check(&d, &Policy { chain_id: Some(1), ..pol.clone() }).contains(&"chain_id_mismatch"));
+    assert!(check(&d, &Policy { chain_id: Some(56), ..pol.clone() }).is_empty());
+    let s = d.text();
+    for l in ["## CHAIN ID  : 56 = BNB SMART CHAIN", "## KIND      : NATIVE BNB", "## RECIPIENT : 0x3535353535353535353535353535353535353535", "## VALUE     : 1.0 BNB", "## MAX FEE   : "] {
+        assert!(s.contains(l), "missing {l}");
+    }
+    let tok = decode(E1559_ERC20, "eth").unwrap().text();
+    assert!(tok.contains("## KIND      : TOKEN TRANSFER") && tok.contains("POL"));
 }
