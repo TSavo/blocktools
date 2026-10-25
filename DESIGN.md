@@ -490,3 +490,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) rows **L1–L8**. Order of work: freeze t
 ## Chain table and stable wasm API (2026-10-24)
 
 The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `verified`, sources); see docs/CHAINS.md. Unverified rows are not supported by derive, validate, tx-build or the wasm stable API. The stable JS/Rust API is listed in EXPORTS.md; `checkTx` is fail-closed and takes public inputs only.
+
+## Coins: detect, convert, sweep per tx format (2026-10-24)
+
+`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds only the `legacy` and `forkid` formats; PoS-nTime, Zcash v4/v5 and Groestl are refused until each has its own builder and an independent KAT. ZEC is address-only.

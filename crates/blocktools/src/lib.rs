@@ -23,13 +23,142 @@ pub use blocktools_net as net;
 /// Library version (same as the crate / npm package version).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Address validation against the chain table. Unverified rows are refused (`unverified_chain`).
+/// Addresses: validate, detect (all candidates, never a guess), convert, and the parameter table.
 pub mod address {
     pub use blocktools_core::validate::AddrKind;
+    use blocktools_core::chains::{self, Enc, Sign};
+    use bitcoin::base58;
+
+    /// Zcash transparent addresses (zcash/zcash src/chainparams.cpp): 2-byte prefixes, sha256d
+    /// checksum. Address-only here: no derive, no tx (Zcash v4/v5 is not implemented).
+    pub const ZEC_P2PKH: [u8; 2] = [0x1c, 0xb8];
+    pub const ZEC_P2SH: [u8; 2] = [0x1c, 0xbd];
+
     pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
-        let c = blocktools_core::chains::chain(chain).ok_or("unknown_chain")?;
+        if chain == "zec" { return zec(addr).map(|(k, _)| k) }
+        let c = chains::chain(chain).ok_or("unknown_chain")?;
         if !c.verified { return Err("unverified_chain") }
         blocktools_core::validate::validate(chain, addr)
+    }
+    fn zec(addr: &str) -> Result<(AddrKind, [u8; 20]), &'static str> {
+        if addr.len() > 60 { return Err("bad length") }
+        let b = base58::decode_check(addr).map_err(|_| "bad base58check")?;
+        if b.len() != 22 { return Err("bad length") }
+        let h: [u8; 20] = b[2..].try_into().unwrap();
+        match [b[0], b[1]] { ZEC_P2PKH => Ok((AddrKind::P2pkh, h)), ZEC_P2SH => Ok((AddrKind::P2sh, h)), _ => Err("wrong network") }
+    }
+
+    /// Every verified chain (plus `zec`) on which `addr` is valid, with its kind. Version-byte
+    /// collisions (DGB/DOGE 30, VIA/VTC 71, LTC p2sh 50 = MONA p2pkh 50, BTC/BCH/BSV/TRC 0, ...)
+    /// return ALL matching chains; the caller must not pick one silently.
+    pub fn detect(addr: &str) -> Vec<(&'static str, AddrKind)> {
+        let mut v: Vec<(&'static str, AddrKind)> = chains::CHAINS.iter().filter(|c| c.verified)
+            .filter_map(|c| blocktools_core::validate::validate(c.name, addr).ok().map(|k| (c.name, k))).collect();
+        if let Ok((k, _)) = zec(addr) { v.push(("zec", k)) }
+        v
+    }
+
+    /// Re-encode the same hash (same script) for another chain. `addr` must be valid on at least
+    /// one verified chain, and every candidate must read it as the same script; otherwise
+    /// `ambiguous_address` (use `convert_from`). Errors: `unrecognised_address`, `ambiguous_address`, `unknown_or_unverified_chain`,
+    /// `no_equivalent` (e.g. segwit to a chain without segwit, taproot to a chain without taproot).
+    pub fn convert(addr: &str, to: &str) -> Result<String, &'static str> {
+        if detect(addr).is_empty() { return Err("unrecognised_address") }
+        let script = script_of(addr).ok_or("ambiguous_address")?;
+        convert_script(&script, to)
+    }
+    /// As `convert`, with the source chain stated (needed when `detect` gives candidates that
+    /// read the bytes as different script types, e.g. version 50 = MONA p2pkh = LTC p2sh).
+    pub fn convert_from(from: &str, addr: &str, to: &str) -> Result<String, &'static str> {
+        validate(from, addr)?;
+        let script = if from == "zec" { script_of(addr) } else { chains::address_to_script(chains::chain(from).ok_or("unknown_chain")?, addr) };
+        convert_script(&script.ok_or("unrecognised_address")?, to)
+    }
+    fn convert_script(script: &[u8], to: &str) -> Result<String, &'static str> {
+        let script = script.to_vec();
+        if to == "zec" {
+            let (pre, h) = match script.as_slice() {
+                [0x76, 0xa9, 0x14, h @ .., 0x88, 0xac] if h.len() == 20 => (ZEC_P2PKH, h),
+                [0xa9, 0x14, h @ .., 0x87] if h.len() == 20 => (ZEC_P2SH, h),
+                _ => return Err("no_equivalent"),
+            };
+            let mut b = pre.to_vec(); b.extend(h); return Ok(base58::encode_check(&b));
+        }
+        let c = chains::supported(to).ok_or("unknown_or_unverified_chain")?;
+        if !matches!(c.enc, Enc::Utxo { .. }) { return Err("no_equivalent") }
+        chains::script_to_address(c, &script).map(|x| x.1).ok_or("no_equivalent")
+    }
+    fn script_of(addr: &str) -> Option<Vec<u8>> {
+        if let Ok((k, h)) = zec(addr) {
+            let mut s = if k == AddrKind::P2pkh { vec![0x76, 0xa9, 0x14] } else { vec![0xa9, 0x14] };
+            s.extend(h); s.extend(if k == AddrKind::P2pkh { &[0x88, 0xac][..] } else { &[0x87][..] }); return Some(s);
+        }
+        let mut it = detect(addr).into_iter().filter_map(|(n, _)| chains::chain(n).and_then(|c| chains::address_to_script(c, addr)));
+        let first = it.next()?;
+        if it.any(|s| s != first) { return None }
+        Some(first)
+    }
+
+    /// Base units per coin (PPC and NVC: COIN = 1000000 in their source; ETH 18, SOL 9, TRX/XRP 6).
+    pub fn decimals(chain: &str) -> Option<u8> {
+        Some(match chain { "ppc" | "nvc" | "tron" | "xrp" => 6, "eth" => 18, "sol" => 9, "zec" => 8, c => { chains::chain(c)?; 8 } })
+    }
+    /// Unsigned transaction format a row uses, and whether `tx::build_unsigned_sweep` supports it.
+    pub fn tx_format(chain: &str) -> (&'static str, bool) {
+        match chains::chain(chain) {
+            Some(c) => match (c.enc, c.sign) {
+                (Enc::Utxo { .. }, Sign::Standard) => ("legacy", c.verified),
+                (Enc::Utxo { .. }, Sign::ForkId(_)) => ("forkid", c.verified),
+                (Enc::Utxo { .. }, Sign::PosTime) => ("pos-ntime", false),
+                (Enc::Utxo { .. }, Sign::Unknown) => ("unknown", false),
+                (Enc::Eth, _) => ("evm", false), // EVM builds go through tx::build::build_evm, not the sweep
+                _ => ("account", false),
+            },
+            None if chain == "zec" => ("zcash-v5", false),
+            None => ("unknown", false),
+        }
+    }
+
+    /// The parameter table as JSON rows (what SwapChan imports instead of its own literals).
+    pub fn params_json() -> serde_json::Value {
+        use serde_json::json;
+        let mut rows: Vec<serde_json::Value> = chains::CHAINS.iter().map(|c| {
+            let (fmt, sweep) = tx_format(c.name);
+            let (p2pkh, p2sh, hrp, wif) = match c.enc { Enc::Utxo { p2pkh, p2sh, hrp, wif, .. } => (json!([p2pkh]), json!([p2sh]), json!(hrp), json!(wif)), _ => (json!(null), json!(null), json!(null), json!(null)) };
+            let forkid = match c.sign { Sign::ForkId(f) => json!(f), _ => json!(null) };
+            json!({"name": c.name, "ticker": c.ticker, "title": c.title, "slip44": c.coin, "verified": c.verified,
+                   "p2pkh": p2pkh, "p2sh": p2sh, "hrp": hrp, "wif": wif, "checksum": if matches!(c.enc, Enc::Utxo{..}) { json!("sha256d") } else { json!(null) },
+                   "decimals": decimals(c.name), "forkid": forkid, "tx_format": fmt, "sweep_build": sweep,
+                   "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
+        }).collect();
+        rows.push(json!({"name": "zec", "ticker": "ZEC", "title": "Zcash (transparent)", "slip44": 133, "verified": true, "scope": "address-only",
+            "p2pkh": ZEC_P2PKH, "p2sh": ZEC_P2SH, "hrp": null, "wif": 128, "checksum": "sha256d", "decimals": 8, "forkid": null,
+            "tx_format": "zcash-v5", "sweep_build": false, "sources": []}));
+        json!(rows)
+    }
+}
+
+/// Unsigned sweep build per tx format. Only `legacy` (Bitcoin-format, incl. segwit where the
+/// chain has it) and `forkid` (BCH/BSV/BTG: same unsigned bytes; the signer must use
+/// SIGHASH_FORKID with input amounts, which the PSBT carries) are built. PoS-nTime, Zcash and
+/// Groestl formats are refused, never approximated.
+pub mod sweep {
+    use serde_json::{json, Value};
+    /// In: chain, UTXO JSON lines ({"txid","vout","amount","address"[,"prev_tx"]}), destination,
+    /// fee rate (sat/vB). Out: {"psbt" base64, "unsigned_tx" hex, "fee", "amount", "inputs", "tx_format"}.
+    pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u64) -> Result<Value, String> {
+        let (fmt, ok) = crate::address::tx_format(chain);
+        if !ok { return Err(format!("unsupported_tx_format:{fmt}")) }
+        let c = blocktools_core::chains::supported(chain).ok_or("unknown_or_unverified_chain")?;
+        let u = blocktools_tx::build::parse_utxos(c, utxos)?;
+        let total: u64 = u.iter().map(|x| x.amount).sum();
+        let n = u.len();
+        let plan = blocktools_tx::build::BtcPlan { to: to.into(), send: None, change: None, fee_rate, rbf: false, dust: 546, locktime: 0 };
+        let p = blocktools_tx::build::build_btc(c, u, &plan)?;
+        let amount: u64 = p.unsigned_tx.output.iter().map(|o| o.value.to_sat()).sum();
+        Ok(json!({"chain": chain, "tx_format": fmt, "psbt": blocktools_core::b64::encode(&p.serialize()),
+                  "unsigned_tx": blocktools_core::hex_enc(bitcoin::consensus::serialize(&p.unsigned_tx)),
+                  "inputs": n, "amount": amount.to_string(), "fee": (total - amount).to_string()}))
     }
 }
 

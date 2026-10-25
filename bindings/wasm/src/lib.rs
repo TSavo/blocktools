@@ -85,3 +85,25 @@ pub fn address_validate(chain: &str, addr: &str) -> Result<String, JsError> {
 /// Fail-closed tx check, JSON in / JSON out; never throws. See EXPORTS.md for the schema.
 #[wasm_bindgen(js_name = checkTx)]
 pub fn check_tx(input_json: &str) -> String { blocktools::check::tx_json(input_json) }
+
+/// Every verified chain (and `zec`) on which `addr` is valid: JSON [{chain,kind}]. Collisions
+/// (DGB/DOGE, VIA/VTC, version 50/0 ...) return all candidates; an empty list = unrecognised.
+#[wasm_bindgen(js_name = detectAddress)]
+pub fn detect_address(addr: &str) -> String {
+    json!(blocktools::address::detect(addr).iter().map(|(c, k)| json!({"chain": c, "kind": format!("{k:?}")})).collect::<Vec<_>>()).to_string()
+}
+/// Same hash, re-encoded for `to`; throws `ambiguous_address` when candidates disagree on the script type.
+#[wasm_bindgen(js_name = convertAddress)]
+pub fn convert_address(addr: &str, to: &str) -> Result<String, JsError> { blocktools::address::convert(addr, to).map_err(err) }
+/// As convertAddress with the source chain stated.
+#[wasm_bindgen(js_name = convertAddressFrom)]
+pub fn convert_address_from(from: &str, addr: &str, to: &str) -> Result<String, JsError> { blocktools::address::convert_from(from, addr, to).map_err(err) }
+/// Full parameter table: JSON [{name,ticker,title,slip44,verified,p2pkh[],p2sh[],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,sources}].
+#[wasm_bindgen(js_name = chainParams)]
+pub fn chain_params() -> String { blocktools::address::params_json().to_string() }
+/// Unsigned sweep of all `utxos` (JSON lines {txid,vout,amount,address[,prev_tx]}) to `to`:
+/// JSON {chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}. Legacy and forkid formats only.
+#[wasm_bindgen(js_name = buildUnsignedSweep)]
+pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u32) -> Result<String, JsError> {
+    blocktools::sweep::build_unsigned_sweep(chain, utxos, to, fee_rate as u64).map(|v| v.to_string()).map_err(err)
+}

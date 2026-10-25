@@ -36,4 +36,17 @@ assert.deepEqual(ck(q).reasons, []); assert.equal(ck(q).ok, true);
 assert.equal(ck({...q, max_fee: undefined}).ok, false);
 assert.equal(ck({...q, chain: 'wdc'}).ok, false);
 assert.equal(JSON.parse(bt.checkTx('{')).ok, false);
+// coins: detect (all candidates), convert, params, sweep
+const det = a => JSON.parse(bt.detectAddress(a)).map(x => x.chain).sort();
+assert.deepEqual(det('DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE'), ['dgb', 'doge']);
+assert.deepEqual(det('t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), ['zec']);
+assert.equal(bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'zec'), 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs');
+assert.equal(bt.addressValidate('zec', 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), 'P2pkh');
+const P = JSON.parse(bt.chainParams()); const pr = n => P.find(r => r.name === n);
+assert.equal(pr('ppc').decimals, 6); assert.equal(pr('btg').forkid, 79); assert.equal(pr('dash').sweep_build, true);
+const dashA = bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'dash');
+const sw = JSON.parse(bt.buildUnsignedSweep('dash', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: dashA}), dashA, 10));
+assert.equal(sw.fee, '1930'); assert.equal(sw.tx_format, 'legacy');
+assert.ok(JSON.stringify(JSON.parse(bt.decodeTx(sw.unsigned_tx, 'dash'))).includes(dashA));
+assert.throws(() => bt.buildUnsignedSweep('ppc', '', dashA, 10));
 console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');

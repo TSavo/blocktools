@@ -97,6 +97,7 @@ dependencies = [
 name = "blocktools"
 version = "0.1.0"
 dependencies = [
+ "bitcoin",
  "blocktools-core",
  "blocktools-tx",
  "serde_json",

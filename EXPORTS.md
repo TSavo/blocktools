@@ -15,6 +15,21 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `deriveFromXpub(chain, xpub, path, index)` | `derive::from_xpub(chain, xpub, path, index)` | `[{chain,kind,path,address}]`, one row per script kind; `path` is relative to the xpub and non-hardened ("", "m/0", "0/7"); throws `bad_xpub`, `bad_path`, or `unknown_or_unverified_chain` |
 | `addressValidate(chain, addr)` | `address::validate(chain, addr)` | kind string (`P2pkh`, `P2sh`, `SegwitV0`, `Taproot`, `Eth`, …); throws when the address is invalid or the chain is unverified |
 | `checkTx(json)` | `check::tx_json(json)` | see below; never throws |
+| `detectAddress(addr)` | `address::detect(addr)` | `[{chain,kind}]`, one entry for **every** verified chain the address is valid on (and `zec`). Collisions such as DGB/DOGE 30, VIA/VTC 71, version 50 (MONA/MEC p2pkh, LTC/QTUM p2sh) and version 0 (BTC/BCH/BSV/TRC) all come back; `[]` means unrecognised |
+| `convertAddress(addr, to)` | `address::convert(addr, to)` | the same hash, re-encoded for `to`; throws `unrecognised_address`, `ambiguous_address` (candidates disagree on p2pkh vs p2sh), `unknown_or_unverified_chain` or `no_equivalent` |
+| `convertAddressFrom(from, addr, to)` | `address::convert_from(from, addr, to)` | as above, with the source chain stated |
+| `chainParams()` | `address::params_json()` | the full table: `[{name,ticker,title,slip44,verified,p2pkh:[bytes],p2sh:[bytes],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,sources}]` |
+| `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy` and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` |
+
+`addressValidate` also accepts `zec` (transparent t1/t3 only). Decode any built tx with `decodeTx(hex_or_psbt, chain)`.
+
+Tx formats:
+- `legacy`: Bitcoin format, including segwit where the chain has it.
+- `forkid` (BCH/BSV/BTG): the unsigned bytes are the same as legacy, but the signer must use SIGHASH_FORKID with the input amounts, which the PSBT carries. Only the unsigned build is done here.
+- `pos-ntime` (PPC/NVC/CLAM/BLK/RDD/POT): not built.
+- `zcash-v5`: ZEC is address-only for now.
+- `unknown` (QRK): not built.
+- Groestlcoin (`grs`) is not in the table: it uses a Groestl base58 checksum and single-SHA256 txid/sighash, and there is no independent implementation to make a KAT from yet.
 
 ### checkTx (fail-closed)
 
@@ -39,46 +54,51 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 
 ## Chain rows
 
+Source tags: `blockbook`/`insight`/`qtuminfo`/`woc` sources give balance and UTXOs keyless (SwapChan probes, 2026-10-24). `cryptoid-balance` sources give the balance only; `unspent` needs an API key. A row with no source has no working public explorer (NMC, POT, MEC, ANC).
+
 A row is `verified` when its version bytes match the coin's own source code and it has a SLIP-44 entry.
 Any row marked "none listed" has no explorer that could be reached and checked from the build box. It is still verified from source.
 Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash) and `grs` (Groestl checksum). See docs/CHAINS.md.
 
-| name | ticker | SLIP-44 | explorer/API sources (checked 2026-10-24) |
-|---|---|---|---|
-| btc | BTC | 0 | blockstream.info |
-| ltc | LTC | 2 | litecoinspace.org |
-| doge | DOGE | 3 | none listed |
-| eth | ETH | 60 | none listed |
-| tron | TRX | 195 | none listed |
-| xrp | XRP | 144 | none listed |
-| sol | SOL | 501 | none listed |
-| qtum | QTUM | 2301 | none listed |
-| ftc | FTC | 8 | none listed |
-| nmc | NMC | 7 | none listed |
-| dash | DASH | 5 | chainz.cryptoid.info |
-| vtc | VTC | 28 | chainz.cryptoid.info |
-| dgb | DGB | 20 | chainz.cryptoid.info |
-| via | VIA | 14 | none listed |
-| mona | MONA | 22 | none listed |
-| rvn | RVN | 175 | blockbook.ravencoin.org |
-| xpm | XPM | 24 | chainz.cryptoid.info |
-| trc | TRC | 83 | none listed |
-| mec | MEC | 217 | none listed |
-| aur | AUR | 85 | chainz.cryptoid.info |
-| bch | BCH | 145 | none listed |
-| bsv | BSV | 236 | none listed |
-| btg | BTG | 156 | none listed |
-| ppc | PPC | 6 | chainz.cryptoid.info |
-| nvc | NVC | 50 | chainz.cryptoid.info |
-| clam | CLAM | 23 | chainz.cryptoid.info |
-| blk | BLK | 10 | chainz.cryptoid.info |
-| rdd | RDD | 4 | none listed |
-| pot | POT | 81 | chainz.cryptoid.info |
-| qrk | QRK | 82 | chainz.cryptoid.info |
+### Supported (verified)
 
-### Unverified chains (, refused by every other call)
+| name | ticker | SLIP-44 | p2pkh | p2sh | hrp | wif | checksum | decimals | forkid | tx format | sweep build | sources |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| btc | BTC | 0 | 00 | 05 | bc | 128 | sha256d | 8 | — | legacy | yes | esplora blockstream.info |
+| ltc | LTC | 2 | 30 | 32 | ltc | 176 | sha256d | 8 | — | legacy | yes | esplora litecoinspace.org |
+| doge | DOGE | 3 | 1e | 16 | — | 158 | sha256d | 8 | — | legacy | yes | none |
+| eth | ETH | 60 | — | — | — | — | — | 18 | — | evm | no | none |
+| tron | TRX | 195 | — | — | — | — | — | 6 | — | account | no | none |
+| xrp | XRP | 144 | — | — | — | — | — | 6 | — | account | no | none |
+| sol | SOL | 501 | — | — | — | — | — | 9 | — | account | no | none |
+| qtum | QTUM | 2301 | 3a | 32 | qc | 128 | sha256d | 8 | — | legacy | yes | qtuminfo qtum.info |
+| ftc | FTC | 8 | 0e | 05 | fc | 142 | sha256d | 8 | — | legacy | yes | none |
+| nmc | NMC | 7 | 34 | 0d | nc | 180 | sha256d | 8 | — | legacy | yes | none |
+| dash | DASH | 5 | 4c | 10 | — | 204 | sha256d | 8 | — | legacy | yes | blockbook blockbook.dash.zelcore.io; insight insight.dash.org |
+| vtc | VTC | 28 | 47 | 05 | vtc | 128 | sha256d | 8 | — | legacy | yes | blockbook blockbook.vtc.zelcore.io |
+| dgb | DGB | 20 | 1e | 3f | dgb | 128 | sha256d | 8 | — | legacy | yes | blockbook blockbook.dgb.zelcore.io |
+| via | VIA | 14 | 47 | 21 | via | 199 | sha256d | 8 | — | legacy | yes | blockbook blockbook.viacoin.org |
+| mona | MONA | 22 | 32 | 37 | mona | 176 | sha256d | 8 | — | legacy | yes | insight mona.insight.monaco-ex.org |
+| rvn | RVN | 175 | 3c | 7a | — | 128 | sha256d | 8 | — | legacy | yes | blockbook blockbook.rvn.zelcore.io; blockbook blockbook.ravencoin.org |
+| xpm | XPM | 24 | 17 | 53 | — | 151 | sha256d | 8 | — | legacy | yes | cryptoid chainz.cryptoid.info |
+| trc | TRC | 83 | 00 | 05 | — | 128 | sha256d | 8 | — | legacy | yes | none |
+| mec | MEC | 217 | 32 | 05 | mec | 178 | sha256d | 8 | — | legacy | yes | none |
+| aur | AUR | 85 | 17 | 05 | — | 176 | sha256d | 8 | — | legacy | yes | cryptoid chainz.cryptoid.info |
+| bch | BCH | 145 | 00 | 05 | — | 128 | sha256d | 8 | 0 | forkid | yes | none |
+| bsv | BSV | 236 | 00 | 05 | — | 128 | sha256d | 8 | 0 | forkid | yes | woc whatsonchain.com |
+| btg | BTG | 156 | 26 | 17 | btg | 128 | sha256d | 8 | 79 | forkid | yes | none |
+| ppc | PPC | 6 | 37 | 75 | pc | 183 | sha256d | 6 | — | pos-ntime | no | blockbook blockbook.peercoin.net |
+| nvc | NVC | 50 | 08 | 14 | — | 136 | sha256d | 6 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
+| clam | CLAM | 23 | 89 | 0d | — | 133 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
+| blk | BLK | 10 | 19 | 55 | — | 153 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
+| rdd | RDD | 4 | 3d | 05 | rdd | 189 | sha256d | 8 | — | pos-ntime | no | blockbook blockbook.reddcoin.com |
+| pot | POT | 81 | 37 | 6e | — | 183 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
+| qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 8 | — | unknown | no | cryptoid chainz.cryptoid.info |
+| zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | no | none |
 
-| name | ticker | SLIP-44 | sources |
-|---|---|---|---|
-| wdc | WDC | 0 | chainz.cryptoid.info |
-| anc | ANC | 0 | none listed |
+### Unverified (never returned as supported)
+
+| name | ticker | SLIP-44 | p2pkh | p2sh | hrp | wif | checksum | decimals | forkid | tx format | sweep build | sources |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| wdc | WDC | 0 | 49 | 05 | — | 201 | sha256d | 8 | — | legacy | no | cryptoid chainz.cryptoid.info |
+| anc | ANC | 0 | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |

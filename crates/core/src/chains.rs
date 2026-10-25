@@ -49,7 +49,10 @@ const fn u(name: &'static str, ticker: &'static str, title: &'static str, coin: 
     Chain { name, ticker, title, coin, enc: Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot: false }, default_count: 10, sign, verified, source, sources }
 }
 const D: &str = "2026-10-24";
-const fn cz(t: &'static str, api: &'static str) -> Source { Source { name: "chainz.cryptoid.info", url: t, api, checked: D } }
+/// Sources measured by SwapChan's keyless probes (old-coins plan, 2026-10-24): balance + UTXO list.
+const SP: &str = "2026-10-24 (SwapChan probe: balance+utxo)";
+const fn bb(name: &'static str, url: &'static str, api: &'static str) -> Source { Source { name, url, api, checked: SP } }
+const fn cz(t: &'static str, api: &'static str) -> Source { Source { name: "chainz.cryptoid.info", url: t, api, checked: "2026-10-24 (balance only; unspent needs an API key)" } }
 use Sign::*;
 pub const CHAINS: &[Chain] = &[
     Chain { name: "btc", ticker: "BTC", title: "Bitcoin", coin: 0, enc: Enc::Utxo { p2pkh: 0x00, p2sh: 0x05, hrp: Some("bc"), wif: 0x80, taproot: true }, default_count: 10, sign: Standard, verified: true,
@@ -61,27 +64,27 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "xrp", ticker: "XRP", title: "XRP Ledger", coin: 144, enc: Enc::Xrp, default_count: 10, sign: Unknown, verified: true, source: "xrpl.org: account ID, ripple base58 alphabet", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     // ---- Bitcoin-family long tail. Bytes are decimal as written in each coin's source. ----
-    u("qtum", "QTUM", "Qtum", 2301, 58, 50, 128, Some("qc"), Standard, true, "qtumproject/qtum src/kernel/chainparams.cpp", &[]),
+    u("qtum", "QTUM", "Qtum", 2301, 58, 50, 128, Some("qc"), Standard, true, "qtumproject/qtum src/kernel/chainparams.cpp", &[bb("qtum.info", "https://qtum.info/address/{addr}", "qtuminfo:https://qtum.info/api")]),
     u("ftc", "FTC", "Feathercoin", 8, 14, 5, 142, Some("fc"), Standard, true, "FeatherCoin/Feathercoin src/chainparams.cpp", &[]),
     u("nmc", "NMC", "Namecoin", 7, 52, 13, 180, Some("nc"), Standard, true, "namecoin/namecoin-core src/kernel/chainparams.cpp", &[]),
-    u("dash", "DASH", "Dash", 5, 76, 16, 204, None, Standard, true, "dashpay/dash src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/dash/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/dash/api.dws")]),
-    u("vtc", "VTC", "Vertcoin", 28, 71, 5, 128, Some("vtc"), Standard, true, "vertcoin-project/vertcoin-core src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/vtc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/vtc/api.dws")]),
-    u("dgb", "DGB", "DigiByte", 20, 30, 63, 128, Some("dgb"), Standard, true, "DigiByte-Core/digibyte src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/dgb/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/dgb/api.dws")]),
-    u("via", "VIA", "Viacoin", 14, 71, 33, 199, Some("via"), Standard, true, "viacoin/viacoin src/chainparams.cpp", &[]),
-    u("mona", "MONA", "Monacoin", 22, 50, 55, 176, Some("mona"), Standard, true, "monacoinproject/monacoin src/chainparams.cpp", &[]),
-    u("rvn", "RVN", "Ravencoin", 175, 60, 122, 128, None, Standard, true, "RavenProject/Ravencoin src/chainparams.cpp", &[Source { name: "blockbook.ravencoin.org", url: "https://blockbook.ravencoin.org/address/{addr}", api: "blockbook:https://blockbook.ravencoin.org/api", checked: D }]),
+    u("dash", "DASH", "Dash", 5, 76, 16, 204, None, Standard, true, "dashpay/dash src/chainparams.cpp", &[bb("blockbook.dash.zelcore.io", "https://blockbook.dash.zelcore.io/address/{addr}", "blockbook:https://blockbook.dash.zelcore.io/api"), bb("insight.dash.org", "https://insight.dash.org/insight/address/{addr}", "insight:https://insight.dash.org/insight-api")]),
+    u("vtc", "VTC", "Vertcoin", 28, 71, 5, 128, Some("vtc"), Standard, true, "vertcoin-project/vertcoin-core src/chainparams.cpp", &[bb("blockbook.vtc.zelcore.io", "https://blockbook.vtc.zelcore.io/address/{addr}", "blockbook:https://blockbook.vtc.zelcore.io/api")]),
+    u("dgb", "DGB", "DigiByte", 20, 30, 63, 128, Some("dgb"), Standard, true, "DigiByte-Core/digibyte src/chainparams.cpp", &[bb("blockbook.dgb.zelcore.io", "https://blockbook.dgb.zelcore.io/address/{addr}", "blockbook:https://blockbook.dgb.zelcore.io/api")]),
+    u("via", "VIA", "Viacoin", 14, 71, 33, 199, Some("via"), Standard, true, "viacoin/viacoin src/chainparams.cpp", &[bb("blockbook.viacoin.org", "https://blockbook.viacoin.org/address/{addr}", "blockbook:https://blockbook.viacoin.org/api")]),
+    u("mona", "MONA", "Monacoin", 22, 50, 55, 176, Some("mona"), Standard, true, "monacoinproject/monacoin src/chainparams.cpp", &[bb("mona.insight.monaco-ex.org", "https://mona.insight.monaco-ex.org/insight/address/{addr}", "insight:https://mona.insight.monaco-ex.org/insight-api-monacoin")]),
+    u("rvn", "RVN", "Ravencoin", 175, 60, 122, 128, None, Standard, true, "RavenProject/Ravencoin src/chainparams.cpp", &[bb("blockbook.rvn.zelcore.io", "https://blockbook.rvn.zelcore.io/address/{addr}", "blockbook:https://blockbook.rvn.zelcore.io/api"), Source { name: "blockbook.ravencoin.org", url: "https://blockbook.ravencoin.org/address/{addr}", api: "blockbook:https://blockbook.ravencoin.org/api", checked: D }]),
     u("xpm", "XPM", "Primecoin", 24, 23, 83, 151, None, Standard, true, "primecoin/primecoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/xpm/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/xpm/api.dws")]),
     u("trc", "TRC", "Terracoin", 83, 0, 5, 128, None, Standard, true, "terracoin/terracoin src/chainparams.cpp", &[]),
     u("mec", "MEC", "Megacoin", 217, 50, 5, 178, Some("mec"), Standard, true, "LIMXTEC/Megacoin src/chainparams.cpp", &[]),
     u("aur", "AUR", "Auroracoin", 85, 23, 5, 176, None, Standard, true, "aurarad/auroracoin src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/aur/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/aur/api.dws")]),
     u("bch", "BCH", "Bitcoin Cash (legacy addresses)", 145, 0, 5, 128, None, ForkId(0), true, "same legacy bytes as Bitcoin; SIGHASH_FORKID", &[]),
-    u("bsv", "BSV", "Bitcoin SV (legacy addresses)", 236, 0, 5, 128, None, ForkId(0), true, "same legacy bytes as Bitcoin; SIGHASH_FORKID", &[]),
+    u("bsv", "BSV", "Bitcoin SV (legacy addresses)", 236, 0, 5, 128, None, ForkId(0), true, "same legacy bytes as Bitcoin; SIGHASH_FORKID", &[bb("whatsonchain.com", "https://whatsonchain.com/address/{addr}", "woc:https://api.whatsonchain.com/v1/bsv/main")]),
     u("btg", "BTG", "Bitcoin Gold", 156, 38, 23, 128, Some("btg"), ForkId(79), true, "BTCGPU/BTCGPU src/chainparams.cpp", &[]),
-    u("ppc", "PPC", "Peercoin", 6, 55, 117, 183, Some("pc"), PosTime, true, "peercoin/peercoin src/kernel/chainparams.cpp", &[cz("https://chainz.cryptoid.info/ppc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/ppc/api.dws")]),
+    u("ppc", "PPC", "Peercoin", 6, 55, 117, 183, Some("pc"), PosTime, true, "peercoin/peercoin src/kernel/chainparams.cpp", &[bb("blockbook.peercoin.net", "https://blockbook.peercoin.net/address/{addr}", "blockbook:https://blockbook.peercoin.net/api")]),
     u("nvc", "NVC", "Novacoin", 50, 8, 20, 136, None, PosTime, true, "novacoin-project/novacoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/nvc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/nvc/api.dws")]),
     u("clam", "CLAM", "Clams", 23, 137, 13, 133, None, PosTime, true, "nochowderforyou/clams src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/clam/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/clam/api.dws")]),
     u("blk", "BLK", "Blackcoin", 10, 25, 85, 153, None, PosTime, true, "CoinBlack/blackcoin src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/blk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/blk/api.dws")]),
-    u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[]),
+    u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[bb("blockbook.reddcoin.com", "https://blockbook.reddcoin.com/address/{addr}", "blockbook:https://blockbook.reddcoin.com/api")]),
     u("pot", "POT", "Potcoin", 81, 55, 110, 183, None, PosTime, true, "potcoin/Potcoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/pot/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/pot/api.dws")]),
     u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.

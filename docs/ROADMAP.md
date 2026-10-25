@@ -46,3 +46,6 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 - [x] Data-driven chain table: 30 verified rows + 2 unverified (wdc, anc); zec and grs excluded; KATs via scripts/kat-chains.py.
 - [x] Stable wasm API: version, supportedChains, unverifiedChains, deriveFromXpub, addressValidate, checkTx (EXPORTS.md).
 - [ ] Explorer sources for the rows that have none listed; signing for ForkId and PosTime chains; real-network test of any non-BTC signing.
+- [x] detect (all candidates) / convert / chainParams / buildUnsignedSweep (legacy + forkid); ZEC t-address validate/convert; SwapChan probe sources per row.
+- [ ] PoS nTime builder (PPC, RDD, NVC, BLK, CLAM): confirm per coin which tx versions carry nTime, from source and a real mainnet tx vector.
+- [ ] Zcash v5 (ZIP-225/244) unsigned builder + decode; Groestlcoin (Groestl checksum, SHA256 txid) with an independent Groestl KAT.

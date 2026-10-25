@@ -134,6 +134,7 @@ dependencies = [
 name = "blocktools"
 version = "0.1.0"
 dependencies = [
+ "bitcoin",
  "blocktools-core",
  "blocktools-net",
  "blocktools-schema",

@@ -21,3 +21,6 @@ ROWS = {"btc": (0, 128), "ltc": (48, 176), "doge": (30, 158), "qtum": (58, 128),
         "pot": (55, 183), "qrk": (58, 186), "wdc": (73, 201), "anc": (23, 151)}
 for n, (p, w) in ROWS.items():
     print(n, b58c(bytes([p]) + H160_G), b58c(bytes([w]) + K1 + b"\1"))
+# Zcash transparent (zcash/zcash src/chainparams.cpp): 2-byte prefixes t1 = 1CB8, t3 = 1CBD.
+# Printed as `zec P2PKH P2SH-of-H160_G` (no WIF line: zec is address-only here).
+print("zec", b58c(bytes.fromhex("1cb8") + H160_G), b58c(bytes.fromhex("1cbd") + H160_G))

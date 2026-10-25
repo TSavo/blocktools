@@ -52,7 +52,7 @@ pub fn tx_json(input: &str) -> String {
         };
         (vec![(to, amt)], json!([{"from": t.from().map(|a| blocktools_tx::addr(&a))}]), Some(t.max_fee_per_gas.saturating_mul(t.gas as u128)))
     } else {
-        if c.sign != chains::Sign::Standard { reasons.push("unsupported_sighash_for_chain".into()) }
+        if matches!(c.sign, chains::Sign::PosTime | chains::Sign::Unknown) { reasons.push("unsupported_sighash_for_chain".into()) }
         let outs: Vec<_> = d.outputs.iter().map(|o| (o.address.clone(), o.amount.map(u128::from))).collect();
         let ins = json!(d.inputs.iter().map(|i| json!({"txid": i.txid, "vout": i.vout, "amount": i.amount})).collect::<Vec<_>>());
         let fee = d.fee.map(u128::from).or_else(|| {

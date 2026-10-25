@@ -1,0 +1,100 @@
+//! detect / convert / zec / sweep per tx format. Expected addresses come from
+//! scripts/kat-chains.py (independent base58check, version bytes from each coin's source):
+//! p2pkh of the secp256k1 generator G (pubkey of private key 1, a public test vector).
+use blocktools::{address, chains, sweep::build_unsigned_sweep, tx};
+const KAT: &[(&str, &str)] = &[
+    ("btc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+    ("ltc", "LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ"),
+    ("doge", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE"),
+    ("qtum", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
+    ("ftc", "6pQiLg4eJbM2bP9CZemnccDzwB3kz2Ae1x"),
+    ("nmc", "N7FdkoPbHSxKfrSVVbRu3NZtrLqc1oKpAR"),
+    ("dash", "XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE"),
+    ("vtc", "Vkg6Ts44mskyD668xZkxFkjqovjXX9yUzZ"),
+    ("dgb", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE"),
+    ("via", "Vkg6Ts44mskyD668xZkxFkjqovjXX9yUzZ"),
+    ("mona", "MJaRnao1s62a2zAKSkmG582KbLKianqb7v"),
+    ("rvn", "RKxTdfmtxtfLDKZBgx6SvNkBtNu9jRYnLh"),
+    ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+    ("trc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+    ("mec", "MJaRnao1s62a2zAKSkmG582KbLKianqb7v"),
+    ("aur", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+    ("bch", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+    ("bsv", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+    ("btg", "GUXByHDZLvU4DnVH9imSFckt3HEQ5cFgE5"),
+    ("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"),
+    ("nvc", "4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR"),
+    ("clam", "xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx"),
+    ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX"),
+    ("rdd", "RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa"),
+    ("pot", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"),
+    ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
+    ("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV"),
+    ("anc", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+];
+const ZEC_T1: &str = "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs";
+const ZEC_T3: &str = "t3VEtV2oBtHxjq7wKHJb3PHsqXHvMRgUmVw";
+const BTC: &str = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
+
+#[test] fn convert_matches_independent_kats_for_every_verified_row() {
+    let mut n = 0;
+    for (c, want) in KAT {
+        let row = chains::chain(c).unwrap();
+        if row.verified { assert_eq!(address::convert(BTC, c).as_deref(), Ok(*want), "{c}"); n += 1;
+                          assert_eq!(address::convert_from(c, want, "btc").as_deref(), Ok(BTC), "{c} back"); }
+        else { assert_eq!(address::convert(BTC, c), Err("unknown_or_unverified_chain")) }
+    }
+    assert_eq!(n, 26);
+}
+#[test] fn detect_returns_every_candidate() {
+    let names = |a: &str| { let mut v: Vec<_> = address::detect(a).into_iter().map(|x| x.0).collect(); v.sort(); v };
+    let k = |c: &str| KAT.iter().find(|x| x.0 == c).unwrap().1;
+    assert_eq!(names(k("doge")), ["dgb", "doge"]);          // version 30
+    assert_eq!(names(k("vtc")), ["via", "vtc"]);            // version 71
+    assert_eq!(names(BTC), ["bch", "bsv", "btc", "trc"]);   // version 0
+    assert_eq!(names(k("mona")), ["ltc", "mec", "mona", "qtum"]); // 50: MONA/MEC p2pkh, LTC/QTUM p2sh
+    assert_eq!(address::convert(k("mona"), "btc"), Err("ambiguous_address"));
+    assert!(names(k("wdc")).is_empty());                    // unverified row: never a candidate
+    assert_eq!(names(ZEC_T1), ["zec"]);
+    assert_eq!(names("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), ["btc"]);
+}
+#[test] fn zec_transparent() {
+    assert_eq!(address::validate("zec", ZEC_T1), Ok(address::AddrKind::P2pkh));
+    assert_eq!(address::validate("zec", ZEC_T3), Ok(address::AddrKind::P2sh));
+    assert!(address::validate("zec", BTC).is_err());
+    assert_eq!(address::convert(BTC, "zec").as_deref(), Ok(ZEC_T1));
+    assert_eq!(address::convert(ZEC_T1, "btc").as_deref(), Ok(BTC));
+    assert_eq!(address::convert("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "zec"), Err("no_equivalent"));
+    assert_eq!(address::convert("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "dash"), Err("no_equivalent"));
+}
+#[test] fn params_rows() {
+    let p = address::params_json();
+    let r = |n: &str| p.as_array().unwrap().iter().find(|r| r["name"] == n).unwrap().clone();
+    assert_eq!(r("ppc")["decimals"], 6); assert_eq!(r("nvc")["decimals"], 6); assert_eq!(r("dash")["decimals"], 8);
+    assert_eq!(r("btg")["forkid"], 79); assert_eq!(r("bsv")["tx_format"], "forkid"); assert_eq!(r("ppc")["tx_format"], "pos-ntime");
+    assert_eq!(r("zec")["p2pkh"], serde_json::json!([0x1c, 0xb8])); assert_eq!(r("dash")["sweep_build"], true); assert_eq!(r("rdd")["sweep_build"], false);
+}
+fn utxo(c: &str) -> String {
+    let a = address::convert(BTC, c).unwrap();
+    format!(r#"{{"txid":"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9","vout":0,"amount":100000,"address":"{a}"}}"#)
+}
+#[test] fn sweep_builds_legacy_and_forkid_and_decodes_back() {
+    for c in ["dash", "dgb", "rvn", "vtc", "via", "qtum", "bsv", "mona", "btc", "doge"] {
+        let to = KAT.iter().find(|x| x.0 == c).unwrap().1;
+        let r = build_unsigned_sweep(c, &utxo(c), to, 10).unwrap_or_else(|e| panic!("{c}: {e}"));
+        assert_eq!(r["fee"], "1930", "{c}"); assert_eq!(r["amount"], "98070", "{c}");
+        let d = tx::decode(r["unsigned_tx"].as_str().unwrap(), c).unwrap();
+        assert_eq!(d.outputs.len(), 1); assert_eq!(d.outputs[0].address.as_deref(), Some(to), "{c}");
+        assert_eq!(d.outputs[0].amount, Some(98070));
+        let d = tx::decode(r["psbt"].as_str().unwrap(), c).unwrap();
+        assert_eq!(d.fee, Some(1930), "{c} psbt fee");
+    }
+}
+#[test] fn sweep_refuses_unsupported_formats() {
+    for (c, why) in [("ppc", "unsupported_tx_format:pos-ntime"), ("rdd", "unsupported_tx_format:pos-ntime"), ("clam", "unsupported_tx_format:pos-ntime"),
+                     ("qrk", "unsupported_tx_format:unknown"), ("zec", "unsupported_tx_format:zcash-v5"), ("wdc", "unsupported_tx_format:legacy"),
+                     ("grs", "unsupported_tx_format:unknown"), ("eth", "unsupported_tx_format:evm")] {
+        assert_eq!(build_unsigned_sweep(c, "", BTC, 10).unwrap_err(), why, "{c}");
+    }
+    assert!(build_unsigned_sweep("dash", &utxo("btc"), BTC, 10).is_err()); // utxo address not a DASH address
+}
