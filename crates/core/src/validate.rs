@@ -14,7 +14,7 @@ pub fn is_xrp_seed(s: &str) -> bool {
     s.starts_with('s') && xrp_decode_check(s).map_or(false, |b| (b.len() == 17 && b[0] == 0x21) || (b.len() == 19 && b[..3] == [0x01, 0xe1, 0x4b]))
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Cosmos, Algo, Ss58, Xmr }
+pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Cosmos, Algo, Ss58, Ton, Xmr }
 
 /// Validate `addr` for `chain`. Errors are short static strings.
 pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
@@ -45,6 +45,7 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
             Err("bad length")
         }
         Enc::Cosmos { hrp } => chains::cosmos_decode(hrp, addr).map(|_| AddrKind::Cosmos),
+        Enc::Ton => chains::ton_decode(addr).map(|_| AddrKind::Ton),
         Enc::Ss58 { prefix } => chains::ss58_decode(prefix, addr).map(|_| AddrKind::Ss58),
         Enc::Algo => chains::algo_decode(addr).map(|_| AddrKind::Algo),
         Enc::Xlm => match chains::strkey_decode(addr)? { (48, p) if p.len() == 32 => Ok(AddrKind::Xlm), (48, _) => Err("bad length"), _ => Err("wrong network") },

@@ -88,6 +88,7 @@ Outside the chain table: `zec` (2-byte prefixes), handled by the blocktools-tx z
 | sol | SOL | 501 | — | — | — | — | — | 9 | — | account | no | none |
 | atom | ATOM | 118 | — | — | cosmos | — | — | 6 | — | account | no | none |
 | algo | ALGO | 283 | — | — | — | — | — | 6 | — | account | no | none |
+| ton | TON | 607 | — | — | — | — | — | 9 | — | account | no | none |
 | dot | DOT | 354 | — | — | — | — | — | 10 | — | account | no | none |
 | xlm | XLM | 148 | — | — | — | — | — | 7 | — | account | no | none |
 | qtum | QTUM | 2301 | 3a | 32 | qc | 128 | sha256d | 8 | — | legacy | yes | qtuminfo qtum.info |

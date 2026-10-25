@@ -34,8 +34,8 @@ fn main() {
         for (cand, (enc, bytes, comp)) in ds.iter().enumerate() {
             let seed: [u8; 32] = bytes[..].try_into().unwrap();
             // A native mnemonic only means something on its own chain family.
-            let only = match *enc { "algo-mnemonic" => Some(Enc::Algo), "substrate-mnemonic" => Some(Enc::Ss58 { prefix: 0 }), _ => None };
-            for c in sel.iter().filter(|c| only.map_or(true, |e| matches!((e, c.enc), (Enc::Algo, Enc::Algo) | (Enc::Ss58 { .. }, Enc::Ss58 { .. })))) {
+            let only = match *enc { "algo-mnemonic" => Some(Enc::Algo), "substrate-mnemonic" => Some(Enc::Ss58 { prefix: 0 }), "ton-mnemonic" => Some(Enc::Ton), _ => None };
+            for c in sel.iter().filter(|c| only.map_or(true, |e| matches!((e, c.enc), (Enc::Algo, Enc::Algo) | (Enc::Ton, Enc::Ton) | (Enc::Ss58 { .. }, Enc::Ss58 { .. })))) {
                 let rows = keys::rows_for(c, &seed, *comp);
                 for r in rows {
                     outln!(r#"{{"tool":"key-to-addresses","status":"ok","line":{lineno},"candidate":{cand},"chain":"{}","kind":"{}","address":"{}","{}":"{}"}}"#,

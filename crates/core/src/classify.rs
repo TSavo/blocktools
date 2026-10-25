@@ -8,7 +8,7 @@ use bitcoin::hashes::{hmac, sha256, sha512, Hash, HashEngine};
 pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub public: Option<String>, pub chain: Option<&'static str> }
 
 /// Every class name classify can print.
-pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "algo_mnemonic",
+pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
     "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
@@ -51,13 +51,15 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
 }
 
 fn line(l: &str, n: u64) -> Row {
-    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom", "algo", "dot"] {
+    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom", "algo", "dot", "ton"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
     if matches!(crate::chains::strkey_decode(l), Ok((144, ref p)) if p.len() == 32) && l.starts_with('S') { return Row { chain: Some("xlm"), ..row("xlm_seed", n, l.as_bytes()) } }
     #[cfg(feature = "algo")]
     if crate::chains::algo_mnemonic_key(l).is_ok() { return Row { chain: Some("algo"), ..row("algo_mnemonic", n, l.as_bytes()) } }
+    #[cfg(feature = "ton")]
+    if crate::chains::is_ton_mnemonic(l) { return Row { chain: Some("ton"), ..row("ton_mnemonic", n, l.as_bytes()) } }
     if crate::validate::is_xrp_seed(l) { return row("xrp_seed", n, l.as_bytes()) }
     if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).is_ok() {

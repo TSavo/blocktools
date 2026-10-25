@@ -133,6 +133,11 @@ from BIP39 seeds (derive skips it, like Monero). KAT: py-algorand-sdk test mnemo
 sr25519 Ed25519-mode expansion, root account only (no `//hard` paths), SS58 checksum =
 blake2b-512("SS58PRE"||prefix||pub)[..2] (blake2b moved from tx to core). key-to-addresses takes
 the mnemonic; native mnemonics are only expanded on their own chain. KAT: subkey docs vector.
+TON (`ton`, Enc::Ton, core feature `ton`): native 24-word mnemonic, entropy = HMAC-SHA512(phrase, ""),
+seed-version check PBKDF2(entropy, "TON seed version", 390)[0]==0, key = PBKDF2(entropy, "TON default
+seed", 100000)[..32] ed25519. Address = sha256 cell hash of the wallet v4r2 StateInit (code hash
+feb5ff68..., depth 7; data seqno 0, subwallet 698983191, pubkey, empty plugins), base64url with tag
+0x51/0x11 and CRC16-XModem. BIP39-valid phrases are never treated as TON. KAT: tonsdk-generated test phrase.
 Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 

@@ -32,6 +32,9 @@ pub enum Enc {
     Ss58 { prefix: u8 },
     /// Stellar: ed25519, SLIP-0010, SEP-0005 path m/44'/148'/i'; StrKey G... / S...
     Xlm,
+    /// TON: ed25519 key from the native 24-word TON mnemonic; address = wallet v4r2 contract
+    /// (StateInit cell hash), workchain 0, user-friendly non-bounceable base64url (UQ...).
+    Ton,
     /// Monero: ed25519 spend/view keys from its own 25-word seed (crates/monero); not secp-derivable.
     Xmr,
 }
@@ -46,7 +49,7 @@ pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
 impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
     pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
     /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
-    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Xmr | Enc::Ss58 { .. }) } }
+    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Ton | Enc::Xmr | Enc::Ss58 { .. }) } }
 impl Sign { /// tx-build / tx-sign build and sign this scheme.
     pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
@@ -85,6 +88,7 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos" }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
     Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
     Chain { name: "dot", ticker: "DOT", title: "Polkadot", coin: 354, enc: Enc::Ss58 { prefix: 0 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey: mini-secret = PBKDF2(entropy), sr25519, SS58 prefix 0", sources: &[] },
+    Chain { name: "ton", ticker: "TON", title: "TON", coin: 607, enc: Enc::Ton, default_count: 1, sign: Unknown, verified: true, source: "tonsdk/tonweb: TON mnemonic (HMAC-SHA512 + PBKDF2 \"TON default seed\"), wallet v4r2, workchain 0", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
@@ -210,7 +214,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Cosmos { hrp } => vec![row("cosmos", cosmos_address(hrp, &h160(&pk.serialize())))],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ss58 { .. } | Enc::Xmr => vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
     }
 }
 /// Cosmos SDK account address: plain bech32 (not segwit) of a 20-byte hash.
@@ -308,6 +312,86 @@ pub fn algo_mnemonic_key(m: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'stat
     if ((h[0] as u32) | ((h[1] as u32) << 8)) & 2047 != ix[24] { return Err("bad checksum") }
     Ok(zeroize::Zeroizing::new(key))
 }
+/// Wallet v4r2 code cell: representation hash and depth (tonsdk / ton-blockchain wallet-v4 R2).
+const TON_V4R2_CODE_HASH: &str = "feb5ff6820e2ff0d9483e7e0d62c817d846789fb4ae580c878866d959dabd5c0";
+const TON_V4R2_CODE_DEPTH: u16 = 7;
+/// Standard cell hash: sha256(d1 d2 data(+completion bit) depth(refs) hash(refs)), ordinary, level 0.
+fn ton_cell_hash(data: &[u8], bits: usize, refs: &[([u8; 32], u16)]) -> [u8; 32] {
+    use bitcoin::hashes::{sha256, Hash};
+    let mut d = vec![refs.len() as u8, ((bits / 8) + bits.div_ceil(8)) as u8];
+    let mut body = data[..bits.div_ceil(8)].to_vec();
+    if bits % 8 != 0 { let last = body.len() - 1; let k = bits % 8; body[last] = (body[last] & (0xff << (8 - k))) | (0x80 >> k); }
+    d.extend_from_slice(&body);
+    for r in refs { d.extend_from_slice(&r.1.to_be_bytes()) }
+    for r in refs { d.extend_from_slice(&r.0) }
+    sha256::Hash::hash(&d).to_byte_array()
+}
+/// Account id of wallet v4r2 (subwallet 698983191, seqno 0, empty plugins) for a public key.
+pub fn ton_v4r2_account(pubkey: &[u8; 32]) -> [u8; 32] {
+    let mut data = vec![0u8; 4]; data.extend_from_slice(&698983191u32.to_be_bytes()); data.extend_from_slice(pubkey); data.push(0);
+    let dh = ton_cell_hash(&data, 321, &[]);
+    let code: [u8; 32] = crate::hex_dec(TON_V4R2_CODE_HASH).unwrap().try_into().unwrap();
+    // StateInit: split_depth? 0, special? 0, code 1, data 1, library 0
+    ton_cell_hash(&[0b0011_0000], 5, &[(code, TON_V4R2_CODE_DEPTH), (dh, 0)])
+}
+/// User-friendly TON address: base64url(tag || workchain || account || crc16), tag 0x51 (non-bounceable) or 0x11.
+pub fn ton_address(account: &[u8; 32], bounceable: bool) -> String {
+    let mut d = vec![if bounceable { 0x11 } else { 0x51 }, 0]; d.extend_from_slice(account);
+    let c = crc16_xmodem(&d); d.extend_from_slice(&c.to_be_bytes());
+    crate::b64::encode(&d).replace('+', "-").replace('/', "_")
+}
+/// Parse a user-friendly (EQ/UQ, url or std alphabet) or raw "0:hex" mainnet workchain-0 address -> account id.
+pub fn ton_decode(a: &str) -> Result<[u8; 32], &'static str> {
+    if let Some(h) = a.strip_prefix("0:") { return crate::hex_dec(h).and_then(|b| b.try_into().ok()).ok_or("bad raw address") }
+    if a.len() != 48 { return Err("bad length") }
+    let d = crate::b64::decode(&a.replace('-', "+").replace('_', "/")).ok_or("bad base64")?;
+    if d.len() != 36 { return Err("bad length") }
+    if d[0] != 0x11 && d[0] != 0x51 { return Err("wrong network") }
+    if d[1] != 0 { return Err("unsupported workchain") }
+    if crc16_xmodem(&d[..34]).to_be_bytes() != d[34..] { return Err("bad checksum") }
+    Ok(d[2..34].try_into().unwrap())
+}
+/// TON 24-word mnemonic (no password) -> ed25519 seed: entropy = HMAC-SHA512(mnemonic, ""),
+/// must pass PBKDF2(entropy, "TON seed version", 390)[0] == 0; seed = PBKDF2(entropy, "TON default seed", 100000)[..32].
+#[cfg(feature = "ton")]
+fn ton_basic_seed(ent: &[u8]) -> bool {
+    let mut chk = zeroize::Zeroizing::new([0u8; 64]);
+    pbkdf2::pbkdf2_hmac::<sha2::Sha512>(ent, b"TON seed version", 390, &mut chk[..]);
+    chk[0] == 0
+}
+/// Cheap shape check (no 100k-round PBKDF2): 24 BIP39-list words, passes the TON seed-version
+/// check and is NOT a valid BIP39 mnemonic (those stay "mnemonic").
+#[cfg(feature = "ton")]
+pub fn is_ton_mnemonic(m: &str) -> bool {
+    use bitcoin::hashes::{hmac::{Hmac, HmacEngine}, sha512, Hash};
+    let ws: Vec<String> = m.split_whitespace().map(|w| w.to_lowercase()).collect();
+    if ws.len() != 24 || ws.iter().any(|w| bip39::Language::English.find_word(w).is_none()) { return false }
+    let norm = zeroize::Zeroizing::new(ws.join(" "));
+    if bip39::Mnemonic::parse_in_normalized(bip39::Language::English, &norm).is_ok() { return false }
+    let e = HmacEngine::<sha512::Hash>::new(norm.as_bytes());
+    ton_basic_seed(&zeroize::Zeroizing::new(Hmac::<sha512::Hash>::from_engine(e).to_byte_array())[..])
+}
+#[cfg(feature = "ton")]
+pub fn ton_mnemonic_key(m: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'static str> {
+    use bitcoin::hashes::{hmac::{Hmac, HmacEngine}, sha512, HashEngine, Hash};
+    let ws: Vec<String> = m.split_whitespace().map(|w| w.to_lowercase()).collect();
+    if ws.len() != 24 { return Err("bad length") }
+    if ws.iter().any(|w| bip39::Language::English.find_word(w).is_none()) { return Err("bad word") }
+    let norm = zeroize::Zeroizing::new(ws.join(" "));
+    let mut e = HmacEngine::<sha512::Hash>::new(norm.as_bytes()); e.input(b"");
+    let ent = zeroize::Zeroizing::new(Hmac::<sha512::Hash>::from_engine(e).to_byte_array());
+    if !ton_basic_seed(&ent[..]) { return Err("not a TON mnemonic") }
+    let mut out = zeroize::Zeroizing::new([0u8; 64]);
+    pbkdf2::pbkdf2_hmac::<sha2::Sha512>(&ent[..], b"TON default seed", 100000, &mut out[..]);
+    let mut k = zeroize::Zeroizing::new([0u8; 32]); k.copy_from_slice(&out[..32]);
+    Ok(k)
+}
+/// TON row: wallet v4r2 non-bounceable address; `private_key` = hex ed25519 seed.
+#[cfg(all(feature = "ed25519", feature = "secrets"))]
+pub fn ton_row(path: &str, seed: &[u8; 32]) -> Row {
+    let pubk = ed25519_dalek::SigningKey::from_bytes(seed).verifying_key().to_bytes();
+    Row { chain: "ton", kind: "ton-v4r2", path: path.into(), address: ton_address(&ton_v4r2_account(&pubk), false), secret_field: "private_key", secret: crate::hex_enc(seed) }
+}
 /// SS58 address (1-byte prefix < 64): base58(prefix || pub || blake2b-512("SS58PRE" || prefix || pub)[..2]).
 pub fn ss58_address(prefix: u8, pubkey: &[u8; 32]) -> String {
     let mut d = vec![prefix]; d.extend_from_slice(pubkey);
@@ -404,7 +488,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => &["p2pkh"],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ss58 { .. } => return vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton | Enc::Ss58 { .. } => return vec![],
         _ => &[""],
     };
     let mut out = Vec::new();
