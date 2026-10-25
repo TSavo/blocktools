@@ -1,7 +1,7 @@
 //! detect / convert / zec / sweep per tx format. Expected addresses come from
 //! scripts/kat-chains.py (independent base58check, version bytes from each coin's source):
 //! p2pkh of the secp256k1 generator G (pubkey of private key 1, a public test vector).
-use blocktools::{address, chains, sweep::build_unsigned_sweep, tx};
+use blocktools::{address, chains, sweep::{build_unsigned_sweep, build_unsigned_sweep_at}, tx};
 const KAT: &[(&str, &str)] = &[
     ("btc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
     ("ltc", "LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ"),
@@ -72,7 +72,7 @@ const BTC: &str = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
     let r = |n: &str| p.as_array().unwrap().iter().find(|r| r["name"] == n).unwrap().clone();
     assert_eq!(r("ppc")["decimals"], 6); assert_eq!(r("nvc")["decimals"], 6); assert_eq!(r("dash")["decimals"], 8);
     assert_eq!(r("btg")["forkid"], 79); assert_eq!(r("bsv")["tx_format"], "forkid"); assert_eq!(r("ppc")["tx_format"], "pos-ntime");
-    assert_eq!(r("zec")["p2pkh"], serde_json::json!([0x1c, 0xb8])); assert_eq!(r("dash")["sweep_build"], true); assert_eq!(r("rdd")["sweep_build"], false);
+    assert_eq!(r("zec")["p2pkh"], serde_json::json!([0x1c, 0xb8])); assert_eq!(r("dash")["sweep_build"], true); assert_eq!(r("rdd")["sweep_build"], true); assert_eq!(r("pot")["sweep_build"], false);
 }
 fn utxo(c: &str) -> String {
     let a = address::convert(BTC, c).unwrap();
@@ -99,9 +99,23 @@ fn utxo(c: &str) -> String {
     let d = tx::decode(r["psbt"].as_str().unwrap(), "grs").unwrap();
     assert_eq!(d.fee, Some(1930));
 }
+#[test] fn pos_ntime_sweep_builds_and_decodes() {
+    for (c, layout_end) in [("ppc", false), ("nvc", false), ("clam", false), ("rdd", true)] {
+        let to = KAT.iter().find(|x| x.0 == c).map(|x| x.1).unwrap_or_else(|| panic!("{c} KAT"));
+        let r = build_unsigned_sweep_at(c, &utxo(c), to, 10, 1792800000).unwrap();
+        assert_eq!(r["tx_format"], "pos-ntime"); assert!(r.get("psbt").is_none());
+        let raw = blocktools_core::hex_dec(r["unsigned_tx"].as_str().unwrap()).unwrap();
+        let t = if layout_end { &raw[raw.len() - 4..] } else { &raw[4..8] };
+        assert_eq!(u32::from_le_bytes(t.try_into().unwrap()), 1792800000, "{c} nTime position");
+        let d = tx::decode(&r.to_string(), c).unwrap();
+        assert_eq!(d.outputs[0].address.as_deref(), Some(to));
+        assert_eq!(d.fee.map(|f| f.to_string()), r["fee"].as_str().map(String::from));
+        assert_eq!(build_unsigned_sweep_at(c, &utxo(c), to, 10, 0).unwrap_err(), "pos_ntime_needs_time");
+    }
+    assert_eq!(address::tx_format("blk"), ("legacy", true));
+}
 #[test] fn sweep_refuses_unsupported_formats() {
-    for (c, why) in [("ppc", "unsupported_tx_format:pos-ntime"), ("rdd", "unsupported_tx_format:pos-ntime"), ("clam", "unsupported_tx_format:pos-ntime"),
-                     ("qrk", "unsupported_tx_format:unknown"), ("zec", "unsupported_tx_format:zcash-v5"), ("wdc", "unsupported_tx_format:legacy"),
+    for (c, why) in [("pot", "unsupported_tx_format:pos-ntime"), ("qrk", "unsupported_tx_format:unknown"), ("zec", "unsupported_tx_format:zcash-v5"), ("wdc", "unsupported_tx_format:legacy"),
                      ("eth", "unsupported_tx_format:evm")] {
         assert_eq!(build_unsigned_sweep(c, "", BTC, 10).unwrap_err(), why, "{c}");
     }

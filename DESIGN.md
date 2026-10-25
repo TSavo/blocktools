@@ -493,7 +493,7 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 
 ## Coins: detect, convert, sweep per tx format (2026-10-24)
 
-`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds only the `legacy` and `forkid` formats; PoS-nTime and Zcash v4/v5 are refused until each has its own builder and an independent KAT. ZEC is address-only.
+`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds the `legacy`, `legacy-sha256` and `forkid` formats, plus `pos-ntime` via `build_unsigned_sweep_at` (needs a tx time); Zcash v4/v5 is refused until it has its own builder and an independent KAT. ZEC is address-only.
 
 ## Non-Bitcoin-family chains are their own crates (2026-10-24)
 
@@ -548,3 +548,14 @@ groestlcoinjs' own WIF strings and its signed-tx fixture are Bitcoin's (sha256d)
 
 tx-sign and tx-verify now take the chain from the tx-build JSON when `--chain` is not given, and refuse a
 conflicting `--chain` (signing a GRS PSBT with the BTC sighash would make an invalid tx).
+
+## PoS-nTime transactions (`crates/tx/src/pos.rs`)
+
+Layouts were measured against mainnet txs (`crates/tx/tests/data/pos_mainnet.txt`): each vector must hash (sha256d) to its on-chain txid and every input signature must verify under the chosen sighash, and must fail under the flipped `sighash_time` choice.
+
+- PPC v1, NVC v1, CLAM v1/v2: u32 nTime right after the version, included in the sighash. CLAM v>1 appends a varstr "clam-speech" after locktime.
+- RDD v2: nTime after locktime; part of the txid but stripped from the sighash.
+- BLK v2: no nTime at all (plain Bitcoin layout), so the row is `Standard`/`legacy`.
+- POT: no vector, refused.
+
+Explorer JSON (chainz) reports block time, not tx time; the vectors' nTime was recovered as the unique value making sha256d(raw) equal the txid. There is no PSBT for this format: the unsigned form is a JSON envelope `{chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts}` and tx-sign re-checks the bare tx is unchanged after signing. Inputs are P2PKH only; network acceptance (min fee, dust) is untested.

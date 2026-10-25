@@ -55,7 +55,15 @@ const dashA = bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'dash');
 const sw = JSON.parse(bt.buildUnsignedSweep('dash', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: dashA}), dashA, 10));
 assert.equal(sw.fee, '1930'); assert.equal(sw.tx_format, 'legacy');
 assert.ok(JSON.stringify(JSON.parse(bt.decodeTx(sw.unsigned_tx, 'dash'))).includes(dashA));
-assert.throws(() => bt.buildUnsignedSweep('ppc', '', dashA, 10));
+assert.throws(() => bt.buildUnsignedSweep('pot', '', dashA, 10));
+{ // PoS-nTime (Peercoin): raw tx + prevouts, nTime right after the version
+  const ppcA = 'PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9';
+  const u = JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: ppcA});
+  const p = JSON.parse(bt.buildUnsignedSweepAt('ppc', u, ppcA, 10, 1792800000));
+  assert.equal(p.tx_format, 'pos-ntime'); assert.equal(p.psbt, undefined); assert.equal(p.pos_prevouts.length, 1);
+  assert.equal(p.unsigned_tx.slice(8, 16), '00f5db6a'); // 1792800000 LE
+  assert.throws(() => bt.buildUnsignedSweep('ppc', u, ppcA, 10)); // wasm has no clock: time required
+}
 console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');
 // Groestlcoin (groestlcoinjs-lib vectors): Groestl checksum, unique F.../grs1, and a 3... that BTC rejects
 assert.equal(bt.validateAddress('grs', 'Fob4maNwBGVRPmMcRLS6qtTJfKeySAMsWq'), 'P2pkh');

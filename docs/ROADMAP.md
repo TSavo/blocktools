@@ -47,7 +47,7 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 - [x] Stable wasm API: version, supportedChains, unverifiedChains, deriveFromXpub, addressValidate, checkTx (EXPORTS.md).
 - [ ] Explorer sources for the rows that have none listed; signing for ForkId and PosTime chains; real-network test of any non-BTC signing.
 - [x] detect (all candidates) / convert / chainParams / buildUnsignedSweep (legacy + forkid); ZEC t-address validate/convert; SwapChan probe sources per row.
-- [ ] PoS nTime builder (PPC, RDD, NVC, BLK, CLAM): confirm per coin which tx versions carry nTime, from source and a real mainnet tx vector.
+- [x] PoS nTime builder (PPC, NVC, CLAM, RDD; BLK is plain Bitcoin layout): 13 mainnet vectors (3 ppc, 3 nvc, 3 clam, 1 rdd, 3 blk) checked by txid + signature. Untested: network acceptance/min-fee, non-P2PKH inputs, POT (no vector, refused), more RDD vectors.
 - [x] Groestlcoin: Groestl-512 checksum (RustCrypto `groestl` 0.10), validate/convert/derive, `grs` row verified, single-SHA-256 txid + legacy/BIP143 sighash, sweep build+sign. KATs: groestlcoinjs-lib, Electrum-GRS, 2 real mainnet txs. e2e: scripts/e2e.d/sweep-alt.sh (GRS, LTC, DOGE through the pty driver). Untested: live GRS network/explorer; GRS xpubs (Groestl checksum) unsupported; taproot off.
 - [ ] Zcash v5 (ZIP-225/244) unsigned builder + decode.
 - [x] Monero slice 1: 25-word English seed decode + CRC32 checksum word, spend/view keys, standard address encode/validate (main/stage/test), classify `monero_seed`/`monero_address`, `xmr-keys` tool (public output only), recover.sh route (stops before scan). KAT: monero-python tests/test_seed.py test_keys.

@@ -7,6 +7,7 @@ pub mod evm;
 pub mod policy;
 /// Signing (takes private keys). Feature `secrets` only.
 pub mod digest;
+pub mod pos;
 /// The `"chain"` field of a tx-build JSON line, if any, and the chain a tool should use given an
 /// optional `--chain`: the build's chain wins when no flag is given; a conflicting flag is an
 /// error (signing a GRS tx with the BTC sighash would produce an invalid tx).
@@ -37,7 +38,7 @@ pub struct Io { pub txid: Option<String>, pub vout: Option<u32>, pub address: Op
 #[derive(Debug, Clone)]
 pub struct Decoded {
     pub chain: String,
-    /// "btc-tx" | "psbt" | "evm-legacy" | "evm-1559"
+    /// "btc-tx" | "psbt" | "pos-ntime" | "evm-legacy" | "evm-1559"
     pub ty: &'static str,
     pub signed: bool,
     pub txid: Option<String>,
@@ -67,11 +68,52 @@ pub fn input_bytes(text: &str) -> Result<Vec<u8>, &'static str> {
 }
 
 pub fn decode(text: &str, utxo_chain: &str) -> Result<Decoded, &'static str> {
+    if pos::layout(utxo_chain).is_some() {
+        let c = chains::chain(utxo_chain).ok_or("unknown_chain")?;
+        let tx = pos::PosTx::parse(utxo_chain, &input_bytes(text)?)?;
+        let prev = pos::prevouts_from_json(text)?;
+        if prev.as_ref().is_some_and(|p| p.len() != tx.inputs.len()) { return Err("pos_prevouts_count_mismatch") }
+        return Ok(pos_decoded(c, &tx, prev.as_deref()));
+    }
     decode_bytes(&input_bytes(text)?, utxo_chain)
+}
+
+/// Decoded view of a PoS-nTime tx (amounts of inputs only when `prev` is given).
+pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded {
+    let mut w = Vec::new();
+    let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
+    let io = |amount: u64, s: &[u8]| -> Io {
+        let (kind, address) = match chains::script_to_address(c, s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
+        Io { txid: None, vout: None, address, kind, amount: Some(amount) }
+    };
+    let inputs: Vec<Io> = tx.inputs.iter().enumerate().map(|(n, i)| {
+        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { txid: None, vout: None, address: None, kind: "unknown", amount: None });
+        let mut t = i.txid; t.reverse(); x.txid = Some(hex_enc(t)); x.vout = Some(i.vout); x
+    }).collect();
+    let outputs: Vec<Io> = tx.outputs.iter().map(|(a, s)| io(*a, s)).collect();
+    let out_sum: u64 = outputs.iter().filter_map(|o| o.amount).sum();
+    let in_sum: Option<u64> = inputs.iter().map(|i| i.amount).sum();
+    let fee = in_sum.and_then(|i| i.checked_sub(out_sum));
+    let vsize = pos::signed_size(tx);
+    if in_sum.is_none() { w.push("input_amounts_unknown") }
+    if in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
+    if let Some(f) = fee {
+        if f > 1_000_000 { w.push("high_fee") }
+        if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
+    }
+    if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
+    if outputs.iter().any(|o| o.kind == "op_return") { w.push("op_return_output") }
+    if outputs.iter().any(|o| o.kind != "op_return" && o.amount.unwrap_or(0) < 546) { w.push("dust_output") }
+    if tx.locktime != 0 { w.push("locktime_set") }
+    if !signed { w.push("unsigned") }
+    if tx.inputs.is_empty() || tx.outputs.is_empty() { w.push("no_inputs_or_outputs") }
+    Decoded { chain: c.name.into(), ty: "pos-ntime", signed, txid: Some(tx.txid_hex()), inputs, outputs, fee, vsize: Some(vsize),
+        locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w }
 }
 
 pub fn decode_bytes(b: &[u8], utxo_chain: &str) -> Result<Decoded, &'static str> {
     let c = chains::chain(utxo_chain).ok_or("unknown_chain")?;
+    if pos::layout(utxo_chain).is_some() && !b.starts_with(b"psbt\xff") { return Ok(pos_decoded(c, &pos::PosTx::parse(utxo_chain, b)?, None)) }
     if b.starts_with(b"psbt\xff") {
         let p = Psbt::deserialize(b).map_err(|_| "bad_psbt")?;
         return Ok(psbt(c, &p));

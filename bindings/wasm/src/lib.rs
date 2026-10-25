@@ -111,8 +111,16 @@ pub fn convert_address_from(from: &str, addr: &str, to: &str) -> Result<String, 
 #[wasm_bindgen(js_name = chainParams)]
 pub fn chain_params() -> String { blocktools::address::params_json().to_string() }
 /// Unsigned sweep of all `utxos` (JSON lines {txid,vout,amount,address[,prev_tx]}) to `to`:
-/// JSON {chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}. Legacy and forkid formats only.
+/// JSON {chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}. Legacy, legacy-sha256 and forkid
+/// formats; pos-ntime chains need `buildUnsignedSweepAt` (a tx timestamp).
 #[wasm_bindgen(js_name = buildUnsignedSweep)]
 pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u32) -> Result<String, JsError> {
     blocktools::sweep::build_unsigned_sweep(chain, utxos, to, fee_rate as u64).map(|v| v.to_string()).map_err(err)
+}
+/// As `buildUnsignedSweep` with tx timestamp `time` (unix seconds). For pos-ntime chains
+/// (ppc/nvc/clam/rdd) returns {chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts,inputs,amount,fee}
+/// (no PSBT exists for that format); other chains ignore `time`.
+#[wasm_bindgen(js_name = buildUnsignedSweepAt)]
+pub fn build_unsigned_sweep_at(chain: &str, utxos: &str, to: &str, fee_rate: u32, time: u32) -> Result<String, JsError> {
+    blocktools::sweep::build_unsigned_sweep_at(chain, utxos, to, fee_rate as u64, time).map(|v| v.to_string()).map_err(err)
 }

@@ -20,7 +20,8 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `convertAddress(addr, to)` | `address::convert(addr, to)` | the same hash, re-encoded for `to`; throws `unrecognised_address`, `ambiguous_address` (candidates disagree on p2pkh vs p2sh), `unknown_or_unverified_chain` or `no_equivalent` |
 | `convertAddressFrom(from, addr, to)` | `address::convert_from(from, addr, to)` | as above, with the source chain stated |
 | `chainParams()` | `address::params_json()` | the full table: `[{name,ticker,title,slip44,verified,p2pkh:[bytes],p2sh:[bytes],hrp,wif,checksum,decimals,forkid,tx_format,sweep_build,sources}]` |
-| `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy`, `legacy-sha256` (GRS) and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` |
+| `buildUnsignedSweep(chain, utxos, to, feeRate)` | `sweep::build_unsigned_sweep(...)` | `{chain,tx_format,psbt,unsigned_tx,inputs,amount,fee}`. `utxos` is JSON lines `{txid,vout,amount,address[,prev_tx]}`. Only the `legacy`, `legacy-sha256` (GRS) and `forkid` formats are built; everything else throws `unsupported_tx_format:<fmt>` (pos-ntime: see `buildUnsignedSweepAt`) |
+| `buildUnsignedSweepAt(chain, utxos, to, feeRate, time)` | `sweep::build_unsigned_sweep_at(...)` | As above plus tx `time` (unix s). pos-ntime chains return `{chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts:[{amount,script}],inputs,amount,fee}`; other chains ignore `time`. Throws `pos_ntime_needs_time` if time is 0 |
 
 ### detectAddress semantics
 
@@ -40,7 +41,7 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 Tx formats:
 - `legacy`: Bitcoin format, including segwit where the chain has it.
 - `forkid` (BCH/BSV/BTG): the unsigned bytes are the same as legacy, but the signer must use SIGHASH_FORKID with the input amounts, which the PSBT carries. Only the unsigned build is done here.
-- `pos-ntime` (PPC/NVC/CLAM/BLK/RDD/POT): not built.
+- `pos-ntime` (PPC/NVC/CLAM/RDD): built as raw tx + `pos_prevouts` (no PSBT exists for this format), only via `buildUnsignedSweepAt` with an explicit tx time; `buildUnsignedSweep` throws `pos_ntime_needs_time` on wasm. P2PKH inputs only. POT is still refused (no vector). BLK was reclassified to `legacy`: its mainnet v2 txs have no nTime (measured).
 - `zcash-v5`: ZEC is address-only for now.
 - `unknown` (QRK): not built.
 - `legacy-sha256` (GRS): Bitcoin serialization, but the txid and the legacy/BIP143 signature hashes use single SHA-256, and base58 uses a Groestl-512 double-hash checksum (`checksum: "groestl512d"`). Vectors: groestlcoinjs-lib (addresses, bip32), Electrum-GRS (WIF), and real GRS mainnet txs whose signatures verify only under our single-SHA-256 sighash. `deriveFromXpub` takes Bitcoin-checksummed xpubs only; Groestl-checksummed GRS xpubs are NOT supported. Taproot is off for GRS.
@@ -101,11 +102,11 @@ Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash). See 
 | bch | BCH | 145 | 00 | 05 | — | 128 | sha256d | 8 | 0 | forkid | yes | none |
 | bsv | BSV | 236 | 00 | 05 | — | 128 | sha256d | 8 | 0 | forkid | yes | woc whatsonchain.com |
 | btg | BTG | 156 | 26 | 17 | btg | 128 | sha256d | 8 | 79 | forkid | yes | none |
-| ppc | PPC | 6 | 37 | 75 | pc | 183 | sha256d | 6 | — | pos-ntime | no | blockbook blockbook.peercoin.net |
-| nvc | NVC | 50 | 08 | 14 | — | 136 | sha256d | 6 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
-| clam | CLAM | 23 | 89 | 0d | — | 133 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
-| blk | BLK | 10 | 19 | 55 | — | 153 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
-| rdd | RDD | 4 | 3d | 05 | rdd | 189 | sha256d | 8 | — | pos-ntime | no | blockbook blockbook.reddcoin.com |
+| ppc | PPC | 6 | 37 | 75 | pc | 183 | sha256d | 6 | — | pos-ntime | yes | blockbook blockbook.peercoin.net |
+| nvc | NVC | 50 | 08 | 14 | — | 136 | sha256d | 6 | — | pos-ntime | yes | cryptoid chainz.cryptoid.info |
+| clam | CLAM | 23 | 89 | 0d | — | 133 | sha256d | 8 | — | pos-ntime | yes | cryptoid chainz.cryptoid.info |
+| blk | BLK | 10 | 19 | 55 | — | 153 | sha256d | 8 | — | legacy | yes | cryptoid chainz.cryptoid.info |
+| rdd | RDD | 4 | 3d | 05 | rdd | 189 | sha256d | 8 | — | pos-ntime | yes | blockbook blockbook.reddcoin.com |
 | pot | POT | 81 | 37 | 6e | — | 183 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
 | qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 8 | — | unknown | no | cryptoid chainz.cryptoid.info |
 | zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | no | none |

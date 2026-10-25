@@ -2,6 +2,8 @@
 //! UTXO chains -> {"psbt": base64}; EVM -> {"unsigned_tx": hex}. Pipe the result to tx-decode.
 //!   tx-build --chain btc|ltc|doge --utxos FILE --to ADDR (--sweep | --consolidate | --send SATS --change ADDR)
 //!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N]
+//!   tx-build --chain ppc|nvc|clam|rdd --utxos FILE --to ADDR --sweep --fee-rate UNITS_PER_BYTE [--time UNIX]
+//!            -> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
 //!   tx-build --chain eth --chain-id N [--account FILE] [--nonce N] [--gas N] --max-fee-per-gas WEI
 //!            [--priority-fee WEI | --legacy] --to ADDR (--send WEI | --sweep [--balance WEI] | --topup GAS_UNITS
 //!            | --token CONTRACT --token-amount UNITS)
@@ -33,8 +35,18 @@ fn main() {
     // Only verified rows with Bitcoin-standard signing are built; fork-id (BCH/BSV/BTG), PoS
     // tx-time (PPC/NVC/CLAM/BLK/RDD/POT) and unknown formats are refused, not guessed.
     if !c.verified { fail("unverified chain parameters: not supported") }
-    if !c.sign.buildable() { fail("unsupported signing scheme for this chain (fork-id / PoS tx time / unknown)") }
+    let pos = blocktools_tx::pos::layout(chain).is_some();
+    if !c.sign.buildable() && !pos { fail("unsupported signing scheme for this chain (fork-id / unknown / PoS tx time without a verified layout)") }
     let utxos = build::parse_utxos(c, &file(a.get("--utxos").unwrap_or_else(|| fail("--utxos FILE required")), 16 << 20)).unwrap_or_else(|e| fail(&e));
+    if pos { // PPC/NVC/CLAM/RDD: sweep only, P2PKH inputs, tx time = --time or now
+        if !a.has("--sweep") { fail("pos-ntime chains: only --sweep is supported") }
+        let time = num(a.get("--time"), "--time").map(|t| u32::try_from(t).unwrap_or_else(|_| fail("--time"))).unwrap_or_else(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as u32).unwrap_or(0));
+        let (tx, prev) = build::build_pos_sweep(c, &utxos, a.get("--to").unwrap_or_else(|| fail("--to required")), num(a.get("--fee-rate"), "--fee-rate").unwrap_or_else(|| fail("--fee-rate required")) as u64,
+            time, num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64).unwrap_or_else(|e| fail(&e));
+        let mut o = blocktools_tx::pos::envelope(chain, &tx, &prev);
+        o["tool"] = json!("tx-build"); o["status"] = json!("ok"); o["type"] = json!("pos-ntime");
+        blocktools_io::outln!("{o}"); return
+    }
     let sweep = a.has("--sweep") || a.has("--consolidate");
     let send = num(a.get("--send"), "--send").map(|x| x as u64);
     if sweep == send.is_some() { fail("choose exactly one of --sweep/--consolidate or --send") }

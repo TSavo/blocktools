@@ -82,3 +82,24 @@ pub fn extract(p: &Psbt) -> Result<Transaction, &'static str> {
     }
     Ok(tx)
 }
+
+/// Sign every P2PKH input of an nTime tx whose prevout script matches one of `keys`
+/// (compressed or uncompressed), SIGHASH_ALL, low-S. Returns the number signed.
+pub fn sign_pos(tx: &mut crate::pos::PosTx, prev: &[(u64, Vec<u8>)], keys: &[SecretKey]) -> Result<usize, &'static str> {
+    if prev.len() != tx.inputs.len() { return Err("pos_prevouts_count_mismatch") }
+    let secp = Secp256k1::new();
+    let unsigned = tx.clone();
+    let mut n = 0;
+    for (i, (_, spk)) in prev.iter().enumerate() {
+        for sk in keys {
+            let pk = PublicKey::from_secret_key(&secp, sk);
+            let (c, u) = (pk.serialize(), pk.serialize_uncompressed());
+            let k: &[u8] = if *spk == p2pkh(&c) { &c } else if *spk == p2pkh(&u) { &u } else { continue };
+            let h = unsigned.sighash_all(i, spk)?;
+            let mut s = secp.sign_ecdsa(&Message::from_digest(h), sk).serialize_der().to_vec(); s.push(1);
+            let mut ss = push(&s); ss.extend(push(k));
+            tx.inputs[i].script_sig = ss; n += 1; break;
+        }
+    }
+    Ok(n)
+}

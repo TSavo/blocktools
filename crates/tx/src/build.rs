@@ -113,3 +113,21 @@ pub fn build_evm(p: &EvmPlan) -> Result<crate::evm::Tx, &'static str> {
         max_fee_per_gas: p.max_fee, max_priority_fee_per_gas: p.priority_fee.map(|x| x.min(p.max_fee)), gas, to: Some(dest), value, data,
         access_list: crate::rlp::Rlp::L(vec![]), sig: None })
 }
+
+/// Unsigned sweep of every P2PKH `utxos` entry to `to` on an nTime chain (PPC/NVC/CLAM/RDD), with
+/// tx timestamp `time` (unix seconds). Fee = fee_rate (base units per byte) x signed size.
+pub fn build_pos_sweep(c: &Chain, utxos: &[Utxo], to: &str, fee_rate: u64, time: u32, dust: u64) -> Result<(crate::pos::PosTx, crate::pos::Prevouts), String> {
+    use crate::pos::{layout, PIn, PosTx};
+    use bitcoin::hashes::Hash;
+    let l = layout(c.name).ok_or("not an nTime chain with a verified layout")?;
+    if fee_rate == 0 || fee_rate > 100_000 { return Err("fee_rate must be 1..100000 per byte".into()) }
+    if let Some(u) = utxos.iter().find(|u| u.kind != "p2pkh") { return Err(format!("pos-ntime sweep supports p2pkh inputs only (got {})", u.kind)) }
+    if utxos.iter().any(|u| u.prev_tx.is_some()) { return Err("prev_tx is not used for pos-ntime chains".into()) }
+    let to_s = chains::address_to_script(c, to).ok_or("bad --to address")?;
+    let inputs = utxos.iter().map(|u| PIn { txid: u.txid.to_byte_array(), vout: u.vout, script_sig: vec![], sequence: 0xffff_ffff }).collect();
+    let mut tx = PosTx { layout: l, time, inputs, outputs: vec![(0, to_s)], locktime: 0, speech: vec![] };
+    let total: u64 = utxos.iter().map(|u| u.amount).sum();
+    let fee = crate::pos::signed_size(&tx) * fee_rate;
+    tx.outputs[0].0 = total.checked_sub(fee).filter(|&v| v >= dust).ok_or("balance does not cover the fee (or leaves dust)")?;
+    Ok((tx, utxos.iter().map(|u| (u.amount, u.script.clone())).collect()))
+}

@@ -1,5 +1,6 @@
 #!/bin/sh
-# Sweep e2e for GRS (single-SHA-256 txid/sighash, Groestl base58 checksum), LTC and DOGE:
+# Sweep e2e for GRS (single-SHA-256 txid/sighash, Groestl base58 checksum), LTC, DOGE, BLK and the
+# PoS-nTime chains PPC/NVC/CLAM/RDD (raw tx + pos_prevouts instead of a PSBT):
 # build -> verify -> sign (pty types the code via tty-drive.py) -> decode -> re-verify.
 # Throwaway key 1 only; nothing touches a network. For GRS the decoded txid must equal the
 # single-SHA-256 txid computed here in Python (and differ from the sha256d one).
@@ -11,7 +12,7 @@ TID=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 sweep() { # chain from-addr-segwit-or-empty from-p2pkh to
   c=$1; w=$2; p=$3; d=$4
   { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; printf '{"txid":"%s","vout":1,"amount":30000,"address":"%s"}\n' $TID $p; } > $T/u.$c
-  $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 > $T/p.$c || f "$c build"
+  $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 ${TIME:+--time $TIME} > $T/p.$c || f "$c build"
   $B/tx-verify --chain $c --expect-to $d < $T/p.$c >/dev/null || f "$c verify"
   python3 scripts/tty-drive.py right $T/k $T/o.$c $PWD/$B/tx-sign --tx $T/p.$c --expect-to $d > $T/tty.$c || f "$c sign"
   grep -q "Checks passed" $T/tty.$c || f "$c summary"
@@ -32,3 +33,25 @@ PY
 echo "ok   grs signed txid = single-SHA-256 (not sha256d)"
 sweep ltc ltc1qw508d6qejxtdg4y5r3zarvary0c5xw7kgmn4n9 LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ MR8UQSBr5ULwWheBHznrHk2jxyxkHQu8vB
 sweep doge "" DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE DJRU7MLhcPwCTNRZ4e8gJzDebtG1H5M7pc
+sweep blk "" BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX BHjTBorG4VcpNCj7wYU5tMriTMyHkKTWwV
+TIME=1792800000
+sweep ppc "" PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9 PMsYj4nuMuX6uCuig8TeS82KLVhb6hBZqt
+sweep nvc "" 4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR 4SzCSxnMzRjvTqMeXQofeEELknbFfka5SC
+sweep clam "" xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx xMb1TyEXahWwxkLpgXmnCQLpwrpwLRRhrb
+sweep rdd "" RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa RmuAdiadczJMookEpeTZLsf37XFFKpkCxW
+# PoS: the signed tx carries the requested nTime, the fee is known from pos_prevouts, and the
+# txid is sha256d of the raw bytes.
+for c in ppc nvc clam rdd; do
+  python3 - "$T/o.$c" "$T/d.$c" $c <<'PY' || f "$c pos fields"
+import hashlib, json, sys
+o = [json.loads(l) for l in open(sys.argv[1]) if "signed_tx" in l][0]
+d = [json.loads(l) for l in open(sys.argv[2]) if '"txid"' in l][0]
+raw = bytes.fromhex(o["signed_tx"])
+assert o["time"] == 1792800000 and o["chain"] == sys.argv[3]
+t = raw[-4:] if sys.argv[3] == "rdd" else raw[4:8]
+assert int.from_bytes(t, "little") == 1792800000
+assert d["txid"] == hashlib.sha256(hashlib.sha256(raw).digest()).digest()[::-1].hex()
+assert d.get("fee") not in (None, "")
+PY
+done
+echo "ok   ppc/nvc/clam/rdd signed tx: nTime placed, sha256d txid, fee from pos_prevouts"
