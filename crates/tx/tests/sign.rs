@@ -159,3 +159,41 @@ fn grs_legacy_needs_prev_tx() {
     p.inputs[0].non_witness_utxo = None;
     assert_eq!(sign::sign_psbt_digest(&mut p, &[sk(K)], sign::Digest::Sha256).unwrap_err(), "legacy_input_amount_unproven");
 }
+
+/// Review A: a bare P2SH input is legacy-sighash (no amount commitment) unless its redeem script
+/// is proven to be a witness program. Key 1's P2SH-P2WPKH (public) is the wrapped-segwit case.
+#[test]
+fn bare_p2sh_is_not_amount_committed() {
+    use blocktools_tx::digest::{self, Digest};
+    let c = blocktools_core::chains::chain("btc").unwrap();
+    // The sighash KAT: legacy sighash never sees the amount; BIP143 changes with it.
+    let tx: Transaction = deserialize(&h("0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000").unwrap()).unwrap();
+    let legacy_redeem = h("51").unwrap(); // OP_TRUE wrapped in bare P2SH
+    let code = h("76a91479091972186c449eb1ded22b78e40d009bdf008988ac").unwrap();
+    assert_ne!(digest::bip143_all(&tx, 0, &code, 1, Digest::Sha256d).unwrap(), digest::bip143_all(&tx, 0, &code, 2, Digest::Sha256d).unwrap());
+    let l = digest::legacy_sighash(&tx, 0, &legacy_redeem, 1, Digest::Sha256d).unwrap(); // takes no amount at all
+    assert_eq!(l, digest::legacy_sighash(&tx, 0, &legacy_redeem, 1, Digest::Sha256d).unwrap());
+    let p2sh = "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN";
+    let spk = ScriptBuf::from_bytes(blocktools_core::chains::address_to_script(c, p2sh).unwrap());
+    let good = h("0014751e76e8199196d454941c45d1b3a323f1433bd6").unwrap();
+    assert!(digest::amount_uncommitted(&spk));
+    assert!(digest::p2sh_proven_segwit(&spk, Some(bitcoin::Script::from_bytes(&good))));
+    assert!(!digest::p2sh_proven_segwit(&spk, Some(bitcoin::Script::from_bytes(&legacy_redeem))));
+    // tx-build: bare P2SH without prev_tx is refused; a proving redeem_script is accepted and carried.
+    let tid = "c".repeat(64);
+    let plan = build::BtcPlan { to: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(), send: None, change: None, fee_rate: 1, rbf: false, dust: 546, op_return: None, locktime: 0 };
+    let bare = format!("{{\"txid\":\"{tid}\",\"vout\":0,\"amount\":50000,\"address\":\"{p2sh}\"}}");
+    assert!(build::build_btc(c, build::parse_utxos(c, &bare).unwrap(), &plan).unwrap_err().contains("legacy_input_needs_prev_tx"));
+    let bad = format!("{{\"txid\":\"{tid}\",\"vout\":0,\"amount\":50000,\"address\":\"{p2sh}\",\"redeem_script\":\"51\"}}");
+    assert!(build::parse_utxos(c, &bad).unwrap_err().contains("redeem_script"));
+    let ok = format!("{{\"txid\":\"{tid}\",\"vout\":0,\"amount\":50000,\"address\":\"{p2sh}\",\"redeem_script\":\"{}\"}}", blocktools_core::hex_enc(&good));
+    let p = build::build_btc(c, build::parse_utxos(c, &ok).unwrap(), &plan).unwrap();
+    assert_eq!(p.inputs[0].redeem_script.as_ref().unwrap().as_bytes(), &good[..]);
+    assert_eq!(blocktools_tx::decode_bytes(&p.serialize(), "btc").unwrap().unproven_inputs, 0);
+    // tx-decode/verify: the same PSBT with no redeem_script and no prev tx counts as unproven.
+    let mut q = p.clone(); q.inputs[0].redeem_script = None;
+    assert_eq!(blocktools_tx::decode_bytes(&q.serialize(), "btc").unwrap().unproven_inputs, 1);
+    // tx-sign: its own key proves the wrapped-segwit redeem (signs BIP143); a stranger key refuses.
+    assert_eq!(sign::sign_psbt(&mut q.clone(), &[sk(K)]).unwrap(), 1);
+    assert_eq!(sign::sign_psbt(&mut q.clone(), &[sk("0000000000000000000000000000000000000000000000000000000000000002")]).unwrap_err(), "legacy_input_amount_unproven");
+}

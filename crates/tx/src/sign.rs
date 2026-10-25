@@ -31,10 +31,14 @@ pub fn sign_psbt_digest(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<
     let secp = Secp256k1::new();
     let tx = p.unsigned_tx.clone();
     let mut prev: Vec<TxOut> = Vec::new();
+    // P2SH is amount-committed only as wrapped segwit: proven by the PSBT redeem_script, or by a
+    // signing key whose P2SH-P2WPKH redeem script hashes to the spk (the only P2SH signed here).
+    let own_redeems: Vec<ScriptBuf> = keys.iter().map(|k| ScriptBuf::from_bytes(p2wpkh(&PublicKey::from_secret_key(&secp, k).serialize()))).collect();
     for (i, ti) in p.inputs.iter().zip(&tx.input) {
         let o = i.witness_utxo.clone().or_else(|| i.non_witness_utxo.as_ref()?.output.get(ti.previous_output.vout as usize).cloned()).ok_or("input_missing_utxo")?;
         // Fail closed: a legacy-sighash input is only signed against a previous tx that proves its amount.
-        let o = if amount_uncommitted(&o.script_pubkey) { proven_prevout(i, &ti.previous_output, dg).ok_or("legacy_input_amount_unproven")? } else { o };
+        let seg = crate::digest::p2sh_proven_segwit(&o.script_pubkey, i.redeem_script.as_deref()) || own_redeems.iter().any(|r| crate::digest::p2sh_proven_segwit(&o.script_pubkey, Some(r)));
+        let o = if amount_uncommitted(&o.script_pubkey) && !seg { proven_prevout(i, &ti.previous_output, dg).ok_or("legacy_input_amount_unproven")? } else { o };
         prev.push(o);
     }
     let mut n = 0;

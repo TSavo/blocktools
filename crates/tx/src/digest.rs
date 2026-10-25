@@ -14,11 +14,22 @@ impl Digest {
         match self { Digest::Sha256d => sha256d::Hash::hash(b).to_byte_array(), Digest::Sha256 => sha256::Hash::hash(b).to_byte_array() }
     }
 }
-/// True when an input spending `spk` is signed with the legacy (pre-segwit) sighash, which does
-/// NOT commit to the input amount: such an input needs the full previous transaction, or a
-/// lying amount turns into an invisible fee. Witness programs and P2SH (signed here only as
-/// P2SH-P2WPKH, BIP143) commit to the amount.
-pub fn amount_uncommitted(spk: &bitcoin::Script) -> bool { !(spk.is_witness_program() || spk.is_p2sh()) }
+/// True when an input spending `spk` may be signed with the legacy (pre-segwit) sighash, which
+/// does NOT commit to the input amount: such an input needs the full previous transaction, or a
+/// lying amount turns into an invisible fee. Only witness programs are amount-committed by the
+/// script alone; a bare P2SH may wrap any legacy script (see `p2sh_proven_segwit`).
+pub fn amount_uncommitted(spk: &bitcoin::Script) -> bool { !spk.is_witness_program() }
+/// True when `redeem` is a witness program and HASH160(redeem) is the P2SH `spk`: the input is
+/// wrapped segwit, signed with BIP143/BIP341, which commit to the amount.
+pub fn p2sh_proven_segwit(spk: &bitcoin::Script, redeem: Option<&bitcoin::Script>) -> bool {
+    use bitcoin::hashes::hash160;
+    let Some(r) = redeem else { return false };
+    spk.is_p2sh() && r.is_witness_program() && spk.as_bytes()[2..22] == hash160::Hash::hash(r.as_bytes()).to_byte_array()
+}
+/// `amount_uncommitted`, unless a P2SH input carries a redeem script proving wrapped segwit.
+pub fn input_amount_uncommitted(spk: &bitcoin::Script, redeem: Option<&bitcoin::Script>) -> bool {
+    amount_uncommitted(spk) && !p2sh_proven_segwit(spk, redeem)
+}
 /// Check a PSBT input's `non_witness_utxo` proves its prevout: hash = outpoint txid, output
 /// exists, and equals `witness_utxo` when that is also present. Returns the proven prevout.
 pub fn proven_prevout(inp: &bitcoin::psbt::Input, op: &bitcoin::OutPoint, d: Digest) -> Option<bitcoin::TxOut> {

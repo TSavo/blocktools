@@ -239,7 +239,7 @@ fn psbt(c: &Chain, p: &Psbt) -> Decoded {
     let dg = digest::Digest::for_chain(c);
     let unproven = p.inputs.iter().zip(&p.unsigned_tx.input).filter(|(i, ti)| {
         let spk = i.witness_utxo.as_ref().map(|o| o.script_pubkey.clone()).or_else(|| i.non_witness_utxo.as_ref()?.output.get(ti.previous_output.vout as usize).map(|o| o.script_pubkey.clone()));
-        match spk { Some(s) => digest::amount_uncommitted(&s) && digest::proven_prevout(i, &ti.previous_output, dg).is_none(), None => true }
+        match spk { Some(s) => digest::input_amount_uncommitted(&s, i.redeem_script.as_deref()) && digest::proven_prevout(i, &ti.previous_output, dg).is_none(), None => true }
     }).count();
     let prev: Vec<Option<TxOut>> = p.inputs.iter().zip(&p.unsigned_tx.input).map(|(i, ti)| {
         if let Some(o) = &i.witness_utxo { return Some(o.clone()) }

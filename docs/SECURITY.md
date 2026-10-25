@@ -43,7 +43,7 @@ include real keys, seeds or wallet files in any report.
 **Legacy-input amount proof (security review 2026-10-25).** A legacy (pre-segwit) sighash does not commit to the
 amount being spent, so a host that lies about an input's value can make a signer pay a hidden fee (the classic
 P2PKH fee attack). Rule, applied to every legacy-sighash family (BTC/LTC/DOGE/BLK/... P2PKH, GRS, PoS-nTime):
-an input whose script is neither a witness program nor P2SH(-P2WPKH) must carry its full previous transaction.
+an input whose script is not a witness program must carry its full previous transaction. Bare P2SH counts as legacy (it may wrap any legacy script) unless the utxo line / PSBT carries a `redeem_script` that is a witness program hashing to the address (wrapped segwit, BIP143); tx-sign also accepts P2SH it can prove as its own key's P2SH-P2WPKH.
 `utxo-fetch` adds `prev_tx` (raw hex) for such inputs; `tx-build` refuses without it (`legacy_input_needs_prev_tx`)
 or when its txid (chain digest: GRS single SHA-256) or output disagrees with the claimed amount/script; the PSBT gets
 `non_witness_utxo`, PoS envelopes get `pos_prevouts[i].prev_tx`. `tx-decode` reports `unproven_inputs`; `tx-verify`

@@ -1,5 +1,5 @@
 //! Offline transaction building from files (never the network).
-//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex]}.
+//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex]}.
 use bitcoin::absolute::LockTime;
 use bitcoin::psbt::Psbt;
 use bitcoin::transaction::Version;
@@ -8,7 +8,7 @@ use blocktools_core::chains::{self, Chain};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
-pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Vec<u8>, pub kind: &'static str, pub prev_tx: Option<Transaction>,
+pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Vec<u8>, pub kind: &'static str, pub prev_tx: Option<Transaction>, pub redeem: Option<ScriptBuf>,
     /// Raw previous tx bytes for nTime chains (PoS layout, not a bitcoin Transaction).
     pub prev_raw: Option<Vec<u8>> }
 
@@ -38,7 +38,13 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
                 Some(t) }
             None => None,
         };
-        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, prev_raw });
+        let redeem = match j["redeem_script"].as_str() {
+            Some(h) => { let r = ScriptBuf::from_bytes(blocktools_core::hex_dec(h).ok_or_else(|| e("redeem_script hex"))?);
+                if !crate::digest::p2sh_proven_segwit(bitcoin::Script::from_bytes(&script), Some(&r)) { return Err(e("redeem_script is not a witness program hashing to this p2sh address")) }
+                Some(r) }
+            None => None,
+        };
+        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, redeem, prev_raw });
     }
     if v.is_empty() { return Err("no_utxos".into()) }
     Ok(v)
@@ -88,13 +94,14 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
     let tx = Transaction { version: Version::TWO, lock_time: LockTime::from_consensus(p.locktime),
         input: chosen.iter().map(|u| TxIn { previous_output: OutPoint { txid: u.txid, vout: u.vout }, script_sig: ScriptBuf::new(), sequence: seq, witness: Witness::new() }).collect(),
         output: outs.iter().map(|(s, v)| TxOut { value: Amount::from_sat(*v), script_pubkey: ScriptBuf::from_bytes(s.clone()) }).collect() };
-    if chosen.iter().any(|u| crate::digest::amount_uncommitted(bitcoin::Script::from_bytes(&u.script)) && u.prev_tx.is_none()) {
-        return Err("legacy_input_needs_prev_tx: a non-segwit input needs its previous transaction (utxo-fetch adds prev_tx unless --no-prev-tx)".into())
+    if chosen.iter().any(|u| crate::digest::input_amount_uncommitted(bitcoin::Script::from_bytes(&u.script), u.redeem.as_deref()) && u.prev_tx.is_none()) {
+        return Err("legacy_input_needs_prev_tx: a non-segwit input (incl. P2SH without a witness-program redeem_script) needs its previous transaction (utxo-fetch adds prev_tx unless --no-prev-tx)".into())
     }
     let mut psbt = Psbt::from_unsigned_tx(tx).map_err(|_| "psbt")?;
     for (i, u) in chosen.iter().enumerate() {
         psbt.inputs[i].witness_utxo = Some(TxOut { value: Amount::from_sat(u.amount), script_pubkey: ScriptBuf::from_bytes(u.script.clone()) });
         psbt.inputs[i].non_witness_utxo = u.prev_tx.clone();
+        psbt.inputs[i].redeem_script = u.redeem.clone();
     }
     Ok(psbt)
 }
