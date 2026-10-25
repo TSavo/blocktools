@@ -8,6 +8,7 @@ cargo build -q --release --workspace
 cargo test -q --release --workspace --no-fail-fast
 cargo test -q --release --workspace --all-features --no-fail-fast
 sh scripts/check-deps.sh
+sh scripts/hygiene-check.sh
 bash scripts/e2e-local.sh
 sh scripts/wasm-check.sh
 git add -A

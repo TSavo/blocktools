@@ -102,3 +102,11 @@ address-type field (`address`, `from`, `to`, `token`, `token_to`) unless the lin
 base58 value in any other string field is refused outright. `classify` on a password file (`/secrets/pw`, `pw*`,
 `*pass*`) and on any `unknown` row prints class and line only: no SHA-256 fingerprint, which would be a
 dictionary oracle for a low-entropy password. Tests: `rejects_xrp_seed_minikey_sol_secret`, classify `pw_paths`.
+
+## Repo hygiene (security review 2026-10-25)
+
+GitHub Actions are pinned by commit SHA; release publishing is a separate job in the `release` environment
+(add required reviewers in repo Settings -> Environments for the manual approval to bite). `check-deps.sh`
+runs with `LC_ALL=C` and reads members from `cargo metadata --locked`. The 28 Python wheels (23.8 MB) once
+committed at the repo root are removed going forward and `*.whl` is ignored; they remain in git history
+(no rewrite). `scripts/hygiene-check.sh` (gate and CI) fails on unpinned actions or tracked build artifacts.

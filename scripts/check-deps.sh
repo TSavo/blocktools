@@ -3,10 +3,12 @@
 # not listed in deps/<crate>.allow, or if a crate has no allowlist at all.
 # Growing a list is a reviewed change:  sh scripts/check-deps.sh --regen <crate>
 set -eu
+export LC_ALL=C  # sort/comm agree on byte order everywhere
 cd "$(dirname "$0")/.."
 tree() { cargo tree -q --locked -p "$1" -e normal --prefix none | awk '{print $1}' | sort -u | grep -vx "$1" || true; }
 if [ "${1:-}" = "--regen" ]; then tree "$2" > "deps/$2.allow"; echo "wrote deps/$2.allow"; exit 0; fi
-members=$(sed -n '/^members/,/]/p' Cargo.toml | grep -o '"[^"]*"' | tr -d '"')
+# Workspace members from cargo itself (--locked: fail if Cargo.lock is stale), not a sed over Cargo.toml.
+members=$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys,os; d=json.load(sys.stdin); r=d["workspace_root"]; print("\n".join(os.path.relpath(os.path.dirname(p["manifest_path"]), r) for p in d["packages"] if p["id"] in d["workspace_members"]))')
 rc=0
 for m in $members; do
   [ -n "$m" ] || continue
