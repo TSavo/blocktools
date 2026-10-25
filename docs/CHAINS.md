@@ -96,3 +96,6 @@ GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `-
 ## Monero (2026-10-25)
 
 Scan and sweep: host tool `xmr-wallet` over a loopback monero-wallet-rpc. 2026-10-25 stagenet run (Mac, official monero v0.18.5.4 binaries, SHA-256 checked against the published hashes.txt): faucet 0.5 XMR seen by `xmr-wallet scan` (unlocked 500000000000 at height 2236134); `xmr-wallet sweep --relay` planned amount 499969620000 + fee 30380000 = unlocked, relayed tx bb300227e8e6c418fe7d825ac432d79abc2d4b943d99e053eabfba3c8197a96d (mined in stagenet block 2236135, checked on a public stagenet node); a view-only `scan` of the destination wallet shows that amount incoming (pool). The TTY confirm was answered by an `expect` script standing in for a human. Untested: mainnet, Polyseed/13-word/non-English seeds, subaddresses.
+
+## Solana public data (2026-10-25)
+wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed25519 signature check, `solVerifyTx` policy. No Solana builder yet (planned: acct-tx style, solders vectors).

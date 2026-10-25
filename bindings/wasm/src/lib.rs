@@ -183,3 +183,50 @@ pub fn polkadot_account_storage_key(account: &str) -> Result<String, JsError> { 
 /// SCALE AccountInfo (80 bytes hex, as returned by state_getStorage) -> JSON {nonce,consumers,providers,sufficients,data:{free,reserved,frozen,flags}}; u128 as decimal strings.
 #[wasm_bindgen(js_name = decodeAccountInfo)]
 pub fn decode_account_info(hex: &str) -> Result<String, JsError> { Ok(blocktools::substrate::decode_account_info(&hx(hex)?).map_err(err)?.to_string()) }
+
+// ---- Solana (public data) ----
+use blocktools::sol;
+/// Raw tx bytes from hex (optional 0x) or base64 (the RPC/wallet wire form).
+fn sol_raw(s: &str) -> Result<Vec<u8>, JsError> {
+    let t = s.trim(); let h = t.trim_start_matches("0x");
+    if h.len() % 2 == 0 && h.bytes().all(|b| b.is_ascii_hexdigit()) { return hx(h) }
+    blocktools_core_b64(t).ok_or_else(|| err("bad_encoding"))
+}
+fn blocktools_core_b64(s: &str) -> Option<Vec<u8>> { blocktools::b64::decode(s) }
+/// Base58 (Bitcoin alphabet, no checksum) of hex bytes.
+#[wasm_bindgen(js_name = base58Encode)]
+pub fn base58_encode(hex: &str) -> Result<String, JsError> { Ok(sol::b58enc(&hx(hex)?)) }
+/// Hex bytes of a base58 string; throws bad_base58.
+#[wasm_bindgen(js_name = base58Decode)]
+pub fn base58_decode(s: &str) -> Result<String, JsError> { Ok(blocktools::hex_enc(sol::b58dec(s).map_err(err)?)) }
+/// true if a base58 Solana pubkey is an ed25519 curve point (wallet), false if off-curve (PDA); throws on bad input.
+#[wasm_bindgen(js_name = solIsOnCurve)]
+pub fn sol_is_on_curve(addr: &str) -> Result<bool, JsError> { Ok(sol::is_on_curve(&sol::pubkey(addr).map_err(err)?)) }
+/// findProgramAddress. `seeds_json` = JSON array of hex strings (each <= 32 bytes, <= 15 seeds). Returns {address, bump}.
+#[wasm_bindgen(js_name = solFindProgramAddress)]
+pub fn sol_find_program_address(seeds_json: &str, program: &str) -> Result<String, JsError> {
+    let v: Vec<String> = serde_json::from_str(seeds_json).map_err(|_| err("bad_seeds"))?;
+    let seeds: Vec<Vec<u8>> = v.iter().map(|s| hx(s)).collect::<Result<_, _>>()?;
+    let r: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
+    let (a, b) = sol::find_program_address(&r, &sol::pubkey(program).map_err(err)?).map_err(err)?;
+    Ok(json!({"address": sol::b58enc(&a), "bump": b}).to_string())
+}
+/// Associated token account. `token_program` "" = classic SPL Token. Returns {address, bump}.
+#[wasm_bindgen(js_name = solAssociatedTokenAddress)]
+pub fn sol_associated_token_address(owner: &str, mint: &str, token_program: &str) -> Result<String, JsError> {
+    let tp = if token_program.is_empty() { sol::TOKEN } else { token_program };
+    let (a, b) = sol::associated_token_address(&sol::pubkey(owner).map_err(err)?, &sol::pubkey(mint).map_err(err)?, &sol::pubkey(tp).map_err(err)?).map_err(err)?;
+    Ok(json!({"address": sol::b58enc(&a), "bump": b}).to_string())
+}
+/// Anchor discriminator sha256("global:"+name)[..8] as hex.
+#[wasm_bindgen(js_name = solAnchorDiscriminator)]
+pub fn sol_anchor_discriminator(name: &str) -> String { blocktools::hex_enc(sol::anchor_discriminator(name)) }
+/// Decode a wire transaction (hex or base64; legacy or v0). JSON: see EXPORTS.md.
+#[wasm_bindgen(js_name = solDecodeTx)]
+pub fn sol_decode_tx(raw: &str) -> Result<String, JsError> { Ok(sol::decode_tx(&sol_raw(raw)?).map_err(err)?.to_string()) }
+/// Verify a wire transaction against `expect_json` {owner?, to?, lamports?, mint?, amount?, allow_programs?}. Returns {ok, failures, warnings, txid, lamports, token_amount}; fails closed.
+#[wasm_bindgen(js_name = solVerifyTx)]
+pub fn sol_verify_tx(raw: &str, expect_json: &str) -> Result<String, JsError> {
+    let e: serde_json::Value = if expect_json.trim().is_empty() { json!({}) } else { serde_json::from_str(expect_json).map_err(|_| err("bad_expect"))? };
+    Ok(sol::verify_tx(&sol_raw(raw)?, &e).map_err(err)?.to_string())
+}
