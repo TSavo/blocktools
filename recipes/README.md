@@ -27,6 +27,7 @@ and see addresses and signed transactions only.
 | MultiBit Classic `.key` | [input-multibit.md](input-multibit.md) | built, tested; MultiBit HD / bitcoinj `.wallet` built, tested on public test wallets |
 | Raw key (hex, WIF, base58, base64) | [input-raw-key.md](input-raw-key.md) | built, tested |
 | Ethereum keystore JSON | [input-keystore.md](input-keystore.md) | built, tested |
+| xprv (BIP32 master key) | [input-xprv.md](input-xprv.md) | built, tested (xprv form only) |
 | xpub / ypub / zpub / address (watch-only) | [input-xpub-address.md](input-xpub-address.md) | built, tested |
 | XRP family seed (`s...`, `sEd...`) | [xrp.md](xrp.md) | built, tested |
 | Algorand 25-word mnemonic | [chain-algorand.md](chain-algorand.md) | addresses only, tested |
@@ -70,3 +71,28 @@ Fee warnings (`high_fee`, `high_fee_rate`) use per-coin limits from measured mai
 Zcash transparent (t1/t3) is a supported chain for validate/convert/sweep; shielded: [zcash-shielded.md](zcash-shielded.md).
 
 Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains unverified: no SLIP-44 path. Quark (qrk) txs are Bitcoin-legacy (10 mainnet txids, 10 signatures checked) with 5 decimals; sweep build is supported (untested on mainnet).
+
+## recover.sh: classify type -> route
+
+| classify | route | tested example |
+|---|---|---|
+| mnemonic, electrum_seed | seed-repair / seed-to-master -> derive --chain C | input-seed-phrase.md, input-electrum.md |
+| wif, hex_key, b58_key, b64_key | key-to-addresses --chain C | input-raw-key.md, chain-*.md |
+| xprv | sed-wrapped -> derive --chain C | input-xprv.md |
+| xpub, address | watch-only: xpub-addresses / address (balance, no sweep) | input-xpub-address.md |
+| wallet_dat | dat-read -> derive | input-wallet-dat.md |
+| electrum_wallet | electrum-read (-> seed-to-master -> derive) | input-electrum.md |
+| electrum_wallet_file_encrypted | stops, exit 3 (BIE1 not built) | input-electrum.md |
+| multibit_key | multibit-read -> key-to-addresses | input-multibit.md |
+| bitcoinj_wallet | multibit-read -> key-to-addresses (or derive m/0'/c/i for an HD seed) | input-multibit.md |
+| armory_wallet | armory-read -> key-to-addresses | input-armory.md |
+| keystore_v3 | keystore-open (eth) | input-keystore.md |
+| monero_seed | xmr-keys address, exit 3 -> xmr-wallet (host) | monero.md |
+| monero_address | exit 3 (needs the view key) | monero.md |
+| xrp_seed | xrp-tx keys, exit 3 -> xrp-tx build/sign | xrp.md |
+| ton_mnemonic, algo_mnemonic, xlm_seed | address, exit 3 -> acct-tx build/sign | chain-ton/algorand/stellar.md |
+| unknown | exit 3 | input-unknown.md |
+
+Sweep is automated for btc/ltc/doge/eth. For any other `--chain`, recover.sh prints the addresses, exits 3 and names
+the builder (acct-tx, xrp-tx, or tx-build from a UTXO list) and the recipe.
+

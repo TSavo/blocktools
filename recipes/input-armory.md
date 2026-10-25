@@ -10,3 +10,8 @@ checked against the public key stored in the file, so a wrong password gives `wr
 Status: tested on the gurnec/btcrecover public test wallet only (scripts/e2e.d/armory.sh: all 100 stored
 addresses). Untested: unencrypted wallets, wallets from other Armory versions, paper backups (root key +
 chaincode) — those are not read. Watching-only, multisig/lockbox and testnet wallets are refused.
+
+Through the front door (classify -> armory-read -> key-to-addresses):
+
+<!-- e2e: expect=1H29eJEsQCtwCRc737gZyD7HtpxxdQNQzv ; needs=armory.wallet -->
+    recipes/recover.sh /in/armory.wallet - --goal addresses --password-file /secrets/armory.pw

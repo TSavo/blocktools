@@ -35,3 +35,12 @@ lists Electrum wrote into that file.
 
 The full sweep of this wallet runs in e2e (mock chain, both codes typed). NOT BUILT: the 12-word *old* Electrum
 mnemonic (1626-word list) as a typed seed. Only the wallet file is read.
+
+## Electrum "encrypt file" wallets (BIE1)
+
+A whole-file-encrypted wallet starts with `QklFMQ` (base64 of `BIE1`). classify names it, and recover.sh stops (exit 3)
+with the next step. NOT BUILT: decrypting BIE1 files. Open the wallet in Electrum and use its seed (input-seed-phrase.md).
+The test input below has the right shape but no real ciphertext:
+
+<!-- e2e: rc=3 ; expect=electrum_wallet_file_encrypted ; expect=not supported -->
+    recipes/recover.sh /in/electrum-bie1-wallet -

@@ -29,6 +29,10 @@ for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3
                ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"), ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
                ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5")]:
     w(IN, f"u-{_c}.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":1000000,"address":"' + _a + '"}')
+# BIP84 spec mnemonic (abandon x11 about) root key in xprv form (same key as BIP84's zprvAWgYBBk7...).
+w(IN, "xprv.txt", "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu")
+# Shape-only stand-in for an Electrum "encrypt file" wallet (BIE1 base64 prefix); no real ciphertext.
+w(IN, "electrum-bie1-wallet", "QklFMQ" + "A" * 120)
 w(IN, "grs-tpub.txt", "tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK")
 w(IN, "xrp-seed.txt", "sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r")
 w(IN, "xmr-seed.txt", "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy")

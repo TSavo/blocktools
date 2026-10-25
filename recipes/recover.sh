@@ -6,8 +6,8 @@
 #
 # The front door for every recipe in recipes/README.md. --goal addresses prints public addresses
 # only (DEST is ignored, pass -), balance also asks the chain, sweep (default) builds, signs, sends.
-# --chain picks the chain for seeds and raw keys (default btc). Sweep is built for btc, ltc, doge
-# (UTXO) and eth; every other chain stops after the addresses (exit 3) and names its recipe.
+# --chain picks the chain for seeds and raw keys (default btc). Sweep is automated for btc, ltc, doge
+# (UTXO) and eth; every other chain stops after the addresses (exit 3) and names its builder + recipe.
 #
 # - Secrets never touch the disk or this script's variables: keys() re-runs the reader
 #   pipeline each time it is needed and pipes straight into the next tool (redact or tx-sign).
@@ -44,11 +44,18 @@ case $class in
                             if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e"; else printf '%s\n' "$e" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; fi; unset e; } ;;
   multibit_key)    keys() { pw_then_file | "$B/multibit-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain "$CHAIN" < "$FILE"; } ;;
-  monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; view-key funds scan and sweep are not implemented yet (docs/ROADMAP.md)"; exit 3 ;;
+  monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; scan and sweep with xmr-wallet on the host through your own loopback monero-wallet-rpc (recipes/monero.md)"; exit 3 ;;
   xrp_seed)        "$B/xrp-tx" keys < "$FILE"; say "xrp: address shown; sweep with xrp-tx build/sign (recipes/xrp.md). Balance/sequence lookup is not automated yet"; exit 3 ;;
-  ton_mnemonic)    "$B/key-to-addresses" --chain ton < "$FILE" | "$B/redact"; say "ton: wallet v4r2 address shown; other wallet versions and TON transfers/sweep are not built (recipes/chain-ton.md)"; exit 3 ;;
-  algo_mnemonic)   "$B/key-to-addresses" --chain algo < "$FILE" | "$B/redact"; say "algo: address shown; Algorand payments/sweep are not built (recipes/chain-algorand.md)"; exit 3 ;;
-  xlm_seed)        "$B/key-to-addresses" --chain xlm < "$FILE" | "$B/redact"; say "xlm: address shown; Stellar payments/sweep are not built (recipes/chain-stellar.md)"; exit 3 ;;
+  ton_mnemonic)    "$B/key-to-addresses" --chain ton < "$FILE" | "$B/redact"; say "ton: wallet v4r2 address shown; sweep with acct-tx build/sign --chain ton (recipes/chain-ton.md)"; exit 3 ;;
+  algo_mnemonic)   "$B/key-to-addresses" --chain algo < "$FILE" | "$B/redact"; say "algo: address shown; sweep with acct-tx build/sign --chain algo (recipes/chain-algorand.md)"; exit 3 ;;
+  xlm_seed)        "$B/key-to-addresses" --chain xlm < "$FILE" | "$B/redact"; say "xlm: address shown; sweep with acct-tx build/sign --chain xlm (recipes/chain-stellar.md)"; exit 3 ;;
+  # BIP32 master xprv (one line): wrapped as {"xprv":...} by sed (streamed, never a shell variable) for derive.
+  xprv)            keys() { sed -n '1s/^[[:space:]]*\([1-9A-Za-z]*\).*/{"status":"ok","xprv":"\1"}/p' "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
+  armory_wallet)   keys() { pw_then_file | "$B/armory-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
+  # bitcoinj / MultiBit Classic .wallet: loose keys (wif) or an HD seed (xprv, MultiBit HD path m/0'/c/i).
+  bitcoinj_wallet) keys() { local e; e=$(pw_then_file | "$B/multibit-read")
+                            if printf '%s\n' "$e" | grep -q '"wif"'; then printf '%s\n' "$e" | "$B/key-to-addresses" --chain "$CHAIN"; else printf '%s\n' "$e" | "$B/derive" --chain "$CHAIN" --path "m/0'/{change}/{i}" --change 0,1 --index "0..$((COUNT-1))" --address-type p2pkh --compressed; fi; unset e; } ;;
+  electrum_wallet_file_encrypted) say "Electrum file-encrypted wallet (BIE1): not supported here. Open it in Electrum with its password and use the seed (recipes/input-electrum.md)"; exit 3 ;;
   xpub)            WATCH=1; keys() { "$B/xpub-addresses" --chain "$CHAIN" --count "$COUNT" --change 0,1 < "$FILE"; } ;;
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;
   monero_address)  say "watch-only ($class): Monero balances need the view key (recipes/monero.md)"; exit 3 ;;
@@ -61,9 +68,17 @@ keys | "$B/redact" | grep -E "\"(chain|kind)\":\"$CHAIN\"" | grep '"address"' > 
 sed -n 's/.*"address":"\([^"]*\)".*/\1/p' "$W/pub" | sort -u > "$W/addrs"
 say "$(wc -l < "$W/addrs") candidate addresses on $CHAIN"
 [ -s "$W/addrs" ] || { say "no $CHAIN addresses from this input (wrong --chain?)"; exit 4; }
-case $CHAIN in btc|ltc|doge|eth) ;; *)
-  cat "$W/pub"; say "$CHAIN: addresses only; sweep is not built here (see recipes/README.md, 'By chain')"; exit 3 ;; esac
 if [ "$GOAL" = addresses ]; then cat "$W/pub"; exit 0; fi
+next() { case $1 in
+  xlm) echo "acct-tx build/sign (recipes/chain-stellar.md)" ;; algo) echo "acct-tx build/sign (recipes/chain-algorand.md)" ;;
+  atom) echo "acct-tx build/sign (recipes/chain-cosmos.md)" ;; ton) echo "acct-tx build/sign (recipes/chain-ton.md)" ;;
+  ada) echo "acct-tx build/sign (recipes/chain-cardano.md)" ;; dot) echo "acct-tx build/sign (recipes/chain-polkadot.md)" ;;
+  xrp) echo "xrp-tx build/sign (recipes/xrp.md)" ;; grs) echo "tx-build from a UTXO list (recipes/chain-groestlcoin.md)" ;;
+  zec) echo "tx-build from a UTXO list (recipes/chain-zcash-transparent.md)" ;;
+  sol|tron|qtum|pot) echo "sweep is not built for $1; import the key into a $1 wallet (recipes/README.md, 'By chain')" ;;
+  *) echo "tx-build from a UTXO list (recipes/chain-old-coins.md)" ;; esac; }
+case $CHAIN in btc|ltc|doge|eth) ;; *)
+  cat "$W/pub"; say "$CHAIN: addresses only; recover.sh automates sweep for btc/ltc/doge/eth. Next: $(next "$CHAIN")"; exit 3 ;; esac
 if [ $WATCH = 1 ] && [ "$GOAL" = sweep ]; then say "watch-only ($class): no private key here, nothing can be signed"; exit 3; fi
 url=(); if [ -n "$URL" ]; then url=(--url "$URL"); fi
 "$B/utxo-fetch" --chain $CHAIN "${url[@]}" < "$W/addrs" > "$W/utxos"
