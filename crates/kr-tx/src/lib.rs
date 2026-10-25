@@ -2,7 +2,10 @@
 //! Input: hex or base64 raw tx / PSBT, EVM RLP (legacy, EIP-1559), or a JSON line carrying one
 //! of those in "psbt" / "tx" / "unsigned_tx" / "signed_tx". Format is auto-detected.
 //! All parsing is bounded; consensus parsing is rust-bitcoin's.
+pub mod build;
 pub mod evm;
+pub mod policy;
+pub mod sign;
 pub mod rlp;
 use bitcoin::consensus::deserialize;
 use bitcoin::psbt::Psbt;
@@ -131,7 +134,7 @@ fn psbt(c: &Chain, p: &Psbt) -> Decoded {
     d
 }
 
-fn addr(a: &[u8; 20]) -> String { kr_core::validate::checksum_eth(a) }
+pub fn addr(a: &[u8; 20]) -> String { kr_core::validate::checksum_eth(a) }
 
 fn evm_decoded(b: &[u8]) -> Result<Decoded, &'static str> {
     let t = evm::Tx::parse(b)?;

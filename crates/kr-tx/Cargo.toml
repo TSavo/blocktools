@@ -3,7 +3,7 @@ name = "kr-tx"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "keyrescue transaction decode/build library (offline, no keys). DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+description = "keyrescue transaction decode/build/sign library (offline). DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
 bitcoin.workspace = true
 secp256k1 = { workspace = true, features = ["recovery"] }

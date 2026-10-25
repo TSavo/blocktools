@@ -739,7 +739,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
+name = "tx-build"
+version = "0.1.0"
+dependencies = [
+ "kr-core",
+ "kr-io",
+ "kr-tx",
+ "serde_json",
+]
+
+[[package]]
 name = "tx-decode"
+version = "0.1.0"
+dependencies = [
+ "kr-io",
+ "kr-tx",
+ "serde_json",
+]
+
+[[package]]
+name = "tx-sign"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "kr-core",
+ "kr-io",
+ "kr-tty",
+ "kr-tx",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
+name = "tx-verify"
 version = "0.1.0"
 dependencies = [
  "kr-io",

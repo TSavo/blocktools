@@ -6,8 +6,11 @@ use serde_json::{Map, Value};
 
 pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
-    "bad_input", "wrong_password", "unsupported", "error", "done",
+    "bad_input", "wrong_password", "unsupported", "error", "done", "failed", "refused", "aborted",
 ];
+/// tx-verify / tx-sign policy failures (kr_tx::policy).
+pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown", "chain_id_mismatch", "no_chain_id", "no_replay_protection",
+    "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
 pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run", "kr-cat", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol",
@@ -74,11 +77,12 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "selector" => s.map_or(false, |s| ["transfer", "approve", "transferFrom"].contains(&s)),
         "signed" | "rbf" => v.is_boolean(),
         "warnings" => v.as_array().map_or(false, |a| a.len() <= 32 && a.iter().all(|w| w.as_str().map_or(false, |w| TX_WARNINGS.contains(&w)))),
+        "failures" => v.as_array().map_or(false, |a| a.len() <= 32 && a.iter().all(|w| w.as_str().map_or(false, |w| TX_FAILURES.contains(&w)))),
         "from" | "to" | "token" | "token_to" => s.map_or(false, is_address),
         "amount" | "fee" => v.as_u64().map_or(false, |n| n <= 21_000_000 * 100_000_000),
         "value" | "max_fee" | "max_fee_per_gas" | "max_priority_fee_per_gas" | "token_amount" =>
             s.map_or(false, |s| (1..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit())),
-        "inputs" | "outputs" | "vout" | "vsize" | "fee_rate" | "locktime" | "nonce" | "gas" | "chain_id" | "data_len" => v.as_u64().map_or(false, |n| n <= u32::MAX as u64),
+        "inputs" | "outputs" | "signed_inputs" | "vout" | "vsize" | "fee_rate" | "locktime" | "nonce" | "gas" | "chain_id" | "data_len" => v.as_u64().map_or(false, |n| n <= u32::MAX as u64),
         "candidate" | "count" | "index" | "changed_words" | "line" | "branch" => small_uint(v),
         _ => return None,
     })

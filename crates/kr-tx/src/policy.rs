@@ -1,0 +1,52 @@
+//! Policy checks shared by tx-verify and tx-sign. Every failure is a short fixed string.
+use crate::Decoded;
+
+/// Default fee caps applied by tx-sign unless the human passes a larger --max-fee.
+pub const DEFAULT_MAX_FEE_SATS: u128 = 100_000; // 0.001 BTC/LTC; 1000 DOGE-sats is tiny, pass --max-fee for DOGE
+pub const DEFAULT_MAX_FEE_WEI: u128 = 10_000_000_000_000_000; // 0.01 ETH-equivalent
+
+#[derive(Default, Debug, Clone)]
+pub struct Policy {
+    /// Addresses that must receive funds (BTC outputs; EVM `to`, or token recipient for ERC-20).
+    pub expect_to: Vec<String>,
+    /// Extra BTC addresses allowed to receive change.
+    pub change: Vec<String>,
+    pub chain_id: Option<u64>,
+    /// sats (UTXO) or wei (EVM: gas * max fee per gas)
+    pub max_fee: Option<u128>,
+    pub allow_warnings: bool,
+}
+
+fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
+
+pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
+    let mut f = Vec::new();
+    if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned") { f.push("has_warnings") }
+    if let Some(t) = &d.evm {
+        let fee = t.max_fee_per_gas.saturating_mul(t.gas as u128);
+        if let Some(m) = p.max_fee { if fee > m { f.push("fee_above_cap") } }
+        match (p.chain_id, t.chain_id) { (Some(a), Some(b)) if a != b => f.push("chain_id_mismatch"), (Some(_), None) => f.push("no_chain_id"), _ => {} }
+        if t.chain_id.is_none() { f.push("no_replay_protection") }
+        let dest = match crate::evm::token_call(&t.data) {
+            Some(tc) if tc.method == "transfer" => Some(crate::addr(&tc.to)),
+            Some(_) => { f.push("token_call_not_transfer"); None }
+            None if !t.data.is_empty() => { f.push("unknown_contract_call"); None }
+            None => t.to.map(|a| crate::addr(&a)),
+        };
+        if !p.expect_to.is_empty() {
+            match dest { Some(d) if p.expect_to.iter().any(|e| same(e, &d)) => {}, _ => f.push("destination_not_expected") }
+        }
+    } else {
+        match (d.fee, p.max_fee) { (None, _) => f.push("fee_unknown"), (Some(x), Some(m)) if x as u128 > m => f.push("fee_above_cap"), _ => {} }
+        if !p.expect_to.is_empty() {
+            for o in &d.outputs {
+                match &o.address {
+                    Some(a) if p.expect_to.iter().chain(&p.change).any(|e| same(e, a)) => {}
+                    _ => { f.push("unexpected_output"); break }
+                }
+            }
+            for e in &p.expect_to { if !d.outputs.iter().any(|o| o.address.as_deref().is_some_and(|a| same(e, a))) { f.push("expected_destination_missing"); break } }
+        }
+    }
+    f
+}
