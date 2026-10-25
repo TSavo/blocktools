@@ -93,3 +93,12 @@ geth --lightkdf (N=4096, r=8, p=6), bounds, hostile 8 GiB request refused.
 ≤ 0.01 ETH, so verify and sign agree; pass `--max-fee WEI` to change it. A nonzero native value alongside ERC-20
 `transfer` calldata (the ETH would go to the token contract) fails with `eth_value_with_token_call` in tx-verify
 and tx-sign unless `--allow-value-with-token`. Test: `evm_value_with_token_and_default_cap` (crates/tx/tests/kat.rs).
+
+## Redactor and classify hardening (security review 2026-10-25)
+
+`redact` (blocktools_schema::looks_secret / redact_line) now also refuses lines containing an XRP family seed
+(`s` + 28-31 base58), a Bitcoin mini private key (`S` + 21/25/29 base58), or a 32-44 char base58 value in any
+address-type field (`address`, `from`, `to`, `token`, `token_to`) unless the line says `"chain":"sol"`; a 32-byte
+base58 value in any other string field is refused outright. `classify` on a password file (`/secrets/pw`, `pw*`,
+`*pass*`) and on any `unknown` row prints class and line only: no SHA-256 fingerprint, which would be a
+dictionary oracle for a low-entropy password. Tests: `rejects_xrp_seed_minikey_sol_secret`, classify `pw_paths`.

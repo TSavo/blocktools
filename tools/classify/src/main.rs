@@ -17,10 +17,31 @@ fn main() {
         _ => { blocktools_io::outln!(r#"{{"tool":"classify","status":"bad_input"}}"#); std::process::exit(2) }
     };
     if r.is_err() { blocktools_io::outln!(r#"{{"tool":"classify","status":"bad_input","error":"cannot read input"}}"#); std::process::exit(2) }
+    // A password file (/secrets/pw, pw*, *pass*): type only. A SHA-256 fingerprint of a
+    // low-entropy password is a dictionary oracle, so no fp/public fields (security review 2026-10-25).
+    let pw = a.first().map_or(false, |f| is_pw_path(f));
     for row in classify(&buf) {
+        if pw || row.class == "unknown" {
+            let mut v = json!({"tool":"classify","status":"ok","class":row.class,"line":row.line});
+            if pw { v["source"] = json!("password_file") }
+            blocktools_io::outln!("{v}"); continue;
+        }
         let mut v = json!({"tool":"classify","status":"ok","class":row.class,"line":row.line,"fp":row.fp});
         if let Some(p) = row.public { v[if row.class == "xpub" { "xpub" } else { "address" }] = json!(p) }
         if let Some(c) = row.chain { v["chain"] = json!(c) }
         blocktools_io::outln!("{v}");
+    }
+}
+
+fn is_pw_path(f: &str) -> bool {
+    let base = std::path::Path::new(f).file_name().and_then(|b| b.to_str()).unwrap_or("").to_ascii_lowercase();
+    f.contains("/secrets/pw") || f.starts_with("secrets/pw") || base.starts_with("pw") || base.contains("pass")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test] fn pw_paths() {
+        for p in ["/secrets/pw", "secrets/pw", "/secrets/pw.txt", "/x/password.txt", "pw2"] { assert!(super::is_pw_path(p), "{p}") }
+        for p in ["/in/wallet.dat", "seed.txt"] { assert!(!super::is_pw_path(p), "{p}") }
     }
 }

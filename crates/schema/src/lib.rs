@@ -113,6 +113,17 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
     })
 }
 
+/// Decoded byte length of a base58 (Bitcoin alphabet) string, no checksum.
+fn b58_len(s: &str) -> Option<usize> {
+    let mut n: Vec<u8> = vec![];
+    for c in s.bytes() {
+        let mut carry = B58.find(c as char)? as u32;
+        for b in n.iter_mut().rev() { carry += (*b as u32) * 58; *b = carry as u8; carry >>= 8; }
+        while carry > 0 { n.insert(0, carry as u8); carry >>= 8; }
+    }
+    Some(s.bytes().take_while(|&b| b == b'1').count() + n.len())
+}
+
 /// Defense in depth: true if the text looks like it contains key material.
 pub fn looks_secret(text: &str) -> bool {
     let cs: Vec<char> = text.chars().collect();
@@ -131,6 +142,10 @@ pub fn looks_secret(text: &str) -> bool {
         if r.len() >= 24 && ["xprv", "yprv", "zprv", "tprv", "uprv", "vprv"].iter().any(|p| r.contains(p)) { return true; }
         // WIF-shaped: 51-52 base58 chars starting 5/9/K/L/c.
         if (51..=52).contains(&r.len()) && r.starts_with(['5', '9', 'K', 'L', 'c']) { return true; }
+        // XRP family seed: 's' + base58 (ripple alphabet, same charset), 16-byte entropy -> 29 chars.
+        if (28..=31).contains(&r.len()) && r.starts_with('s') { return true; }
+        // Bitcoin mini private key (Casascius): 'S' + 21/29 base58 chars.
+        if [22, 26, 30].contains(&r.len()) && r.starts_with('S') { return true; }
     }
     // Mnemonic: 3+ consecutive BIP39 words.
     let wl = bip39::Language::English;
@@ -157,7 +172,8 @@ pub fn redact_line(raw: &str) -> Option<String> {
     }
     if !out.contains_key("status") { return None; }
     // A 32-44 char base58 "address" is only plausible for Solana (a base58 32-byte key has the same shape).
-    if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
+    // Every address-type field, not just "address" (to/from/token too).
+    for a in ["address", "from", "to", "token", "token_to"].iter().filter_map(|k| out.get(*k).and_then(|a| a.as_str())) {
         if a.len() > 35 && all_in(a, B58) && !is_bech(a) && !is_xmr_address(a) && !is_dot_address(a) && !is_ton_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("sol") { return None; }
     }
     if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
@@ -169,6 +185,17 @@ pub fn redact_line(raw: &str) -> Option<String> {
         if is_dot_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("dot") { return None; }
         if is_algo_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("algo") { return None; }
     }
+    // A 32-byte base58 value (ed25519 secret seed shape, e.g. a Solana key) is only allowed as an
+    // address-type field value; anywhere else in the line it is treated as a secret.
+    let addrs: Vec<&str> = ["address", "from", "to", "token", "token_to"].iter().filter_map(|k| out.get(*k).and_then(|v| v.as_str())).collect();
+    for (k, v) in &out {
+        if ["address", "from", "to", "token", "token_to"].contains(&k.as_str()) { continue; }
+        if let Some(s) = v.as_str() {
+            for tok in s.split(|c: char| !c.is_ascii_alphanumeric()) {
+                if (32..=44).contains(&tok.len()) && all_in(tok, B58) && !addrs.contains(&tok) && b58_len(tok) == Some(32) { return None; }
+            }
+        }
+    }
     let line = serde_json::to_string(&Value::Object(out)).ok()?;
     if line.len() > 512 || looks_secret(&line) { return None; }
     Some(line)
@@ -176,6 +203,22 @@ pub fn redact_line(raw: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    // Security review 2026-10-25 (group 5). Test values are public (generated, never funded).
+    #[test] fn rejects_xrp_seed_minikey_sol_secret() {
+        let xrp = "snoPBrXtMeMyMHUVTgbuqAfg1SUTb"; // XRPL docs example family seed
+        assert!(looks_secret(xrp));
+        assert!(redact_line(&format!(r#"{{"status":"ok","address":"{xrp}"}}"#)).is_none());
+        let mini = "S6c56bnXQiBjk9mqSYE7ykVQ7NzrRy"; // Bitcoin wiki mini private key example
+        assert!(looks_secret(mini));
+        // 32 bytes base58: fine as a Solana address, refused in any other field.
+        let k32 = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T";
+        assert_eq!(b58_len(k32), Some(32));
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"sol","address":"{k32}"}}"#)).is_some());
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"btc","address":"{k32}"}}"#)).is_none());
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"eth","to":"{k32}"}}"#)).is_none());
+        assert!(redact_line(&format!(r#"{{"status":"ok","to":"{k32}"}}"#)).is_none());
+        assert!(!looks_secret("rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")); // XRP address stays public
+    }
     #[test] fn tx_decode_lines() {
         let l = r#"{"tool":"tx-decode","status":"ok","role":"summary","chain":"eth","type":"evm-1559","signed":true,"from":"0x9d8A62f656a8d1615C1294fd71e9CFb3E4855A4F","value":"1000000000000000000","warnings":["unsigned"],"txid":"0xdaf5a779ae972f972197303d7b574746c7ef83eadac0f2791ad23db92e4c8e53"}"#;
         let o = super::redact_line(l).unwrap();
