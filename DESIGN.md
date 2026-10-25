@@ -455,6 +455,22 @@ scrypt, pbkdf2, aes/cbc/ctr, or any network crate. KATs: `crates/blocktools/test
 directly; per-module KATs live beside the code. Not yet in the library: `classify`, Electrum
 wallet files, MultiBit, Armory (planned items; see ROADMAP).
 
+### WebAssembly / npm (L4b, 2026-10-24)
+
+`bindings/wasm` (crate `blocktools-wasm`, its own Cargo workspace so native builds never compile
+wasm-bindgen) wraps the facade with **default features** and exposes `validateAddress`,
+`listChains`, `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx` (JSON
+strings out). Added deps: `wasm-bindgen =0.2.100` only (plus the `lowmemory` feature on the
+already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-check.sh` builds
+it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
+crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
+code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
+`bindings/wasm/test.mjs` (public vectors) under Node. Measured: 721,735 bytes (253,350 gzip)
+with names; 610,229 bytes (228,524 gzip) stripped; 41 crates in the wasm tree. The module also
+exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
+that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
+(secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.
+
 ### CLI contract (unchanged for humans/agents)
 
 Each `tools/*` binary:

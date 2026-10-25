@@ -1,0 +1,15 @@
+{
+  "name": "blocktools",
+  "version": "0.1.0",
+  "description": "blocktools public API in WebAssembly: address validation, xpub watch-only addresses, derivation-path plans, transaction decode/verify. Takes no private keys.",
+  "license": "MIT",
+  "private": true,
+  "files": ["pkg/node", "pkg/web"],
+  "main": "pkg/node/blocktools_wasm.js",
+  "types": "pkg/node/blocktools_wasm.d.ts",
+  "exports": {
+    ".": { "node": "./pkg/node/blocktools_wasm.js", "types": "./pkg/node/blocktools_wasm.d.ts", "default": "./pkg/web/blocktools_wasm.js" },
+    "./web": "./pkg/web/blocktools_wasm.js"
+  },
+  "scripts": { "build": "sh ../../scripts/wasm-check.sh", "test": "node test.mjs" }
+}

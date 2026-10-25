@@ -1,0 +1,33 @@
+# WebAssembly binding of the `blocktools` facade, DEFAULT FEATURES ONLY (no secrets, no net).
+# Its own workspace so native `cargo build` never compiles wasm-bindgen.
+[workspace]
+
+[package]
+name = "blocktools-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "blocktools public API (validate, xpub watch-only, path plans, tx decode/verify/build) for JavaScript/TypeScript. Takes no private keys."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# default-features only: `secrets`, `net` must never be enabled here (scripts/wasm-check.sh)
+blocktools = { path = "../../crates/blocktools", default-features = false }
+wasm-bindgen = { version = "=0.2.100", default-features = false, features = ["std"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "s"
+codegen-units = 1
+
+[dependencies.secp256k1]
+# Already in the tree via bitcoin; `lowmemory` only shrinks libsecp256k1's precomputed tables
+# (smaller .wasm, slower verify). Not a new crate.
+version = "0.29"
+default-features = false
+features = ["lowmemory"]

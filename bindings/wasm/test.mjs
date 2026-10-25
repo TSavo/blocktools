@@ -1,0 +1,22 @@
+// Node smoke test of the wasm package against public vectors. Run by scripts/wasm-check.sh.
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const bt = createRequire(import.meta.url)('./pkg/node/blocktools_wasm.js');
+const X = 'xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V';
+const rows = JSON.parse(bt.addressesFromXpub(X, 'btc', ['p2wpkh'], new Uint32Array([0]), new Uint32Array([0, 1])));
+assert.equal(rows[0].address, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
+assert.equal(rows[1].address, 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g');
+assert.equal(bt.validateAddress('btc', rows[0].address), 'SegwitV0');
+assert.throws(() => bt.validateAddress('btc', rows[0].address.slice(0, -1) + 'x'));
+assert.ok(JSON.parse(bt.listChains()).includes('eth'));
+const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common']));
+assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));
+const b170 = readFileSync(new URL('../../crates/tx/tests/vectors/block170.hex', import.meta.url), 'utf8');
+const lines = JSON.parse(bt.decodeTx(b170, 'btc'));
+assert.ok(JSON.stringify(lines).includes('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16'));
+const v = JSON.parse(bt.verifyTx(b170, 'btc', ['1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3'], ['12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S'], undefined, '', true));
+assert.equal(typeof v.ok, 'boolean');
+const v2 = JSON.parse(bt.verifyTx(b170, 'btc', ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'], [], undefined, '', true));
+assert.equal(v2.ok, false);
+console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');
