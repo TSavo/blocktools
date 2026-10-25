@@ -568,7 +568,7 @@ check, and nothing is emitted unless it matches. Output lines are derive-shaped 
 and WIF, and `Sign::Sha256Single` / `blocktools_tx::digest::Digest::Sha256` makes the txid and the legacy and
 BIP143 signature hashes single SHA-256 (source: groestlcoinjs-lib src/transaction.js). rust-bitcoin's sighash
 cache hardcodes sha256d, so `digest.rs` reuses its legacy encoder (`legacy_encode_signing_data_to`, which
-keeps the SIGHASH_SINGLE bug) and carries its own BIP143 encoder, SIGHASH_ALL only. Taproot is off for GRS.
+keeps the SIGHASH_SINGLE bug) and carries its own BIP143 encoder, SIGHASH_ALL only. Taproot (2026-10-25): grs1p addresses are derived (bech32m, hrp grs; the tweak is BIP341's, and Groestlcoin's src/test/data/bip341_wallet_vectors.json is byte-identical to Bitcoin's), but GRS taproot inputs are still refused at signing. Extended keys: Electrum-GRS/eclair-grs put the Groestl checksum on xpub/tpub too; `xpub::normalize_ck` converts it to sha256d before parsing, so a GRS xpub works only with `--chain grs` and a sha256d xpub is refused there.
 `digest` is a public, key-free module (the decoder needs the txid), so it builds without `secrets` and
 lands in wasm; signing stays in `sign`.
 

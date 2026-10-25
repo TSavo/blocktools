@@ -120,7 +120,8 @@ pub const CHAINS: &[Chain] = &[
     u("rdd", "RDD", "Reddcoin", 4, 61, 5, 189, Some("rdd"), PosTime, true, "reddcoin-project/reddcoin src/chainparams.cpp", &[bb("blockbook.reddcoin.com", "https://blockbook.reddcoin.com/address/{addr}", "blockbook:https://blockbook.reddcoin.com/api")]),
     u("pot", "POT", "Potcoin", 81, 55, 110, 183, None, PosTime, true, "potcoin/Potcoin src/base58.h (WIF = 128 + PUBKEY_ADDRESS)", &[cz("https://chainz.cryptoid.info/pot/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/pot/api.dws")]),
     u("qrk", "QRK", "Quark", 82, 58, 9, 186, None, Unknown, true, "quark-project/quark src/chainparams.cpp", &[cz("https://chainz.cryptoid.info/qrk/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/qrk/api.dws")]),
-    u("grs", "GRS", "Groestlcoin", 17, 36, 5, 128, Some("grs"), Sha256Single, true, "Groestlcoin/groestlcoin src/kernel/chainparams.cpp; Groestl-512 base58 checksum; KAT groestlcoinjs-lib test/integration", &[]),
+    Chain { name: "grs", ticker: "GRS", title: "Groestlcoin", coin: 17, enc: Enc::Utxo { p2pkh: 36, p2sh: 5, hrp: Some("grs"), wif: 128, taproot: true }, default_count: 10, sign: Sha256Single, verified: true,
+            source: "Groestlcoin/groestlcoin src/kernel/chainparams.cpp; Groestl-512 base58 checksum; KAT groestlcoinjs-lib test/integration; p2tr: Groestlcoin bip341_wallet_vectors.json (identical to Bitcoin's)", sources: &[] },
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
     u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry; tx format Bitcoin-legacy confirmed on 4 mainnet txs (tx/tests/wdc.rs)", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
     u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
@@ -210,7 +211,9 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
             }
             if taproot {
                 let secp = Secp256k1::verification_only();
-                v.push(row("p2tr", bitcoin::Address::p2tr(&secp, pk.x_only_public_key().0, None, bitcoin::Network::Bitcoin).to_string()));
+                let spk = bitcoin::ScriptBuf::new_p2tr(&secp, pk.x_only_public_key().0, None);
+                let h = Hrp::parse(hrp.unwrap_or("bc")).expect("static hrp");
+                v.push(row("p2tr", bech32::segwit::encode(h, bech32::Fe32::P, &spk.as_bytes()[2..]).expect("32-byte program")));
             }
             v
         }
@@ -815,3 +818,18 @@ pub const FEE_WARN: &[(&str, FeeWarn)] = &[
     ("aur", FeeWarn { fee: 2_000_000, rate: 2_000, basis: "median 102.8 sat/B over 30 txs (exact size, raw rebuilt and sha256d-checked), blocks 5913204-5913347 (chainz.cryptoid.info)" }),
 ];
 pub fn fee_warn(name: &str) -> FeeWarn { FEE_WARN.iter().find(|(n, _)| *n == name).map(|(_, f)| *f).unwrap_or(FEE_WARN_DEFAULT) }
+
+#[cfg(test)]
+mod grs_p2tr {
+    use super::*;
+    /// BIP341 wallet vector scriptPubKey[0] (Groestlcoin ships bip341_wallet_vectors.json
+    /// byte-identical to Bitcoin's). grs1p string from an independent BIP350 reference
+    /// encoder (Python, checked against the vector's bc1p address).
+    #[test]
+    fn grs_p2tr_bip341_vector() {
+        let pk = PublicKey::from_slice(&<Vec<u8> as bitcoin::hex::FromHex>::from_hex("02d6889cb081036e0faefa3a35157ad71086b123b2b144b649798b494c300a961d").unwrap()).unwrap();
+        let p2tr = |n: &str| pub_rows(chain(n).unwrap(), "", &pk, false).into_iter().find(|r| r.kind == "p2tr").unwrap().address;
+        assert_eq!(p2tr("btc"), "bc1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dps59h4z5");
+        assert_eq!(p2tr("grs"), "grs1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dpsm7geds");
+    }
+}

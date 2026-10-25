@@ -72,3 +72,7 @@ Zcash Sapling: `zec-sapling` CLI (ZIP-32, m/32'/133'/i', zs1 default address, op
 Zcash transparent is listed by wasm `listChains`/`supportedChains` (scope transparent) since 2026-10-25. Evidence: ZIP-243/244 official vectors, 7 mainnet txs (txid + signature), 21 mainnet script->address pairs from api.blockchair.com (crates/tx/tests/data/zec_addresses.txt). Untested: BIP44 m/44'/133' derivation, xpubs, broadcast, v6.
 
 WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid = sha256d, 357 P2PKH signatures verify under the legacy sighash, and every input address re-derives under p2pkh 73 (crates/tx/tests/wdc.rs). Still `verified: false`: no SLIP-44 coin type, so no derivation path can be checked. QRK: tx format still unknown; 0 non-coinbase txs found in 800 recent blocks (13909630 back) on chainz, so no mainnet tx to test against.
+
+## Groestlcoin extended keys and taproot (2026-10-25)
+
+GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `--chain grs` (vectors: Groestlcoin/eclair commit f52fbf9, 4 tpub pairs). GRS rows include `p2tr` (grs1p…, BIP341 vector); spending GRS taproot inputs is refused. Untested: real Electrum-GRS mainnet xpub, any mainnet grs1p.

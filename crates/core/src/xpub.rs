@@ -10,6 +10,19 @@ pub const MAX_ROWS: usize = 100_000;
 
 /// SLIP-132: ypub/zpub (and testnet upub/vpub) carry the same key as an xpub/tpub with other
 /// version bytes. Returns the xpub/tpub form and the script kind the prefix implies, if any.
+/// Chain-aware normalize: Groestlcoin extended keys carry a Groestl-512 base58 checksum
+/// (Electrum-GRS, eclair-grs); convert to sha256d first. A sha256d xpub is refused on grs
+/// and a Groestl-checksum xpub is refused on every other chain.
+pub fn normalize_ck(s: &str, ck: crate::chains::Ck) -> Result<(String, Option<&'static str>), &'static str> {
+    let s = s.trim();
+    if ck == crate::chains::Ck::Groestl {
+        let b = crate::chains::decode_check_ck(ck, s).map_err(|_| "bad_xpub")?;
+        if b.len() != 78 { return Err("bad_xpub") }
+        return normalize(&bitcoin::base58::encode_check(&b));
+    }
+    normalize(s)
+}
+
 pub fn normalize(s: &str) -> Result<(String, Option<&'static str>), &'static str> {
     let s = s.trim();
     let (ver, kind): ([u8; 4], Option<&str>) = match s.get(..4) {
@@ -28,7 +41,7 @@ pub fn normalize(s: &str) -> Result<(String, Option<&'static str>), &'static str
 /// script types (empty = all the chain supports). Paths in the rows are relative to the
 /// xpub ("m/0/3"). Only non-hardened steps are possible from an xpub.
 pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], indices: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
-    let (norm, implied) = normalize(xpub)?;
+    let (norm, implied) = normalize_ck(xpub, chain.ck())?;
     let x = Xpub::from_str(&norm).map_err(|_| "bad_xpub")?;
     let implied_k; let kinds = if kinds.is_empty() { implied_k = implied.into_iter().collect::<Vec<_>>(); &implied_k[..] } else { kinds };
     if branches.len().saturating_mul(indices.len()) > MAX_ROWS { return Err("too_many_candidates") }
@@ -49,7 +62,7 @@ pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], in
 /// Addresses at `xpub / steps...` (all non-hardened), every script kind the chain supports.
 /// Row paths are relative to the xpub ("m/0/5").
 pub fn at_path(xpub: &str, chain: &Chain, steps: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
-    let x = Xpub::from_str(&normalize(xpub)?.0).map_err(|_| "bad_xpub")?;
+    let x = Xpub::from_str(&normalize_ck(xpub, chain.ck())?.0).map_err(|_| "bad_xpub")?;
     if chain.enc.ed25519() { return Err("unsupported") }
     if steps.len() > 16 { return Err("bad_path") }
     let p: Vec<ChildNumber> = steps.iter().map(|&n| ChildNumber::from_normal_idx(n).map_err(|_| "bad_path")).collect::<Result<_, _>>()?;
@@ -90,5 +103,24 @@ mod slip132 {
         assert_eq!(r[0].address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
         assert_eq!(r[1].address, "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el");
         assert!(super::normalize("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYt").is_err());
+    }
+
+    /// Independent vectors: Groestlcoin/eclair commit f52fbf9 rewrote these tpubs from a
+    /// sha256d checksum (-) to the Groestl-512 checksum (+); same 78-byte payload.
+    #[test]
+    fn grs_groestl_checksum_xpub() {
+        use crate::chains::Ck;
+        let pairs = [
+            ("tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK", "tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma3yYRG1f"),
+            ("tpubDMBn7xW1g1GsqpsqaVNB1ehpjktQUX44Dycy7fJ6thp774XGzNeWFmQf5L6dVChHREgkoc8BYc2caHqwc2mZzTYCwoxsvrpchBSujp5i2t8", "tpubDMBn7xW1g1GsqpsqaVNB1ehpjktQUX44Dycy7fJ6thp774XGzNeWFmQf5L6dVChHREgkoc8BYc2caHqwc2mZzTYCwoxsvrpchBSujsPCvGH"),
+            ("tpubDMBn7xW1g1Gsme9jTAEJwTvizDJtJEgE3jc9vkDqQ9azuh9Es2aM6GsioFiouwdvWPJoNw2zavCkVTMta6UJN6BWR5cMZQsSHvsFyNxMgET", "tpubDMBn7xW1g1Gsme9jTAEJwTvizDJtJEgE3jc9vkDqQ9azuh9Es2aM6GsioFiouwdvWPJoNw2zavCkVTMta6UJN6BWR5cMZQsSHvsFyQNfGzv"),
+            ("tpubDMBn7xW1g1GsizhaZ7M4co6sBtUDhRUKgUUPWRv3WfLTpTGYrSjATJy6ZVSoYFCKRnaBop5dFig3Ham1P145NQAKuUgPUbujLAooL7ebwDL", "tpubDMBn7xW1g1GsizhaZ7M4co6sBtUDhRUKgUUPWRv3WfLTpTGYrSjATJy6ZVSoYFCKRnaBop5dFig3Ham1P145NQAKuUgPUbujLAooL7F2vy6"),
+        ];
+        let grs = crate::chains::chain("grs").unwrap(); let btc = crate::chains::chain("btc").unwrap();
+        for (g, d) in pairs {
+            assert_eq!(super::normalize_ck(g, Ck::Groestl).unwrap().0, d);
+            assert!(super::normalize_ck(d, Ck::Groestl).is_err(), "sha256d xpub accepted on grs");
+            assert_eq!((super::at_path(g, grs, &[0]).err(), super::at_path(g, btc, &[0]).is_err(), super::at_path(d, btc, &[0]).err()), (None, true, None));
+        }
     }
 }
