@@ -29,7 +29,7 @@ pub fn kinds_of(c: &Chain) -> Vec<&'static str> {
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => vec!["p2pkh"],
-        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Algo | Enc::Ton => vec![], Enc::Ss58 { .. } => vec![], Enc::Xmr => vec![],
+        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Algo | Enc::Ton | Enc::Ada => vec![], Enc::Ss58 { .. } => vec![], Enc::Xmr => vec![],
     }
 }
 pub fn std_template(c: &Chain) -> &'static str {

@@ -25,6 +25,7 @@ md-5 = { version = "0.10", default-features = false }
 cbc = { version = "0.1", features = ["alloc"] }
 ctr = "0.9"
 schnorrkel = { version = "0.11", default-features = false, features = ["alloc"] }
+curve25519-dalek = { version = "4", default-features = false, features = ["alloc", "zeroize"] }
 ed25519-dalek = { version = "2", default-features = false, features = ["std", "zeroize"] }
 
 [profile.release]

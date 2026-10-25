@@ -51,7 +51,7 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
 }
 
 fn line(l: &str, n: u64) -> Row {
-    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom", "algo", "dot", "ton"] {
+    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom", "algo", "dot", "ton", "ada"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
@@ -103,6 +103,7 @@ mod t {
         assert_eq!(c("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"), "address");
         assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6"), "address");
         assert_eq!(c("cosmos1jhg0e7s6gn44tfc5k37kr04sznyhedtc9rzys5"), "address");
+        assert_eq!(c("addr1qy8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mq4afdhv"), "address");
         assert_eq!(c("15rRgsWxz4H5LTnNGcCFsszfXD8oeAFd8QRsR6MbQE2f6XFF"), "address");
         assert_eq!(c("47YPQTIGQEO7T4Y4RWDYWEKV6RTR2UNBQXBABEEGM72ESWDQNCQ52OPASU"), "address");
         assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ7"), "unknown");

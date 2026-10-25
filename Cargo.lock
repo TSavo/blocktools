@@ -157,6 +157,7 @@ dependencies = [
  "bitcoin",
  "blocktools-monero",
  "blocktools-schema",
+ "curve25519-dalek",
  "ed25519-dalek",
  "groestl",
  "pbkdf2",

@@ -47,6 +47,7 @@ and see addresses and signed transactions only.
 | Solana | ✅ | ✗ | ✗ | [chain-solana.md](chain-solana.md) |
 | Cosmos Hub | ✅ | ✗ | ✗ | [chain-cosmos.md](chain-cosmos.md) |
 | Algorand | ✅ (own mnemonic) | ✗ | ✗ | [chain-algorand.md](chain-algorand.md) |
+| Cardano | ✅ (Shelley base, Icarus) | ✗ | ✗ | [chain-cardano.md](chain-cardano.md) |
 | TON | ✅ (wallet v4r2) | ✗ | ✗ | [chain-ton.md](chain-ton.md) |
 | Polkadot | ✅ (root sr25519) | ✗ | ✗ | [chain-polkadot.md](chain-polkadot.md) |
 | Stellar | ✅ | ✗ | ✗ | [chain-stellar.md](chain-stellar.md) |

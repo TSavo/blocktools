@@ -13,9 +13,9 @@ pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown
     "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
 pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx"];
-pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "xmr",
+pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -52,9 +52,11 @@ pub fn is_algo_address(s: &str) -> bool { s.len() == 58 && all_in(s, "ABCDEFGHIJ
 pub fn is_dot_address(s: &str) -> bool { s.len() == 48 && s.starts_with('1') && all_in(s, B58) }
 /// TON user-friendly address: 48 base64url chars starting EQ/UQ (public). Only with "chain":"ton".
 pub fn is_ton_address(s: &str) -> bool { s.len() == 48 && (s.starts_with("EQ") || s.starts_with("UQ")) && all_in(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") }
+/// Cardano mainnet Shelley address: "addr1" + bech32 chars, 58..=120 long (public). Only with "chain":"ada".
+pub fn is_ada_address(s: &str) -> bool { (58..=120).contains(&s.len()) && s.starts_with("addr1") && all_in(&s[5..], BECH) }
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
-    is_xmr_address(s) || is_dot_address(s) || is_ton_address(s) || is_xlm_address(s) || is_algo_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
+    is_xmr_address(s) || is_dot_address(s) || is_ton_address(s) || is_ada_address(s) || is_xlm_address(s) || is_algo_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
         || is_bech(s)
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
@@ -155,6 +157,7 @@ pub fn redact_line(raw: &str) -> Option<String> {
     }
     if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
         if is_xlm_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("xlm") { return None; }
+        if is_ada_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("ada") { return None; }
         if is_ton_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("ton") { return None; }
         if is_dot_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("dot") { return None; }
         if is_algo_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("algo") { return None; }

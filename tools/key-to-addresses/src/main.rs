@@ -32,11 +32,10 @@ fn main() {
         let ds = keys::decodings(&tok);
         if ds.is_empty() { outln!(r#"{{"tool":"key-to-addresses","status":"unsupported","line":{lineno}}}"#); continue }
         for (cand, (enc, bytes, comp)) in ds.iter().enumerate() {
-            let seed: [u8; 32] = bytes[..].try_into().unwrap();
             // A native mnemonic only means something on its own chain family.
-            let only = match *enc { "algo-mnemonic" => Some(Enc::Algo), "substrate-mnemonic" => Some(Enc::Ss58 { prefix: 0 }), "ton-mnemonic" => Some(Enc::Ton), _ => None };
-            for c in sel.iter().filter(|c| only.map_or(true, |e| matches!((e, c.enc), (Enc::Algo, Enc::Algo) | (Enc::Ton, Enc::Ton) | (Enc::Ss58 { .. }, Enc::Ss58 { .. })))) {
-                let rows = keys::rows_for(c, &seed, *comp);
+            let only = match *enc { "algo-mnemonic" => Some(Enc::Algo), "substrate-mnemonic" => Some(Enc::Ss58 { prefix: 0 }), "ton-mnemonic" => Some(Enc::Ton), "cardano-mnemonic" => Some(Enc::Ada), _ => None };
+            for c in sel.iter().filter(|c| only.map_or(true, |e| matches!((e, c.enc), (Enc::Algo, Enc::Algo) | (Enc::Ton, Enc::Ton) | (Enc::Ada, Enc::Ada) | (Enc::Ss58 { .. }, Enc::Ss58 { .. })))) {
+                let rows = if *enc == "cardano-mnemonic" { keys::ada_rows(c, bytes) } else { match <[u8; 32]>::try_from(&bytes[..]) { Ok(seed) => keys::rows_for(c, &seed, *comp), Err(_) => vec![] } };
                 for r in rows {
                     outln!(r#"{{"tool":"key-to-addresses","status":"ok","line":{lineno},"candidate":{cand},"chain":"{}","kind":"{}","address":"{}","{}":"{}"}}"#,
                         r.chain, r.kind, r.address, r.secret_field, r.secret);

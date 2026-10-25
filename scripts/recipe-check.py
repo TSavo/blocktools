@@ -42,6 +42,7 @@ w(IN, "atom-mnemonic.txt", "special sign fit simple patrol salute grocery chicke
 w(IN, "algo-mnemonic.txt", "advice pudding treat near rule blouse same whisper inner electric quit surface sunny dismiss leader blood seat clown cost exist hospital century reform able sponsor")
 w(IN, "dot-mnemonic.txt", "caution juice atom organ advance problem want pledge someone senior holiday very")
 w(IN, "ton-mnemonic.txt", "elbow ramp code slogan cigar note auto solution leaf bunker process essence armed burger item blossom achieve normal vault whip switch artefact parrot coffee")
+w(IN, "ada-mnemonic.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
 w(IN, "address.txt", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu")
 w(IN, "xpub.txt", "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs")
 w(IN, "keystore.json", re.search(r'const V: &str = r#"(.*?)"#;', open("crates/secrets/src/keystore.rs").read()).group(1))
@@ -56,7 +57,7 @@ for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-walle
 for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"),
              ("multibit.pw", "btcr-test-password"), ("empty.pw", "")]:
     w(SEC, n, p)
-secret_values = [open(os.path.join(IN, f)).read().strip() for f in ("seed.txt", "electrum-seed.txt", "key.hex", "key.wif", "xrp-seed.txt", "xmr-seed.txt", "xlm-mnemonic.txt", "xlm-seed.txt", "atom-mnemonic.txt", "algo-mnemonic.txt", "dot-mnemonic.txt", "ton-mnemonic.txt")]
+secret_values = [open(os.path.join(IN, f)).read().strip() for f in ("seed.txt", "electrum-seed.txt", "key.hex", "key.wif", "xrp-seed.txt", "xmr-seed.txt", "xlm-mnemonic.txt", "xlm-seed.txt", "atom-mnemonic.txt", "algo-mnemonic.txt", "dot-mnemonic.txt", "ton-mnemonic.txt", "ada-mnemonic.txt")]
 LEAK = re.compile(r'"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret|view_secret|spend_secret)":"[^\[]|xprv[1-9A-Za-z]{20}|abandon|illness spike|special sign fit|advice pudding|caution juice|elbow ramp|"S[A-Z2-7]{55}"')
 PUBLIC = re.compile(r'"(address|x_address|spend_public|view_public|public|psbt|unsigned|txid|xpub|fp)":"[^"]*"')
 # mock chain for --goal balance

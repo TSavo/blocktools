@@ -11,6 +11,7 @@ sha3.workspace = true
 groestl.workspace = true
 zeroize.workspace = true
 ed25519-dalek = { workspace = true, optional = true }
+curve25519-dalek = { workspace = true, optional = true }
 bip39 = { workspace = true, optional = true }
 schnorrkel = { workspace = true, optional = true }
 pbkdf2 = { workspace = true, optional = true }
@@ -23,6 +24,8 @@ secrets = []
 # Algorand 25-word mnemonic (BIP39 English word list).
 algo = ["dep:bip39"]
 # Polkadot sr25519 (substrate mini-secret from BIP39 entropy).
+# Cardano Icarus master key (BIP39 entropy) + BIP32-Ed25519 (CIP-1852) derivation.
+cardano = ["dep:bip39", "dep:pbkdf2", "dep:sha2", "dep:curve25519-dalek"]
 # TON native 24-word mnemonic.
 ton = ["dep:bip39", "dep:pbkdf2", "dep:sha2"]
 sr25519 = ["dep:schnorrkel", "dep:bip39", "dep:pbkdf2", "dep:sha2"]

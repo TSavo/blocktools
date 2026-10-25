@@ -133,6 +133,11 @@ from BIP39 seeds (derive skips it, like Monero). KAT: py-algorand-sdk test mnemo
 sr25519 Ed25519-mode expansion, root account only (no `//hard` paths), SS58 checksum =
 blake2b-512("SS58PRE"||prefix||pub)[..2] (blake2b moved from tx to core). key-to-addresses takes
 the mnemonic; native mnemonics are only expanded on their own chain. KAT: subkey docs vector.
+Cardano (`ada`, Enc::Ada, core feature `cardano`): Icarus master = PBKDF2-HMAC-SHA512(passphrase,
+salt = BIP39 entropy, 4096, 96) clamped; BIP32-Ed25519 V2 children (kL += 8*zL[..28], kR += zR,
+public = kL*B unclamped via curve25519-dalek); CIP-1852 m/1852'/1815'/0'/0/i payment, 0'/2/0 stake;
+mainnet base address header 0x01 || blake2b-224(pay) || blake2b-224(stake), long bech32 (own
+encoder, no 90-char cap). key-to-addresses --chain ada from the mnemonic. KAT: bip_utils + pycardano docs.
 TON (`ton`, Enc::Ton, core feature `ton`): native 24-word mnemonic, entropy = HMAC-SHA512(phrase, ""),
 seed-version check PBKDF2(entropy, "TON seed version", 390)[0]==0, key = PBKDF2(entropy, "TON default
 seed", 100000)[..32] ed25519. Address = sha256 cell hash of the wallet v4r2 StateInit (code hash

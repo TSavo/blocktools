@@ -32,6 +32,9 @@ pub enum Enc {
     Ss58 { prefix: u8 },
     /// Stellar: ed25519, SLIP-0010, SEP-0005 path m/44'/148'/i'; StrKey G... / S...
     Xlm,
+    /// Cardano Shelley: Icarus master (PBKDF2 of BIP39 entropy), BIP32-Ed25519, CIP-1852
+    /// m/1852'/1815'/0'/0/i payment + m/1852'/1815'/0'/2/0 stake, base address bech32 addr1.
+    Ada,
     /// TON: ed25519 key from the native 24-word TON mnemonic; address = wallet v4r2 contract
     /// (StateInit cell hash), workchain 0, user-friendly non-bounceable base64url (UQ...).
     Ton,
@@ -49,7 +52,7 @@ pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
 impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
     pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
     /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
-    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Ton | Enc::Xmr | Enc::Ss58 { .. }) } }
+    pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Ada | Enc::Ton | Enc::Xmr | Enc::Ss58 { .. }) } }
 impl Sign { /// tx-build / tx-sign build and sign this scheme.
     pub fn buildable(self) -> bool { matches!(self, Sign::Standard | Sign::Sha256Single) } }
 /// A public block explorer / API. Only listed when it answered from this project's CI box.
@@ -88,6 +91,7 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos" }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
     Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
     Chain { name: "dot", ticker: "DOT", title: "Polkadot", coin: 354, enc: Enc::Ss58 { prefix: 0 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey: mini-secret = PBKDF2(entropy), sr25519, SS58 prefix 0", sources: &[] },
+    Chain { name: "ada", ticker: "ADA", title: "Cardano", coin: 1815, enc: Enc::Ada, default_count: 5, sign: Unknown, verified: true, source: "CIP-1852/CIP-0019: Icarus master, BIP32-Ed25519, base address (Yoroi/Eternl/Daedalus Shelley)", sources: &[] },
     Chain { name: "ton", ticker: "TON", title: "TON", coin: 607, enc: Enc::Ton, default_count: 1, sign: Unknown, verified: true, source: "tonsdk/tonweb: TON mnemonic (HMAC-SHA512 + PBKDF2 \"TON default seed\"), wallet v4r2, workchain 0", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
@@ -214,7 +218,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Cosmos { hrp } => vec![row("cosmos", cosmos_address(hrp, &h160(&pk.serialize())))],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
     }
 }
 /// Cosmos SDK account address: plain bech32 (not segwit) of a 20-byte hash.
@@ -311,6 +315,108 @@ pub fn algo_mnemonic_key(m: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, &'stat
     let h = sha512_256::Hash::hash(&key).to_byte_array();
     if ((h[0] as u32) | ((h[1] as u32) << 8)) & 2047 != ix[24] { return Err("bad checksum") }
     Ok(zeroize::Zeroizing::new(key))
+}
+// ---- Cardano ----
+const BECH: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+fn bech_polymod(v: &[u8]) -> u32 {
+    let g = [0x3b6a57b2u32, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+    let mut c = 1u32;
+    for &x in v { let b = c >> 25; c = ((c & 0x1ffffff) << 5) ^ x as u32; for (i, gi) in g.iter().enumerate() { if (b >> i) & 1 == 1 { c ^= gi } } }
+    c
+}
+fn bech_hrp_exp(h: &str) -> Vec<u8> { let mut v: Vec<u8> = h.bytes().map(|b| b >> 5).collect(); v.push(0); v.extend(h.bytes().map(|b| b & 31)); v }
+fn to5(d: &[u8]) -> Vec<u8> {
+    let (mut acc, mut bits, mut out) = (0u32, 0, Vec::new());
+    for &b in d { acc = (acc << 8) | b as u32; bits += 8; while bits >= 5 { bits -= 5; out.push(((acc >> bits) & 31) as u8) } }
+    if bits > 0 { out.push(((acc << (5 - bits)) & 31) as u8) }
+    out
+}
+/// Plain bech32 (BIP173 checksum) without the 90-char limit, as Cardano uses.
+pub fn bech32_long(hrp: &str, data: &[u8]) -> String {
+    let d = to5(data);
+    let mut v = bech_hrp_exp(hrp); v.extend(&d); v.extend([0; 6]);
+    let p = bech_polymod(&v) ^ 1;
+    let mut s = format!("{hrp}1");
+    for x in d.iter().copied().chain((0..6).map(|i| ((p >> (5 * (5 - i))) & 31) as u8)) { s.push(BECH[x as usize] as char) }
+    s
+}
+/// Decode long bech32 -> (hrp, bytes). Lowercase only, checksum checked, no padding bits left set.
+pub fn bech32_long_decode(s: &str) -> Result<(String, Vec<u8>), &'static str> {
+    let p = s.rfind('1').ok_or("no separator")?;
+    let (hrp, rest) = (&s[..p], &s[p + 1..]);
+    if hrp.is_empty() || rest.len() < 6 || s.bytes().any(|b| b.is_ascii_uppercase()) { return Err("bad bech32") }
+    let d: Vec<u8> = rest.bytes().map(|b| BECH.iter().position(|&x| x == b).map(|i| i as u8)).collect::<Option<_>>().ok_or("bad bech32")?;
+    let mut v = bech_hrp_exp(hrp); v.extend(&d);
+    if bech_polymod(&v) != 1 { return Err("bad checksum") }
+    let d = &d[..d.len() - 6];
+    let (mut acc, mut bits, mut out) = (0u32, 0, Vec::new());
+    for &x in d { acc = (acc << 5) | x as u32; bits += 5; if bits >= 8 { bits -= 8; out.push((acc >> bits) as u8) } }
+    if bits >= 5 || (acc & ((1 << bits) - 1)) != 0 { return Err("bad padding") }
+    Ok((hrp.into(), out))
+}
+/// Cardano mainnet base address (header 0x01): payment and stake key hashes (blake2b-224).
+pub fn ada_base_address(pay_pub: &[u8; 32], stake_pub: &[u8; 32]) -> String {
+    let mut d = vec![0x01];
+    d.extend(crate::blake2b::blake2b(28, &[0; 16], pay_pub)); d.extend(crate::blake2b::blake2b(28, &[0; 16], stake_pub));
+    bech32_long("addr", &d)
+}
+/// Validate a Cardano mainnet Shelley address (addr1..., base/pointer/enterprise header, network 1).
+pub fn ada_decode(a: &str) -> Result<Vec<u8>, &'static str> {
+    let (h, d) = bech32_long_decode(a)?;
+    if h != "addr" { return Err("wrong network") }
+    if d.is_empty() || d[0] & 0x0f != 1 { return Err("wrong network") }
+    let ok = match d[0] >> 4 { 0..=3 => d.len() == 57, 6 | 7 => d.len() == 29, 4 | 5 => d.len() > 29, _ => false };
+    if !ok { return Err("bad length") }
+    Ok(d)
+}
+/// Icarus master key (CIP-3): PBKDF2-HMAC-SHA512(password = passphrase, salt = BIP39 entropy, 4096, 96), clamped.
+#[cfg(feature = "cardano")]
+pub fn ada_icarus_master(m: &str, pw: &str) -> Result<zeroize::Zeroizing<[u8; 96]>, &'static str> {
+    let mn = bip39::Mnemonic::parse_in_normalized(bip39::Language::English, m).map_err(|_| "bad mnemonic")?;
+    let ent = zeroize::Zeroizing::new(mn.to_entropy());
+    let mut k = zeroize::Zeroizing::new([0u8; 96]);
+    pbkdf2::pbkdf2_hmac::<sha2::Sha512>(pw.as_bytes(), &ent, 4096, &mut k[..]);
+    k[0] &= 0xf8; k[31] &= 0x1f; k[31] |= 0x40;
+    Ok(k)
+}
+#[cfg(feature = "cardano")]
+fn ada_pub(kl: &[u8]) -> [u8; 32] {
+    let s = curve25519_dalek::Scalar::from_bytes_mod_order(kl.try_into().unwrap());
+    curve25519_dalek::EdwardsPoint::mul_base(&s).compress().to_bytes()
+}
+/// BIP32-Ed25519 (Khovratovich-Law, V2 as in Icarus) child of an extended key kL||kR||c.
+#[cfg(feature = "cardano")]
+fn ada_child(k: &[u8; 96], i: u32) -> zeroize::Zeroizing<[u8; 96]> {
+    use bitcoin::hashes::{hmac::{Hmac, HmacEngine}, sha512, HashEngine, Hash};
+    let hmac = |tag: u8, body: &[u8]| { let mut e = HmacEngine::<sha512::Hash>::new(&k[64..]); e.input(&[tag]); e.input(body); e.input(&i.to_le_bytes()); zeroize::Zeroizing::new(Hmac::<sha512::Hash>::from_engine(e).to_byte_array()) };
+    let (z, cc) = if i >= 0x8000_0000 { (hmac(0, &k[..64]), hmac(1, &k[..64])) } else { let a = ada_pub(&k[..32]); (hmac(2, &a), hmac(3, &a)) };
+    let mut o = zeroize::Zeroizing::new([0u8; 96]);
+    let mut carry = 0u16; // kL' = kL + 8 * zL[..28]
+    for j in 0..32 { let zl = if j < 28 { z[j] as u16 } else { 0 }; let zp = if j > 0 && j <= 28 { (z[j - 1] as u16) >> 5 } else { 0 };
+        let v = k[j] as u16 + ((zl << 3) & 0xff) + zp + carry; o[j] = v as u8; carry = v >> 8; }
+    carry = 0; // kR' = kR + zR mod 2^256
+    for j in 0..32 { let v = k[32 + j] as u16 + z[32 + j] as u16 + carry; o[32 + j] = v as u8; carry = v >> 8; }
+    o[64..].copy_from_slice(&cc[32..]);
+    o
+}
+#[cfg(feature = "cardano")]
+fn ada_path(m: &[u8; 96], p: &[u32]) -> zeroize::Zeroizing<[u8; 96]> {
+    let mut k = zeroize::Zeroizing::new(*m);
+    for &i in p { k = ada_child(&k, i) }
+    k
+}
+/// Cardano rows i < count: base address of m/1852'/1815'/0'/0/i with stake key m/1852'/1815'/0'/2/0;
+/// `private_key` = hex extended payment key kL||kR (128 hex chars).
+#[cfg(all(feature = "cardano", feature = "secrets"))]
+pub fn ada_rows(master: &[u8; 96], count: u32) -> Vec<Row> {
+    const H: u32 = 0x8000_0000;
+    let acct = ada_path(master, &[1852 | H, 1815 | H, H]);
+    let stake = ada_path(&acct, &[2, 0]);
+    let sp = ada_pub(&stake[..32]);
+    (0..count).map(|i| {
+        let k = ada_path(&acct, &[0, i]);
+        Row { chain: "ada", kind: "ada-base", path: format!("m/1852'/1815'/0'/0/{i}"), address: ada_base_address(&ada_pub(&k[..32]), &sp), secret_field: "private_key", secret: crate::hex_enc(&k[..64]) }
+    }).collect()
 }
 /// Wallet v4r2 code cell: representation hash and depth (tonsdk / ton-blockchain wallet-v4 R2).
 const TON_V4R2_CODE_HASH: &str = "feb5ff6820e2ff0d9483e7e0d62c817d846789fb4ae580c878866d959dabd5c0";
@@ -488,7 +594,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => &["p2pkh"],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton | Enc::Ss58 { .. } => return vec![],
+        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } => return vec![],
         _ => &[""],
     };
     let mut out = Vec::new();
