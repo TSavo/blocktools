@@ -296,7 +296,7 @@ fails with `legacy_input_amount_unproven` (not waivable by `--allow-warnings`); 
 input. Zcash (ZIP-243/244) and forkid chains (BCH/BSV/BTG) commit to amounts in the sighash, so a lying amount only
 produces an invalid signature; the PSBT check still applies to them.
 
-**Swap-deposit PSBTs** (`buildPsbtWithMemo`) follow THORChain's UTXO output order: vault, change, then OP_RETURN memo (optional).
+**Swap-deposit PSBTs** (`buildPsbtWithMemo`) follow THORChain's UTXO output order: vault, change, then OP_RETURN memo (optional). Default non-RBF (nSequence 0xffffffff; THORChain inbound must not be RBF); `rbf` opts in.
 
 **Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host
 builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with a chain id,

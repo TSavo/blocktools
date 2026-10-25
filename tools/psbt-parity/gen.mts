@@ -1,4 +1,5 @@
 // Regenerates SwapChan's buildBtcPsbt fixtures (btc.ts, verbatim) for blocktools buildPsbtWithMemo parity.
+import { Psbt } from "bitcoinjs-lib";
 import { buildBtcPsbt, type Utxo } from "./btc.ts";
 const FROM = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"; // BIP-173 public vector
 const TO = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
@@ -17,4 +18,7 @@ for (let n = 1; n <= 5; n++) for (const rate of [1, 2, 5, 8, 13, 22]) for (const
     out.push({ name, from: FROM, to: TO, amount: amount.toString(), memo, feeRate: rate, utxos, psbt });
   } catch (e: any) { out.push({ name, from: FROM, to: TO, amount: amount.toString(), memo, feeRate: rate, utxos, error: e.message }); }
 }
+// btc.ts never sets nSequence, so every input is 0xffffffff (final, non-RBF): THORChain inbound txs must not be RBF.
+// Recorded per vector so the Rust parity test checks buildPsbtWithMemo's default (rbf=false) against it.
+for (const o of out) if (o.psbt) o.sequences = Psbt.fromBase64(o.psbt).txInputs.map(i => (i.sequence ?? 0xffffffff).toString(16));
 console.log(JSON.stringify(out));

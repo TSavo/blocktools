@@ -106,3 +106,4 @@ wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed
 - 2026-10-25: Tron txID + raw_data decode (`tronDecodeTx`); BTC-family PSBT with OP_RETURN memo (`buildPsbtWithMemo`).
 
 Legacy-sighash chains (P2PKH everywhere, GRS, PoS-nTime) need `prev_tx` per input; zec and forkid chains commit amounts in the sighash.
+- 2026-10-25: `buildPsbtWithMemo` defaults to non-RBF (0xffffffff); optional trailing `rbf` arg.

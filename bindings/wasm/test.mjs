@@ -145,9 +145,15 @@ console.log('wasm grs ok');
 }
 { // PSBT+memo (embit byte-for-byte) and Tron (mainnet block 60,000,000)
   const U = JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'});
-  const p = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, Buffer.from('hi').toString('hex')));
+  const p = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, Buffer.from('hi').toString('hex'), true)); // embit vector is RBF
   assert.equal(p.psbt, 'cHNidP8BAF8CAAAAAcmXpeVuEEEC+iCcaoUt2QZgogstnDUkI+3OJYV/zTcEAAAAAAD9////AjmEAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIAAAAAAAAAAARqAmhpAAAAAAABAR+ghgEAAAAAABYAFHUedugZkZbUVJQcRdGzoyPxQzvWAAAA');
   assert.equal(p.fee, '615'); assert.equal(p.outputs[1].address, null);
+  { // default (7 args, or rbf false) = non-RBF nSequence 0xffffffff: THORChain inbound txs must not be RBF
+    const args = ['btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, Buffer.from('hi').toString('hex')];
+    const d = JSON.parse(bt.buildPsbtWithMemo(...args)), f = JSON.parse(bt.buildPsbtWithMemo(...args, false));
+    assert.equal(d.psbt, f.psbt); assert.equal(d.rbf, false); assert.equal(p.rbf, true);
+    assert.equal(d.psbt, p.psbt.replace('AAD9////', 'AAD/////')); assert.equal(d.fee, p.fee);
+  }
   { // THORChain order [vault, change, OP_RETURN]; empty memo = no OP_RETURN
     const q = JSON.parse(bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '50000', 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', 5, Buffer.from('=:ETH.ETH:0x0000000000000000000000000000000000000001').toString('hex')));
     assert.deepEqual(q.outputs.map(o => o.value), ['50000', '48980', '0']); assert.ok(q.outputs[2].script.startsWith('6a'));

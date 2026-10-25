@@ -16,6 +16,10 @@ fn b64d(s: &str) -> Vec<u8> { blocktools::b64::decode(s).unwrap() }
                 let g = Psbt::deserialize(&b64d(v["psbt"].as_str().unwrap())).unwrap().unsigned_tx;
                 let ins = |t: &bitcoin::Transaction| t.input.iter().map(|i| i.previous_output).collect::<Vec<_>>();
                 if ins(&g) != ins(&want) { bad.push(format!("{}: inputs", k["name"])) }
+                // Default is non-RBF, like btc.ts (bitcoinjs leaves nSequence 0xffffffff); gen.mts records it per input.
+                let seq: Vec<String> = g.input.iter().map(|i| format!("{:x}", i.sequence.0)).collect();
+                let want_seq: Vec<String> = k["sequences"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().into()).collect();
+                if seq != want_seq || want.input.iter().any(|i| i.sequence.0 != 0xffff_ffff) { bad.push(format!("{}: sequence {seq:?}", k["name"])) }
                 // Intentional diff: memo > 75 bytes needs OP_PUSHDATA1, so the OP_RETURN output is 8+1+(3+len) = 12+len bytes.
                 // btc.ts counts 11+len (1 vB short); we charge the measured size, so change is exactly feeRate sats lower.
                 let mut want = want;

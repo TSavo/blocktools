@@ -92,3 +92,4 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 - [x] Parity fixes: `addressToScript('zec', t1/t3)` (was unknown_chain); all-uppercase bech32 accepted by `addressToScript` on every bech32 chain, mixed case rejected (BIP-173).
 
 - 2026-10-25 security review 1: legacy inputs must prove their amount with `prev_tx` (`legacy_input_needs_prev_tx`, `legacy_input_amount_unproven`); see SECURITY.md.
+- [x] buildPsbtWithMemo non-RBF default + optional `rbf` (SwapChan, THORChain inbound).
