@@ -168,5 +168,12 @@ mod t {
         assert_eq!(d["contracts"][0]["amount_sun"], "732");
         assert_eq!(build_transfer(&p(TronAmount::Sweep { balance: 1, reserve_sun: 2 })).unwrap_err(), "balance does not cover reserve");
         assert_eq!(build_transfer(&p(TronAmount::Send(0))).unwrap_err(), "zero_amount");
+        // TRC-20 calldata: the ABI address word is 12 zero bytes + 20-byte address, never 0x41-prefixed
+        // (Solidity >= 0.8 rejects dirty high bits). Check bytes, not just the decoder's view.
+        let raw = build_transfer(&p(TronAmount::Trc20 { contract: a("41a614f803b6fd780986a42c78ec9c7f77e6ded13c"), amount: 5, fee_limit_sun: 1 })).unwrap();
+        let d = decode(&raw).unwrap(); let data = h(d["contracts"][0]["data"].as_str().unwrap());
+        assert_eq!(data.len(), 68); assert_eq!(&data[..4], &[0xa9, 0x05, 0x9c, 0xbb]);
+        assert_eq!(&data[4..16], &[0u8; 12]); assert_eq!(&data[16..36], &h("41641b18d083a10dee3cfe1d6b8871a55e2eb3ac42")[1..]);
+        assert_eq!(&data[36..67], &[0u8; 31]); assert_eq!(data[67], 5);
     }
 }

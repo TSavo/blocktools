@@ -214,6 +214,7 @@ pub fn decode_tx(raw: &[u8]) -> Result<Value, &'static str> {
     }))
 }
 /// Verify a transaction against expectations. `expect`: {owner?, to?, lamports? (decimal), mint?, amount?, allow_programs?: [..]}.
+/// For token transfers `to` is the destination token account or the recipient wallet (matched via its ATA).
 /// Fails closed: ok only if every check passes and no risky instruction is present.
 pub fn verify_tx(raw: &[u8], expect: &Value) -> Result<Value, &'static str> {
     let d = decode_tx(raw)?; let t = parse_tx(raw)?;
@@ -231,7 +232,12 @@ pub fn verify_tx(raw: &[u8], expect: &Value) -> Result<Value, &'static str> {
                 if let Some(to) = s("to") { if ix["to"] == to.as_str() { seen_to = true } else { fail.push(format!("unexpected_recipient:{}", ix["to"].as_str().unwrap())) } } }
             "token_transfer" | "token_transfer_checked" => { tok += ix["amount"].as_str().unwrap().parse::<u128>().unwrap();
                 if let Some(m) = s("mint") { if k == "token_transfer_checked" && ix["mint"] != m.as_str() { fail.push("wrong_mint".into()) } if k == "token_transfer" { warn.push("token_transfer_unchecked_mint".into()) } }
-                if let Some(to) = s("to") { if ix["destination"] == to.as_str() { seen_to = true } else { fail.push(format!("unexpected_token_destination:{}", ix["destination"].as_str().unwrap())) } } }
+                // `to` may be the destination token account itself or its owner wallet (then the destination
+                // must be that wallet's associated token account for this mint and token program).
+                if let Some(to) = s("to") {
+                    let ata = || -> Option<String> { let (o, m, p) = (pubkey(&to).ok()?, pubkey(ix["mint"].as_str()?).ok()?, pubkey(ix["program"].as_str()?).ok()?); Some(b58enc(&associated_token_address(&o, &m, &p).ok()?.0)) };
+                    if ix["destination"] == to.as_str() || (k == "token_transfer_checked" && ata().as_deref() == ix["destination"].as_str()) { seen_to = true }
+                    else { fail.push(format!("unexpected_token_destination:{}", ix["destination"].as_str().unwrap())) } } }
             "compute_unit_limit" | "compute_unit_price" | "memo" | "ata_create" | "system_advance_nonce" => {}
             "token_approve" | "token_approve_checked" => fail.push("token_approve".into()),
             "token_set_authority" => fail.push("token_set_authority".into()),
@@ -257,7 +263,7 @@ mod t {
     use super::*;
     // Vectors: solders 0.2x (find_program_address, is_on_curve, Transaction / VersionedTransaction bytes).
     const OWNER: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
-    const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xyybapC8G4wEGGkZwyTDt1v";
+    const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     pub const LEGACY: &str = "010e63fc82a30c1b2e0587e81cce44e17d6b9e756e1494fc5b34efce519239d2b78128fa5e9aa95018fdc59649bea55c03c07a8a001f9060a356f1cdd50234f00f010001038a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c7e8c088760bfde1dddcf32c17f209b8242ee52aaf131facd88d0ea2c6d0b06f20000000000000000000000000000000000000000000000000000000000000000c49ae77603782054f17a9decea43b444eba0edb12c6f1d31c6e0e4a84bf052eb01020200010c0200000087d6120000000000";
     pub const V0: &str = "010283e65523da6db1e3383b8d3ff3d769dcee9de3c5993f33d3d18998cb8fc285d2cf6800f8f8e8b21312ea3d489a4f4495dc8baedd690b3d7ddf903b8dc5010f80010001038a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c7e8c088760bfde1dddcf32c17f209b8242ee52aaf131facd88d0ea2c6d0b06f20000000000000000000000000000000000000000000000000000000000000000c49ae77603782054f17a9decea43b444eba0edb12c6f1d31c6e0e4a84bf052eb01020200010c0200000087d612000000000000";
     fn h(s: &str) -> Vec<u8> { crate::hex_dec(s).unwrap() }
@@ -270,10 +276,18 @@ mod t {
     #[test] fn pda_ata() {
         let (o, m, tk) = (pubkey(OWNER).unwrap(), pubkey(USDC).unwrap(), pubkey(TOKEN).unwrap());
         let (a, b) = associated_token_address(&o, &m, &tk).unwrap();
-        assert_eq!((b58enc(&a).as_str(), b), ("4W6igchc7ZieLsp9grU642c2mBcVSeC9bo5jfn2iBSpe", 255));
+        assert_eq!((b58enc(&a).as_str(), b), ("FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B", 254));
         let (p, b) = find_program_address(&[b"vault", &o], &tk).unwrap();
         assert_eq!((b58enc(&p).as_str(), b), ("Duvp5BivpbCj7kPqjzGFUMRuwmv1BBNMp4FvSsLkjZAZ", 254));
         assert!(is_on_curve(&o)); assert!(!is_on_curve(&a));
+        // On-chain regression (mainnet getTokenAccountsByOwner, 2026-10-25): owner 9WzDX...AWWM's USDC
+        // accounts include FGETo8..., which is the canonical ATA (@solana/kit getProgramDerivedAddress agrees, bump 254).
+        let w = pubkey("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM").unwrap();
+        let (a, b) = associated_token_address(&w, &m, &tk).unwrap();
+        assert_eq!((b58enc(&a).as_str(), b), ("FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B", 254));
+        // Token-2022 program seed (kit, same owner/mint): different address.
+        let (a, b) = associated_token_address(&w, &m, &pubkey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap()).unwrap();
+        assert_eq!((b58enc(&a).as_str(), b), ("GdjpegrtGwU3pgtzPivYVViSA8rmGL248qBVKzsrU3DD", 254));
         assert_eq!(crate::hex_enc(anchor_discriminator("initialize")), "afaf6d1f0d989bed");
     }
     #[test] fn decode_verify() {

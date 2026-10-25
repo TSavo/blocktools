@@ -153,10 +153,10 @@ console.log('wasm grs ok');
   console.log('wasm substrate ok');
 }
 { // Solana (vectors: solders find_program_address / is_on_curve / Transaction bytes)
-  const O = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', USDC = 'EPjFWdd5AufqSSqeM2qN1xyybapC8G4wEGGkZwyTDt1v', TK = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-  assert.deepEqual(JSON.parse(bt.solAssociatedTokenAddress(O, USDC, '')), {address: '4W6igchc7ZieLsp9grU642c2mBcVSeC9bo5jfn2iBSpe', bump: 255});
+  const O = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', TK = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  assert.deepEqual(JSON.parse(bt.solAssociatedTokenAddress(O, USDC, '')), {address: 'FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B', bump: 254});
   assert.deepEqual(JSON.parse(bt.solFindProgramAddress(JSON.stringify([Buffer.from('vault').toString('hex'), bt.base58Decode(O)]), TK)), {address: 'Duvp5BivpbCj7kPqjzGFUMRuwmv1BBNMp4FvSsLkjZAZ', bump: 254});
-  assert.equal(bt.solIsOnCurve(O), true); assert.equal(bt.solIsOnCurve('4W6igchc7ZieLsp9grU642c2mBcVSeC9bo5jfn2iBSpe'), false);
+  assert.equal(bt.solIsOnCurve(O), true); assert.equal(bt.solIsOnCurve('FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B'), false);
   assert.equal(bt.solAnchorDiscriminator('initialize'), 'afaf6d1f0d989bed');
   assert.equal(bt.base58Encode(bt.base58Decode(O)), O);
   const L = '010e63fc82a30c1b2e0587e81cce44e17d6b9e756e1494fc5b34efce519239d2b78128fa5e9aa95018fdc59649bea55c03c07a8a001f9060a356f1cdd50234f00f010001038a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c7e8c088760bfde1dddcf32c17f209b8242ee52aaf131facd88d0ea2c6d0b06f20000000000000000000000000000000000000000000000000000000000000000c49ae77603782054f17a9decea43b444eba0edb12c6f1d31c6e0e4a84bf052eb01020200010c0200000087d6120000000000';

@@ -24,7 +24,17 @@ use serde_json::Value;
         let d = sol::decode_tx(&build_transfer(&p).unwrap()).unwrap();
         let last = d["instructions"].as_array().unwrap().last().unwrap().clone();
         match c["kind"].as_str().unwrap() {
-            "token" => assert_eq!(last["kind"], "token_transfer_checked"),
+            "token" => {
+                assert_eq!(last["kind"], "token_transfer_checked");
+                // destination is the recipient's ATA (kit-derived in the corpus); verify by wallet and by ATA
+                let tx = build_transfer(&p).unwrap();
+                for to in [c["to"].as_str().unwrap().to_string(), last["destination"].as_str().unwrap().to_string()] {
+                    let v = sol::verify_tx(&tx, &serde_json::json!({"owner": c["from"], "to": to, "mint": c["mint"], "amount": c["amount"]})).unwrap();
+                    assert_eq!(v["failures"], serde_json::json!([]), "case {i}");
+                }
+                let v = sol::verify_tx(&tx, &serde_json::json!({"to": c["from"], "mint": c["mint"]})).unwrap();
+                assert!(v["failures"].as_array().unwrap().iter().any(|f| f.as_str().unwrap().starts_with("unexpected_token_destination")));
+            }
             _ => { assert_eq!(last["kind"], "system_transfer"); assert_eq!(last["lamports"], c["expect_lamports"]); }
         }
     }
