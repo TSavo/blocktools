@@ -3,7 +3,7 @@ name = "kr-run"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "keyrescue kr-run. DANGEROUS: use at your own risk; needs an independent security audit before use with real funds or keys."
+description = "keyrescue kr-run. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
 kr-io = { path = "../../crates/kr-io" }
 kr-schema = { path = "../../crates/kr-schema" }

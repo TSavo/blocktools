@@ -10,11 +10,10 @@ pub fn emit(line: &str) {
 macro_rules! outln { ($($t:tt)*) => { $crate::emit(&format!($($t)*)) } }
 
 /// Shown at the top of every tool's --help and in README/DESIGN/docs/SECURITY.md.
-pub const WARNING: &str = "DANGEROUS: use at your own risk; this code needs an independent security audit before use with real funds or keys.
-It opens hostile wallet files and extracts secrets. Run it only sealed and offline (./keyrescue run).
-Used incorrectly these tools can DESTROY FUNDS: signing to a wrong address, paying a huge fee,
-losing keys, or sending to an address on the wrong chain. You are responsible for verifying every transaction.
-Unit tests are the main evidence of correctness; they are not a substitute for an audit. See docs/SECURITY.md.";
+pub const WARNING: &str = "DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./keyrescue run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.";
 
 /// If argv contains --help / -h: print WARNING + `usage` and exit 0.
 pub fn help(usage: &str) {

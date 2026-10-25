@@ -1,13 +1,12 @@
 # Security
 
-> **⚠️ DANGEROUS: use at your own risk.** This code needs an independent security
-> audit before use with real funds or real keys. It opens hostile wallet files and
-> extracts secrets. Run it only sealed and offline (`./keyrescue run`, `--network none`).
-> **Used incorrectly, these tools can destroy funds**: signing to a wrong address,
-> paying a huge fee, losing keys, or sending to an address on the wrong chain. You are
-> responsible for verifying every transaction before it is signed or broadcast.
-> The unit tests are the main evidence of correctness; they are not a substitute for
-> an audit.
+> **⚠️ DANGEROUS: use at your own risk.** Code that handles keys and signs transactions
+> should always be read and audited by you before you trust it with real funds.
+> **Used incorrectly, it can destroy your money**: signing to a wrong address, paying a
+> huge fee, losing keys, or sending on the wrong chain. You are responsible for verifying
+> every transaction. It opens hostile wallet files and extracts secrets, so run it only
+> sealed and offline (`./keyrescue run`, `--network none`). The unit tests are evidence,
+> not a substitute for your own review. See [docs/SECURITY.md](SECURITY.md).
 
 ## What is tested (measured 2026-10-24, box, `cargo test --release` + `make e2e`)
 * 36 Rust unit tests pass, 0 fail. 17 end-to-end checks pass (`scripts/e2e-local.sh`).
@@ -24,7 +23,7 @@
   has been used. A secret scanner runs before every push.
 
 ## What is NOT tested / known limits
-* No audit, no fuzzing yet, no formal review of the parsers against hostile files
+* Not externally reviewed; no fuzzing yet, no formal review of the parsers against hostile files
   beyond size bounds and unit tests.
 * Docker image verification on real hardware is done per release step only.
 * Terminal confirmation reads /dev/tty; an attacker who controls the terminal
