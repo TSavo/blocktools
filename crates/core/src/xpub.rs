@@ -32,7 +32,7 @@ pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], in
     let x = Xpub::from_str(&norm).map_err(|_| "bad_xpub")?;
     let implied_k; let kinds = if kinds.is_empty() { implied_k = implied.into_iter().collect::<Vec<_>>(); &implied_k[..] } else { kinds };
     if branches.len().saturating_mul(indices.len()) > MAX_ROWS { return Err("too_many_candidates") }
-    if chain.enc == chains::Enc::Sol { return Err("unsupported") } // ed25519 has no public derivation
+    if chain.enc.ed25519() { return Err("unsupported") } // ed25519 has no public derivation
     let secp = Secp256k1::verification_only();
     let mut out = Vec::new();
     for &b in branches {
@@ -50,7 +50,7 @@ pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], in
 /// Row paths are relative to the xpub ("m/0/5").
 pub fn at_path(xpub: &str, chain: &Chain, steps: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
     let x = Xpub::from_str(&normalize(xpub)?.0).map_err(|_| "bad_xpub")?;
-    if chain.enc == chains::Enc::Sol { return Err("unsupported") }
+    if chain.enc.ed25519() { return Err("unsupported") }
     if steps.len() > 16 { return Err("bad_path") }
     let p: Vec<ChildNumber> = steps.iter().map(|&n| ChildNumber::from_normal_idx(n).map_err(|_| "bad_path")).collect::<Result<_, _>>()?;
     let k = x.derive_pub(&Secp256k1::verification_only(), &p).map_err(|_| "bad_path")?;

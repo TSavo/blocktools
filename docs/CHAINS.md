@@ -13,6 +13,7 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | tron | TRX | 195 | — | — | — | — | — | 6 | — | account | no | none |
 | xrp | XRP | 144 | — | — | — | — | — | 6 | — | account | no | none |
 | sol | SOL | 501 | — | — | — | — | — | 9 | — | account | no | none |
+| xlm | XLM | 148 | — | — | — | — | — | 7 | — | account | no | none |
 | qtum | QTUM | 2301 | 3a | 32 | qc | 128 | sha256d | 8 | — | legacy | yes | qtuminfo qtum.info |
 | ftc | FTC | 8 | 0e | 05 | fc | 142 | sha256d | 8 | — | legacy | yes | none |
 | nmc | NMC | 7 | 34 | 0d | nc | 180 | sha256d | 8 | — | legacy | yes | none |

@@ -99,9 +99,9 @@ pub mod address {
         Some(first)
     }
 
-    /// Base units per coin (PPC and NVC: COIN = 1000000 in their source; ETH 18, SOL 9, TRX/XRP 6).
+    /// Base units per coin (PPC and NVC: COIN = 1000000 in their source; ETH 18, SOL 9, XLM 7 (stroops), TRX/XRP 6).
     pub fn decimals(chain: &str) -> Option<u8> {
-        Some(match chain { "ppc" | "nvc" | "tron" | "xrp" => 6, "eth" => 18, "sol" => 9, "zec" => 8, c => { chains::chain(c)?; 8 } })
+        Some(match chain { "ppc" | "nvc" | "tron" | "xrp" => 6, "eth" => 18, "sol" => 9, "xlm" => 7, "zec" => 8, c => { chains::chain(c)?; 8 } })
     }
     /// Unsigned transaction format a row uses, and whether `tx::build_unsigned_sweep` supports it.
     pub fn tx_format(chain: &str) -> (&'static str, bool) {

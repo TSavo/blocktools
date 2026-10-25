@@ -4,7 +4,7 @@
 //! Secrets arrive ONLY on stdin; flags carry public parameters only. Run --help.
 //! Output CONTAINS SECRETS ("wif"/"private_key") unless --explain/--list-presets.
 use bitcoin::bip32::Xpriv;
-use blocktools_core::chains::{Enc, Row};
+use blocktools_core::chains::Row;
 use blocktools_core::plan::{self, norm, Opts};
 use blocktools_io::outln;
 use blocktools_secrets::walk;
@@ -81,8 +81,8 @@ fn main() {
             if path.len() < 128 { walk::walk_account(&o, &master, kind, path, v.get("branch").and_then(|b| b.as_u64()), &mut emit); continue }
         }
         let seed = Zeroizing::new(v.get("seed").and_then(|s| s.as_str()).and_then(blocktools_core::hex_dec).filter(|s| s.len() == 64));
-        if seed.is_none() && o.specs.iter().any(|s| s.chain.enc == Enc::Sol) {
-            outln!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"sol"}}"#);
+        if let Some(s) = o.specs.iter().find(|s| s.chain.enc.ed25519()).filter(|_| seed.is_none()) {
+            outln!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"{}"}}"#, s.chain.name);
         }
         let scheme = v.get("scheme").and_then(|s| s.as_str()).unwrap_or("bip39");
         if let Err(e) = walk::walk(&o, &master, seed.as_deref().map(|s| &s[..]), scheme, &mut tried, &mut emit) {

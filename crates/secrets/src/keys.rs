@@ -12,6 +12,7 @@ pub fn decodings(s: &str) -> Vec<(&'static str, Zeroizing<Vec<u8>>, Option<bool>
     let h = s.strip_prefix("0x").unwrap_or(s);
     if h.len() == 64 { if let Some(b) = blocktools_core::hex_dec(h) { v.push(("hex", Zeroizing::new(b), None)) } }
     if let Ok(k) = bitcoin::PrivateKey::from_wif(s) { v.push(("wif", Zeroizing::new(k.inner.secret_bytes().to_vec()), Some(k.compressed))) }
+    if let Ok((144, b)) = chains::strkey_decode(s) { if b.len() == 32 { v.push(("strkey", Zeroizing::new(b), None)) } }
     if let Ok(b) = bitcoin::base58::decode(s) { if b.len() == 32 { v.push(("base58", Zeroizing::new(b), None)) } }
     if h.len() != 64 { if let Some(b) = b64(s) { if b.len() == 32 { v.push(("base64", Zeroizing::new(b), None)) } } }
     v
@@ -22,9 +23,9 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
     let secp = Secp256k1::new();
     match (c.enc, SecretKey::from_slice(bytes).ok()) {
         #[cfg(feature = "ed25519")]
-        (Enc::Sol, _) => vec![chains::sol_row("", bytes)],
+        (Enc::Sol | Enc::Xlm, _) => vec![chains::ed_row(c, "", bytes)],
         #[cfg(not(feature = "ed25519"))]
-        (Enc::Sol, _) => vec![],
+        (Enc::Sol | Enc::Xlm, _) => vec![],
         (_, Some(sk)) => {
             let mut r = chains::secp_rows(c, "", &sk, comp != Some(true), &secp);
             if comp == Some(false) { r.retain(|r| r.kind == "p2pkh-uncompressed") }

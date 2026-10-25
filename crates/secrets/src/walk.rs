@@ -2,7 +2,7 @@
 //! The plan itself (blocktools_core::plan) is public; rows here carry WIF / hex keys.
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv};
 use bitcoin::secp256k1::{All, Secp256k1};
-use blocktools_core::chains::{self, Enc, Row};
+use blocktools_core::chains::{self, Row};
 use blocktools_core::plan::{self, axis, indices, Opts, Spec};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -15,12 +15,12 @@ pub const MAX_TRIED: u64 = 5_000_000;
 pub struct Walker<'a> { secp: Secp256k1<All>, master: &'a Xpriv, seed: Option<&'a [u8]>, cache: HashMap<String, Xpriv>, only_uncompressed: bool }
 impl Walker<'_> {
     pub fn rows(&mut self, s: &Spec, path: &str) -> Vec<Row> {
-        if s.chain.enc == Enc::Sol {
+        if s.chain.enc.ed25519() {
             let Some(seed) = self.seed else { return vec![] };
             let Ok(dp) = DerivationPath::from_str(path) else { return vec![] };
             let idx: Option<Vec<u32>> = dp.into_iter().map(|c| match c { ChildNumber::Hardened { index } => Some(*index), _ => None }).collect();
             #[cfg(feature = "ed25519")]
-            return idx.map(|ix| vec![chains::sol_row(path, &Zeroizing::new(chains::slip10_ed25519(seed, &ix)))]).unwrap_or_default();
+            return idx.map(|ix| vec![chains::ed_row(s.chain, path, &Zeroizing::new(chains::slip10_ed25519(seed, &ix)))]).unwrap_or_default();
             #[cfg(not(feature = "ed25519"))]
             { let _ = (seed, idx); return vec![] }
         }

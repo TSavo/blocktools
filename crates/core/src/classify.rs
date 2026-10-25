@@ -8,7 +8,7 @@ use bitcoin::hashes::{hmac, sha256, sha512, Hash, HashEngine};
 pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub public: Option<String>, pub chain: Option<&'static str> }
 
 /// Every class name classify can print.
-pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed",
+pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed",
     "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
@@ -51,10 +51,11 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
 }
 
 fn line(l: &str, n: u64) -> Row {
-    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp"] {
+    for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
+    if matches!(crate::chains::strkey_decode(l), Ok((144, ref p)) if p.len() == 32) && l.starts_with('S') { return Row { chain: Some("xlm"), ..row("xlm_seed", n, l.as_bytes()) } }
     if crate::validate::is_xrp_seed(l) { return row("xrp_seed", n, l.as_bytes()) }
     if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).is_ok() {
@@ -96,6 +97,8 @@ mod t {
         assert_eq!(c("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"), "wif");
         assert_eq!(c("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"), "address");
         assert_eq!(c("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"), "address");
+        assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6"), "address");
+        assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ7"), "unknown");
         assert_eq!(c("xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V"), "xpub");
         assert_eq!(c(r#"{"version":3,"crypto":{}}"#), "keystore_v3");
         assert_eq!(c("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="), "b64_key");

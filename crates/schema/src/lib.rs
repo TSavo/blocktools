@@ -13,9 +13,9 @@ pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown
     "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
 pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx"];
-pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xmr",
+pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -43,9 +43,12 @@ fn is_bech(s: &str) -> bool {
 }
 /// Monero standard address: 95 base58 chars, mainnet prefix 4 (stagenet/testnet 5/9). It is public.
 pub fn is_xmr_address(s: &str) -> bool { s.len() == 95 && s.starts_with(['4', '5', '9']) && all_in(s, B58) }
+/// Stellar account id: StrKey 'G' + 55 base32 chars (public). Seeds start with 'S' and never match.
+/// Accepted only with "chain":"xlm" (redact_line).
+pub fn is_xlm_address(s: &str) -> bool { s.len() == 56 && s.starts_with('G') && all_in(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567") }
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
-    is_xmr_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
+    is_xmr_address(s) || is_xlm_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
         || is_bech(s)
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
@@ -144,6 +147,9 @@ pub fn redact_line(raw: &str) -> Option<String> {
     if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
         if a.len() > 35 && all_in(a, B58) && !is_bech(a) && !is_xmr_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("sol") { return None; }
     }
+    if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
+        if is_xlm_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("xlm") { return None; }
+    }
     let line = serde_json::to_string(&Value::Object(out)).ok()?;
     if line.len() > 512 || looks_secret(&line) { return None; }
     Some(line)
@@ -192,6 +198,13 @@ mod tests {
     #[test] fn bech_without_zero_is_not_sol_shaped() {
         let l = r#"{"status":"ok","chain":"vtc","kind":"p2wpkh","address":"vtc1qfe8v6c4r39fq8xnjgcpunt5spdfcxw63zzfwru"}"#;
         assert!(redact_line(l).is_some());
+    }
+    #[test] fn xlm_shape_only_with_chain_xlm() {
+        let a = "GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6";
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"xlm","address":"{a}"}}"#)).is_some());
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"btc","address":"{a}"}}"#)).is_none());
+        let s = format!("S{}", &a[1..]);
+        assert!(redact_line(&format!(r#"{{"status":"ok","chain":"xlm","address":"{s}"}}"#)).is_none());
     }
     #[test] fn sol_shape_only_with_chain_sol() {
         let a = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"; // public vector address

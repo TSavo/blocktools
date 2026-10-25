@@ -46,6 +46,7 @@ case $class in
   wif|hex_key|b58_key|b64_key) keys() { "$B/key-to-addresses" --chain "$CHAIN" < "$FILE"; } ;;
   monero_seed)     "$B/xmr-keys" < "$FILE"; say "monero: address shown; view-key funds scan and sweep are not implemented yet (docs/ROADMAP.md)"; exit 3 ;;
   xrp_seed)        "$B/xrp-tx" keys < "$FILE"; say "xrp: address shown; sweep with xrp-tx build/sign (recipes/xrp.md). Balance/sequence lookup is not automated yet"; exit 3 ;;
+  xlm_seed)        "$B/key-to-addresses" --chain xlm < "$FILE" | "$B/redact"; say "xlm: address shown; Stellar payments/sweep are not built (recipes/chain-stellar.md)"; exit 3 ;;
   xpub)            WATCH=1; keys() { "$B/xpub-addresses" --chain "$CHAIN" --count "$COUNT" --change 0,1 < "$FILE"; } ;;
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;
   monero_address)  say "watch-only ($class): Monero balances need the view key (recipes/monero.md)"; exit 3 ;;

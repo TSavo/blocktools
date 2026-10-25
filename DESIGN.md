@@ -120,8 +120,10 @@ use (placeholders `{purpose} {coin} {account} {change} {i}`, must parse as a
 BIP32 path, max 96 chars). Hard caps: 1M entries per range and 5M derivations per run
 (`too_many_candidates`). Duplicate (path, chain, kind) rows are emitted once.
 Presets (`--list-presets`): common, exhaustive, recovery, exodus, tronlink,
-ledger-live, legacy-hd. See recipes/derive.md. Ed25519 (Solana) paths must be
-all-hardened (SLIP-10) and need the `seed` field from seed-to-master.
+ledger-live, legacy-hd. See recipes/derive.md. Ed25519 (Solana, Stellar) paths must be
+all-hardened (SLIP-10) and need the `seed` field from seed-to-master. Stellar (`xlm`, SEP-0005
+`m/44'/148'/{i}'`): address = StrKey G (version 6<<3), secret = StrKey S (18<<3), base32 +
+CRC16-XModem LE (chains::strkey_encode/strkey_decode). KATs: SEP-0005 vector 1 (crates/secrets/tests/xlm.rs).
 Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 
