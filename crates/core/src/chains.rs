@@ -102,7 +102,7 @@ pub const CHAINS: &[Chain] = &[
 ];
 /// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
 /// this crate does not have.
-pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes and ZIP-243/244 sighash: not implemented")];
+pub const EXCLUDED: &[(&str, &str)] = &[("zec", "two-byte version prefixes: handled outside this table (blocktools-tx zcash module; transparent only)")];
 /// Base58check checksum flavour. Groestlcoin uses groestl512(groestl512(x))[..4] for addresses,
 /// WIF and extended keys (groestlcoin src/base58.cpp, hash.h `HashGroestl`); everyone else sha256d.
 #[derive(Clone, Copy, PartialEq, Debug)]

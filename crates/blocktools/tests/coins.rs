@@ -1,7 +1,7 @@
 //! detect / convert / zec / sweep per tx format. Expected addresses come from
 //! scripts/kat-chains.py (independent base58check, version bytes from each coin's source):
 //! p2pkh of the secp256k1 generator G (pubkey of private key 1, a public test vector).
-use blocktools::{address, chains, sweep::{build_unsigned_sweep, build_unsigned_sweep_at}, tx};
+use blocktools::{address, chains, sweep::{build_unsigned_sweep, build_unsigned_sweep_at, build_unsigned_zec_sweep}, tx};
 const KAT: &[(&str, &str)] = &[
     ("btc", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
     ("ltc", "LVuDpNCSSj6pQ7t9Pv6d6sUkLKoqDEVUnJ"),
@@ -114,8 +114,19 @@ fn utxo(c: &str) -> String {
     }
     assert_eq!(address::tx_format("blk"), ("legacy", true));
 }
+#[test] fn zec_sweep_builds_and_decodes() {
+    let u = format!(r#"{{"txid":"{}","vout":1,"amount":1000000,"address":"{ZEC_T1}"}}"#, "cc".repeat(32));
+    let r = build_unsigned_sweep("zec", &u, ZEC_T1, 1).unwrap();
+    assert_eq!(r["tx_format"], "zcash-v5"); assert!(r.get("psbt").is_none());
+    assert_eq!(r["fee"], "10000"); // ZIP-317 minimum: 5000 * max(2, 1 action)
+    let d = tx::decode(&r.to_string(), "zec").unwrap();
+    assert_eq!(d.outputs[0].address.as_deref(), Some(ZEC_T1)); assert_eq!(d.fee, Some(10000));
+    let r2 = build_unsigned_zec_sweep(&u, ZEC_T1, 1, 0xc2d6d0b4, 100).unwrap(); // other branch id, expiry set
+    assert_eq!(r2["branch_id"], "c2d6d0b4"); assert_eq!(r2["expiry_height"], 100); assert_ne!(r2["unsigned_tx"], r["unsigned_tx"]);
+    assert_eq!(address::tx_format("zec"), ("zcash-v5", true));
+}
 #[test] fn sweep_refuses_unsupported_formats() {
-    for (c, why) in [("pot", "unsupported_tx_format:pos-ntime"), ("qrk", "unsupported_tx_format:unknown"), ("zec", "unsupported_tx_format:zcash-v5"), ("wdc", "unsupported_tx_format:legacy"),
+    for (c, why) in [("pot", "unsupported_tx_format:pos-ntime"), ("qrk", "unsupported_tx_format:unknown"), ("wdc", "unsupported_tx_format:legacy"),
                      ("eth", "unsupported_tx_format:evm")] {
         assert_eq!(build_unsigned_sweep(c, "", BTC, 10).unwrap_err(), why, "{c}");
     }

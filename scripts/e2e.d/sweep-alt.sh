@@ -11,7 +11,7 @@ echo 0000000000000000000000000000000000000000000000000000000000000001 > $T/k
 TID=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 sweep() { # chain from-addr-segwit-or-empty from-p2pkh to
   c=$1; w=$2; p=$3; d=$4
-  { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; printf '{"txid":"%s","vout":1,"amount":30000,"address":"%s"}\n' $TID $p; } > $T/u.$c
+  { [ -n "$w" ] && printf '{"txid":"%s","vout":0,"amount":50000,"address":"%s"}\n' $TID $w; printf '{"txid":"%s","vout":1,"amount":%s,"address":"%s"}\n' $TID ${AMT:-30000} $p; } > $T/u.$c
   $B/tx-build --chain $c --utxos $T/u.$c --to $d --sweep --fee-rate 5 ${TIME:+--time $TIME} > $T/p.$c || f "$c build"
   $B/tx-verify --chain $c --expect-to $d < $T/p.$c >/dev/null || f "$c verify"
   python3 scripts/tty-drive.py right $T/k $T/o.$c $PWD/$B/tx-sign --tx $T/p.$c --expect-to $d > $T/tty.$c || f "$c sign"
@@ -55,3 +55,33 @@ assert d.get("fee") not in (None, "")
 PY
 done
 echo "ok   ppc/nvc/clam/rdd signed tx: nTime placed, sha256d txid, fee from pos_prevouts"
+# Zcash transparent v5 (ZIP-244): raw tx + zec_prevouts + branch_id. The txid of the signed tx
+# is recomputed here with Python's hashlib BLAKE2b, independently of the Rust code.
+TIME= AMT=1000000
+sweep zec "" t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs t1X9yaRpCHJpWX1HrGUxEu39xyQinmo3Ana
+python3 - "$T/o.zec" "$T/d.zec" <<'PY' || f "zec txid"
+import hashlib, json, sys
+o = [json.loads(l) for l in open(sys.argv[1]) if "signed_tx" in l][0]
+d = [json.loads(l) for l in open(sys.argv[2]) if '"txid"' in l][0]
+b = bytes.fromhex(o["signed_tx"]); p = 20
+H = lambda pers, x: hashlib.blake2b(x, digest_size=32, person=pers).digest()
+def cs():
+    global p
+    v = b[p]; p += 1
+    if v < 0xfd: return v
+    n = {0xfd: 2, 0xfe: 4}[v]; r = int.from_bytes(b[p:p+n], "little"); p += n; return r
+assert int.from_bytes(b[:4], "little") == 0x80000005 and b[8:12] == int(o["branch_id"], 16).to_bytes(4, "little")
+ins = []
+for _ in range(cs()):
+    op = b[p:p+36]; p += 36; n = cs(); p += n; sq = b[p:p+4]; p += 4; ins.append((op, sq))
+outs = b""
+for _ in range(cs()):
+    v = b[p:p+8]; p += 8; n = cs(); outs += v + bytes([n]) + b[p:p+n]; p += n
+assert b[p:] == b"\0\0\0", "unexpected shielded bytes"
+hdr = H(b"ZTxIdHeadersHash", b[:20])
+tr = H(b"ZTxIdTranspaHash", H(b"ZTxIdPrevoutHash", b"".join(i[0] for i in ins)) + H(b"ZTxIdSequencHash", b"".join(i[1] for i in ins)) + H(b"ZTxIdOutputsHash", outs))
+txid = H(b"ZcashTxHash_" + b[8:12], hdr + tr + H(b"ZTxIdSaplingHash", b"") + H(b"ZTxIdOrchardHash", b""))[::-1].hex()
+assert d["txid"] == txid, (d["txid"], txid)
+assert o["chain"] == "zec" and o["tx_format"] == "zcash-v5" and d.get("fee") not in (None, "")
+PY
+echo "ok   zec signed v5 txid = ZIP-244 recomputed with hashlib BLAKE2b; fee from zec_prevouts"

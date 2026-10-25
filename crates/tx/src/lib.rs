@@ -8,6 +8,8 @@ pub mod policy;
 /// Signing (takes private keys). Feature `secrets` only.
 pub mod digest;
 pub mod pos;
+pub mod blake2b;
+pub mod zcash;
 /// The `"chain"` field of a tx-build JSON line, if any, and the chain a tool should use given an
 /// optional `--chain`: the build's chain wins when no flag is given; a conflicting flag is an
 /// error (signing a GRS tx with the BTC sighash would produce an invalid tx).
@@ -68,6 +70,13 @@ pub fn input_bytes(text: &str) -> Result<Vec<u8>, &'static str> {
 }
 
 pub fn decode(text: &str, utxo_chain: &str) -> Result<Decoded, &'static str> {
+    if utxo_chain == "zec" {
+        let env = zcash::envelope_from_json(text)?;
+        let branch = env.as_ref().map(|e| e.1).unwrap_or(zcash::MAINNET_BRANCH_ID);
+        let tx = zcash::ZTx::parse(&input_bytes(text)?, branch)?;
+        if env.as_ref().is_some_and(|e| e.0.len() != tx.inputs.len()) { return Err("zec_prevouts_count_mismatch") }
+        return Ok(zec_decoded(&tx, env.as_ref().map(|e| e.0.as_slice())));
+    }
     if pos::layout(utxo_chain).is_some() {
         let c = chains::chain(utxo_chain).ok_or("unknown_chain")?;
         let tx = pos::PosTx::parse(utxo_chain, &input_bytes(text)?)?;
@@ -76,6 +85,41 @@ pub fn decode(text: &str, utxo_chain: &str) -> Result<Decoded, &'static str> {
         return Ok(pos_decoded(c, &tx, prev.as_deref()));
     }
     decode_bytes(&input_bytes(text)?, utxo_chain)
+}
+
+/// Decoded view of a Zcash v4/v5 tx: transparent part only (shielded value flows are reported
+/// as a `shielded_components` warning, never summed). Input amounts only when `prev` is given.
+pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded {
+    let mut w = Vec::new();
+    let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
+    let io = |amount: u64, s: &[u8]| -> Io {
+        let (kind, address) = match zcash::script_to_address(s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
+        Io { txid: None, vout: None, address, kind, amount: Some(amount) }
+    };
+    let inputs: Vec<Io> = tx.inputs.iter().enumerate().map(|(n, i)| {
+        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { txid: None, vout: None, address: None, kind: "unknown", amount: None });
+        let mut t = i.txid; t.reverse(); x.txid = Some(hex_enc(t)); x.vout = Some(i.vout); x
+    }).collect();
+    let outputs: Vec<Io> = tx.outputs.iter().map(|(a, s)| io(*a, s)).collect();
+    let shielded = !tx.sapling.spends.is_empty() || !tx.sapling.outputs.is_empty() || !tx.orchard.actions.is_empty() || !tx.joinsplits.is_empty();
+    let out_sum: u64 = outputs.iter().filter_map(|o| o.amount).sum();
+    let in_sum: Option<u64> = inputs.iter().map(|i| i.amount).sum();
+    let fee = if shielded { None } else { in_sum.and_then(|i| i.checked_sub(out_sum)) };
+    if shielded { w.push("shielded_components") }
+    if in_sum.is_none() { w.push("input_amounts_unknown") }
+    if !shielded && in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
+    if let Some(f) = fee {
+        if f > 1_000_000 { w.push("high_fee") }
+        if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
+    }
+    if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
+    if outputs.iter().any(|o| o.kind == "op_return") { w.push("op_return_output") }
+    if outputs.iter().any(|o| o.kind != "op_return" && o.amount.unwrap_or(0) < 546) { w.push("dust_output") }
+    if tx.locktime != 0 { w.push("locktime_set") }
+    if !signed { w.push("unsigned") }
+    if tx.inputs.is_empty() || tx.outputs.is_empty() { w.push("no_inputs_or_outputs") }
+    Decoded { chain: "zec".into(), ty: if tx.version == 4 { "zcash-v4" } else { "zcash-v5" }, signed, txid: Some(tx.txid_hex()), inputs, outputs, fee,
+        vsize: Some(zcash::signed_size(tx)), locktime: Some(tx.locktime), rbf: Some(false), evm: None, warnings: w }
 }
 
 /// Decoded view of a PoS-nTime tx (amounts of inputs only when `prev` is given).
@@ -112,6 +156,7 @@ pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) 
 }
 
 pub fn decode_bytes(b: &[u8], utxo_chain: &str) -> Result<Decoded, &'static str> {
+    if utxo_chain == "zec" { return Ok(zec_decoded(&zcash::ZTx::parse(b, zcash::MAINNET_BRANCH_ID)?, None)) }
     let c = chains::chain(utxo_chain).ok_or("unknown_chain")?;
     if pos::layout(utxo_chain).is_some() && !b.starts_with(b"psbt\xff") { return Ok(pos_decoded(c, &pos::PosTx::parse(utxo_chain, b)?, None)) }
     if b.starts_with(b"psbt\xff") {

@@ -103,3 +103,26 @@ pub fn sign_pos(tx: &mut crate::pos::PosTx, prev: &[(u64, Vec<u8>)], keys: &[Sec
     }
     Ok(n)
 }
+
+/// Sign every P2PKH input of a Zcash v4/v5 tx whose prevout matches one of `keys` (compressed
+/// or uncompressed), SIGHASH_ALL (ZIP-243 / ZIP-244), low-S. Returns the number signed.
+pub fn sign_zcash(tx: &mut crate::zcash::ZTx, prev: &[(u64, Vec<u8>)], keys: &[SecretKey]) -> Result<usize, &'static str> {
+    if prev.len() != tx.inputs.len() { return Err("zec_prevouts_count_mismatch") }
+    let secp = Secp256k1::new();
+    let unsigned = tx.clone();
+    let amounts: Vec<u64> = prev.iter().map(|p| p.0).collect();
+    let spks: Vec<Vec<u8>> = prev.iter().map(|p| p.1.clone()).collect();
+    let mut n = 0;
+    for (i, spk) in spks.iter().enumerate() {
+        for sk in keys {
+            let pk = PublicKey::from_secret_key(&secp, sk);
+            let (c, u) = (pk.serialize(), pk.serialize_uncompressed());
+            let k: &[u8] = if *spk == p2pkh(&c) { &c } else if *spk == p2pkh(&u) { &u } else { continue };
+            let h = unsigned.sighash(Some((i, &amounts, &spks)), 1)?;
+            let mut s = secp.sign_ecdsa(&Message::from_digest(h), sk).serialize_der().to_vec(); s.push(1);
+            let mut ss = push(&s); ss.extend(push(k));
+            tx.inputs[i].script_sig = ss; n += 1; break;
+        }
+    }
+    Ok(n)
+}

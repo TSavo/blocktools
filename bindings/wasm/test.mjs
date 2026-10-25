@@ -64,6 +64,12 @@ assert.throws(() => bt.buildUnsignedSweep('pot', '', dashA, 10));
   assert.equal(p.unsigned_tx.slice(8, 16), '00f5db6a'); // 1792800000 LE
   assert.throws(() => bt.buildUnsignedSweep('ppc', u, ppcA, 10)); // wasm has no clock: time required
 }
+{ // Zcash transparent v5: ZIP-317 minimum fee, raw tx + zec_prevouts, header 0x80000005 + v5 group id
+  const zA = 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs';
+  const z = JSON.parse(bt.buildUnsignedSweep('zec', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 1000000, address: zA}), zA, 1));
+  assert.equal(z.tx_format, 'zcash-v5'); assert.equal(z.fee, '10000'); assert.equal(z.unsigned_tx.slice(0, 16), '050000800a27a726');
+  assert.ok(bt.decodeTx(JSON.stringify(z), 'zec').includes(zA));
+}
 console.log('wasm node test ok (verify block170 expected-to:', v.ok, v.failures.join(',') + ')');
 // Groestlcoin (groestlcoinjs-lib vectors): Groestl checksum, unique F.../grs1, and a 3... that BTC rejects
 assert.equal(bt.validateAddress('grs', 'Fob4maNwBGVRPmMcRLS6qtTJfKeySAMsWq'), 'P2pkh');

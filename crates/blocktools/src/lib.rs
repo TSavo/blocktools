@@ -30,7 +30,7 @@ pub mod address {
     use bitcoin::base58;
 
     /// Zcash transparent addresses (zcash/zcash src/chainparams.cpp): 2-byte prefixes, sha256d
-    /// checksum. Address-only here: no derive, no tx (Zcash v4/v5 is not implemented).
+    /// checksum. Transparent only: unsigned v5 sweeps (P2PKH, ZIP-244) via `sweep`; no derive, no shielded.
     pub const ZEC_P2PKH: [u8; 2] = [0x1c, 0xb8];
     pub const ZEC_P2SH: [u8; 2] = [0x1c, 0xbd];
 
@@ -115,7 +115,7 @@ pub mod address {
                 (Enc::Eth, _) => ("evm", false), // EVM builds go through tx::build::build_evm, not the sweep
                 _ => ("account", false),
             },
-            None if chain == "zec" => ("zcash-v5", false),
+            None if chain == "zec" => ("zcash-v5", true),
             None => ("unknown", false),
         }
     }
@@ -132,9 +132,9 @@ pub mod address {
                    "decimals": decimals(c.name), "forkid": forkid, "tx_format": fmt, "sweep_build": sweep,
                    "sources": c.sources.iter().map(|s| json!({"name": s.name, "url": s.url, "api": s.api, "checked": s.checked})).collect::<Vec<_>>()})
         }).collect();
-        rows.push(json!({"name": "zec", "ticker": "ZEC", "title": "Zcash (transparent)", "slip44": 133, "verified": true, "scope": "address-only",
+        rows.push(json!({"name": "zec", "ticker": "ZEC", "title": "Zcash (transparent)", "slip44": 133, "verified": true, "scope": "transparent",
             "p2pkh": ZEC_P2PKH, "p2sh": ZEC_P2SH, "hrp": null, "wif": 128, "checksum": "sha256d", "decimals": 8, "forkid": null,
-            "tx_format": "zcash-v5", "sweep_build": false, "sources": []}));
+            "tx_format": "zcash-v5", "sweep_build": true, "sources": []}));
         json!(rows)
     }
 }
@@ -142,8 +142,8 @@ pub mod address {
 /// Unsigned sweep build per tx format. Only `legacy` (Bitcoin-format, incl. segwit where the
 /// chain has it) and `forkid` (BCH/BSV/BTG: same unsigned bytes; the signer must use
 /// SIGHASH_FORKID with input amounts, which the PSBT carries) are built. `pos-ntime` (PPC/NVC/CLAM/RDD,
-/// layouts confirmed on mainnet txs) builds a raw tx + prevouts instead of a PSBT. Zcash and
-/// unknown formats are refused, never approximated.
+/// layouts confirmed on mainnet txs) and `zcash-v5` (transparent, ZIP-244) build a raw tx +
+/// prevouts instead of a PSBT. Unknown formats are refused, never approximated.
 pub mod sweep {
     use serde_json::{json, Value};
     /// In: chain, UTXO JSON lines ({"txid","vout","amount","address"[,"prev_tx"]}), destination,
@@ -151,6 +151,7 @@ pub mod sweep {
     pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u64) -> Result<Value, String> {
         let (fmt, ok) = crate::address::tx_format(chain);
         if !ok { return Err(format!("unsupported_tx_format:{fmt}")) }
+        if chain == "zec" { return build_unsigned_zec_sweep(utxos, to, fee_rate, blocktools_tx::zcash::MAINNET_BRANCH_ID, 0) }
         let c = blocktools_core::chains::supported(chain).ok_or("unknown_or_unverified_chain")?;
         let u = blocktools_tx::build::parse_utxos(c, utxos)?;
         if fmt == "pos-ntime" {
@@ -168,6 +169,18 @@ pub mod sweep {
         Ok(json!({"chain": chain, "tx_format": fmt, "psbt": blocktools_core::b64::encode(&p.serialize()),
                   "unsigned_tx": blocktools_core::hex_enc(bitcoin::consensus::serialize(&p.unsigned_tx)),
                   "inputs": n, "amount": amount.to_string(), "fee": (total - amount).to_string()}))
+    }
+    /// Zcash transparent v5 sweep (P2PKH inputs). `branch_id` is the consensus branch id the tx
+    /// commits to (must be the network's current one; `MAINNET_BRANCH_ID` was measured 2026-10-25),
+    /// `expiry` 0 = none. Fee = max(ZIP-317, size × fee_rate). Out: {"unsigned_tx", "zec_prevouts",
+    /// "branch_id", "expiry_height", "fee", "amount", "inputs", "tx_format":"zcash-v5"}; no PSBT exists.
+    pub fn build_unsigned_zec_sweep(utxos: &str, to: &str, fee_rate: u64, branch_id: u32, expiry: u32) -> Result<Value, String> {
+        let (tx, prev) = blocktools_tx::zcash::build_sweep(utxos, to, fee_rate, branch_id, expiry, 546)?;
+        let total: u64 = prev.iter().map(|p| p.0).sum();
+        let amount = tx.outputs[0].0;
+        let mut o = blocktools_tx::zcash::envelope(&tx, &prev);
+        o["inputs"] = json!(prev.len()); o["amount"] = json!(amount.to_string()); o["fee"] = json!((total - amount).to_string());
+        Ok(o)
     }
     /// As `build_unsigned_sweep` for PoS-nTime chains (PPC/NVC/CLAM/RDD) with an explicit tx
     /// timestamp (unix seconds; 0 = refuse). Out: {"unsigned_tx" hex, "pos_prevouts", "time", "fee", "amount", "inputs", "tx_format"}.

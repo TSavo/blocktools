@@ -1,7 +1,7 @@
 //! tx-sign: sign ONE transaction after a human reads its summary and types a code on /dev/tty.
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
 //!           [--chain-id N] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings]  < keys
-//! The transaction (PSBT from tx-build, a pos-ntime JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
+//! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
 //! Order: policy checks (destination, fee cap, chain id, no warnings) -> sign in memory -> print the
@@ -38,7 +38,8 @@ fn main() {
     if p.expect_to.is_empty() { bad("--expect-to ADDR is required (destination assertion)") }
     for e in p.expect_to.iter().chain(&p.change) {
         let c = if d.evm.is_some() { "eth" } else { chain.as_str() };
-        if blocktools_core::validate::validate(c, e).is_err() { bad("invalid --expect-to/--change address") }
+        let ok = if c == "zec" { blocktools_tx::zcash::address_to_script(e).is_some() } else { blocktools_core::validate::validate(c, e).is_ok() };
+        if !ok { bad("invalid --expect-to/--change address") }
     }
     let f = check(&d, &p);
     if !f.is_empty() { out("refused", json!({"failures":f,"warnings":d.warnings})) }
@@ -78,6 +79,17 @@ fn main() {
         if bare != unsigned { out("error", json!({"error":"signed_tx_differs_from_unsigned"})) }
         let who: Vec<String> = d.inputs.iter().filter_map(|i| i.address.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
         (t.serialize(), who.join(", "), blocktools_tx::pos::envelope(&chain, &t, &prev).to_string().into_bytes())
+    } else if chain == "zec" {
+        let (prev, branch) = blocktools_tx::zcash::envelope_from_json(&txt).unwrap_or_else(|e| bad(e)).unwrap_or_else(|| bad("zec signing needs zec_prevouts and branch_id (from tx-build)"));
+        let mut t = blocktools_tx::zcash::ZTx::parse(&raw, branch).unwrap_or_else(|e| bad(e));
+        if !t.sapling.spends.is_empty() || !t.sapling.outputs.is_empty() || !t.orchard.actions.is_empty() || !t.joinsplits.is_empty() { bad("zec: shielded components are not signed here") }
+        let unsigned = t.clone();
+        let n = blocktools_tx::sign::sign_zcash(&mut t, &prev, &keys).unwrap_or_else(|e| bad(e));
+        if n != t.inputs.len() { out("refused", json!({"failures":["input_without_key"],"inputs":t.inputs.len(),"signed_inputs":n})) }
+        let mut bare = t.clone(); for i in &mut bare.inputs { i.script_sig.clear() }
+        if bare != unsigned { out("error", json!({"error":"signed_tx_differs_from_unsigned"})) }
+        let who: Vec<String> = d.inputs.iter().filter_map(|i| i.address.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        (t.serialize(), who.join(", "), blocktools_tx::zcash::envelope(&t, &prev).to_string().into_bytes())
     } else {
         let mut ps = Psbt::deserialize(&raw).unwrap_or_else(|_| bad("UTXO signing needs a PSBT (from tx-build)"));
         let n = blocktools_tx::sign::sign_psbt_digest(&mut ps, &keys, blocktools_core::chains::chain(&chain).map(blocktools_tx::sign::Digest::for_chain).unwrap_or(blocktools_tx::sign::Digest::Sha256d)).unwrap_or_else(|e| bad(e));
@@ -91,7 +103,8 @@ fn main() {
     };
     drop(keys);
     // Re-decode the exact signed bytes and re-check before anything is shown or released.
-    let d2 = if d.ty == "pos-ntime" { blocktools_tx::decode(std::str::from_utf8(&recheck).unwrap_or(""), &chain) } else { blocktools_tx::decode_bytes(&recheck, &chain) }.unwrap_or_else(|_| out("error", json!({"error":"signed_tx_does_not_decode"})));
+    let env = d.ty == "pos-ntime" || chain == "zec";
+    let d2 = if env { blocktools_tx::decode(std::str::from_utf8(&recheck).unwrap_or(""), &chain) } else { blocktools_tx::decode_bytes(&recheck, &chain) }.unwrap_or_else(|_| out("error", json!({"error":"signed_tx_does_not_decode"})));
     let f2 = check(&d2, &p);
     if !d2.signed || !f2.is_empty() { out("error", json!({"error":"signed_tx_failed_recheck","failures":f2})) }
     let summary = format!("{}\nSigned by: {signer}\nChecks passed: destination {}, fee cap {}{}\n",
@@ -99,7 +112,7 @@ fn main() {
     if !blocktools_tty::confirm(&summary) { out("aborted", json!({})) }
     let mut o = json!({"type":d2.ty,"signed_tx":blocktools_core::hex_enc(&signed)});
     // finalized PSBT too, so the after-signing tx-decode can show input amounts and the fee
-    if d2.ty == "pos-ntime" { // chain, tx_format, time, pos_prevouts (so tx-decode shows the fee)
+    if env { // chain, tx_format, time/branch_id, pos_prevouts/zec_prevouts (so tx-decode shows the fee)
         if let Ok(serde_json::Value::Object(e)) = serde_json::from_slice::<serde_json::Value>(&recheck) { for (k, v) in e { if k != "signed_tx" { o[k] = v } } }
     }
     else if d2.evm.is_none() { o["psbt"] = json!(blocktools_core::b64::encode(&recheck)) }

@@ -4,6 +4,8 @@
 //!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N]
 //!   tx-build --chain ppc|nvc|clam|rdd --utxos FILE --to ADDR --sweep --fee-rate UNITS_PER_BYTE [--time UNIX]
 //!            -> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
+//!   tx-build --chain zec --utxos FILE --to t1... --sweep [--fee-rate N] [--branch-id HEX] [--expiry-height H]
+//!            -> {"unsigned_tx": hex, "zec_prevouts": [...], "branch_id"} (transparent v5, ZIP-244; fee >= ZIP-317)
 //!   tx-build --chain eth --chain-id N [--account FILE] [--nonce N] [--gas N] --max-fee-per-gas WEI
 //!            [--priority-fee WEI | --legacy] --to ADDR (--send WEI | --sweep [--balance WEI] | --topup GAS_UNITS
 //!            | --token CONTRACT --token-amount UNITS)
@@ -31,6 +33,16 @@ fn main() {
     let a = A(std::env::args().collect());
     let chain = a.get("--chain").unwrap_or("btc");
     if chain == "eth" { return evm_build(&a) }
+    if chain == "zec" { // transparent-only v5 sweep, P2PKH inputs, ZIP-244 (branch id is consensus-critical)
+        if !a.has("--sweep") { fail("zec: only --sweep is supported") }
+        let branch = a.get("--branch-id").map(|s| u32::from_str_radix(s.trim_start_matches("0x"), 16).unwrap_or_else(|_| fail("--branch-id (hex)"))).unwrap_or(blocktools_tx::zcash::MAINNET_BRANCH_ID);
+        let expiry = num(a.get("--expiry-height"), "--expiry-height").map(|t| u32::try_from(t).unwrap_or_else(|_| fail("--expiry-height"))).unwrap_or(0);
+        let (tx, prev) = blocktools_tx::zcash::build_sweep(&file(a.get("--utxos").unwrap_or_else(|| fail("--utxos FILE required")), 16 << 20), a.get("--to").unwrap_or_else(|| fail("--to required")),
+            num(a.get("--fee-rate"), "--fee-rate").unwrap_or(0) as u64, branch, expiry, num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64).unwrap_or_else(|e| fail(&e));
+        let mut o = blocktools_tx::zcash::envelope(&tx, &prev);
+        o["tool"] = json!("tx-build"); o["status"] = json!("ok"); o["type"] = json!("zcash-v5");
+        blocktools_io::outln!("{o}"); return
+    }
     let c = blocktools_core::chains::chain(chain).filter(|c| matches!(c.enc, blocktools_core::chains::Enc::Utxo { .. })).unwrap_or_else(|| fail("unknown chain"));
     // Only verified rows with Bitcoin-standard signing are built; fork-id (BCH/BSV/BTG), PoS
     // tx-time (PPC/NVC/CLAM/BLK/RDD/POT) and unknown formats are refused, not guessed.

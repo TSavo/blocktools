@@ -27,7 +27,7 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 
 - It returns a **JSON string**, so call `JSON.parse` on it. Entries come in chain-table order (`chainParams()` order), not ranked by likelihood.
 - More than one entry means the address is **ambiguous**: the same bytes are valid on several chains. For example, a Monacoin `M…` address is also a valid LTC/QTUM/MEC P2SH. Ask the user for the chain, or use `detectAddressInfo` for `ambiguous`/`kinds_agree`. There is no ranking.
-- `zec` (transparent) appears in detect/validate only. It is **not** in `listChains`/`supportedChains`: ZEC is in `chains::EXCLUDED` (two-byte version prefixes, ZIP-243/244 sighash not implemented), so it has no derive or sweep. `grs` is in every list since 2026-10-24 (Groestl checksum and single-SHA-256 digests, independent KATs). Its `3…` P2SH does not collide with BTC: the checksum differs, so `detectAddress` returns `grs` only.
+- `zec` (transparent) appears in detect/validate and, since 2026-10-24, in `buildUnsignedSweep` (v5, ZIP-244, mainnet branch id 0x37a5165b, fee = max(ZIP-317, size × rate)); the output is {unsigned_tx, zec_prevouts, branch_id, expiry_height} with no PSBT. It is still **not** in `listChains`/`supportedChains` (two-byte prefixes; no derive). Rust also has `sweep::build_unsigned_zec_sweep(utxos, to, rate, branch_id, expiry)`. `grs` is in every list since 2026-10-24 (Groestl checksum and single-SHA-256 digests, independent KATs). Its `3…` P2SH does not collide with BTC: the checksum differs, so `detectAddress` returns `grs` only.
 
 ### Loading the module
 
@@ -73,7 +73,7 @@ Source tags: `blockbook`/`insight`/`qtuminfo`/`woc` sources give balance and UTX
 
 A row is `verified` when its version bytes match the coin's own source code and it has a SLIP-44 entry.
 Any row marked "none listed" has no explorer that could be reached and checked from the build box. It is still verified from source.
-Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash). See docs/CHAINS.md.
+Outside the chain table: `zec` (2-byte prefixes), handled by the blocktools-tx zcash module (transparent only). See docs/CHAINS.md.
 
 ### Supported (verified)
 
@@ -109,7 +109,7 @@ Excluded, and never exported: `zec` (2-byte prefixes, ZIP-243/244 sighash). See 
 | rdd | RDD | 4 | 3d | 05 | rdd | 189 | sha256d | 8 | — | pos-ntime | yes | blockbook blockbook.reddcoin.com |
 | pot | POT | 81 | 37 | 6e | — | 183 | sha256d | 8 | — | pos-ntime | no | cryptoid chainz.cryptoid.info |
 | qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 8 | — | unknown | no | cryptoid chainz.cryptoid.info |
-| zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | no | none |
+| zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | yes (transparent P2PKH) | none |
 | grs | GRS | 17 | 24 | 05 | grs | 128 | groestl512d | 8 | — | legacy-sha256 | yes | none listed |
 
 ### Unverified (never returned as supported)

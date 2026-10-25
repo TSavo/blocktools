@@ -493,7 +493,7 @@ The chain rows are data (`chains.rs`: version bytes, hrp, SLIP-44, Sign quirk, `
 
 ## Coins: detect, convert, sweep per tx format (2026-10-24)
 
-`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds the `legacy`, `legacy-sha256` and `forkid` formats, plus `pos-ntime` via `build_unsigned_sweep_at` (needs a tx time); Zcash v4/v5 is refused until it has its own builder and an independent KAT. ZEC is address-only.
+`address::detect` returns every candidate chain and never picks one; `convert` refuses `ambiguous_address` when candidates read the same bytes as different script types. The table carries decimals, checksum, forkid and tx_format. `sweep::build_unsigned_sweep` builds the `legacy`, `legacy-sha256` and `forkid` formats, plus `pos-ntime` via `build_unsigned_sweep_at` (needs a tx time); `zcash-v5` builds a transparent v5 sweep (see Zcash below).
 
 ## Non-Bitcoin-family chains are their own crates (2026-10-24)
 
@@ -559,3 +559,7 @@ Layouts were measured against mainnet txs (`crates/tx/tests/data/pos_mainnet.txt
 - POT: no vector, refused.
 
 Explorer JSON (chainz) reports block time, not tx time; the vectors' nTime was recovered as the unique value making sha256d(raw) equal the txid. There is no PSBT for this format: the unsigned form is a JSON envelope `{chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts}` and tx-sign re-checks the bare tx is unchanged after signing. Inputs are P2PKH only; network acceptance (min fee, dust) is untested.
+
+## Zcash transparent (v4/v5)
+
+`blocktools-tx::zcash` parses v4 (Sapling, ZIP-243) and v5 (NU5, ZIP-225) txs, computes the txid (v4 dsha256, v5 ZIP-244 BLAKE2b tree) and the transparent sighash (ZIP-243 / ZIP-244 S.2), and builds and signs transparent-only v5 sweeps from P2PKH inputs. BLAKE2b (RFC 7693, personalised) is in-crate. Measured: the zcash-test-vectors ZIP-244 set (10 txids, 32 transparent and 8 shielded sighashes) and ZIP-243 set (10 sighashes); 7 mainnet txs (3 v4, 4 v5) whose txids match and whose 9 P2PKH signatures verify under the computed sighash with branch id 0x37a5165b, and fail under a flipped one; the e2e recomputes a signed sweep txid with Python hashlib. The branch id is consensus-critical and changes at every network upgrade: tx-build takes `--branch-id`, the default is the 2026-10-25 measured mainnet value. Shielded components are decoded only as opaque bytes and their fee is unknown; tx-sign refuses txs that have any. Untested: network acceptance, v6 txs (seen live on mainnet), non-P2PKH inputs, the 546 zat dust threshold.
