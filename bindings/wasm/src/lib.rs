@@ -8,6 +8,26 @@ use wasm_bindgen::prelude::*;
 
 fn err(e: impl AsRef<str>) -> JsError { JsError::new(e.as_ref()) }
 
+/// Additive string twins: every integer `amount` / `fee` field (at any depth) gets an
+/// `amount_str` / `fee_str` decimal string beside it, because `JSON.parse` rounds integers
+/// above 2^53. The numeric fields are unchanged; use the `_str` twins for exact values.
+fn twins(v: &mut serde_json::Value) {
+    match v {
+        serde_json::Value::Object(m) => {
+            for k in ["amount", "fee"] {
+                let n = m.get(k).and_then(|x| x.as_u64().map(|n| n.to_string()).or_else(|| x.as_str().filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())).map(String::from)));
+                if let Some(n) = n { m.entry(format!("{k}_str")).or_insert_with(|| n.into()); }
+            }
+            m.values_mut().for_each(twins);
+        }
+        serde_json::Value::Array(a) => a.iter_mut().for_each(twins),
+        _ => {}
+    }
+}
+fn twin_str(s: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(s) { Ok(mut v) => { twins(&mut v); v.to_string() } Err(_) => s.to_string() }
+}
+
 /// Address kind ("P2pkh", "SegwitV0", "Eth", ...) if `address` is valid for `chain`; throws otherwise.
 #[wasm_bindgen(js_name = validateAddress)]
 pub fn validate_address(chain: &str, address: &str) -> Result<String, JsError> {
@@ -37,7 +57,7 @@ pub fn explain_plan(args: Vec<String>) -> Result<String, JsError> {
 /// Decode a transaction (hex/base64 raw, PSBT, EVM RLP, or a JSON line): JSON array of the tx-decode lines.
 #[wasm_bindgen(js_name = decodeTx)]
 pub fn decode_tx(input: &str, chain: &str) -> Result<String, JsError> {
-    Ok(json!(tx::decode(input, chain).map_err(err)?.json_lines()).to_string())
+    let mut v = json!(tx::decode(input, chain).map_err(err)?.json_lines()); twins(&mut v); Ok(v.to_string())
 }
 
 /// Plain-text summary of a transaction (what tx-decode --text prints).
@@ -90,7 +110,7 @@ pub fn address_validate(chain: &str, addr: &str) -> Result<String, JsError> {
 }
 /// Fail-closed tx check, JSON in / JSON out; never throws. See EXPORTS.md for the schema.
 #[wasm_bindgen(js_name = checkTx)]
-pub fn check_tx(input_json: &str) -> String { blocktools::check::tx_json(input_json) }
+pub fn check_tx(input_json: &str) -> String { twin_str(&blocktools::check::tx_json(input_json)) }
 
 /// Every verified chain (and `zec`) on which `addr` is valid: JSON [{chain,kind}]. Collisions
 /// (DGB/DOGE, VIA/VTC, version 50/0 ...) return all candidates; an empty list = unrecognised.
@@ -121,12 +141,12 @@ pub fn chain_params() -> String { blocktools::address::params_json().to_string()
 /// formats; pos-ntime chains need `buildUnsignedSweepAt` (a tx timestamp).
 #[wasm_bindgen(js_name = buildUnsignedSweep)]
 pub fn build_unsigned_sweep(chain: &str, utxos: &str, to: &str, fee_rate: u32) -> Result<String, JsError> {
-    blocktools::sweep::build_unsigned_sweep(chain, utxos, to, fee_rate as u64).map(|v| v.to_string()).map_err(err)
+    blocktools::sweep::build_unsigned_sweep(chain, utxos, to, fee_rate as u64).map(|mut v| { twins(&mut v); v.to_string() }).map_err(err)
 }
 /// As `buildUnsignedSweep` with tx timestamp `time` (unix seconds). For pos-ntime chains
 /// (ppc/nvc/clam/rdd) returns {chain,tx_format:"pos-ntime",unsigned_tx,time,pos_prevouts,inputs,amount,fee}
 /// (no PSBT exists for that format); other chains ignore `time`.
 #[wasm_bindgen(js_name = buildUnsignedSweepAt)]
 pub fn build_unsigned_sweep_at(chain: &str, utxos: &str, to: &str, fee_rate: u32, time: u32) -> Result<String, JsError> {
-    blocktools::sweep::build_unsigned_sweep_at(chain, utxos, to, fee_rate as u64, time).map(|v| v.to_string()).map_err(err)
+    blocktools::sweep::build_unsigned_sweep_at(chain, utxos, to, fee_rate as u64, time).map(|mut v| { twins(&mut v); v.to_string() }).map_err(err)
 }

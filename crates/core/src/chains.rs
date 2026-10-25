@@ -808,6 +808,14 @@ mod kat_long_tail {
 /// coins whose measured median keeps them under the default (DASH, MONA, TRC, PPC, ...) use it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FeeWarn { pub fee: u64, pub rate: u64, pub basis: &'static str }
+impl FeeWarn {
+    /// Absolute fee limit for a tx of `vsize` vbytes. `fee` was sized for 1000 vB, so the limit
+    /// is `fee` per started 1000 vB (a 147-input sweep of ~22 kvB gets 22 x `fee`).
+    pub fn fee_for(&self, vsize: u64) -> u64 { self.fee.saturating_mul(vsize.div_ceil(1000).max(1)) }
+    /// Hard cap on a requested fee rate (builders refuse above it): 4 x the warning rate, never
+    /// below 2000 per byte. Derived from the measured medians in FEE_WARN.
+    pub fn rate_cap(&self) -> u64 { self.rate.saturating_mul(4).max(2000) }
+}
 pub const FEE_WARN_DEFAULT: FeeWarn = FeeWarn { fee: 1_000_000, rate: 500, basis: "default (Bitcoin-tuned)" };
 pub const FEE_WARN: &[(&str, FeeWarn)] = &[
     ("dgb", FeeWarn { fee: 10_000_000, rate: 10_000, basis: "median 512 sat/vB over 60 txs, blocks 24444779-24445073 (blockbook.dgb.zelcore.io)" }),

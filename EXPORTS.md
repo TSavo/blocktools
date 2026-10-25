@@ -46,6 +46,10 @@ Tx formats:
 - `unknown` (QRK): not built.
 - `legacy-sha256` (GRS): since 2026-10-25 `addressesFromXpub(…, "grs")` expects the Groestl-checksummed xpub and GRS rows include `p2tr` (grs1p, address only; signing refused). Bitcoin serialization, but the txid and the legacy/BIP143 signature hashes use single SHA-256, and base58 uses a Groestl-512 double-hash checksum (`checksum: "groestl512d"`). Vectors: groestlcoinjs-lib (addresses, bip32), Electrum-GRS (WIF), and real GRS mainnet txs whose signatures verify only under our single-SHA-256 sighash. `deriveFromXpub` takes Bitcoin-checksummed xpubs only; Groestl-checksummed GRS xpubs are NOT supported. Taproot is off for GRS.
 
+### Amounts above 2^53 (since 2026-10-25, additive)
+
+`JSON.parse` rounds integers above 2^53 (an RDD sweep lost precision). Choice: **additive, no break.** Every `amount` / `fee` field, at any depth, in the output of `decodeTx`, `checkTx`, `buildUnsignedSweep` and `buildUnsignedSweepAt` now has a decimal-string twin `amount_str` / `fee_str`; the original fields are unchanged (sweep `amount`/`fee` were already strings; decode/check ones stay numbers). Use the `_str` fields for exact values. `pos_prevouts` / `zec_prevouts` entries carry `amount_str`, and the signers read `amount_str` first, so passing the parsed object back is exact. Inputs: `utxos` `amount` may be a JSON integer or a decimal string; the per-UTXO limit is now 2^63-1 (was 21,000,000 x 1e8, which refused large RDD/DOGE UTXOs; zec keeps 21M ZEC); totals are checked (`amount_overflow`). Tested: an RDD sweep of 9007199254740993 (2^53+1) sats round-trips exactly (bindings/wasm/test.mjs).
+
 ### checkTx (fail-closed)
 
 In: `{"chain", "raw_tx_hex", "expected_outputs":[{"address","amount"?}], "max_fee", "owner_addr", "input_values"?:[...]}`.

@@ -7,6 +7,18 @@ pub mod evm;
 pub mod policy;
 /// Signing (takes private keys). Feature `secrets` only.
 pub mod digest;
+
+/// Largest UTXO amount accepted from input files: consensus amounts are signed 64-bit, and
+/// coins like RDD and DOGE have UTXOs above Bitcoin's 21M x 1e8 (and above 2^53).
+pub const MAX_AMOUNT: u64 = i64::MAX as u64;
+/// An amount field given as a JSON integer or a decimal string (JS callers pass strings to
+/// keep values above 2^53 exact). Returns None for 0, > `max`, or anything else.
+pub fn json_amount(v: &serde_json::Value, max: u64) -> Option<u64> {
+    let n = match v { serde_json::Value::String(s) if (1..=20).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit()) => s.parse().ok(), _ => v.as_u64() }?;
+    Some(n).filter(|&x| x > 0 && x <= max)
+}
+/// Checked sum of amounts.
+pub fn sum_amounts(it: impl IntoIterator<Item = u64>) -> Option<u64> { it.into_iter().try_fold(0u64, |a, x| a.checked_add(x)) }
 pub mod pos;
 pub use blocktools_core::blake2b;
 pub mod zcash;
@@ -109,7 +121,7 @@ pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded 
     if in_sum.is_none() { w.push("input_amounts_unknown") }
     if !shielded && in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     if let Some(f) = fee {
-        if f > fw.fee { w.push("high_fee") }
+        if f > fw.fee_for(zcash::signed_size(tx)) { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
     }
     if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
@@ -142,7 +154,7 @@ pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) 
     if in_sum.is_none() { w.push("input_amounts_unknown") }
     if in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     if let Some(f) = fee {
-        if f > fw.fee { w.push("high_fee") }
+        if f > fw.fee_for(vsize) { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
     }
     if outputs.iter().any(|o| o.kind == "nonstandard") { w.push("nonstandard_output") }
@@ -201,7 +213,7 @@ fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Deco
     if in_sum.is_some() && fee.is_none() { w.push("outputs_exceed_inputs") }
     let vsize = tx.vsize() as u64 + if signed { 0 } else { inputs.iter().map(|i| sig_vbytes(i.kind)).sum() };
     if let Some(f) = fee {
-        if f > fw.fee { w.push("high_fee") }
+        if f > fw.fee_for(vsize) { w.push("high_fee") }
         if out_sum > 0 && f * 100 > out_sum * 5 { w.push("high_fee_pct") }
         if vsize > 0 && f / vsize > fw.rate { w.push("high_fee_rate") }
     }

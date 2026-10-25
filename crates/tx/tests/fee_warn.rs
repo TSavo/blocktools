@@ -30,3 +30,41 @@ fn fee_table_rows_are_chains() {
     for (n, f) in blocktools_core::chains::FEE_WARN { assert!(blocktools_core::chains::chain(n).is_some(), "{n}"); assert!(f.fee >= 1_000_000 && f.rate >= 500) }
     assert_eq!(blocktools_core::chains::fee_warn("ltc"), blocktools_core::chains::FEE_WARN_DEFAULT);
 }
+
+fn psbt_n(n: usize, fee: u64) -> Vec<u8> {
+    let spk = ScriptBuf::from_hex("76a914000102030405060708090a0b0c0d0e0f1011121388ac").unwrap();
+    let ins = (0..n).map(|i| TxIn { previous_output: OutPoint { txid: bitcoin::Txid::from_raw_hash(bitcoin::hashes::Hash::all_zeros()), vout: i as u32 }, script_sig: ScriptBuf::new(), sequence: Sequence::MAX, witness: Witness::new() }).collect();
+    let tx = Transaction { version: Version::TWO, lock_time: LockTime::ZERO, input: ins,
+        output: vec![TxOut { value: Amount::from_sat(n as u64 * 100_000_000 - fee), script_pubkey: spk.clone() }] };
+    let mut p = Psbt::from_unsigned_tx(tx).unwrap();
+    for i in &mut p.inputs { i.witness_utxo = Some(TxOut { value: Amount::from_sat(100_000_000), script_pubkey: spk.clone() }) }
+    p.serialize()
+}
+
+/// SwapChan: a 147-input VTC sweep at the measured rate paid 2.6M (limit was a flat 2M).
+#[test]
+fn absolute_limit_scales_with_size() {
+    let d = blocktools_tx::decode_bytes(&psbt_n(147, 2_600_000), "vtc").unwrap();
+    assert!(d.vsize.unwrap() > 21_000, "{:?}", d.vsize);
+    assert!(!d.warnings.contains(&"high_fee"), "{:?}", d.warnings);
+    assert!(blocktools_tx::decode_bytes(&psbt_n(1, 2_600_000), "vtc").unwrap().warnings.contains(&"high_fee"));
+    let fw = blocktools_core::chains::fee_warn("vtc");
+    assert_eq!((fw.fee_for(1), fw.fee_for(1000), fw.fee_for(1001)), (fw.fee, fw.fee, 2 * fw.fee));
+}
+
+/// SwapChan: XPM's measured median is 100312 sat/B, but build_btc capped at 2000.
+#[test]
+fn rate_cap_is_per_coin() {
+    use blocktools_core::chains::{self, fee_warn};
+    use blocktools_tx::build;
+    assert_eq!(fee_warn("btc").rate_cap(), 2000);
+    assert!(fee_warn("xpm").rate_cap() >= 4 * 100_312);
+    let c = chains::chain("xpm").unwrap();
+    let pk = bitcoin::secp256k1::PublicKey::from_slice(&<Vec<u8> as bitcoin::hex::FromHex>::from_hex("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798").unwrap()).unwrap();
+    let a = chains::pub_rows(c, "", &pk, false).into_iter().find(|r| r.kind == "p2pkh").unwrap().address;
+    let u = build::parse_utxos(c, &format!("{{\"txid\":\"{}\",\"vout\":0,\"amount\":5000000000,\"address\":\"{a}\"}}", "11".repeat(32))).unwrap();
+    let plan = |r| build::BtcPlan { to: a.clone(), send: None, change: None, fee_rate: r, rbf: false, dust: 546, locktime: 0 };
+    assert!(build::build_btc(c, u.clone(), &plan(100_312)).is_ok());
+    assert!(build::build_btc(c, u.clone(), &plan(fee_warn("xpm").rate_cap() + 1)).is_err());
+    assert!(build::build_btc(chains::chain("btc").unwrap(), vec![], &plan(2001)).unwrap_err().contains("1..2000"));
+}

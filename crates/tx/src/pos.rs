@@ -101,13 +101,13 @@ pub type Prevouts = Vec<(u64, Vec<u8>)>;
 pub fn envelope(chain: &str, tx: &PosTx, prev: &Prevouts) -> serde_json::Value {
     let k = if tx.inputs.iter().any(|i| !i.script_sig.is_empty()) { "signed_tx" } else { "unsigned_tx" };
     serde_json::json!({"chain": chain, "tx_format": "pos-ntime", k: blocktools_core::hex_enc(tx.serialize()), "time": tx.time,
-        "pos_prevouts": prev.iter().map(|(a, s)| serde_json::json!({"amount": a, "script": blocktools_core::hex_enc(s)})).collect::<Vec<_>>()})
+        "pos_prevouts": prev.iter().map(|(a, s)| serde_json::json!({"amount": a, "amount_str": a.to_string(), "script": blocktools_core::hex_enc(s)})).collect::<Vec<_>>()})
 }
 /// `pos_prevouts` from a JSON line, if present (bounded; must be well-formed when present).
 pub fn prevouts_from_json(text: &str) -> Result<Option<Prevouts>, &'static str> {
     let Some(v) = text.lines().find_map(|l| serde_json::from_str::<serde_json::Value>(l.trim()).ok().filter(|v| v.get("pos_prevouts").is_some())) else { return Ok(None) };
     let a = v["pos_prevouts"].as_array().filter(|a| a.len() <= 2000).ok_or("bad_pos_prevouts")?;
-    a.iter().map(|p| Some((p["amount"].as_u64()?, blocktools_core::hex_dec(p["script"].as_str()?).filter(|s| s.len() <= 10_000)?)))
+    a.iter().map(|p| Some((crate::json_amount(p.get("amount_str").unwrap_or(&p["amount"]), crate::MAX_AMOUNT)?, blocktools_core::hex_dec(p["script"].as_str()?).filter(|s| s.len() <= 10_000)?)))
         .collect::<Option<Vec<_>>>().map(Some).ok_or("bad_pos_prevouts")
 }
 /// Fee-estimate size (bytes) once every input carries a compressed-key P2PKH signature.

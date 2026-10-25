@@ -237,13 +237,13 @@ pub fn envelope(tx: &ZTx, prev: &Prevouts) -> serde_json::Value {
     let k = if tx.inputs.iter().any(|i| !i.script_sig.is_empty()) { "signed_tx" } else { "unsigned_tx" };
     serde_json::json!({"chain": "zec", "tx_format": format!("zcash-v{}", tx.version), k: blocktools_core::hex_enc(tx.serialize()),
         "branch_id": format!("{:08x}", tx.branch_id), "expiry_height": tx.expiry,
-        "zec_prevouts": prev.iter().map(|(a, s)| serde_json::json!({"amount": a, "script": blocktools_core::hex_enc(s)})).collect::<Vec<_>>()})
+        "zec_prevouts": prev.iter().map(|(a, s)| serde_json::json!({"amount": a, "amount_str": a.to_string(), "script": blocktools_core::hex_enc(s)})).collect::<Vec<_>>()})
 }
 /// (`zec_prevouts`, `branch_id`) from a JSON line, if present.
 pub fn envelope_from_json(text: &str) -> Result<Option<(Prevouts, u32)>, &'static str> {
     let Some(v) = text.lines().find_map(|l| serde_json::from_str::<serde_json::Value>(l.trim()).ok().filter(|v| v.get("zec_prevouts").is_some())) else { return Ok(None) };
     let a = v["zec_prevouts"].as_array().filter(|a| a.len() <= 2000).ok_or("bad_zec_prevouts")?;
-    let prev = a.iter().map(|p| Some((p["amount"].as_u64()?, blocktools_core::hex_dec(p["script"].as_str()?).filter(|s| s.len() <= 10_000)?)))
+    let prev = a.iter().map(|p| Some((crate::json_amount(p.get("amount_str").unwrap_or(&p["amount"]), 21_000_000 * 100_000_000)?, blocktools_core::hex_dec(p["script"].as_str()?).filter(|s| s.len() <= 10_000)?)))
         .collect::<Option<Vec<_>>>().ok_or("bad_zec_prevouts")?;
     let b = v["branch_id"].as_str().and_then(|s| u32::from_str_radix(s, 16).ok()).ok_or("bad_branch_id")?;
     Ok(Some((prev, b)))
@@ -294,7 +294,7 @@ pub fn parse_utxos(text: &str) -> Result<Vec<([u8; 32], u32, u64, Vec<u8>)>, Str
         let mut txid: [u8; 32] = j["txid"].as_str().and_then(blocktools_core::hex_dec).and_then(|b| b.try_into().ok()).ok_or_else(|| e("txid"))?;
         txid.reverse();
         let vout = j["vout"].as_u64().filter(|&x| x <= u32::MAX as u64).ok_or_else(|| e("vout"))? as u32;
-        let amount = j["amount"].as_u64().filter(|&x| x > 0 && x <= 21_000_000 * 100_000_000).ok_or_else(|| e("amount"))?;
+        let amount = crate::json_amount(&j["amount"], 21_000_000 * 100_000_000).ok_or_else(|| e("amount"))?;
         let script = address_to_script(j["address"].as_str().ok_or_else(|| e("address"))?).ok_or_else(|| e("address not a zec t-address"))?;
         if j.get("prev_tx").is_some() { return Err(e("prev_tx is not used for zec (ZIP-244 commits to amounts)")) }
         v.push((txid, vout, amount, script));
@@ -305,7 +305,8 @@ pub fn parse_utxos(text: &str) -> Result<Vec<([u8; 32], u32, u64, Vec<u8>)>, Str
 /// Transparent-only v5 sweep of every UTXO (P2PKH only) to `to`. Fee = max(ZIP-317 conventional
 /// fee, signed size × `fee_rate`). `expiry` 0 = no expiry height.
 pub fn build_sweep(utxos_text: &str, to: &str, fee_rate: u64, branch_id: u32, expiry: u32, dust: u64) -> Result<(ZTx, Prevouts), String> {
-    if fee_rate > 100_000 { return Err("fee_rate must be 0..100000 per byte".into()) }
+    let cap = blocktools_core::chains::fee_warn("zec").rate_cap();
+    if fee_rate > cap { return Err(format!("fee_rate must be 0..{cap} per byte for zec")) }
     let u = parse_utxos(utxos_text)?;
     if u.iter().any(|x| script_to_address(&x.3).map(|a| a.0) != Some("p2pkh")) { return Err("zec sweep supports p2pkh inputs only".into()) }
     let to_s = address_to_script(to).ok_or("bad --to address (zec t-address)")?;

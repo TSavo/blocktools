@@ -39,7 +39,7 @@ fn main() {
         for u in list {
             let txid = u["txid"].as_str().filter(|t| t.len() == 64 && t.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| die("bad txid from server"));
             let vout = u["vout"].as_u64().filter(|&v| v <= u32::MAX as u64).unwrap_or_else(|| die("bad vout from server"));
-            let value = u["value"].as_u64().filter(|&v| v > 0 && v <= 21_000_000 * 100_000_000).unwrap_or_else(|| die("bad value from server"));
+            let value = u["value"].as_u64().filter(|&v| v > 0 && v <= i64::MAX as u64).unwrap_or_else(|| die("bad value from server"));
             let mut o = json!({"txid":txid,"vout":vout,"amount":value,"address":ad});
             if prev && legacy {
                 let hex = blocktools_net::get(&format!("{base}/tx/{txid}/hex")).unwrap_or_else(|e| die(&e));

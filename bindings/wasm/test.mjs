@@ -65,6 +65,13 @@ assert.throws(() => bt.buildUnsignedSweep('pot', '', dashA, 10));
   assert.equal(p.tx_format, 'pos-ntime'); assert.equal(p.psbt, undefined); assert.equal(p.pos_prevouts.length, 1);
   assert.equal(p.unsigned_tx.slice(8, 16), '00f5db6a'); // 1792800000 LE
   assert.throws(() => bt.buildUnsignedSweep('ppc', u, ppcA, 10)); // wasm has no clock: time required
+  { // amounts above 2^53 round-trip exactly as strings (RDD whale sweep)
+    const rddA = 'RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa', big = '9007199254740993';
+    const r = JSON.parse(bt.buildUnsignedSweepAt('rdd', JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: big, address: rddA}), rddA, 10, 1792800000));
+    assert.equal(BigInt(r.amount_str) + BigInt(r.fee_str), BigInt(big));
+    assert.equal(r.pos_prevouts[0].amount_str, big);
+    assert.equal(r.amount, r.amount_str); // sweep amount/fee were already strings; twins are uniform
+  }
 }
 { // Zcash transparent v5: ZIP-317 minimum fee, raw tx + zec_prevouts, header 0x80000005 + v5 group id
   const zA = 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs';

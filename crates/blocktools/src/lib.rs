@@ -163,7 +163,7 @@ pub mod sweep {
             let now = 0u32;
             return build_unsigned_sweep_at(chain, utxos, to, fee_rate, now);
         }
-        let total: u64 = u.iter().map(|x| x.amount).sum();
+        let total = blocktools_tx::sum_amounts(u.iter().map(|x| x.amount)).ok_or("amount_overflow")?;
         let n = u.len();
         let plan = blocktools_tx::build::BtcPlan { to: to.into(), send: None, change: None, fee_rate, rbf: false, dust: 546, locktime: 0 };
         let p = blocktools_tx::build::build_btc(c, u, &plan)?;

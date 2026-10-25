@@ -49,6 +49,8 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 
 `high_fee` fires above `fee` base units, `high_fee_rate` above `rate` base units per vbyte. Default 1,000,000 / 500 (Bitcoin-tuned). A per-coin row is 20 x the measured median fee rate x a 1,000 vB sweep (rate limit 20 x median), never below the default. Measured 2026-10-24 from recent mainnet blocks (non-coinbase txs, fee = inputs - outputs); scripts in the commit message basis strings.
 
+Since 2026-10-25: (1) the `fee` limit is per started 1,000 vB of the tx (`FeeWarn::fee_for(vsize)` = fee x ceil(vsize/1000)), so a 147-input VTC sweep (~21,800 vB) is checked against 22 x 2,000,000, not 2,000,000; (2) the hard fee-rate cap in every sweep builder (`buildUnsignedSweep*`, legacy, pos-ntime and zec) is per coin, `FeeWarn::rate_cap()` = max(2,000, 4 x rate limit): btc/default 2,000, xpm 8,000,000 (measured median 100,312 sat/B is now buildable). **Break:** the pos-ntime and zec builders previously allowed up to 100,000 sat/B; they now get their row's cap (2,000 unless the row has a measured limit).
+
 | chain | fee limit | rate limit | measured median | sample |
 |---|---|---|---|---|
 | dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io |

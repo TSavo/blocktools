@@ -101,7 +101,8 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "warnings" => v.as_array().map_or(false, |a| a.len() <= 32 && a.iter().all(|w| w.as_str().map_or(false, |w| TX_WARNINGS.contains(&w)))),
         "failures" => v.as_array().map_or(false, |a| a.len() <= 32 && a.iter().all(|w| w.as_str().map_or(false, |w| TX_FAILURES.contains(&w)))),
         "from" | "to" | "token" | "token_to" => s.map_or(false, is_address),
-        "amount" | "fee" => v.as_u64().map_or(false, |n| n <= 21_000_000 * 100_000_000),
+        "amount" | "fee" => v.as_u64().map_or(false, |n| n <= i64::MAX as u64),
+        "amount_str" | "fee_str" => s.map_or(false, |s| (1..=20).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit())),
         "value" | "max_fee" | "max_fee_per_gas" | "max_priority_fee_per_gas" | "token_amount" =>
             s.map_or(false, |s| (1..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit())),
         "inputs" | "outputs" | "signed_inputs" | "vout" | "vsize" | "fee_rate" | "locktime" | "nonce" | "gas" | "chain_id" | "data_len" => v.as_u64().map_or(false, |n| n <= u32::MAX as u64),
