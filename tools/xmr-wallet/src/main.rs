@@ -76,11 +76,12 @@ fn main() {
             }
             call(&rpc, "refresh", json!({}));
             report_balance(&rpc, "scan");
-            let t = call(&rpc, "incoming_transfers", json!({"transfer_type":"all","account_index":0}));
-            for o in t.get("transfers").and_then(|x| x.as_array()).cloned().unwrap_or_default() {
-                println!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"output","txid":o["tx_hash"],
-                    "amount":u(&o,"amount"),"height":u(&o,"block_height"),"unlocked":o["unlocked"]}));
-            }
+            // get_transfers works for view-only wallets (incoming_transfers needs key images).
+            let t = call(&rpc, "get_transfers", json!({"in":true,"pool":true,"account_index":0}));
+            for k in ["in", "pool"] { for o in t.get(k).and_then(|x| x.as_array()).cloned().unwrap_or_default() {
+                println!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"received","txid":o["txid"],
+                    "amount":u(&o,"amount"),"height":u(&o,"height"),"confirmations":u(&o,"confirmations"),"pool":k=="pool"}));
+            } }
             call(&rpc, "close_wallet", json!({}));
         }
         Some("sweep") => {
