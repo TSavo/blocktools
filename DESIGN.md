@@ -376,6 +376,7 @@ allowlist check and `cargo test`); the runtime image is 40.4 MB (was 18.2 MB bef
 Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), through `sealed-run agent`, on the public
 "abandon … about" vector:
 * `zec-sapling --count 2`: 2 rows, first address = local KAT zs188wzu…f0nta; no mnemonic or zxviews in output.
+* `zec-sapling --count 2 --unified`: 2 u1 + 2 t1 rows survive redact; account-0 UA = u1vu0zk…46h7ty (Python reference).
 * `key-to-addresses --chain ada`: 5 rows, first = bip_utils addr1qy8ac7…4afdhv. `--chain dot`: 1 row, 13KVd4…Vd7xo.
   Their `private_key` fields come out only as `[REDACTED]`; no 64-hex value, mnemonic, xprv or WIF in output.
 * `seed-repair | seed-to-master | derive --count 1`: 5 address rows.
@@ -626,7 +627,12 @@ WDC: Bitcoin-legacy confirmed on 4 mainnet txs (sha256d txid, 357 legacy-sighash
 Zcash Sapling (tools/zec-sapling): BIP39 seed -> ZIP-32 Sapling master -> m/32'/133'/i' -> default
 payment address (zs1, bech32, 78 chars). Spending keys never leave the process; --viewkey-out FILE writes
 zxviews extended full viewing keys to a new 0600 file. KATs: zcash ZIP-32 sapling_zip32_hard vectors and
-sapling_key_components (pk_d). Orchard/unified addresses, scanning and spending are not built.
+sapling_key_components (pk_d). `--unified` adds, per account, a ZIP-316 unified address (orchard + sapling +
+p2pkh at the first valid Sapling diversifier index j; Orchard keys from the `orchard` crate at m/32'/133'/i',
+p2pkh at m/44'/133'/i'/0/j, encoding by `zcash_address`) and the t1 address. KATs: orchard_key_components
+row 0 (default address) and all 60 unified_address.json rows (seed/account/j -> each receiver and the UA
+string). The abandon…about account 0/1 UAs also equal the zcash-test-vectors Python reference run locally.
+Untested: a wallet app (Zashi/Ywallet) showing the same UA; Orchard viewing keys, scanning and spending are not built.
 
 ## Monero scan/sweep (2026-10-25)
 

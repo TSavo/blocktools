@@ -1,4 +1,7 @@
-//! zec-sapling [--count N] [--viewkey-out FILE] < BIP39 mnemonic
+//! zec-sapling [--count N] [--unified] [--viewkey-out FILE] < BIP39 mnemonic
+//! --unified also emits, per account, the ZIP-316 unified address (orchard + sapling + p2pkh, all
+//! at the account's first valid Sapling diversifier index j, as zcashd/librustzcash do) and the
+//! transparent t1 address at m/44'/133'/i'/0/j. Orchard keys: ZIP-32 m/32'/133'/i' (orchard crate).
 //! Zcash Sapling (ZIP-32): seed = BIP39(mnemonic, ""), account i = m/32'/133'/i', default
 //! (first valid diversifier) payment address, encoded bech32 "zs". stdout: PUBLIC rows only.
 //! --viewkey-out writes the accounts' extended full viewing keys (bech32 "zxviews", secret:
@@ -16,6 +19,29 @@ pub fn account(seed: &[u8], i: u32) -> ExtendedSpendingKey {
 pub fn zs(addr: &sapling_crypto::PaymentAddress) -> String {
     bech32::encode::<bech32::Bech32>(bech32::Hrp::parse("zs").unwrap(), &addr.to_bytes()).unwrap()
 }
+/// ZIP-316 unified address for account i: (j, ua, t1 address, receivers).
+pub fn unified(seed: &[u8], i: u32) -> (u128, String, String) {
+    let (j, sap) = account(seed, i).default_address();
+    let (orch, p2pkh) = receivers(seed, i, j);
+    let r = vec![Receiver::Orchard(orch), Receiver::Sapling(sap.to_bytes()), Receiver::P2pkh(p2pkh)];
+    let ua = zcash_address::unified::Address::try_from_items(r).unwrap().encode(&NetworkType::Main);
+    (u128::from(j), ua, t1(&p2pkh))
+}
+use zcash_address::unified::{Encoding, Receiver};
+use zcash_protocol::consensus::NetworkType;
+pub fn receivers(seed: &[u8], i: u32, j: zip32::DiversifierIndex) -> ([u8; 43], [u8; 20]) {
+    let sk = orchard::keys::SpendingKey::from_zip32_seed(seed, 133, zip32::AccountId::try_from(i).unwrap()).unwrap();
+    let o = orchard::keys::FullViewingKey::from(&sk).address_at(j, orchard::keys::Scope::External).to_raw_address_bytes();
+    use bitcoin::bip32::{ChildNumber as C, Xpriv};
+    let secp = bitcoin::secp256k1::Secp256k1::new();
+    let ji = u32::try_from(u128::from(j)).expect("j < 2^31");
+    let path = [C::from_hardened_idx(44).unwrap(), C::from_hardened_idx(133).unwrap(), C::from_hardened_idx(i).unwrap(), C::from_normal_idx(0).unwrap(), C::from_normal_idx(ji).unwrap()];
+    let x = Xpriv::new_master(bitcoin::Network::Bitcoin, seed).unwrap().derive_priv(&secp, &path).unwrap();
+    let pk = bitcoin::secp256k1::PublicKey::from_secret_key(&secp, &x.private_key).serialize();
+    use bitcoin::hashes::Hash;
+    (o, bitcoin::hashes::hash160::Hash::hash(&pk).to_byte_array())
+}
+pub fn t1(h: &[u8; 20]) -> String { let mut v = vec![0x1c, 0xb8]; v.extend_from_slice(h); bitcoin::base58::encode_check(&v) }
 fn arg<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
@@ -31,6 +57,11 @@ fn main() {
         let xsk = account(&seed[..], i);
         let (_, addr) = xsk.default_address();
         println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"sapling\",\"path\":\"m/32'/133'/{i}'\",\"address\":\"{}\"}}", zs(&addr));
+        if a.iter().any(|x| x == "--unified") {
+            let (j, ua, t) = unified(&seed[..], i);
+            println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"unified\",\"path\":\"m/32'/133'/{i}'\",\"diversifier_index\":{j},\"receivers\":\"orchard,sapling,p2pkh\",\"address\":\"{ua}\"}}");
+            println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"p2pkh\",\"path\":\"m/44'/133'/{i}'/0/{j}\",\"address\":\"{t}\"}}");
+        }
         #[allow(deprecated)]
         let fvk = xsk.to_extended_full_viewing_key();
         let mut b = Zeroizing::new(Vec::new()); fvk.write(&mut *b).unwrap();
@@ -78,6 +109,34 @@ mod tests {
         let a = fvk.vk.to_payment_address(d).unwrap();
         assert_eq!(hex(&a.to_bytes()[11..]), "db4cd2b0aac4f7eb8ca131f16567c445a9555126d3c29f14e3d776e841ae7415");
         let s = zs(&a); assert!(s.starts_with("zs1") && s.len() == 78);
+    }
+    // orchard_key_components.json row 0: sk -> default (j=0) address d || pk_d.
+    #[test] fn orchard_key_components() {
+        let sk = orchard::keys::SpendingKey::from_bytes(unhex("5d7a8f739a2d9e945b0ce152a8049e294c4d6e66b164939daffa2ef6ee692148").try_into().unwrap()).unwrap();
+        let a = orchard::keys::FullViewingKey::from(&sk).address_at(0u32, orchard::keys::Scope::External).to_raw_address_bytes();
+        assert_eq!(hex(&a), "8ff3386971cb64b8e7789908dd8ebd7de92a68e586a34db8fea999efd2016fae76750afae7ee941646bcb9");
+    }
+    // unified_address.json (zcash-test-vectors Python reference): all rows. From root_seed/account/j we
+    // derive each present orchard/sapling/p2pkh receiver and the UA string; p2sh/unknown bytes are taken
+    // from the row (random in the generator). Sapling: j must be valid (find_address(j) returns j).
+    #[test] fn unified_address_vectors() {
+        let mut n = 0;
+        for l in include_str!("ua_vectors.tsv").lines() {
+            let f: Vec<&str> = l.split('\t').collect();
+            let seed = unhex(f[0]); let i: u32 = f[1].parse().unwrap(); let j: u128 = f[2].parse().unwrap();
+            let jj = zip32::DiversifierIndex::try_from(j).unwrap();
+            let (dj, sap) = { #[allow(deprecated)] let f = account(&seed, i).to_extended_full_viewing_key(); f.find_address(jj).unwrap() };
+            let (o, p) = receivers(&seed, i, jj);
+            let mut r = vec![];
+            if f[3] == "1" { assert_eq!(hex(&p), f[4]); r.push(Receiver::P2pkh(p)); }
+            if f[5] != "-" { r.push(Receiver::P2sh(unhex(f[5]).try_into().unwrap())); }
+            if f[6] == "1" { assert_eq!(u128::from(dj), j); assert_eq!(hex(&sap.to_bytes()), f[7]); r.push(Receiver::Sapling(sap.to_bytes())); }
+            if f[8] == "1" { assert_eq!(hex(&o), f[9]); r.push(Receiver::Orchard(o)); }
+            if f[10] != "-" { r.push(Receiver::Unknown { typecode: f[10].parse().unwrap(), data: unhex(f[11]) }); }
+            let ua = zcash_address::unified::Address::try_from_items(r).unwrap().encode(&NetworkType::Main);
+            assert_eq!(ua, f[12]); n += 1;
+        }
+        assert_eq!(n, 60);
     }
     fn hex(b: &[u8]) -> String { b.iter().map(|x| format!("{x:02x}")).collect() }
     fn unhex(s: &str) -> Vec<u8> { (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect() }

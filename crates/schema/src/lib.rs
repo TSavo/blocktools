@@ -13,7 +13,7 @@ pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown
     "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
 pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx"];
-pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "xmr",
+pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
 pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
@@ -56,9 +56,11 @@ pub fn is_ton_address(s: &str) -> bool { s.len() == 48 && (s.starts_with("EQ") |
 pub fn is_ada_address(s: &str) -> bool { (58..=120).contains(&s.len()) && s.starts_with("addr1") && all_in(&s[5..], BECH) }
 /// Zcash Sapling payment address: "zs1" + 75 bech32 chars (public). Only with "chain":"zec".
 pub fn is_zs_address(s: &str) -> bool { s.len() == 78 && s.starts_with("zs1") && all_in(&s[3..], BECH) }
+/// Zcash ZIP-316 unified address: "u1" + bech32m chars, 100..=600 long (public). Only with "chain":"zec".
+pub fn is_ua_address(s: &str) -> bool { (100..=600).contains(&s.len()) && s.starts_with("u1") && all_in(&s[2..], BECH) }
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
-    is_xmr_address(s) || is_dot_address(s) || is_ton_address(s) || is_ada_address(s) || is_zs_address(s) || is_xlm_address(s) || is_algo_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
+    is_xmr_address(s) || is_ua_address(s) || is_dot_address(s) || is_ton_address(s) || is_ada_address(s) || is_zs_address(s) || is_xlm_address(s) || is_algo_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
         || is_bech(s)
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
@@ -160,6 +162,7 @@ pub fn redact_line(raw: &str) -> Option<String> {
     }
     if let Some(a) = out.get("address").and_then(|a| a.as_str()) {
         if is_xlm_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("xlm") { return None; }
+        if is_ua_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("zec") { return None; }
         if is_zs_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("zec") { return None; }
         if is_ada_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("ada") { return None; }
         if is_ton_address(a) && out.get("chain").and_then(|c| c.as_str()) != Some("ton") { return None; }
@@ -180,6 +183,11 @@ mod tests {
         assert!(super::redact_line(&l.replace("unsigned", "evil")).is_none());
     }
     use super::*;
+    #[test] fn unified_address_only_with_zec() {
+        let l = r#"{"tool":"zec-sapling","status":"ok","chain":"zec","kind":"unified","address":"UA"}"#.replace("UA", "u1vu0zkreyef83369fn3dr94zkg2djqlcgtghxf2jmdcdmxp2z4l70dlh6yfdf5v33cteezva2c528syqtmu7uxgzss6fumh3tzjumnqh45z3yewkqplrfdz4f68aahg8x35yknyf7vjh4wy5sn4cc8edkxlef2p4q8ez6e0xuzrmr4rzff54m5t5whyzdgfg2cujtjdjlx2zqu46h7ty");
+        assert!(redact_line(&l).unwrap().contains("u1vu0z"));
+        assert!(redact_line(&l.replace(r#""chain":"zec""#, r#""chain":"btc""#)).is_none());
+    }
     const MN: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     #[test] fn xmr_address_passes_hex_key_does_not() {
         let a = "44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH";

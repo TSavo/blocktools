@@ -8,6 +8,13 @@ your wallet showed before you rely on it.
 
     ./blocktools run 'zec-sapling --count 5 < /in/ada-mnemonic.txt'
 
+Unified address (what Zashi/Ywallet show: orchard + sapling + transparent receivers) plus the t1 address:
+
+    ./blocktools run 'zec-sapling --count 1 --unified < /in/mnemonic.txt'
+
+Verified against all 60 zcash-test-vectors unified_address vectors. Not cross-checked against a wallet app;
+compare the u1 string with your wallet's receive screen.
+
 With an output directory for the view-only key:
 
 ```sh
@@ -17,4 +24,4 @@ With an output directory for the view-only key:
 The viewing-key file (zxviews…, mode 0600, never overwritten) can be imported into a wallet such as
 Zingo or Ywallet as view-only to scan for notes. It reveals all incoming and outgoing history, so treat it
 as sensitive. The spending key is never written. To move funds, restore the mnemonic in a Zcash wallet
-(Orchard, scanning and spending are not built here).
+(Orchard viewing keys, scanning and spending are not built here).
