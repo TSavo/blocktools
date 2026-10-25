@@ -23,6 +23,11 @@ fn same(got: &Value, want: &Value) -> bool {
             _ => verify_sweep(&k["tx"], owner, k["chainId"].as_u64().unwrap(), k["token"].as_str()).to_json(),
         };
         n += 1;
+        if k["intentional_diff"] == true {
+            // stricter than TS on purpose: no TS comparison, Rust must refuse
+            if got["verified"] != false { bad.push(format!("{} (intentional_diff): Rust must refuse, got {got}", k["name"])) }
+            continue;
+        }
         if !same(&got, &k["expect"]) { bad.push(format!("{}: got {got} want {}", k["name"], k["expect"])) }
     }
     assert!(n > 1000, "corpus too small: {n}");

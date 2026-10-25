@@ -166,4 +166,21 @@ sw("token truncated", { from: OWNER, to: TOK, value: "0", data: ERC(OWNER, 5n).s
 sw("token short sel", { from: OWNER, to: TOK, value: "0", data: "0xa905", chainId: 56 }, OWNER, 56, TOK);
 sw("bad token addr", { from: OWNER, to: TOK, value: "0", data: ERC(OWNER, 5n), chainId: 56 }, OWNER, 56, "0x33");
 sw("value number", { from: OWNER, to: OWNER, value: 10, chainId: 1 }, OWNER, 1);
+// intentional differences: Rust must refuse; TS verdict kept as ts_expect
+let nest33: Hex = W; for (let i = 0; i < 33; i++) nest33 = encodeFunctionData({ abi: [MC], args: [[nest33]] });
+rec("multicall depth 33", { to: OTHER, data: nest33, value: "0" });
+rec("non-hex data", { to: OTHER, data: "0x3ccfd60bzz", value: "0" });
+rec("non-hex data no prefix", { to: OTHER, data: "3ccfd60b", value: "0" });
+const INTENTIONAL: Record<string, string> = {
+  "multisend short data to owner": "MultiSend leg length runs past the blob",
+  "multisend huge len": "MultiSend leg length runs past the blob",
+  "value array": "sweep value must be a scalar",
+  "multicall depth 33": "multicall nesting over 32",
+  "non-hex data": "calldata is not hex",
+  "non-hex data no prefix": "calldata is not hex",
+};
+for (const c of cases as any[]) if (c.name in INTENTIONAL) {
+  c.intentional_diff = true; c.why = INTENTIONAL[c.name]; c.ts_expect = c.expect; c.expect = { verified: false };
+}
+if ((cases as any[]).filter(c => c.intentional_diff).length !== Object.keys(INTENTIONAL).length) throw new Error("intentional case missing");
 console.log(JSON.stringify({ now_s: NOW_S, pendle_router: "0x888888888889758f76e7103c6cbf23abbf58f946", cases }, null, 0));

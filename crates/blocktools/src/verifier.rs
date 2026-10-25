@@ -5,7 +5,7 @@
 //! follows viem 2.x decoding rules (offsets, cursor bounds, recursive read limit, lenient address words, strict
 //! bools) so verdicts match the TypeScript; `tests/data/verifier-corpus.json` is generated from the TS sources and
 //! checked case by case. Known, deliberate differences (all fail closed): `data` that is not `0x`-prefixed
-//! even-length hex is rejected up front ("data is not hex"); multicall nesting deeper than 32 is rejected;
+//! even-length hex is rejected up front ("data is not hex"); multicall nesting deeper than 32 is rejected; a MultiSend leg whose length runs past the blob is refused; a sweep value that is an array/object is refused (SwapChan-approved, corpus `intentional_diff`);
 //! a non-integer `value` gives a verdict instead of a thrown exception.
 use serde_json::{json, Value};
 use sha3::{Digest, Keccak256};
@@ -322,7 +322,10 @@ fn verify_safe(s: &str, b: &[u8], owner: &str) -> Option<bool> {
             let t = format!("0x{}", sl(i + 2, i + 42));
             let (vnz, _) = big(sl(i + 42, i + 106))?;
             let (_, len) = big(sl(i + 106, i + 170))?;
-            let end = (i as u128 + 170).saturating_add(len.saturating_mul(2)).min(blob.len() as u128) as usize;
+            // Intentional difference (stricter than TS): a leg whose length field runs past the blob is refused.
+            let want = (i as u128 + 170).saturating_add(len.saturating_mul(2));
+            if want > blob.len() as u128 { return Ok(false) }
+            let end = want as usize;
             let d = parse_hex(&format!("0x{}", sl(i + 170, end))).ok_or(())?;
             if !leg_ok(&t, vnz, &d, owner)? { return Ok(false) }
             let step = 170u128.saturating_add(len.saturating_mul(2));
@@ -437,6 +440,8 @@ pub fn verify_sweep(tx: &Value, owner: &str, chain_id: u64, token: Option<&str>)
     let Some(to) = g("to").and_then(|v| v.as_str()).filter(|t| is_address(t)) else { return No("bad to".into()) };
     let to20 = get_address(to).unwrap();
     let data = g("data").and_then(|v| v.as_str()).unwrap_or("0x");
+    // Intentional difference (stricter than TS): value must be a scalar (decimal/0x string or number), not an array/object.
+    if g("value").is_some_and(|v| v.is_array() || v.is_object()) { return No("unverifiable: value is not a scalar".into()) }
     let vs = g("value").map_or("0".to_string(), js_string);
     let (neg, nz) = match js_bigint(&vs) { Ok(x) => x, Err(e) => return No(format!("unverifiable: {}", slice80(&e))) };
     let Some(token) = token.filter(|t| !t.is_empty()) else {

@@ -644,9 +644,9 @@ Untested: a wallet app (Zashi/Ywallet) showing the same UA; Orchard viewing keys
 
 `blocktools::verifier` is a Rust port of SwapChan's `verifyRecovery` / `verifySafe` / `verifyV4` / `verifySweepTx`
 (no secrets, wasm-safe). The ABI decoder mirrors viem 2.57.11 (lenient address words, strict bools, offset rules,
-8192 recursive-read limit) so verdicts match the TS. `tests/verifier_parity.rs` replays a 1290-case corpus generated
+8192 recursive-read limit) so verdicts match the TS. `tests/verifier_parity.rs` replays a 1293-case corpus generated
 by `tools/verifier-parity/gen.ts` from the TS sources with real viem, and parses the copied TS sources
 (`tests/data/verifier-ts/`) to prove STANDARD_RECOVERY, pinned contracts, MultiSend and the deadline cap are identical.
 Raw entry points decode a legacy/2930/1559 tx with `blocktools-tx`, require the chain id, recover the signer and
-require it to be the owner. Divergences all fail closed: non-hex `data`, multicall nesting > 32, a malformed `value`
+require it to be the owner. Intentional differences (SwapChan-approved, flagged `intentional_diff` in the corpus with the TS verdict kept as `ts_expect`; the runner asserts Rust refuses): non-hex `data`, multicall nesting > 32, a MultiSend leg whose length runs past the blob, a sweep `value` that is an array/object. Also a malformed `value`
 returns a verdict instead of throwing, viem error texts only keep the `unverifiable: ` prefix.
