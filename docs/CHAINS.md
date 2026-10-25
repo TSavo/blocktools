@@ -91,7 +91,7 @@ xlm, algo, atom, ton, ada and dot have payment/sweep builders in `acct-tx` (see 
 
 ## Groestlcoin extended keys and taproot (2026-10-25)
 
-GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `--chain grs` (vectors: Groestlcoin/eclair commit f52fbf9, 4 tpub pairs). GRS rows include `p2tr` (grs1p…, BIP341 vector); spending GRS taproot inputs is refused. Untested: real Electrum-GRS mainnet xpub, any mainnet grs1p.
+GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `--chain grs` (vectors: Groestlcoin/eclair commit f52fbf9, 4 tpub pairs); classify reports them as `xpub`. GRS rows include `p2tr` (grs1p…, BIP341 vector); spending GRS taproot inputs is refused. Untested: real Electrum-GRS mainnet xpub, any mainnet grs1p.
 
 ## Monero (2026-10-25)
 

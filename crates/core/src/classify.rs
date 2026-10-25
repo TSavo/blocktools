@@ -62,7 +62,7 @@ fn line(l: &str, n: u64) -> Row {
     if crate::chains::is_ton_mnemonic(l) { return Row { chain: Some("ton"), ..row("ton_mnemonic", n, l.as_bytes()) } }
     if crate::validate::is_xrp_seed(l) { return row("xrp_seed", n, l.as_bytes()) }
     if blocktools_monero::is_seed_shape(l) { return row("monero_seed", n, l.as_bytes()) }
-    if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).is_ok() {
+    if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && (base58::decode_check(l).is_ok() || crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l).is_ok()) {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
     if ["xprv", "yprv", "zprv", "tprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
     if let Ok(b) = base58::decode_check(l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && [0x80, 0xb0, 0x9e, 0xef].contains(&b[0]) { return row("wif", n, l.as_bytes()) } }
@@ -108,6 +108,8 @@ mod t {
         assert_eq!(c("47YPQTIGQEO7T4Y4RWDYWEKV6RTR2UNBQXBABEEGM72ESWDQNCQ52OPASU"), "address");
         assert_eq!(c("GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ7"), "unknown");
         assert_eq!(c("xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V"), "xpub");
+        // Groestl-checksummed GRS tpub (Groestlcoin/eclair f52fbf9 vector)
+        assert_eq!(c("tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK"), "xpub");
         assert_eq!(c(r#"{"version":3,"crypto":{}}"#), "keystore_v3");
         assert_eq!(c("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="), "b64_key");
         assert_eq!(c("hello"), "unknown");

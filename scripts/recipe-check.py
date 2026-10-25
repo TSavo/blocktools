@@ -22,6 +22,14 @@ w(IN, "seed.txt", "abandon abandon abandn abandon abandon abandon abandon abando
 w(IN, "electrum-seed.txt", "cycle rocket west magnet parrot shuffle foot correct salt library feed song")
 w(IN, "key.hex", "0" * 63 + "1")
 w(IN, "key.wif", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn")
+# Mock UTXO lists for offline tx-build examples: one 0.01-coin output at key 1's address (txid all 'c').
+for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3WZmgnJgR8mshrbHA9W6hQiTxR"),
+               ("clam", "xJyuT2j5dnLoBhHraFjzG2hmMDjnS3fefx"), ("rdd", "RjJ4cn5Bg58D2khGiNRmQW1yWtA6Py9kWa"),
+               ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX"), ("zec", "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs"),
+               ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"), ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+               ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5")]:
+    w(IN, f"u-{_c}.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":1000000,"address":"' + _a + '"}')
+w(IN, "grs-tpub.txt", "tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK")
 w(IN, "xrp-seed.txt", "sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r")
 w(IN, "xmr-seed.txt", "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy")
 # Stellar SEP-0005 vector 1 mnemonic; its m/44'/148'/0' StrKey seed is derived here in Python
