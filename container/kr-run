@@ -1,0 +1,26 @@
+#!/bin/sh
+# Agent-facing boundary INSIDE the sealed container.
+#   kr-run agent  '<pipeline>'  -> raw output to tmpfs only; stdout = kr-redact view
+#   kr-run human  '<pipeline>'  -> raw output (keys!) to the human's /dev/tty
+# The pipeline is a shell command line built from keyrescue tools, e.g.
+#   seed-repair --in /in/seed.txt | derive --count 5
+set -eu
+mode="${1:-}"; pipeline="${2:-}"
+[ -n "$pipeline" ] || { echo '{"tool":"kr-redact","status":"bad_input"}'; exit 2; }
+umask 077
+case "$mode" in
+  agent)
+    # stderr of tools is also kept off the agent channel.
+    sh -c "$pipeline" 2>/run/kr/stderr.log | tee /run/kr/raw.jsonl | kr-redact
+    ;;
+  human)
+    [ -t 0 ] && [ -t 1 ] || { echo '{"tool":"kr-redact","status":"bad_input"}'; exit 3; }
+    code=$(od -An -N3 -tu1 /dev/urandom | tr -s ' ' '-' | sed 's/^-//;s/-$//')
+    printf 'This will print PRIVATE KEYS to this terminal.\nType the code %s to continue: ' "$code" > /dev/tty
+    read -r answer < /dev/tty
+    [ "$answer" = "$code" ] || { echo "aborted" > /dev/tty; exit 4; }
+    sh -c "$pipeline" > /dev/tty 2>&1
+    echo '{"tool":"kr-redact","status":"done"}'
+    ;;
+  *) echo '{"tool":"kr-redact","status":"bad_input"}'; exit 2 ;;
+esac
