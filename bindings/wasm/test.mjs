@@ -12,6 +12,8 @@ assert.throws(() => bt.validateAddress('btc', rows[0].address.slice(0, -1) + 'x'
 assert.equal(bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH'), 'Xmr');
 assert.throws(() => bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdx'));
 assert.ok(JSON.parse(bt.listChains()).includes('eth'));
+assert.ok(JSON.parse(bt.listChains()).includes('zec'));
+assert.equal(JSON.parse(bt.supportedChains()).find(c => c.name === 'zec').scope, 'transparent');
 const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common']));
 assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));
 const b170 = readFileSync(new URL('../../crates/tx/tests/vectors/block170.hex', import.meta.url), 'utf8');

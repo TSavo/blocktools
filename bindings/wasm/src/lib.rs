@@ -16,7 +16,7 @@ pub fn validate_address(chain: &str, address: &str) -> Result<String, JsError> {
 
 /// Chains this build knows: JSON array of names.
 #[wasm_bindgen(js_name = listChains)]
-pub fn list_chains() -> String { json!(chains::CHAINS.iter().map(|c| c.name).collect::<Vec<_>>()).to_string() }
+pub fn list_chains() -> String { let mut v: Vec<&str> = chains::CHAINS.iter().map(|c| c.name).collect(); v.push("zec"); json!(v).to_string() }
 
 /// Watch-only addresses from an account-level xpub: JSON [{chain,kind,path,address}].
 #[wasm_bindgen(js_name = addressesFromXpub)]
@@ -66,7 +66,13 @@ fn row(c: &chains::Chain) -> serde_json::Value {
 }
 /// Verified (supported) chains: JSON [{name,ticker,title,slip44,verified:true,sources:[{name,url,api,checked}]}].
 #[wasm_bindgen(js_name = supportedChains)]
-pub fn supported_chains() -> String { json!(chains::CHAINS.iter().filter(|c| c.verified).map(row).collect::<Vec<_>>()).to_string() }
+pub fn supported_chains() -> String {
+    let mut v: Vec<serde_json::Value> = chains::CHAINS.iter().filter(|c| c.verified).map(row).collect();
+    // Zcash transparent lives outside the table (two-byte prefixes). Verified: ZIP-243/244 official
+    // txid+sighash vectors, 7 mainnet txs, 21 mainnet script->address pairs from blockchair.
+    v.push(json!({"name": "zec", "ticker": "ZEC", "title": "Zcash (transparent)", "slip44": 133, "verified": true, "scope": "transparent", "sources": []}));
+    json!(v).to_string()
+}
 /// Known but unverified chains (NOT supported by the other calls): same shape, verified:false.
 #[wasm_bindgen(js_name = unverifiedChains)]
 pub fn unverified_chains() -> String { json!(chains::CHAINS.iter().filter(|c| !c.verified).map(row).collect::<Vec<_>>()).to_string() }
