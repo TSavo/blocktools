@@ -70,6 +70,8 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "preset" => s.map_or(false, |s| s.len() <= 16 && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')),
         k if SECRET_FIELDS.contains(&k) => return None, // replaced by a placeholder in redact_line
         "address" => s.map_or(false, is_address),
+        "class" => s.map_or(false, |s| s.len() <= 32 && s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())),
+        "fp" => s.map_or(false, |s| s.len() == 10 && &s[4..6] == ".." && s[..4].bytes().chain(s[6..].bytes()).all(|b| b.is_ascii_hexdigit())),
         "path" => s.map_or(false, is_path),
         // Transactions (tx-decode). txids are deliberately NOT allowlisted: 64 hex is key-shaped.
         "role" => s.map_or(false, |s| ["summary", "input", "output"].contains(&s)),

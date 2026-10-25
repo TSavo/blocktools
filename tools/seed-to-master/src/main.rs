@@ -1,5 +1,5 @@
 //! seed-to-master: seed phrase (+ optional passphrase) -> BIP32 master key(s).
-//! stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}.
+//! stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}, or a bare phrase line.
 //! A phrase is tried as BIP39 AND as an Electrum (2.x+) seed; every valid reading is
 //! one output line with its "scheme". If the phrase has extra words (e.g. a note
 //! line), the trailing 12/13/15/18/21/24 words are tried too (sliding window).
@@ -26,7 +26,10 @@ fn main() {
     let reader = std::io::stdin().lock().take(16 << 20);
     for line in reader.lines().map_while(Result::ok) {
         let line = Zeroizing::new(line);
-        let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        let t = line.trim();
+        // A bare phrase line (e.g. an Electrum seed file) is read as {"mnemonic": line}.
+        let bare = !t.is_empty() && t.split_whitespace().all(|w| w.chars().all(char::is_alphabetic));
+        let Ok(v) = (if bare { Ok(serde_json::json!({"mnemonic": t})) } else { serde_json::from_str::<serde_json::Value>(t) }) else { continue };
         if let Some(p) = v.get("passphrase").and_then(|m| m.as_str()) {
             if p.len() <= 1024 { passphrase = Zeroizing::new(p.to_string()); }
         }

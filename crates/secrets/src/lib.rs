@@ -5,6 +5,10 @@
 #![forbid(unsafe_code)]
 #[cfg(feature = "dat")]
 pub mod dat;
+#[cfg(feature = "multibit")]
+pub mod multibit;
+#[cfg(feature = "electrum")]
+pub mod electrum;
 #[cfg(feature = "keys")]
 pub mod keys;
 #[cfg(feature = "keystore")]

@@ -15,6 +15,7 @@ pub mod plan;
 pub mod validate;
 pub mod b64;
 pub mod xpub;
+pub mod classify;
 #[cfg(feature = "secrets")]
 use std::str::FromStr;
 

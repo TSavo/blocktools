@@ -182,6 +182,7 @@ dependencies = [
  "blocktools-schema",
  "cbc",
  "ctr",
+ "md-5",
  "pbkdf2",
  "scrypt",
  "serde_json",
@@ -242,6 +243,15 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common",
  "inout",
+]
+
+[[package]]
+name = "classify"
+version = "0.1.0"
+dependencies = [
+ "blocktools-core",
+ "blocktools-io",
+ "serde_json",
 ]
 
 [[package]]
@@ -372,6 +382,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "electrum-read"
+version = "0.1.0"
+dependencies = [
+ "blocktools-io",
+ "blocktools-secrets",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
 name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,6 +517,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -511,6 +541,15 @@ dependencies = [
  "rustls",
  "rustls-webpki",
  "webpki-roots",
+]
+
+[[package]]
+name = "multibit-read"
+version = "0.1.0"
+dependencies = [
+ "blocktools-io",
+ "blocktools-secrets",
+ "zeroize",
 ]
 
 [[package]]

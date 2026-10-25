@@ -1,0 +1,10 @@
+[package]
+name = "classify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools classify: what kind of wallet material is this file? Public output only (class, line, fingerprint)."
+[dependencies]
+blocktools-io = { path = "../../crates/io" }
+blocktools-core = { path = "../../crates/core" }
+serde_json.workspace = true

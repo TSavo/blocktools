@@ -2,7 +2,8 @@
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
 //!           [--chain-id N] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings]  < keys
 //! The transaction (PSBT from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
-//! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret.
+//! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
+//! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
 //! Order: policy checks (destination, fee cap, chain id, no warnings) -> sign in memory -> print the
 //! tx-decode summary on the terminal -> human types the code -> re-decode + re-check -> print
 //! {"signed_tx": hex[, "psbt": finalized base64]}. Without a terminal, or with the wrong code, nothing is printed except "aborted".
@@ -47,6 +48,10 @@ fn main() {
         let l = Zeroizing::new(l);
         if l.trim().is_empty() { continue }
         if keys.len() >= 10_000 { bad("too_many_keys") }
+        // Upstream status lines ({"status":"done",...}) carry no key: skip them so reader pipes compose.
+        if let Ok(serde_json::Value::Object(o)) = serde_json::from_str::<serde_json::Value>(&l) {
+            if !["wif", "private_key", "key", "secret"].iter().any(|k| o.contains_key(*k)) { continue }
+        }
         keys.push(blocktools_secrets::keys::parse_key_line(&l).unwrap_or_else(|| bad("unreadable key line")));
     }
     if keys.is_empty() { bad("no keys on stdin") }

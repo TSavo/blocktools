@@ -9,15 +9,15 @@ if pid == 0:
     os.dup2(os.open(fin, os.O_RDONLY), 0)
     os.dup2(os.open(fout, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 1)
     os.execv(cmd[0], cmd)
-buf = b""; sent = False
+buf = b""; sent = 0  # answers every prompt (recover.sh asks twice: tx-sign, then tx-broadcast)
 while True:
     try: d = os.read(fd, 4096)
     except OSError: break
     if not d: break
     buf += d
-    m = re.search(rb"Type the code (\S+) to confirm", buf)
-    if m and not sent:
-        os.write(fd, ((m.group(1).decode() if mode == "right" else "nope") + "\n").encode()); sent = True
+    ms = re.findall(rb"Type the code (\S+) to confirm", buf)
+    if len(ms) > sent:
+        os.write(fd, ((ms[sent].decode() if mode == "right" else "nope") + "\n").encode()); sent += 1
 _, st = os.waitpid(pid, 0)
 sys.stdout.write(buf.decode(errors="replace"))
 sys.exit(os.waitstatus_to_exitcode(st))
