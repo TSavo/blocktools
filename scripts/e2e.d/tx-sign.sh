@@ -16,6 +16,15 @@ $B/tx-build --chain btc --utxos $T/u --to $D --sweep --fee-rate 5 --rbf > $T/p
 $B/tx-decode --text < $T/p | grep -q "fee    : 0.00001350" && echo "ok   tx-build sweep fee 1350 sats" || f build
 $B/tx-verify --expect-to $D < $T/p >/dev/null && echo "ok   tx-verify accepts expected destination" || f verify
 ! $B/tx-verify --expect-to 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH < $T/p >/dev/null && echo "ok   tx-verify rejects wrong destination" || f verify2
+# Offline policy file (docs/POLICY.md): allowlist + caps, deny by default, sha256 reported.
+printf '{"version":1,"chains":{"btc":{"allow_to":["%s"],"max_value":100000,"max_fee":2000,"max_outputs":1}}}' $D > $T/pol
+$B/tx-verify --chain btc --policy $T/pol < $T/p > $T/polout || true  # allow-true: the outcome is asserted on the next line
+grep -q '"policy_sha256":"[0-9a-f]\{64\}"' $T/polout && grep -q '"status":"ok"' $T/polout && echo "ok   tx-verify --policy allows listed destination" || { tr -d 0-9a-f < $T/polout; f pol1; }
+sed 's/"max_fee":2000/"max_fee":100/' $T/pol > $T/pol2
+! $B/tx-verify --chain btc --policy $T/pol2 < $T/p | grep -q policy:max_fee && f pol2 || echo "ok   tx-verify --policy refuses fee over cap"
+sed 's/"btc"/"ltc"/' $T/pol > $T/pol3
+$B/tx-verify --chain btc --policy $T/pol3 < $T/p | grep -q policy:no_rule_for_chain && echo "ok   tx-verify --policy denies chain without rule" || f pol3
+$B/tx-sign --tx $T/p --chain btc --expect-to $D --policy $T/pol2 < $T/k | grep '"refused"' | grep -q policy:max_fee && echo "ok   tx-sign --policy refuses before signing" || f pol4
 $B/tx-sign --tx $T/p < $T/k | grep -q "expect-to" && echo "ok   tx-sign requires --expect-to" || f expect
 $B/tx-sign --tx $T/p --expect-to $D --max-fee 1000 < $T/k | grep -q fee_above_cap && echo "ok   tx-sign fee cap" || f cap
 nosid $B/tx-sign --tx $T/p --expect-to $D < $T/k | grep -q aborted && echo "ok   tx-sign refuses without terminal" || f notty

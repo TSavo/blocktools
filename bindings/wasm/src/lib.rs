@@ -84,6 +84,16 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
     Ok(json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings}).to_string())
 }
 
+/// Check a tx against an offline policy file (docs/POLICY.md). Deny by default; the rule for `chain`
+/// is used. JSON {ok, failures, warnings, policy_sha256}. Throws on a bad tx or policy file.
+#[wasm_bindgen(js_name = checkTxPolicy)]
+pub fn check_tx_policy(input: &str, chain: &str, policy_json: &str) -> Result<String, JsError> {
+    let d = tx::decode(input, chain).map_err(err)?;
+    let pf = tx::policy_file::parse(policy_json).map_err(err)?;
+    let f = tx::policy_file::check(&d, chain, &pf);
+    Ok(json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings, "policy_sha256": pf.sha256}).to_string())
+}
+
 // ---- Stable API (EXPORTS.md). Everything below refuses unverified chains. ----
 
 /// Library version (semver string, same as the `blocktools` crate).

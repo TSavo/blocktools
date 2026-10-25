@@ -1,6 +1,7 @@
 //! tx-sign: sign ONE transaction after a human reads its summary and types a code on /dev/tty.
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
-//!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token]  < keys
+//!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token] [--policy FILE]  < keys
+//! --policy FILE: offline policy file (docs/POLICY.md), checked in addition to the flags, before signing and on the signed bytes.
 //! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
@@ -20,7 +21,7 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("tx-sign --tx FILE --expect-to ADDR [...] [--max-fee N] < keys   (asks for a code on the terminal)");
+    blocktools_io::help("tx-sign --tx FILE --expect-to ADDR [...] [--max-fee N] [--policy FILE] < keys   (asks for a code on the terminal)");
     let a: Vec<String> = std::env::args().collect();
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -41,7 +42,14 @@ fn main() {
         let ok = if c == "zec" { blocktools_tx::zcash::address_to_script(e).is_some() } else { blocktools_core::validate::validate(c, e).is_ok() };
         if !ok { bad("invalid --expect-to/--change address") }
     }
-    let f = check(&d, &p);
+    let pol = one("--policy").map(|f| blocktools_tx::policy_file::parse(&std::fs::read_to_string(f).unwrap_or_else(|_| bad("cannot read --policy file"))).unwrap_or_else(|e| bad(e)));
+    let pkey = one("--chain").unwrap_or(chain.clone());
+    let full = |d: &blocktools_tx::Decoded| -> Vec<String> {
+        let mut f: Vec<String> = check(d, &p).into_iter().map(String::from).collect();
+        if let Some(pf) = &pol { for x in blocktools_tx::policy_file::check(d, &pkey, pf) { if !f.contains(&x) { f.push(x) } } }
+        f
+    };
+    let f = full(&d);
     if !f.is_empty() { out("refused", json!({"failures":f,"warnings":d.warnings})) }
 
     let mut keys = Vec::new();
@@ -105,7 +113,7 @@ fn main() {
     // Re-decode the exact signed bytes and re-check before anything is shown or released.
     let env = d.ty == "pos-ntime" || chain == "zec";
     let d2 = if env { blocktools_tx::decode(std::str::from_utf8(&recheck).unwrap_or(""), &chain) } else { blocktools_tx::decode_bytes(&recheck, &chain) }.unwrap_or_else(|_| out("error", json!({"error":"signed_tx_does_not_decode"})));
-    let f2 = check(&d2, &p);
+    let f2 = full(&d2);
     if !d2.signed || !f2.is_empty() { out("error", json!({"error":"signed_tx_failed_recheck","failures":f2})) }
     let summary = format!("{}\nSigned by: {signer}\nChecks passed: destination {}, fee cap {}{}\n",
         d2.text().trim_end(), p.expect_to.join(", "), p.max_fee.unwrap_or(0), if d2.evm.is_some() { " wei" } else { " sats" });

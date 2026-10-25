@@ -5,6 +5,7 @@
 pub mod build;
 pub mod evm;
 pub mod policy;
+pub mod policy_file;
 /// Signing (takes private keys). Feature `secrets` only.
 pub mod digest;
 

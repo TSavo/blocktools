@@ -30,6 +30,16 @@ const lines = JSON.parse(bt.decodeTx(b170, 'btc'));
 assert.ok(JSON.stringify(lines).includes('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16'));
 const v = JSON.parse(bt.verifyTx(b170, 'btc', ['1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3'], ['12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S'], undefined, '', true));
 assert.equal(typeof v.ok, 'boolean');
+{ // offline policy file: listed recipient + change pass the file's rules; unknown fee is still a base refusal
+  const pol = JSON.stringify({version:1,chains:{btc:{allow_to:['1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3'],change:['12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S']}}});
+  const r = JSON.parse(bt.checkTxPolicy(b170, 'btc', pol));
+  assert.ok(!r.failures.includes('policy:allow_to') && r.failures.includes('fee_unknown') && r.policy_sha256.length === 64, JSON.stringify(r.failures));
+  const r2 = JSON.parse(bt.checkTxPolicy(b170, 'btc', JSON.stringify({version:1,chains:{btc:{allow_to:[]}}})));
+  assert.ok(r2.failures.includes('policy:allow_to'));
+  assert.deepEqual(JSON.parse(bt.checkTxPolicy(b170, 'btc', JSON.stringify({version:1,chains:{}}))).failures, ['policy:no_rule_for_chain']);
+  assert.throws(() => bt.checkTxPolicy(b170, 'btc', '{"version":2,"chains":{}}'), /policy_bad_version/);
+  console.log('ok checkTxPolicy');
+}
 const v2 = JSON.parse(bt.verifyTx(b170, 'btc', ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'], [], undefined, '', true));
 assert.equal(v2.ok, false);
 // Stable API (EXPORTS.md)
