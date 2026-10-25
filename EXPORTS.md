@@ -71,6 +71,9 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 
 `validateAddress`, `listChains` (all rows, including unverified ones), `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx`.
 
+Account payments (xlm, algo) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
+the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.
+
 ## Chain rows
 
 Source tags: `blockbook`/`insight`/`qtuminfo`/`woc` sources give balance and UTXOs keyless (SwapChan probes, 2026-10-24). `cryptoid-balance` sources give the balance only; `unspent` needs an API key. A row with no source has no working public explorer (NMC, POT, MEC, ANC).

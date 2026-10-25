@@ -3,6 +3,17 @@
 version = 4
 
 [[package]]
+name = "acct-tx"
+version = "0.1.0"
+dependencies = [
+ "blocktools-acct",
+ "blocktools-core",
+ "blocktools-tty",
+ "serde_json",
+ "zeroize",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -195,6 +206,17 @@ dependencies = [
  "blocktools-secrets",
  "blocktools-tx",
  "serde_json",
+]
+
+[[package]]
+name = "blocktools-acct"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
+ "ed25519-dalek",
+ "sha2",
+ "zeroize",
 ]
 
 [[package]]

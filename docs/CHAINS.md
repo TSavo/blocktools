@@ -84,6 +84,11 @@ Zcash transparent is listed by wasm `listChains`/`supportedChains` (scope transp
 
 WDC: tx format confirmed Bitcoin-legacy on 4 mainnet txs (block 11881187): txid = sha256d, 357 P2PKH signatures verify under the legacy sighash, and every input address re-derives under p2pkh 73 (crates/tx/tests/wdc.rs). Still `verified: false`: no SLIP-44 coin type, so no derivation path can be checked. QRK (2026-10-25): tx format Bitcoin-legacy, found via chainz `api.dws?q=lasttxs` (block-by-block scanning saw only coinbase): 10/10 recent non-coinbase txs rebuild to their txid under sha256d, but only with values x 1e5, i.e. **QRK has 5 decimals** (COIN = 100000; the table said 8, now fixed: `decimals` 5). crates/tx/tests/qrk.rs: 2 txs (blocks 13906691, 13907052; 8 and 170 inputs), 10 P2PKH signatures verify under the legacy sighash and re-derive to the chainz input addresses under p2pkh 58; 168 P2PK inputs are not checked (pubkey lives in the prevout). Row now `Standard`, so `buildUnsignedSweep` supports qrk. Untested: a built QRK sweep broadcast on mainnet; QRK fee rates (default limits apply).
 
+## Account payments (2026-10-25)
+
+xlm and algo have payment/sweep builders in `acct-tx` (see recipes/chain-stellar.md, chain-algorand.md). The table's
+`sweep build` column is the wasm/UTXO builder only and stays `no` for them.
+
 ## Groestlcoin extended keys and taproot (2026-10-25)
 
 GRS xpub/tpub strings use the Groestl-512 checksum and are accepted only with `--chain grs` (vectors: Groestlcoin/eclair commit f52fbf9, 4 tpub pairs). GRS rows include `p2tr` (grs1p…, BIP341 vector); spending GRS taproot inputs is refused. Untested: real Electrum-GRS mainnet xpub, any mainnet grs1p.

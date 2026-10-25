@@ -12,7 +12,7 @@ pub const STATUSES: &[&str] = &[
 pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown", "chain_id_mismatch", "no_chain_id", "no_replay_protection",
     "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
 pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
-    "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx"];
+    "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
 pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];

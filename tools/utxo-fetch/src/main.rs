@@ -3,6 +3,8 @@
 //!       stdout: UTXO JSON lines {"txid","vout","amount","address"[,"prev_tx"]}  (tx-build --utxos FILE)
 //!   utxo-fetch --chain eth [--url RPC] ADDR
 //!       stdout: one account object {"nonce","balance","max_fee_per_gas","max_priority_fee_per_gas","chain_id"}
+//!   utxo-fetch --chain xlm|algo [--url NODE] ADDR
+//!       stdout: one account object (xlm: balance_str, next_seq, subentry_count; algo: amount, min_balance, assets, last_round, min_fee) for acct-tx build
 //! Only ADDRESSES go in (bare, or JSON lines with an "address" field, e.g. redact output).
 //! Server data is untrusted: txids are re-checked here, prev_tx is re-hashed by tx-build.
 //! A summary goes to stderr. Defaults: btc blockstream.info, ltc litecoinspace.org, eth publicnode.
@@ -11,7 +13,7 @@ use std::io::{BufRead, Read};
 
 fn die(e: &str) -> ! { eprintln!("{}", json!({"tool":"utxo-fetch","status":"error","error":e})); std::process::exit(1) }
 fn main() {
-    blocktools_io::help("utxo-fetch --chain btc|ltc|doge|eth [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
+    blocktools_io::help("utxo-fetch --chain btc|ltc|doge|eth|xlm|algo [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut chain = "btc".to_string(); let mut url = None; let mut prev = true; let mut addrs = Vec::new();
     let mut it = a.into_iter();
@@ -28,6 +30,7 @@ fn main() {
     if addrs.is_empty() || addrs.len() > 1000 { die("give 1..1000 addresses") }
     let vchain = if chain == "eth" { "eth" } else { chain.as_str() };
     for x in &addrs { if blocktools_core::validate::validate(vchain, x).is_err() { die("invalid address for chain") } }
+    if chain == "xlm" || chain == "algo" { return acct(&chain, url.as_deref(), &addrs) }
     if chain == "eth" { return eth(url.as_deref().unwrap_or("https://ethereum-rpc.publicnode.com"), &addrs) }
     let base = url.unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(), _ => die("--url ESPLORA_BASE required for this chain") });
     let base = base.trim_end_matches('/');
@@ -65,4 +68,24 @@ fn eth(url: &str, addrs: &[String]) {
     blocktools_io::outln!("{}", json!({"chain_id":chain_id as u64,"nonce":nonce as u64,"balance":balance.to_string(),
         "max_fee_per_gas":gas_price.saturating_mul(2).saturating_add(prio).to_string(),"max_priority_fee_per_gas":prio.to_string()}));
     eprintln!("{}", json!({"tool":"utxo-fetch","status":"done","chain":"eth","count":1}));
+}
+
+fn get_json(u: &str) -> Value { serde_json::from_slice(&blocktools_net::get(u).unwrap_or_else(|e| die(&e))).unwrap_or_else(|_| die("bad json from node")) }
+/// Account-model balance + the parameters acct-tx build needs. Server data is untrusted: it only feeds build flags the user reviews.
+fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
+    if addrs.len() != 1 { die("give exactly one address") }
+    let ad = &addrs[0];
+    if chain == "xlm" {
+        let node = url.unwrap_or("https://horizon.stellar.org").trim_end_matches('/');
+        let v = get_json(&format!("{node}/accounts/{ad}"));
+        let bal = v["balances"].as_array().and_then(|b| b.iter().find(|x| x["asset_type"] == "native")).map(|x| x["balance"].clone());
+        let seq: i64 = v["sequence"].as_str().and_then(|s| s.parse().ok()).unwrap_or_else(|| die("no sequence (account not funded?)"));
+        println!("{}", json!({"chain":"xlm","address":ad,"balance_str":bal,"next_seq":seq + 1,"subentry_count":v["subentry_count"],"source":node}));
+    } else {
+        let node = url.unwrap_or("https://mainnet-api.algonode.cloud").trim_end_matches('/');
+        let v = get_json(&format!("{node}/v2/accounts/{ad}?exclude=all"));
+        let p = get_json(&format!("{node}/v2/transactions/params"));
+        println!("{}", json!({"chain":"algo","address":ad,"amount_microalgo":v["amount"],"min_balance_microalgo":v["min-balance"],
+            "total_assets_opted_in":v["total-assets-opted-in"],"last_round":p["last-round"],"min_fee":p["min-fee"],"genesis_id":p["genesis-id"],"source":node}));
+    }
 }

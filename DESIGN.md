@@ -549,6 +549,16 @@ Signing uses `STX\0`. secp256k1 signs sha512half of it with RFC6979, low-S and D
 
 `xrp-tx` is the CLI. `sign` needs `--expect-to` and a typed code on /dev/tty, and it warns when the destination tag is missing. Core only gets `is_xrp_seed` and X-address validation, written against its existing base58, so classify does not pull in ed25519.
 
+## Account-model payments (blocktools-acct, acct-tx)
+
+`crates/acct` builds one transfer per chain in that chain's native encoding (base64 on the CLI): Stellar
+TransactionEnvelope v1 XDR (one native Payment or AccountMerge; signature over sha256(sha256(passphrase) || 2 || tx)),
+Algorand canonical msgpack `pay` (signature over "TX" || msgpack; txid = base32(sha512/256)). Decoders accept only that
+subset and refuse anything else (muxed accounts, other assets, rekey/lease/group, msig). Algorand decode also re-encodes
+and refuses non-canonical input. `acct-tx sign` needs `--expect-to`, refuses an already-signed tx, checks the key
+matches the source, and signs only after the typed code on /dev/tty. Balance and sequence come from host-side `utxo-fetch --chain xlm|algo` (blocking
+blocktools-net, no Tokio); acct-tx itself has no network crate. KATs: tests/kat.rs, byte-equal to the chains' own SDKs.
+
 ## Recipes are executable documentation
 
 `recipes/*.md` are the user manual. Each example marked with `<!-- e2e: expect=..; rc=..; fund=.. -->` is run exactly as written by

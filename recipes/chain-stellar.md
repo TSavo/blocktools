@@ -15,5 +15,21 @@ A Stellar secret seed (`S...`) is classified as `xlm_seed`; `key-to-addresses --
 <!-- e2e: expect=GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6 -->
     ./blocktools run 'key-to-addresses --chain xlm < /in/xlm-seed.txt'
 
-NOT BUILT: XLM payments/sweep, balance lookup, muxed (M...) accounts, memo handling.
+## Payments and sweep (acct-tx)
+
+    utxo-fetch --chain xlm G...   # host-side: Horizon: native balance, next_seq, subentry_count
+    acct-tx build --chain xlm --from G... --to G... --amount STROOPS --fee 100 --seq NEXT_SEQ --memo-id N > u.json
+    acct-tx build --chain xlm --from G... --to G... --sweep --fee 100 --seq NEXT_SEQ > u.json   # AccountMerge
+    acct-tx decode --chain xlm < u.json
+    acct-tx sign --chain xlm --tx u.json --expect-to G... < secret.txt > signed.json   # typed code on /dev/tty
+
+One native Payment or one AccountMerge per transaction, memo none/id/text, optional max time. The sweep is an
+AccountMerge: it moves the whole balance including the reserve and deletes the account; Stellar refuses it while the
+account has trustlines, offers or other subentries (check `subentry_count`). A missing memo is warned about, because
+exchanges credit deposits by memo. KAT: unsigned and signed envelopes and hashes byte-equal to py-stellar-sdk 16.1.1
+(crates/acct/tests/kat.rs, scripts/e2e.d/acct.sh).
+
+NOT BUILT: broadcast (submit the `signed` base64 to Horizon `POST /transactions` yourself), muxed (M...) accounts,
+non-native assets, multi-op transactions, fee-bump. UNTESTED: a real network submit; `utxo-fetch` was run once against
+horizon.stellar.org (2026-10-25) and is not in CI.
 UNTESTED: wallets that use non-SEP-0005 paths beyond the three tried by the recovery preset.

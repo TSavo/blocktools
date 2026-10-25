@@ -1,0 +1,13 @@
+[package]
+name = "blocktools-acct"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Account-model payment builders (xlm, algo, ...). DANGEROUS: audit before trusting with funds."
+
+[dependencies]
+blocktools-core = { path = "../core", default-features = false, features = ["ed25519"] }
+bitcoin = { workspace = true }
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true }

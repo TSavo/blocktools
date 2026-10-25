@@ -1,0 +1,12 @@
+[package]
+name = "acct-tx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+blocktools-acct = { path = "../../crates/acct" }
+blocktools-core = { path = "../../crates/core", default-features = false, features = ["ed25519", "algo"] }
+blocktools-tty = { path = "../../crates/tty" }
+serde_json = { workspace = true }
+zeroize = { workspace = true }
