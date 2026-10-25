@@ -19,6 +19,7 @@ pub const PRESETS: &[(&str, &str)] = &[
     ("exodus", "Exodus-style BIP44 per chain (BTC 44 and 84, LTC m/44'/2', DOGE m/44'/3', ETH m/44'/60'/0'/0/i, Solana m/44'/501'/i'/0'); verify against the wallet"),
     ("tronlink", "TronLink: m/44'/195'/{i}'/0/0 and m/44'/195'/0'/0/{i}"),
     ("ledger-live", "Ledger Live EVM m/44'/60'/{i}'/0/0, BTC m/{purpose}'/0'/{i}'/0/0"),
+    ("electrum", "Electrum 2.x+ wallets: standard seed m/{change}/{i} p2pkh, segwit seed m/0'/{change}/{i} p2wpkh (picked automatically from the seed scheme)"),
     ("legacy-hd", "pre-BIP44 HD layouts, compressed and uncompressed p2pkh: Core 0.13+ m/0'/{change}'/{i}', MultiBit HD / BRD m/0'/{change}/{i}, Electrum 2.x m/{change}/{i}"),
 ];
 
@@ -67,6 +68,10 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
                 Enc::Utxo { .. } => for k in kinds_of(c) { v.push(sp(c, k, "m/{purpose}'/{coin}'/{i}'/0/0", false)) },
                 _ => {}
             },
+            "electrum" | "electrum-standard" | "electrum-segwit" => if utxo {
+                if name != "electrum-segwit" { v.push(sp(c, "p2pkh", "m/{change}/{i}", false)) }
+                if name != "electrum-standard" && kinds_of(c).contains(&"p2wpkh") { v.push(sp(c, "p2wpkh", "m/0'/{change}/{i}", false)) }
+            },
             "legacy-hd" => if utxo { for t in ["m/0'/{change}'/{i}'", "m/0'/{change}/{i}", "m/{change}/{i}"] { v.push(sp(c, "p2pkh", t, true)) } },
             _ => return None,
         }
@@ -75,7 +80,7 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
 }
 /// Default ranges for a preset (accounts / change branches); index comes from --index/--count or the chain default.
 pub fn preset_ranges(name: &str) -> (Vec<u32>, Vec<u32>) {
-    match name { "exhaustive" => (vec![0, 1, 2], vec![0, 1]), "recovery" => (vec![0], vec![0, 1]), _ => (vec![0], vec![0]) }
+    match name { "exhaustive" => (vec![0, 1, 2], vec![0, 1]), "recovery" | "electrum" | "electrum-standard" | "electrum-segwit" => (vec![0], vec![0, 1]), _ => (vec![0], vec![0]) }
 }
 
 /// Expand a template. Errors on unknown placeholders or malformed result.

@@ -118,6 +118,8 @@ seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, se
 
 ## 5. Passwords and passphrases
 
+Interactive alternative: `--passphrase-prompt` / `--password-tty` read from `/dev/tty` with echo off (kr-tty); never argv or env.
+
 Passwords and passphrases arrive on **stdin**, as data in the stream. The human
 puts them in `$KR_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
 git-ignored), and the pipeline feeds them in, e.g.
@@ -206,6 +208,14 @@ Deferred (to decide):
   tools: possible, but deferred because it means a hand-written parser of hostile input.
 * `cargo-deny` (license/advisory checks) is not installed. The allowlist script
   covers growth only.
+
+### libc (single exception, reviewed)
+`libc` (0.2, no default features) is used **only** by `crates/kr-tty`, for
+`tcgetattr`/`tcsetattr` to turn terminal echo off while a human types a password
+or passphrase (`seed-to-master --passphrase-prompt`, `keystore-open --password-tty`)
+and to read the typed confirmation code before signing. No other libc calls. If echo
+cannot be disabled the prompt refuses (`bad_input`) instead of echoing a secret.
+Only the tools that prompt depend on kr-tty.
 
 ## 6. Signing flow (phase 2, designed only)
 

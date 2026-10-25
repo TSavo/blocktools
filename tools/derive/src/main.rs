@@ -39,7 +39,7 @@ const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -
 
 fn fail(s: &str) -> ! { outln!(r#"{{"tool":"derive","status":"{s}"}}"#); std::process::exit(2) }
 
-struct Opts { specs: Vec<Spec>, ranges: Ranges, index_set: bool, match_set: Option<HashSet<String>>, gap: Option<u32>, explain: bool }
+struct Opts { auto: Option<(Vec<&'static Chain>, Option<String>)>, specs: Vec<Spec>, ranges: Ranges, index_set: bool, match_set: Option<HashSet<String>>, gap: Option<u32>, explain: bool }
 
 fn parse_args() -> Opts {
     let a: Vec<String> = std::env::args().skip(1).collect();
@@ -108,7 +108,10 @@ fn parse_args() -> Opts {
         b.lines().map(|l| norm(l.trim())).filter(|l| !l.is_empty()).collect::<HashSet<_>>()
     });
     if gap.is_some() && match_set.is_none() { fail("bad_input") }
-    Opts { specs, ranges, index_set, match_set, gap, explain }
+    // Plain `derive` (no --preset/--path/--purpose): Electrum masters get Electrum paths.
+    let explicit = a.iter().any(|x| x == "--preset" || x == "--path" || x == "--purpose");
+    let auto = (!explicit).then(|| (chains_sel.clone(), comp.map(|c| c.to_string())));
+    Opts { auto, specs, ranges, index_set, match_set, gap, explain }
 }
 fn norm(a: &str) -> String { if a.starts_with("0x") { a.to_ascii_lowercase() } else { a.to_string() } }
 fn indices<'a>(o: &'a Opts, s: &Spec) -> Vec<u32> { if o.index_set { o.ranges.index.clone() } else { (0..s.chain.default_count).collect() } }
@@ -194,10 +197,22 @@ fn main() {
         if seed.is_none() && o.specs.iter().any(|s| s.chain.enc == Enc::Sol) {
             outln!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"sol"}}"#);
         }
+        let scheme = v.get("scheme").and_then(|s| s.as_str()).unwrap_or("bip39");
+        let el_specs;
+        let mut el_ranges = None;
+        let specs: &[Spec] = match (&o.auto, scheme) {
+            (Some((cs, _)), "electrum-standard" | "electrum-segwit") => {
+                el_specs = plan::preset(scheme, cs).unwrap();
+                el_ranges = Some(plan::preset_ranges(scheme).1);
+                &el_specs
+            }
+            _ => &o.specs,
+        };
+        let changes = el_ranges.unwrap_or_else(|| o.ranges.change.clone());
         let mut w = Walker { secp: Secp256k1::new(), master: &master, seed: seed.as_deref().map(|s| &s[..]), cache: HashMap::new() };
-        for s in &o.specs {
+        for s in specs {
             for &acc in &axis(&s.template, "{account}", &o.ranges.account) {
-                for &ch in &axis(&s.template, "{change}", &o.ranges.change) {
+                for &ch in &axis(&s.template, "{change}", &changes) {
                     let idx = indices(&o, s);
                     let fixed = !s.template.contains("{i}");
                     let mut last_hit = idx[0];

@@ -12,3 +12,10 @@ The repo holds **no wallet files**. `scripts/secret-scan.sh` rejects wallet-like
 * **Third-party** public test wallets (btcrecover, GPL, password `btcr-test-password`) are
   downloaded and sha256-checked by `scripts/fetch-fixtures.sh` into the git-ignored
   `fixtures/external/`; tests skip them when absent.
+
+## Git history note
+Commit 360a78e (and its parent state) still contains the earlier committed
+self-made wallet fixtures. They are throwaway files generated from public test
+phrases and passwords and never held value. By decision we do **not** rewrite
+history or force-push; they were removed from the tree in 5061f16 and are now
+generated at test time.

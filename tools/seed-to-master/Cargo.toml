@@ -4,8 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 [dependencies]
+kr-tty = { path = "../../crates/kr-tty" }
 kr-io = { path = "../../crates/kr-io" }
 bip39.workspace = true
 bitcoin.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true
+pbkdf2.workspace = true
+sha2.workspace = true

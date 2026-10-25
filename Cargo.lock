@@ -405,6 +405,7 @@ dependencies = [
  "aes",
  "ctr",
  "kr-io",
+ "kr-tty",
  "pbkdf2",
  "scrypt",
  "secp256k1",
@@ -455,6 +456,14 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "serde_json",
+]
+
+[[package]]
+name = "kr-tty"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "zeroize",
 ]
 
 [[package]]
@@ -579,7 +588,10 @@ dependencies = [
  "bip39",
  "bitcoin",
  "kr-io",
+ "kr-tty",
+ "pbkdf2",
  "serde_json",
+ "sha2",
  "zeroize",
 ]
 

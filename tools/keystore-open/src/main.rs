@@ -73,13 +73,7 @@ fn eth_address(k: &[u8; 32]) -> Result<String, &'static str> {
 fn st(s: &str) -> ! { kr_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
 
 fn read_tty_password() -> Zeroizing<String> {
-    // Prompt the HUMAN on the controlling terminal; never stdin/argv/env.
-    let mut tty = std::fs::OpenOptions::new().read(true).write(true).open("/dev/tty").unwrap_or_else(|_| st("bad_input"));
-    let _ = tty.write_all(b"keystore password (echoed only to this terminal): ");
-    let mut s = String::new();
-    let mut b = [0u8; 1];
-    while tty.read(&mut b).unwrap_or(0) == 1 && b[0] != b'\n' && s.len() < 1024 { s.push(b[0] as char); }
-    Zeroizing::new(s)
+    kr_tty::read_secret("keystore password (not echoed): ").unwrap_or_else(|| st("bad_input"))
 }
 
 fn main() {

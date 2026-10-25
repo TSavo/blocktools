@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/kr-schema", "crates/kr-core", "crates/kr-io", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open", "tools/dat-read", "tools/key-to-addresses"]
+members = ["crates/kr-schema", "crates/kr-core", "crates/kr-io", "crates/kr-tty", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open", "tools/dat-read", "tools/key-to-addresses"]
 
 [workspace.package]
 version = "0.1.0"
