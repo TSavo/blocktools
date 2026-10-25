@@ -1,5 +1,7 @@
 //! Offline transaction building from files (never the network).
-//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex]}.
+//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex][, "script" hex]}.
+//! A bare-pubkey (P2PK) output is spent when "script" or the prev_tx output is `<key> OP_CHECKSIG`
+//! for the key behind the P2PKH "address"; prev_tx is then required (legacy sighash).
 use bitcoin::absolute::LockTime;
 use bitcoin::psbt::Psbt;
 use bitcoin::transaction::Version;
@@ -12,6 +14,10 @@ pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Ve
     /// Raw previous tx bytes for nTime chains (PoS layout, not a bitcoin Transaction).
     pub prev_raw: Option<Vec<u8>> }
 
+/// The pubkey of a bare P2PK script (`<33|65-byte key> OP_CHECKSIG`).
+pub fn p2pk_key(spk: &[u8]) -> Option<&[u8]> {
+    match spk { [0x21, k @ .., 0xac] if k.len() == 33 => Some(k), [0x41, k @ .., 0xac] if k.len() == 65 => Some(k), _ => None }
+}
 pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
     let mut v = Vec::new();
     for (n, l) in text.lines().enumerate().filter(|(_, l)| !l.trim().is_empty()) {
@@ -22,9 +28,25 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
         let vout = j["vout"].as_u64().filter(|&x| x <= u32::MAX as u64).ok_or_else(|| e("vout"))? as u32;
         let amount = crate::json_amount(&j["amount"], crate::MAX_AMOUNT).ok_or_else(|| e("amount"))?;
         let addr = j["address"].as_str().ok_or_else(|| e("address"))?;
-        let script = chains::address_to_script(c, addr).ok_or_else(|| e("address not valid for chain"))?;
-        let kind = chains::script_to_address(c, &script).map(|x| x.0).unwrap_or("unknown");
+        let mut script = chains::address_to_script(c, addr).ok_or_else(|| e("address not valid for chain"))?;
+        let mut kind = chains::script_to_address(c, &script).map(|x| x.0).unwrap_or("unknown");
+        // Bare-pubkey (P2PK) output, e.g. PoS coinstake: owned by the P2PKH address of its key. Taken
+        // from an explicit "script" or from the prev_tx output; either way prev_tx must prove it below.
         let pos = crate::pos::layout(c.name).is_some();
+        let addr_h: Option<[u8; 20]> = (kind == "p2pkh").then(|| script[3..23].try_into().unwrap());
+        let p2pk_ok = |spk: &[u8]| p2pk_key(spk).is_some_and(|k| { use bitcoin::hashes::Hash; addr_h == Some(bitcoin::hashes::hash160::Hash::hash(k).to_byte_array()) });
+        let out_at = |b: &[u8]| -> Option<Vec<u8>> { if pos { crate::pos::PosTx::parse(c.name, b).ok()?.outputs.get(vout as usize).map(|o| o.1.clone()) }
+            else { bitcoin::consensus::deserialize::<Transaction>(b).ok()?.output.get(vout as usize).map(|o| o.script_pubkey.to_bytes()) } };
+        let explicit = match j["script"].as_str() { Some(h) => Some(blocktools_core::hex_dec(h).ok_or_else(|| e("script hex"))?), None => None };
+        let from_prev = j["prev_tx"].as_str().and_then(blocktools_core::hex_dec).and_then(|b| out_at(&b));
+        match (explicit, from_prev) {
+            (Some(x), _) if x == script => {}
+            (Some(x), _) if p2pk_ok(&x) => { script = x; kind = "p2pk" }
+            (Some(_), _) => return Err(e("script is neither the address script nor a P2PK of its key")),
+            (None, Some(x)) if p2pk_ok(&x) => { script = x; kind = "p2pk" }
+            _ => {}
+        }
+        if kind == "p2pk" && j["prev_tx"].as_str().is_none() { return Err(e("p2pk input needs prev_tx (legacy sighash, amount unproven)")) }
         let mut prev_raw = None;
         let prev_tx = match j["prev_tx"].as_str() {
             Some(h) if pos => { let b = blocktools_core::hex_dec(h).ok_or_else(|| e("prev_tx hex"))?;
@@ -50,7 +72,7 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
     Ok(v)
 }
 /// Signed input vbytes by kind (estimates used for fee calculation).
-pub fn in_vb(kind: &str) -> u64 { match kind { "p2wpkh" => 68, "p2sh" => 91, "p2tr" => 58, _ => 148 } }
+pub fn in_vb(kind: &str) -> u64 { match kind { "p2wpkh" => 68, "p2sh" => 91, "p2tr" => 58, "p2pk" => 114, _ => 148 } }
 pub fn out_vb(script: &[u8]) -> u64 { 9 + script.len() as u64 }
 
 /// `op_return`: optional zero-value trailing output script (e.g. a THORChain memo). Its vbytes are
@@ -146,7 +168,7 @@ pub fn build_pos_sweep(c: &Chain, utxos: &[Utxo], to: &str, fee_rate: u64, time:
     let l = layout(c.name).ok_or("not an nTime chain with a verified layout")?;
     let cap = crate::chains::fee_warn(c.name).rate_cap();
     if fee_rate == 0 || fee_rate > cap { return Err(format!("fee_rate must be 1..{cap} per byte for {}", c.name)) }
-    if let Some(u) = utxos.iter().find(|u| u.kind != "p2pkh") { return Err(format!("pos-ntime sweep supports p2pkh inputs only (got {})", u.kind)) }
+    if let Some(u) = utxos.iter().find(|u| u.kind != "p2pkh" && u.kind != "p2pk") { return Err(format!("pos-ntime sweep supports p2pkh/p2pk inputs only (got {})", u.kind)) }
     if utxos.iter().any(|u| u.prev_raw.is_none()) { return Err("legacy_input_needs_prev_tx: nTime inputs need prev_tx (utxo-fetch adds it)".into()) }
     let to_s = chains::address_to_script(c, to).ok_or("bad --to address")?;
     let inputs = utxos.iter().map(|u| PIn { txid: u.txid.to_byte_array(), vout: u.vout, script_sig: vec![], sequence: 0xffff_ffff }).collect();

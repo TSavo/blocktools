@@ -71,6 +71,8 @@ pub fn sign_psbt_digest(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<
                 let k: &[u8] = if spk == p2pkh(&c) { &c } else { &u };
                 let s = ecdsa(&spk, false)?; let mut ss = push(&s); ss.extend(push(k));
                 inp.final_script_sig = Some(ScriptBuf::from_bytes(ss));
+            } else if crate::build::p2pk_key(&spk).is_some_and(|k| k == c || k == u) {
+                inp.final_script_sig = Some(ScriptBuf::from_bytes(push(&ecdsa(&spk, false)?)));
             } else if spk == tr.as_bytes() && dg == Digest::Sha256d {
                 let s = taproot_sig(&tx, i, &prev, sk, None, TapSighashType::Default, &secp)?;
                 inp.final_script_witness = Some(Witness::from_slice(&[s]));
@@ -91,7 +93,7 @@ pub fn extract(p: &Psbt) -> Result<Transaction, &'static str> {
     Ok(tx)
 }
 
-/// Sign every P2PKH input of an nTime tx whose prevout script matches one of `keys`
+/// Sign every P2PKH or P2PK input of an nTime tx whose prevout script matches one of `keys`
 /// (compressed or uncompressed), SIGHASH_ALL, low-S. Returns the number signed.
 pub fn sign_pos(tx: &mut crate::pos::PosTx, prev: &[(u64, Vec<u8>)], keys: &[SecretKey]) -> Result<usize, &'static str> {
     if prev.len() != tx.inputs.len() { return Err("pos_prevouts_count_mismatch") }
@@ -102,10 +104,12 @@ pub fn sign_pos(tx: &mut crate::pos::PosTx, prev: &[(u64, Vec<u8>)], keys: &[Sec
         for sk in keys {
             let pk = PublicKey::from_secret_key(&secp, sk);
             let (c, u) = (pk.serialize(), pk.serialize_uncompressed());
-            let k: &[u8] = if *spk == p2pkh(&c) { &c } else if *spk == p2pkh(&u) { &u } else { continue };
+            // P2PK: script code = the pubkey script, scriptSig = <sig> only.
+            let bare = crate::build::p2pk_key(spk).filter(|k| *k == c || *k == u).is_some();
+            let k: &[u8] = if *spk == p2pkh(&c) { &c } else if *spk == p2pkh(&u) { &u } else if bare { &[] } else { continue };
             let h = unsigned.sighash_all(i, spk)?;
             let mut s = secp.sign_ecdsa(&Message::from_digest(h), sk).serialize_der().to_vec(); s.push(1);
-            let mut ss = push(&s); ss.extend(push(k));
+            let mut ss = push(&s); if !bare { ss.extend(push(k)) }
             tx.inputs[i].script_sig = ss; n += 1; break;
         }
     }
