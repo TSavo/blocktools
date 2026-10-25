@@ -30,8 +30,9 @@ If you know which word is missing, write `?` in its place (2048 tries instead of
 <!-- e2e: expect=0x9858EfFD232B4033E47d90003D41EC34EcaEda94 -->
     ./blocktools run 'seed-repair < /in/seed-unknown.txt | seed-to-master | derive --chain eth --count 1 --match /in/targets-eth.txt'
 
-Typos (misspelt words, swapped neighbours) are fixed by the same `seed-repair` step. Two or more
-missing words are not attempted (over 4 million candidates per pair).
+Typos (misspelt words, any swapped pair) are fixed by the same `seed-repair` step. Electrum 2.x
+seeds use `seed-repair --scheme electrum` (or `any`). Two `?` wildcards are searched under a
+200k-iteration budget (may miss); a phrase two words short is not expanded.
 
 ## Private key → BTC addresses
 

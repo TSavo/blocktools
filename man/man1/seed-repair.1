@@ -1,13 +1,13 @@
 .TH SEED\-REPAIR 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
 .SH NAME
-seed\-repair \- read a (possibly mistyped) BIP39 phrase, print checksum\-valid
+seed\-repair \- read a (possibly mistyped) BIP39 / Electrum 2.x phrase, print checksum\-valid
 .SH SYNOPSIS
 .nf
-seed\-repair < damaged BIP39 phrase \-> checksum\-valid candidate phrases {"mnemonic","candidate"}; `?` = unknown word, one word short = missing at any position
+seed\-repair [\-\-max N] [\-\-scheme bip39|electrum|any] < damaged phrase \-> {"mnemonic","candidate"}; `?` = unknown word (two `?` budgeted); one word short = missing at any position; pairwise swaps
 .fi
 .SH DESCRIPTION
 candidates as JSON lines. Output CONTAINS SECRETS (field "mnemonic").
-Thin wrapper around blocktools_secrets::repair::repair.
+Thin wrapper around blocktools_secrets::repair.
 .SH WARNING
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
 .br

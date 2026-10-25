@@ -9,7 +9,7 @@ own public test vectors.
 ### btcrecover breadth (seed and password recovery)
 | capability (btcrecover, public docs) | blocktools today | gap |
 |---|---|---|
-| BIP39 seed typo repair (swap, replace, missing word) | `seed-repair` (nearest words, missing word, checksum filter) | word-order swaps, more than one missing word, Electrum v2 / Electrum 1.x seed checksums |
+| BIP39 seed typo repair (swap, replace, missing word) | `seed-repair` (nearest words, pairwise swaps, one missing / one `?`, Electrum 2.x via `--scheme`) | exhaustive two-missing, Electrum 1.x old mnemonic |
 | Wallet-file password recovery from token lists and typo rules | file openers check one password (`dat-read`, `keystore-open`, `electrum-read`, `multibit-read`, `armory-read`) | no candidate generator, no bounded search loop |
 | Address-database / known-address check | `derive` + `key-to-addresses` compare against an address | no "stop when this address is found" search over paths and indexes |
 | Many wallet formats (Core, Electrum, MultiBit, Blockchain.com, Ethereum keystore, Armory, Coinomi...) | Core BDB/SQLite, Electrum, MultiBit/bitcoinj, Armory, Web3 keystore, Blockchain.com v2/v3 JSON | Coinomi, Exodus |
@@ -50,6 +50,6 @@ Implemented in this order; each step ships with its own vectors and an entry bel
 - [x] 2 chain registry as data: `chain-table` CLI (JSON lines, `--array`, one row by name) and wasm `chainTable()`, both from `chains::table_json`. Tests: core table_tests, e2e key-to-addresses.sh, test.mjs. Untested: consumers other than the C ABI (planned)
 - [x] 3 pw-candidates: `pw-candidates` expands a token list (product, case, swap, digit, typo) bounded by `--max`; pipes into existing openers. Tests: unit product/case/swap/bound + fixture password retained; e2e opens mbhd.wallet.aes. Untested: deep multi-rule combinations, non-ASCII tokens
 - [x] 4 BIP38 / Blockchain.com: `bip38-open` (non-EC 6PR/6PY, BIP vectors) and `blockchain-read` (v2/v3 wallet.aes.json); classify + recover.sh. Tests: secrets bip38/blockchain units, e2e bip38-blockchain.sh. Untested: BIP38 EC-multiply, NFC-only passphrases (Test 3), Blockchain.com HD `hd_wallets` live wallets, Coinomi/Exodus
-- [ ] 5 seed repair breadth
+- [x] 5 seed repair breadth: pairwise (not only adjacent) swaps; `--scheme bip39|electrum|any`; two `?` streamed under MAX_COMBOS (non-exhaustive). Tests: repair_tests. Untested: exhaustive two-missing, Electrum 1.x 1626-word mnemonic, NFC Electrum phrases
 - [ ] 6 common envelope (with C ABI)
 - [ ] 7 address search
