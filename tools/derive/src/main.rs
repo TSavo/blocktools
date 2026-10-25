@@ -31,6 +31,7 @@ const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -
   --curve secp256k1|ed25519                restrict to one curve
   --match FILE         public target addresses, one per line: print only hits (with their path)
   --gap-limit N        with --match: keep scanning each branch until N misses after the last hit
+  --stop-on-match      with --match: stop the whole walk after the first hit (address search)
   --explain            print the plan (paths, address types, counts) and exit; no stdin, no keys
   --help
 
@@ -58,13 +59,17 @@ fn main() {
     }
     let mut n = 0u64;
     let mut tried = 0u64;
+    let mut stop = false;
     for line in std::io::stdin().lock().take(16 << 20).lines().map_while(Result::ok) {
         let line = Zeroizing::new(line);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
         let Some(x) = v.get("xprv").and_then(|m| m.as_str()) else {
             // Leaf keys already carrying an address (e.g. legacy keys from dat-read) pass through.
             if let Some(a) = v.get("address").and_then(|a| a.as_str()) {
-                if v.get("status").and_then(|s| s.as_str()) == Some("ok") && match_set.as_ref().map_or(true, |m| m.contains(&norm(a))) { outln!("{}", line.as_str()); n += 1; }
+                if v.get("status").and_then(|s| s.as_str()) == Some("ok") && match_set.as_ref().map_or(true, |m| m.contains(&norm(a))) {
+                    outln!("{}", line.as_str()); n += 1;
+                    if o.stop_on_match { stop = true; break }
+                }
             }
             continue
         };
@@ -79,7 +84,11 @@ fn main() {
             n += 1; true
         };
         if let (Some(kind), Some(path)) = (v.get("kind").and_then(|k| k.as_str()).and_then(blocktools_core::kind_name), v.get("path").and_then(|p| p.as_str())) {
-            if path.len() < 128 { walk::walk_account(&o, &master, kind, path, v.get("branch").and_then(|b| b.as_u64()), &mut emit); continue }
+            if path.len() < 128 {
+                walk::walk_account(&o, &master, kind, path, v.get("branch").and_then(|b| b.as_u64()), &mut emit);
+                if o.stop_on_match && n > 0 { stop = true; break }
+                continue
+            }
         }
         let seed = Zeroizing::new(v.get("seed").and_then(|s| s.as_str()).and_then(blocktools_core::hex_dec).filter(|s| s.len() == 64));
         if let Some(s) = o.specs.iter().find(|s| s.chain.enc.ed25519()).filter(|_| seed.is_none()) {
@@ -89,7 +98,9 @@ fn main() {
         if let Err(e) = walk::walk(&o, &master, seed.as_deref().map(|s| &s[..]), scheme, &mut tried, &mut emit) {
             outln!(r#"{{"tool":"derive","status":"{e}","count":{tried}}}"#); std::process::exit(2)
         }
+        if o.stop_on_match && n > 0 { stop = true; break }
     }
+    let _ = stop;
     if match_set.is_some() && n == 0 { outln!(r#"{{"tool":"derive","status":"no_candidates","count":{tried}}}"#) }
     outln!(r#"{{"tool":"derive","status":"done","count":{n}}}"#);
 }

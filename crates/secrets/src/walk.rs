@@ -76,7 +76,12 @@ pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: 
             let Some(p) = plan::expand(&s.template, s, acc, ch, i) else { break };
             *tried += 1;
             if *tried > MAX_TRIED { return Err("too_many_candidates") }
-            for r in w.rows(s, &p) { if emit(&r) { last_hit = i.saturating_add(1) } }
+            for r in w.rows(s, &p) {
+                if emit(&r) {
+                    last_hit = i.saturating_add(1);
+                    if o.stop_on_match { return Ok(()); }
+                }
+            }
             k += 1; i += 1;
             if fixed { break }
             }
@@ -91,7 +96,8 @@ pub fn walk_account(o: &Opts, acct: &Xpriv, kind: &'static str, path: &str, bran
     let branches: Vec<u32> = match branch { Some(b) if b < 1 << 31 => vec![b as u32], _ => o.ranges.change.clone().into_iter().chain([0, 1]).collect::<std::collections::BTreeSet<_>>().into_iter().collect() };
     let cnt = if o.index_set { *o.ranges.index.iter().max().unwrap() + 1 } else { 10 };
     for b in branches { for r in blocktools_core::derive_account(acct, kind, path, b, cnt) {
-        emit(&Row { chain: "btc", kind: r.kind, path: r.path, address: r.address, secret_field: "wif", secret: r.secret }); } }
+        if emit(&Row { chain: "btc", kind: r.kind, path: r.path, address: r.address, secret_field: "wif", secret: r.secret }) && o.stop_on_match { return }
+    } }
 }
 
 #[cfg(test)]
@@ -142,4 +148,29 @@ mod tests {
     fn bip39_seed() -> Vec<u8> {
         bip39::Mnemonic::parse_in_normalized(bip39::Language::English, &("abandon ".repeat(11) + "about")).unwrap().to_seed_normalized("").to_vec()
     }
+    #[test] fn stop_on_match_halts_after_first_hit() {
+        // Public BIP84 address 0 of abandon…about on btc p2wpkh.
+        let target = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
+        let master = Xpriv::from_str(ROOT).unwrap();
+        let o = plan::from_args(&[
+            "--chain".into(), "btc".into(),
+            "--address-type".into(), "p2wpkh".into(),
+            "--count".into(), "20".into(),
+            "--match".into(), "/dev/null".into(), // CLI reads file; walk only checks the flag
+            "--stop-on-match".into(),
+        ]).unwrap();
+        // from_args needs match_file set for stop_on_match; gap not required.
+        assert!(o.stop_on_match);
+        let mut tried = 0u64;
+        let mut hits = 0u64;
+        let mut seen_i = Vec::new();
+        walk(&o, &master, None, "bip39", &mut tried, &mut |r| {
+            if r.address == target { hits += 1; seen_i.push(r.path.clone()); true } else { false }
+        }).unwrap();
+        assert_eq!(hits, 1, "exactly one hit then stop");
+        assert!(seen_i[0].ends_with("/0/0"), "{}", seen_i[0]);
+        // Without stop, count 20 would try 20 indices; with stop, tried stops early (<= a few).
+        assert!(tried < 20, "tried={tried}");
+    }
+
 }

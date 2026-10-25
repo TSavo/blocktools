@@ -19,6 +19,7 @@ derive: master key (stdin, from seed\-to\-master / dat\-read) \-> addresses + ke
   \-\-curve secp256k1|ed25519                restrict to one curve
   \-\-match FILE         public target addresses, one per line: print only hits (with their path)
   \-\-gap\-limit N        with \-\-match: keep scanning each branch until N misses after the last hit
+  \-\-stop\-on\-match      with \-\-match: stop the whole walk after the first hit (address search)
   \-\-explain            print the plan (paths, address types, counts) and exit; no stdin, no keys
   \-\-help
   Passphrases are never flags: use seed\-to\-master (stdin {"passphrase":...} or \-\-passphrase\-prompt).

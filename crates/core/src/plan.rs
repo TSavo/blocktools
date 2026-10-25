@@ -121,13 +121,15 @@ pub struct Opts {
     /// --match FILE (the CLI reads it; the library never opens files).
     pub match_file: Option<String>,
     pub gap: Option<u32>, pub explain: bool, pub only_uncompressed: bool,
+    /// --stop-on-match: with --match, end the walk after the first hit.
+    pub stop_on_match: bool,
 }
 /// Build a plan from `derive` flags (argv without the program name). `--help` and
 /// `--list-presets` are the CLI's business and are rejected here. Public parameters only.
 pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
     let (mut chains_sel, mut preset_name, mut types, mut purposes, mut paths) = (Vec::<&'static Chain>::new(), "common".to_string(), None::<Vec<String>>, None::<Vec<u32>>, Vec::<String>::new());
     let (mut coin, mut account, mut change, mut index, mut comp, mut curve) = (None, None, None, None, None::<&str>, None::<String>);
-    let (mut match_file, mut gap, mut explain) = (None::<String>, None, false);
+    let (mut match_file, mut gap, mut explain, mut stop_on_match) = (None::<String>, None, false, false);
     let mut i = 0;
     while i < a.len() {
         let flag = a[i].as_str();
@@ -150,6 +152,7 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
             "--curve" => curve = Some(val()?),
             "--match" => match_file = Some(val()?),
             "--gap-limit" => gap = Some(val()?.parse::<u32>().ok().filter(|n| (1..=100_000).contains(n)).ok_or("bad_input")?),
+            "--stop-on-match" => { stop_on_match = true; takes = false },
             _ => return Err("bad_input"),
         }
         i += if takes { 2 } else { 1 };
@@ -183,11 +186,12 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
     let index_set = index.is_some();
     let ranges = Ranges { account: account.unwrap_or(pa), change: change.unwrap_or(pc), index: index.unwrap_or_default() };
     if gap.is_some() && match_file.is_none() { return Err("bad_input") }
+    if stop_on_match && match_file.is_none() { return Err("bad_input") }
     // Plain `derive` (no --preset/--path/--purpose): Electrum masters get Electrum paths.
     let explicit = a.iter().any(|x| x == "--preset" || x == "--path" || x == "--purpose");
     let auto = (!explicit).then(|| (chains_sel.clone(), comp.map(|c| c.to_string())));
     let only_uncompressed = comp == Some("uncompressed");
-    Ok(Opts { auto, specs, ranges, index_set, match_file, gap, explain, only_uncompressed })
+    Ok(Opts { auto, specs, ranges, index_set, match_file, gap, explain, only_uncompressed, stop_on_match })
 }
 /// Normalise an address for matching (EVM hex is case-insensitive).
 pub fn norm(a: &str) -> String { if a.starts_with("0x") { a.to_ascii_lowercase() } else { a.to_string() } }

@@ -30,6 +30,7 @@ Only hits are printed, each with `chain`, `kind` and `path`. If nothing matches,
 | TronLink | `--chain tron --preset tronlink` |
 | Solana only | `--curve ed25519 --chain sol` |
 | Keep scanning while hits continue | `--match targets.txt --gap-limit 20` |
+| Stop at first known address | `--match targets.txt --stop-on-match` |
 | Uncompressed (2011-era) keys | `--chain btc --address-type p2pkh --uncompressed` |
 
 Ranges are inclusive: `0..9`, `2-4`, `0,1,5`, `0..2,7`.

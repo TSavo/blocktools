@@ -115,7 +115,7 @@ stdin. The plan is then walked for every master key on stdin. Flags carry **publ
 parameters only**: chain, coin type, purpose, ranges, templates, address types,
 compression, curve, gap limit, and a file of *public* target addresses
 (`--match`, which prints only hits together with the path that produced them, so
-the output answers "which path made this address?"). Passphrases are never flags;
+the output answers "which path made this address?"; `--stop-on-match` ends the walk after the first hit). Passphrases are never flags;
 they reach `seed-to-master` as a stdin JSON line. Templates are validated before
 use (placeholders `{purpose} {coin} {account} {change} {i}`, must parse as a
 BIP32 path, max 96 chars). Hard caps: 1M entries per range and 5M derivations per run
