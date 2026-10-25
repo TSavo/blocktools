@@ -10,7 +10,7 @@ table (BTC\-family compressed AND uncompressed, ETH, Tron, XRP, and Solana treat
 as an ed25519 seed). Accepted encodings: 64 hex (0x optional), base64, base58, WIF,
 or a JSON line {"key":"..."} / {"wif":"..."}. An ambiguous string is tried in every encoding that yields
 exactly 32 bytes; each decoding is a separate "candidate".
-Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: \-\-chain a,b (default all).
+Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: \-\-chain a,b (default all; zec t1 only when listed).
 .SH WARNING
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
 .br

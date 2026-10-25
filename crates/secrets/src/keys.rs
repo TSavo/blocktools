@@ -54,6 +54,23 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
     }
 }
 
+/// Zcash transparent rows (t1 P2PKH, WIF version 0x80) for one secp256k1 key. zec is not in the
+/// chains table (two-byte version), so key-to-addresses calls this for `--chain zec`.
+pub fn zec_rows(bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
+    use bitcoin::hashes::{hash160, Hash};
+    let Ok(sk) = SecretKey::from_slice(bytes) else { return vec![] };
+    let pk = bitcoin::secp256k1::PublicKey::from_secret_key(&Secp256k1::new(), &sk);
+    let mut v = Vec::new();
+    for c in [true, false] {
+        if comp.is_some_and(|x| x != c) { continue }
+        let k = if c { pk.serialize().to_vec() } else { pk.serialize_uncompressed().to_vec() };
+        let mut p = vec![0x1c, 0xb8]; p.extend(hash160::Hash::hash(&k).to_byte_array());
+        v.push(Row { chain: "zec", kind: if c { "p2pkh" } else { "p2pkh-uncompressed" }, path: String::new(), address: chains::b58check_ck(chains::Ck::Sha256d, &p),
+            secret_field: "wif", secret: chains::wif(0x80, &sk, c) });
+    }
+    v
+}
+
 /// One signing key from a line: WIF, 64-hex, or JSON with wif/private_key/key/secret.
 pub fn parse_key_line(s: &str) -> Option<SecretKey> {
     let s = s.trim();
@@ -98,5 +115,23 @@ mod tests {
         let w = decodings("5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf");
         assert_eq!((w[0].0, w[0].2), ("wif", Some(false)));
         assert_eq!(w[0].1[31], 1);
+    }
+}
+
+#[cfg(test)]
+mod zec_tests {
+    /// Throwaway key 1: the t1 payload is 1cb8 + the same hash160 as bitcoin's 1BgGZ9.. (compressed)
+    /// and 1EHNa6.. (uncompressed); an explicit WIF hint keeps only its form.
+    #[test] fn zec_t1_from_raw_key() {
+        let mut k = [0u8; 32]; k[31] = 1;
+        let r = super::zec_rows(&k, None);
+        assert_eq!(r.len(), 2);
+        for (row, btc) in r.iter().zip(["1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm"]) {
+            let z = bitcoin::base58::decode_check(&row.address).unwrap(); let b = bitcoin::base58::decode_check(btc).unwrap();
+            assert_eq!((&z[..2], &z[2..]), (&[0x1c, 0xb8][..], &b[1..])); assert!(row.address.starts_with("t1"));
+            assert_eq!(bitcoin::base58::decode_check(&row.secret).unwrap()[0], 0x80);
+        }
+        assert_eq!(super::zec_rows(&k, Some(true)).len(), 1); assert_eq!(super::zec_rows(&k, Some(false))[0].kind, "p2pkh-uncompressed");
+        assert!(super::zec_rows(&[0; 32], None).is_empty());
     }
 }
