@@ -6,3 +6,8 @@ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon ab
 # broken pipe: no panic message, quiet exit
 r=$(echo 0000000000000000000000000000000000000000000000000000000000000001 | "$B/key-to-addresses" 2>&1 | head -1 >/dev/null; echo ok)
 [ "$r" = ok ] && echo "ok  EPIPE: quiet"
+# chain registry as data
+n=$("$B/chain-table" | wc -l); [ "$n" -ge 40 ] || { echo "FAIL chain-table rows $n"; exit 1; }
+"$B/chain-table" ltc | grep -q '"p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc"' || { echo "FAIL chain-table ltc"; exit 1; }
+"$B/chain-table" nope 2>/dev/null && { echo "FAIL chain-table unknown accepted"; exit 1; }
+echo "ok  chain-table: $n rows, ltc row matches chainparams"

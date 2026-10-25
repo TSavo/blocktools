@@ -47,7 +47,7 @@ Implemented in this order; each step ships with its own vectors and an entry bel
 
 ## 3. Status
 - [x] 1 policy file: `crates/tx/src/policy_file.rs`, `tx-verify --policy`, `tx-sign --policy`, wasm `checkTxPolicy`, docs/POLICY.md. Tests: crates/tx/tests/policy_file.rs, e2e tx-sign.sh, test.mjs. Untested: real-world policy files, EVM e2e through tx-sign (only covered by the unit tests).
-- [ ] 2 chain registry as data
+- [x] 2 chain registry as data: `chain-table` CLI (JSON lines, `--array`, one row by name) and wasm `chainTable()`, both from `chains::table_json`. Tests: core table_tests, e2e key-to-addresses.sh, test.mjs. Untested: consumers other than the C ABI (planned)
 - [ ] 3 pw-candidates
 - [ ] 4 BIP38 / Blockchain.com
 - [ ] 5 seed repair breadth

@@ -38,6 +38,10 @@ pub fn validate_address(chain: &str, address: &str) -> Result<String, JsError> {
 #[wasm_bindgen(js_name = listChains)]
 pub fn list_chains() -> String { let mut v: Vec<&str> = chains::CHAINS.iter().map(|c| c.name).collect(); v.push("zec"); json!(v).to_string() }
 
+/// The chain registry as data: JSON array of {name,ticker,coin_type,curve,encoding,...,sign,verified,source}.
+#[wasm_bindgen(js_name = chainTable)]
+pub fn chain_table() -> String { chains::table_json() }
+
 /// Watch-only addresses from an account-level xpub: JSON [{chain,kind,path,address}].
 #[wasm_bindgen(js_name = addressesFromXpub)]
 pub fn addresses_from_xpub(xpub_str: &str, chain: &str, kinds: Vec<String>, branches: Vec<u32>, indices: Vec<u32>) -> Result<String, JsError> {

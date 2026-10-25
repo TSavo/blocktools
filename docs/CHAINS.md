@@ -137,3 +137,10 @@ names a test that does not exist, or lacks a source, and if a chain with a quirk
 | qtum-legacy | qtum | qtum.rs::qtum_mainnet_txs_are_bitcoin_legacy | qtum.info api raw-tx (data/qtum_mainnet.txt) |
 | wdc-legacy | wdc | wdc.rs::wdc_mainnet_txs_are_bitcoin_legacy | chainz.cryptoid.info tx.raw.dws (data/wdc_mainnet.txt) |
 <!-- quirks:end -->
+
+## The registry as data
+`chain-table` prints the CHAINS table above as JSON (one object per chain; `--array` for a single
+array; `chain-table btc` for one row): name, ticker, SLIP-44 `coin_type`, `curve`, `encoding` with
+its version bytes / hrp / SS58 prefix, `native_seed`, `sign` (UTXO sighash scheme; `account_family`
+means the chain is signed by its own tool, e.g. acct-tx / xrp-tx), `buildable` (tx-build signs it),
+`verified` and the parameter `source`. The wasm build exports the same array as `chainTable()`.

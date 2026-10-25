@@ -13,6 +13,7 @@ assert.equal(bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHd
 assert.throws(() => bt.validateAddress('xmr', '44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdx'));
 assert.ok(JSON.parse(bt.listChains()).includes('eth'));
 assert.ok(JSON.parse(bt.listChains()).includes('zec'));
+assert.ok(JSON.parse(bt.chainTable()).find(c => c.name === 'btc').coin_type === 0);
 assert.equal(JSON.parse(bt.supportedChains()).find(c => c.name === 'zec').scope, 'transparent');
 const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common']));
 assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));

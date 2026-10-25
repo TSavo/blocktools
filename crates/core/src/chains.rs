@@ -855,3 +855,41 @@ mod grs_p2tr {
         assert_eq!(p2tr("grs"), "grs1p2wsldez5mud2yam29q22wgfh9439spgduvct83k3pm50fcxa5dpsm7geds");
     }
 }
+
+fn js(s: &str) -> String {
+    let mut o = String::from("\"");
+    for c in s.chars() { match c { '"' => o.push_str("\\\""), '\\' => o.push_str("\\\\"), c if (c as u32) < 0x20 => o.push_str(&format!("\\u{:04x}", c as u32)), c => o.push(c) } }
+    o.push('"'); o
+}
+/// One chain as a JSON object: name, ticker, title, SLIP-44 coin type, curve, address encoding
+/// (with its version bytes / hrp), signer kind, whether tx-build signs it, verified, source.
+/// Public data only (no keys). Used by the `chain-table` tool, wasm `chainTable` and the C ABI.
+pub fn chain_json(c: &Chain) -> String {
+    let curve = match c.enc { Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton => "ed25519", Enc::Ada => "ed25519-bip32", Enc::Ss58 { .. } => "sr25519", Enc::Xmr => "ed25519-monero", _ => "secp256k1" };
+    let (enc, extra) = match c.enc {
+        Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot } => ("utxo", format!(",\"p2pkh\":{p2pkh},\"p2sh\":{p2sh},\"wif\":{wif},\"hrp\":{},\"taproot\":{taproot}", hrp.map_or("null".into(), js))),
+        Enc::Cosmos { hrp } => ("cosmos", format!(",\"hrp\":{}", js(hrp))),
+        Enc::Ss58 { prefix } => ("ss58", format!(",\"ss58_prefix\":{prefix}")),
+        e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", _ => "xmr" }, String::new()),
+    };
+    let sign = match c.sign { Sign::Standard => "standard".to_string(), Sign::ForkId(f) => format!("forkid:{f}"), Sign::PosTime => "pos_time".into(), Sign::Unknown => if matches!(c.enc, Enc::Utxo { .. }) { "none".into() } else { "account_family".into() }, Sign::Sha256Single => "sha256_single".into() };
+    format!("{{\"name\":{},\"ticker\":{},\"title\":{},\"coin_type\":{},\"curve\":\"{curve}\",\"encoding\":\"{enc}\"{extra},\"native_seed\":{},\"sign\":\"{sign}\",\"buildable\":{},\"default_count\":{},\"verified\":{},\"source\":{}}}",
+        js(c.name), js(c.ticker), js(c.title), c.coin, c.enc.native_seed(), c.sign.buildable(), c.default_count, c.verified, js(c.source))
+}
+/// The whole registry as a JSON array (see `chain_json`).
+pub fn table_json() -> String { format!("[{}]", CHAINS.iter().map(chain_json).collect::<Vec<_>>().join(",")) }
+
+#[cfg(test)]
+mod table_tests {
+    #[test]
+    fn table_is_json_and_complete() {
+        let t = super::table_json();
+        let v: Vec<&str> = t.matches("\"name\":").collect();
+        assert_eq!(v.len(), super::CHAINS.len());
+        let btc = super::chain_json(super::chain("btc").unwrap());
+        assert!(btc.starts_with("{\"name\":\"btc\",\"ticker\":\"BTC\",\"title\":\"Bitcoin\",\"coin_type\":0,\"curve\":\"secp256k1\",\"encoding\":\"utxo\",\"p2pkh\":0,\"p2sh\":5,\"wif\":128,\"hrp\":\"bc\",\"taproot\":true"), "{btc}");
+        assert!(super::chain_json(super::chain("bch").unwrap()).contains("\"sign\":\"forkid:0\""));
+        assert!(super::chain_json(super::chain("atom").unwrap()).contains("\"hrp\":\"cosmos\""));
+        assert!(super::chain_json(super::chain("ton").unwrap()).contains("\\\"TON default seed\\\""));
+    }
+}
