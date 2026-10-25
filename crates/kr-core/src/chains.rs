@@ -35,8 +35,8 @@ pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.na
 pub struct Row { pub chain: &'static str, pub kind: &'static str, pub path: String, pub address: String, pub secret_field: &'static str, pub secret: String }
 
 fn b58check(payload: &[u8]) -> String { bitcoin::base58::encode_check(payload) }
-const XRP_ALPHA: &[u8; 58] = b"rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
-const BTC_ALPHA: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+pub(crate) const XRP_ALPHA: &[u8; 58] = b"rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
+pub(crate) const BTC_ALPHA: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 /// Ripple base58check: same digits as Bitcoin's base58check, different alphabet.
 pub fn xrp_b58check(payload: &[u8]) -> String {
     b58check(payload).bytes().map(|c| XRP_ALPHA[BTC_ALPHA.iter().position(|x| *x == c).unwrap()] as char).collect()
@@ -52,7 +52,7 @@ pub fn wif(version: u8, sk: &SecretKey, compressed: bool) -> String {
 fn segwit_v0(hrp: &str, prog: &[u8]) -> String {
     bech32::segwit::encode_v0(Hrp::parse(hrp).expect("static hrp"), prog).expect("20-byte program")
 }
-fn keccak_addr20(pk: &PublicKey) -> [u8; 20] {
+pub(crate) fn keccak_addr20(pk: &PublicKey) -> [u8; 20] {
     let h = Keccak256::digest(&pk.serialize_uncompressed()[1..]);
     h[12..].try_into().unwrap()
 }

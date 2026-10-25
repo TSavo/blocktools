@@ -7,6 +7,7 @@ use bitcoin::{Address, CompressedPublicKey, Network, PrivateKey};
 use sha3::{Digest, Keccak256};
 pub mod chains;
 pub mod plan;
+pub mod validate;
 use std::str::FromStr;
 
 pub fn hex_enc(b: impl AsRef<[u8]>) -> String {
