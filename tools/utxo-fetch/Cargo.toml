@@ -1,0 +1,11 @@
+[package]
+name = "utxo-fetch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "keyrescue utxo-fetch (HOST-SIDE, uses the network; not in the sealed image). DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+kr-net = { path = "../../crates/kr-net" }
+kr-core = { path = "../../crates/kr-core" }
+kr-io = { path = "../../crates/kr-io" }
+serde_json.workspace = true

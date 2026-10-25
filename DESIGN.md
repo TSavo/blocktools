@@ -226,6 +226,27 @@ and to read the typed confirmation code before signing. No other libc calls. If 
 cannot be disabled the prompt refuses (`bad_input`) instead of echoing a secret.
 Only the tools that prompt depend on kr-tty.
 
+### Network (host-side only)
+
+Only `utxo-fetch` and `tx-broadcast` use the network, through `crates/kr-net`. They are
+**not copied into the sealed image** (Dockerfile skips them) and `check-deps.sh` fails if any
+other crate pulls in `kr-net`, `minreq`, `rustls`, `ring` or `webpki-roots`.
+
+HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
+
+| crate + TLS            | crates |
+|------------------------|-------:|
+| minreq 2 + https-rustls|     12 |
+| ureq 3 + rustls        |     23 |
+| ureq 2 + tls           |     49 |
+| attohttpc + rustls     |     51 |
+
+`minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
+fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
+next-smallest and swapping is confined to `kr-net`. kr-net: https only (plain http only for
+localhost test servers), 30 s timeout, no redirects, 8 MiB body cap, server data re-validated.
+Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
+
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
 
 Every step is a separate tool. Only `utxo-fetch` and `tx-broadcast` touch the network,

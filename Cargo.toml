@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/kr-schema", "crates/kr-core", "crates/kr-io", "crates/kr-tty", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open", "tools/dat-read", "tools/key-to-addresses", "crates/kr-tx", "tools/tx-decode", "tools/tx-build", "tools/tx-verify", "tools/tx-sign"]
+members = ["crates/kr-schema", "crates/kr-core", "crates/kr-io", "crates/kr-tty", "tools/kr-redact", "tools/kr-run", "tools/kr-cat", "tools/seed-repair", "tools/seed-to-master", "tools/derive", "tools/keystore-open", "tools/dat-read", "tools/key-to-addresses", "crates/kr-tx", "tools/tx-decode", "tools/tx-build", "tools/tx-verify", "tools/tx-sign", "crates/kr-net", "tools/utxo-fetch", "tools/tx-broadcast"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,6 +9,7 @@ license = "MIT"
 
 [workspace.dependencies]
 serde_json = { version = "1", default-features = false, features = ["std"] }
+minreq = { version = "2.14", default-features = false, features = ["https-rustls"] }
 zeroize = { version = "1", default-features = false, features = ["alloc"] }
 bip39 = { version = "2.1", default-features = false, features = ["std"] }
 bitcoin = { version = "0.32", default-features = false, features = ["std"] }

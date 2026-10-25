@@ -1,0 +1,16 @@
+cfg-if
+getrandom
+itoa
+libc
+log
+memchr
+minreq
+ring
+rustls
+rustls-webpki
+sct
+serde_core
+serde_json
+untrusted
+webpki-roots
+zmij
