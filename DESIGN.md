@@ -120,7 +120,7 @@ use (placeholders `{purpose} {coin} {account} {change} {i}`, must parse as a
 BIP32 path, max 96 chars). Hard caps: 1M entries per range and 5M derivations per run
 (`too_many_candidates`). Duplicate (path, chain, kind) rows are emitted once.
 Presets (`--list-presets`): common, exhaustive, recovery, exodus, tronlink,
-ledger-live, legacy-hd. See docs/recipes/derive.md. Ed25519 (Solana) paths must be
+ledger-live, legacy-hd. See recipes/derive.md. Ed25519 (Solana) paths must be
 all-hardened (SLIP-10) and need the `seed` field from seed-to-master.
 Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
 seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
@@ -510,3 +510,11 @@ Monero is `crates/monero` (blocktools-monero). The default `keys` feature carrie
 Signing uses `STX\0`. secp256k1 signs sha512half of it with RFC6979, low-S and DER. ed25519 signs the bytes directly. The txid is sha512half(`TXN\0` || blob).
 
 `xrp-tx` is the CLI. `sign` needs `--expect-to` and a typed code on /dev/tty, and it warns when the destination tag is missing. Core only gets `is_xrp_seed` and X-address validation, written against its existing base58, so classify does not pull in ed25519.
+
+## Recipes are executable documentation
+
+`recipes/*.md` are the user manual. Each example marked with `<!-- e2e: expect=..; rc=..; fund=.. -->` is run exactly as written by
+`scripts/recipe-check.py` (in e2e). `./blocktools run '...'` goes through `sealed-run agent`, and `recipes/recover.sh` runs against the mock
+chain. The checker also makes sure stdout holds no secret (the LEAK regex plus the literal secret values of the generated vectors). Vectors are made at test time, so
+nothing secret-shaped is committed. A recipe with no tested example fails the build. The schema allowlist now admits
+`xpub-addresses`, `xmr-keys` and `xrp-tx` lines, and 95-char Monero standard addresses (prefix 4/5/9). Every other long base58 string is still dropped.

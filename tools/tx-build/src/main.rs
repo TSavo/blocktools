@@ -25,7 +25,7 @@ fn file(p: &str, max: u64) -> String {
     s
 }
 fn main() {
-    blocktools_io::help("tx-build --chain btc|ltc|doge|eth ... (see --help in source docs / docs/recipes) -> unsigned PSBT or EVM tx");
+    blocktools_io::help("tx-build --chain btc|ltc|doge|eth ... (see --help in source docs / recipes) -> unsigned PSBT or EVM tx");
     let a = A(std::env::args().collect());
     let chain = a.get("--chain").unwrap_or("btc");
     if chain == "eth" { return evm_build(&a) }

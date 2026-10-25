@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Run every recipe example in recipes/*.md against public dummy vectors (no network but a
+127.0.0.1 mock chain). A tested example is an HTML comment followed by a 4-space-indented command:
+
+    <!-- e2e: expect=bc1q... ; expect=... ; rc=0 ; fund=ADDR ; needs=wallet.dat -->
+        ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain btc'
+
+`./blocktools run '<pipeline>'` runs through the real agent boundary (target/release/sealed-run
+agent). `recipes/recover.sh ...` runs the front door (fund= funds one address on the mock chain and
+appends --url). /in/ and /secrets/ map to a temp dir of vectors made here. Checks: exit code,
+every expect substring in stdout+stderr, and no secret value in stdout (public fields stripped).
+Every recipe file except README.md must carry at least one tested example.
+usage: recipe-check.py BIN_DIR TMP_DIR"""
+import os, re, shlex, shutil, subprocess, sys, time
+B, T = sys.argv[1], sys.argv[2]
+VD = os.path.join(T, "recipes"); IN = os.path.join(VD, "in"); SEC = os.path.join(VD, "secrets")
+os.makedirs(IN, exist_ok=True); os.makedirs(SEC, mode=0o700, exist_ok=True)
+def w(d, n, s): open(os.path.join(d, n), "w").write(s + "\n")
+# Public test vectors only (BIP39/84 spec mnemonic, Electrum's test seed, key 1, xrpl.js and
+# monero-python fixtures, Ethereum's keystore test vector).
+w(IN, "seed.txt", "abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot")
+w(IN, "electrum-seed.txt", "cycle rocket west magnet parrot shuffle foot correct salt library feed song")
+w(IN, "key.hex", "0" * 63 + "1")
+w(IN, "key.wif", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn")
+w(IN, "xrp-seed.txt", "sEdSKaCy2JT7JaM7v95H9SxkhP9wS2r")
+w(IN, "xmr-seed.txt", "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy")
+w(IN, "address.txt", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu")
+w(IN, "xpub.txt", "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs")
+w(IN, "keystore.json", re.search(r'const V: &str = r#"(.*?)"#;', open("crates/secrets/src/keystore.rs").read()).group(1))
+subprocess.run([sys.executable, "scripts/make-fixtures.py", IN], check=True, stdout=subprocess.DEVNULL)
+shutil.copy(os.path.join(IN, "descriptor-encrypted.sqlite"), os.path.join(IN, "wallet.dat"))
+shutil.copy("crates/tx/tests/vectors/block170.hex", os.path.join(IN, "block170.hex"))
+w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
+for src, dst in [("fixtures/external/electrum4_4_3_unencrypted", "electrum-wallet"), ("fixtures/external/multibit-wallet.key", "multibit.key"),
+                 ("fixtures/external/bitcoincore-wallet.dat", "old-client-wallet.dat")]:
+    if os.path.exists(src): shutil.copy(src, os.path.join(IN, dst))
+for n, p in [("wallet.pw", "blocktools-test-password"), ("keystore.pw", "testpassword"), ("electrum.pw", "btcr-test-password"),
+             ("multibit.pw", "btcr-test-password"), ("empty.pw", "")]:
+    w(SEC, n, p)
+secret_values = [open(os.path.join(IN, f)).read().strip() for f in ("seed.txt", "electrum-seed.txt", "key.hex", "key.wif", "xrp-seed.txt", "xmr-seed.txt")]
+LEAK = re.compile(r'"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret|view_secret|spend_secret)":"[^\[]|xprv[1-9A-Za-z]{20}|abandon')
+PUBLIC = re.compile(r'"(address|x_address|spend_public|view_public|public|psbt|unsigned|txid|xpub|fp)":"[^"]*"')
+# mock chain for --goal balance
+pf, lf, ff = (os.path.join(T, n) for n in ("rc-port", "rc-log", "rc-funded")); open(ff, "w").close()
+mock = subprocess.Popen([sys.executable, "scripts/mock-chain.py", pf, lf, os.path.join(T, "rc-noexp")], env={**os.environ, "MOCK_FUNDED": ff},
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+while not (os.path.exists(pf) and os.path.getsize(pf)): time.sleep(0.05)
+RU = "http://127.0.0.1:" + open(pf).read().strip()
+def sub(s): return s.replace("/in/", IN + "/").replace("/secrets/", SEC + "/")
+ok = skipped = 0; bad = []
+try:
+    for f in sorted(os.listdir("recipes")):
+        if not f.endswith(".md") or f == "README.md": continue
+        lines = open(os.path.join("recipes", f)).read().split("\n"); n_here = 0
+        for i, l in enumerate(lines):
+            m = re.match(r"\s*<!-- e2e:(.*)-->\s*$", l)
+            if not m: continue
+            opts = [o.strip() for o in m.group(1).split(" ; ") if o.strip()]
+            want = [o[7:] for o in opts if o.startswith("expect=")]
+            rc = int(next((o[3:] for o in opts if o.startswith("rc=")), "0"))
+            fund = next((o[5:] for o in opts if o.startswith("fund=")), None)
+            needs = [o[6:] for o in opts if o.startswith("needs=")]
+            cmd = next(x for x in lines[i + 1:] if x.strip()).strip(); where = f"{f}:{i + 2}"
+            n_here += 1
+            if any(not os.path.exists(os.path.join(IN, x)) for x in needs):
+                print(f"skip recipe {where}: needs {needs} (scripts/fetch-fixtures.sh)"); skipped += 1; continue
+            if cmd.startswith("./blocktools run '") and cmd.endswith("'"):
+                argv = [os.path.join(B, "sealed-run"), "agent", sub(cmd[len("./blocktools run '"):-1])]
+            elif cmd.startswith("recipes/recover.sh "):
+                argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
+                if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
+            else:
+                bad.append(f"{where}: untestable command form: {cmd}"); continue
+            p = subprocess.run(argv, capture_output=True, text=True, env={**os.environ, "BIN": B}, stdin=subprocess.DEVNULL, timeout=120)
+            both = p.stdout + p.stderr; stripped = PUBLIC.sub("", p.stdout)
+            errs = [f"exit {p.returncode} != {rc}"] if p.returncode != rc else []
+            errs += [f"missing {x!r}" for x in want if x not in both]
+            if LEAK.search(stripped) or any(v in p.stdout for v in secret_values): errs.append("SECRET IN STDOUT")
+            if errs: bad.append(f"{where}: {'; '.join(errs)}\n{both[-1500:]}")
+            else: ok += 1; print(f"ok  recipe {where}: {cmd[:90]}")
+        if n_here == 0: bad.append(f"{f}: no tested example (<!-- e2e: ... -->)")
+finally:
+    mock.kill()
+for b in bad: print("FAIL recipe " + b)
+print(f"recipes: {ok} examples ok, {skipped} skipped, {len(bad)} failed")
+sys.exit(1 if bad else 0)

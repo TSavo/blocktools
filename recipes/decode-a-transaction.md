@@ -46,3 +46,13 @@ data shows the fee and fee rate.
 Warnings worth stopping for: `high_fee*`, `unlimited_approve`/`token_approve` (you're
 granting spending rights, not sending), `no_chain_id` (replayable on other chains),
 `unknown_calldata`, `nonstandard_output`, `utxo_txid_mismatch`, `contract_creation`.
+
+## Tested examples
+
+<!-- e2e: expect=1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3 ; expect=12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S -->
+    ./blocktools run 'tx-decode < /in/block170.hex'
+
+`tx-verify` fails if something is off (here the input amounts are unknown, so the fee can't be checked):
+
+<!-- e2e: expect="status":"failed" -->
+    ./blocktools run 'tx-verify --expect-to 1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3 < /in/block170.hex'

@@ -1083,6 +1083,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "xpub-addresses"
+version = "0.1.0"
+dependencies = [
+ "blocktools-core",
+ "blocktools-io",
+ "serde_json",
+]
+
+[[package]]
 name = "xrp-tx"
 version = "0.1.0"
 dependencies = [

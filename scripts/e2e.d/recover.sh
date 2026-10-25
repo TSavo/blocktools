@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# docs/recipes/recover.sh end to end, one dummy input per type, against scripts/mock-chain.py on
+# recipes/recover.sh end to end, one dummy input per type, against scripts/mock-chain.py on
 # 127.0.0.1 only. A pty (tty-drive.py) types BOTH confirmation codes (sign, then broadcast).
 # Sourced by e2e-local.sh ($B, $T set). Every key here is a public test vector.
 R=$T/rec; mkdir -p "$R"; D=bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
@@ -11,7 +11,7 @@ rec() {
   if [ ! -f "$2" ]; then echo "skip recover $1: $2 absent (scripts/fetch-fixtures.sh)"; return 0; fi
   echo "$3" > "$R/funded"; : > "$R/log"; printf '%s\n' "${4:-}" > "$R/pw"
   dst=$D; case $3 in 0x*) dst=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF ;; esac
-  BIN=$B python3 scripts/tty-drive.py right /dev/null "$R/$1.out" "$PWD/docs/recipes/recover.sh" "$2" "$dst" \
+  BIN=$B python3 scripts/tty-drive.py right /dev/null "$R/$1.out" "$PWD/recipes/recover.sh" "$2" "$dst" \
     --url "$RU" --count 2 --password-file "$R/pw" > "$R/$1.tty" 2>&1 || { echo "FAIL recover $1"; cat "$R/$1.tty" "$R/$1.out"; exit 1; }
   if ! grep -q '"status":"ok"' "$R/$1.out" || [ "$(grep -Ec '^/tx |eth_sendRawTransaction' "$R/log")" != 1 ]; then echo "FAIL recover $1: not broadcast once"; cat "$R/$1.out"; exit 1; fi
   # txids are public 64-hex: strip them; then nothing key-shaped may remain in stdout or on the terminal
@@ -34,15 +34,15 @@ python3 -c 'import re;print(re.search(r"const V: &str = r#\"(.*?)\"#;", open("cr
 rec keystore "$R/keystore.json" 0x008AeEda4D805471dF9b2A5B0f38A0C3BCBA786b testpassword
 # watch-only and wrong-code cases: nothing may be signed or sent
 echo bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu > "$R/addr.txt"; : > "$R/log"
-if BIN=$B docs/recipes/recover.sh "$R/addr.txt" $D --url "$RU" 2>/dev/null; then echo "FAIL recover address"; exit 1; fi
+if BIN=$B recipes/recover.sh "$R/addr.txt" $D --url "$RU" 2>/dev/null; then echo "FAIL recover address"; exit 1; fi
 [ ! -s "$R/log" ] && echo "ok  recover address: watch-only, refused (exit 3), nothing sent"
 echo bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu > "$R/funded"
-BIN=$B python3 scripts/tty-drive.py wrong /dev/null "$R/w.out" "$PWD/docs/recipes/recover.sh" "$R/seed.txt" $D --url "$RU" > "$R/w.tty" 2>&1 || true
+BIN=$B python3 scripts/tty-drive.py wrong /dev/null "$R/w.out" "$PWD/recipes/recover.sh" "$R/seed.txt" $D --url "$RU" > "$R/w.tty" 2>&1 || true
 if [ ! -s "$R/log" ] && grep -q aborted "$R/w.tty"; then echo "ok  recover wrong code: aborted at tx-sign, nothing sent"; else echo "FAIL recover wrong"; exit 1; fi
 kill $RM 2>/dev/null; wait $RM 2>/dev/null || true
 # Monero (public monero-python test seed): classify -> xmr-keys prints the public address, then stops (exit 3)
 echo "adjust mugged vaults atlas nasty mews damp toenail suddenly toxic possible framed succeed fuzzy return demonstrate nucleus album noises peculiar virtual rowboat inorganic jester fuzzy" > "$R/xmr-seed.txt"
-set +e; BIN=$B bash docs/recipes/recover.sh "$R/xmr-seed.txt" "$D" > "$R/xmr.out" 2> "$R/xmr.err"; rc=$?; set -e
+set +e; BIN=$B bash recipes/recover.sh "$R/xmr-seed.txt" "$D" > "$R/xmr.out" 2> "$R/xmr.err"; rc=$?; set -e
 if [ $rc = 3 ] && grep -q '"address":"44cWztNFdAqNnycvZbUoj44vsbAEmKnx9aNgkjHdjtMsBrSeKiY8J4s2raH7EMawA2Fwo9utaRTV7Aw8EcTMNMxhH4YtKdH"' "$R/xmr.out" && grep -q "classified as monero_seed" "$R/xmr.err"; then echo "ok  recover xmr-seed: monero_seed -> address (KAT), stops before scan"; else echo "FAIL recover xmr-seed"; cat "$R/xmr.out" "$R/xmr.err"; exit 1; fi
 # Monero view-only scan input: written to a new 0600 file, view key never on stdout/stderr, no overwrite
 VK=$(grep -o 'view_secret\[..\]), "[0-9a-f]*' crates/monero/tests/kat.rs | grep -o '[0-9a-f]\{64\}')

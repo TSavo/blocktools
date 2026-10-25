@@ -32,7 +32,7 @@ fn main() {
             let s = stdin_secret();
             let (algo, e) = decode_seed(&s).unwrap_or_else(|e| fail(e));
             let k = key_from_seed(algo, &e);
-            println!("{}", json!({"chain":"xrp","kind":"xrp","algo":format!("{algo:?}").to_lowercase(),"address":k.address(),
+            println!("{}", json!({"tool":"xrp-tx","status":"ok","chain":"xrp","kind":"xrp","algo":format!("{algo:?}").to_lowercase(),"address":k.address(),
                 "x_address":x_address(&account_id(&k.public), None, false),"public":hex(&k.public)}));
         }
         Some("build") => {

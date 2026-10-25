@@ -1,0 +1,13 @@
+# Chain: Solana
+
+Addresses only. Phantom/Solflare path `m/44'/501'/{i}'/0'` (SLIP-10 ed25519); `derive --curve ed25519`
+also tries the other common layouts.
+
+<!-- e2e: expect=HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk -->
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain sol --count 1'
+
+<!-- e2e: rc=3 ; expect=HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk ; expect=sweep is not built -->
+    recipes/recover.sh /in/seed.txt - --chain sol --count 1
+
+A raw 32-byte key is treated as an ed25519 seed (`key-to-addresses --chain sol`). Sollet-style 64-byte
+keypair arrays are not parsed yet. NOT BUILT: SOL/SPL transfers and balance lookup.

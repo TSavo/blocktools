@@ -8,11 +8,29 @@ use std::str::FromStr;
 /// Upper bound on rows from one call (keeps WASM/JS callers from asking for millions).
 pub const MAX_ROWS: usize = 100_000;
 
+/// SLIP-132: ypub/zpub (and testnet upub/vpub) carry the same key as an xpub/tpub with other
+/// version bytes. Returns the xpub/tpub form and the script kind the prefix implies, if any.
+pub fn normalize(s: &str) -> Result<(String, Option<&'static str>), &'static str> {
+    let s = s.trim();
+    let (ver, kind): ([u8; 4], Option<&str>) = match s.get(..4) {
+        Some("xpub") => return Ok((s.to_string(), None)), Some("tpub") => return Ok((s.to_string(), None)),
+        Some("ypub") => ([0x04, 0x88, 0xB2, 0x1E], Some("p2sh-p2wpkh")), Some("zpub") => ([0x04, 0x88, 0xB2, 0x1E], Some("p2wpkh")),
+        Some("upub") => ([0x04, 0x35, 0x87, 0xCF], Some("p2sh-p2wpkh")), Some("vpub") => ([0x04, 0x35, 0x87, 0xCF], Some("p2wpkh")),
+        _ => return Err("bad_xpub"),
+    };
+    let mut b = bitcoin::base58::decode_check(s).map_err(|_| "bad_xpub")?;
+    if b.len() != 78 { return Err("bad_xpub") }
+    b[..4].copy_from_slice(&ver);
+    Ok((bitcoin::base58::encode_check(&b), kind))
+}
+
 /// Derive `xpub/branch/i` for each branch and index, encoded for `chain`; `kinds` filters
 /// script types (empty = all the chain supports). Paths in the rows are relative to the
 /// xpub ("m/0/3"). Only non-hardened steps are possible from an xpub.
 pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], indices: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
-    let x = Xpub::from_str(xpub.trim()).map_err(|_| "bad_xpub")?;
+    let (norm, implied) = normalize(xpub)?;
+    let x = Xpub::from_str(&norm).map_err(|_| "bad_xpub")?;
+    let implied_k; let kinds = if kinds.is_empty() { implied_k = implied.into_iter().collect::<Vec<_>>(); &implied_k[..] } else { kinds };
     if branches.len().saturating_mul(indices.len()) > MAX_ROWS { return Err("too_many_candidates") }
     if chain.enc == chains::Enc::Sol { return Err("unsupported") } // ed25519 has no public derivation
     let secp = Secp256k1::verification_only();
@@ -31,7 +49,7 @@ pub fn from_xpub(xpub: &str, chain: &Chain, kinds: &[&str], branches: &[u32], in
 /// Addresses at `xpub / steps...` (all non-hardened), every script kind the chain supports.
 /// Row paths are relative to the xpub ("m/0/5").
 pub fn at_path(xpub: &str, chain: &Chain, steps: &[u32]) -> Result<Vec<AddrRow>, &'static str> {
-    let x = Xpub::from_str(xpub.trim()).map_err(|_| "bad_xpub")?;
+    let x = Xpub::from_str(&normalize(xpub)?.0).map_err(|_| "bad_xpub")?;
     if chain.enc == chains::Enc::Sol { return Err("unsupported") }
     if steps.len() > 16 { return Err("bad_path") }
     let p: Vec<ChildNumber> = steps.iter().map(|&n| ChildNumber::from_normal_idx(n).map_err(|_| "bad_path")).collect::<Result<_, _>>()?;
@@ -59,5 +77,18 @@ mod tests {
     #[test] fn rejects() {
         assert_eq!(from_xpub("nope", chains::chain("btc").unwrap(), &[], &[0], &[0]).unwrap_err(), "bad_xpub");
         assert_eq!(from_xpub(ACCT84, chains::chain("btc").unwrap(), &[], &[1 << 31], &[0]).unwrap_err(), "bad_input");
+    }
+}
+
+#[cfg(test)]
+mod slip132 {
+    // BIP84 spec: account 0 zpub of "abandon x11 about"; first receive bc1qcr8te4..., first change bc1q8c6fshw2...
+    #[test] fn zpub_gives_bip84_addresses() {
+        let z = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+        let r = super::from_xpub(z, crate::chains::chain("btc").unwrap(), &[], &[0, 1], &[0]).unwrap();
+        assert_eq!(r.len(), 2);
+        assert_eq!(r[0].address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+        assert_eq!(r[1].address, "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el");
+        assert!(super::normalize("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYt").is_err());
     }
 }

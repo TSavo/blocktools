@@ -36,3 +36,11 @@ Ranges are inclusive: `0..9`, `2-4`, `0,1,5`, `0..2,7`.
 
 ## Planned (not built yet)
 * `--preset electrum-old`, TON addresses, `seed-to-master --passphrase-prompt`.
+
+## Tested examples
+
+<!-- e2e: expect="path":"m/49'/0'/0'/0/0" ; expect=37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf -->
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --preset exhaustive --chain btc --match /in/targets.txt'
+
+<!-- e2e: expect="preset":"legacy-hd" -->
+    ./blocktools run 'derive --list-presets'

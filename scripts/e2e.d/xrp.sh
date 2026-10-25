@@ -19,5 +19,5 @@ grep -q '"status":"ok"' "$X/s.json" || { echo "FAIL xrp sign"; cat "$X/s.json" "
 "$B/xrp-tx" sign --tx "$X/u.json" --expect-to rU6K7V3Po4snVhBBaU29sesqs2qTQJWDw1 < "$X/ed.seed" | grep -q destination_mismatch || { echo "FAIL xrp expect-to"; exit 1; }
 if grep -rqE "sEdSKaCy2JT7|sp5fghtJtpUor" "$X"/*.json "$X/t" "$X/u.err"; then echo "LEAK xrp seed in output"; exit 1; fi
 echo "ok  xrp: seeds (secp256k1+ed25519) -> addresses; X-address tag carried; wrong code aborts; signed + verified; wrong key / wrong dest refused"
-set +e; BIN=$B bash docs/recipes/recover.sh "$X/ed.seed" rU6K7V3Po4snVhBBaU29sesqs2qTQJWDw1 > "$X/r.out" 2> "$X/r.err"; rc=$?; set -e
+set +e; BIN=$B bash recipes/recover.sh "$X/ed.seed" rU6K7V3Po4snVhBBaU29sesqs2qTQJWDw1 > "$X/r.out" 2> "$X/r.err"; rc=$?; set -e
 if [ $rc = 3 ] && grep -q "classified as xrp_seed" "$X/r.err" && grep -q '"address":"rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD"' "$X/r.out"; then echo "ok  recover xrp-seed: xrp_seed -> address, stops before network"; else echo "FAIL recover xrp-seed"; cat "$X/r.out" "$X/r.err"; exit 1; fi

@@ -1,0 +1,10 @@
+[package]
+name = "xpub-addresses"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools xpub-addresses: extended PUBLIC key (stdin) -> watch-only addresses. Handles no secrets."
+[dependencies]
+blocktools-io = { path = "../../crates/io" }
+blocktools-core = { path = "../../crates/core" }
+serde_json.workspace = true

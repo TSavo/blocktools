@@ -24,3 +24,16 @@ Rules:
 - **Tests.**
   - Covered: keys, X-address and the signed blob, using xrpl.js vectors (crates/xrp/tests/kat.rs), plus scripts/e2e.d/xrp.sh.
   - **Not covered:** a real submission to the network.
+
+## Tested examples
+
+<!-- e2e: expect=rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD -->
+    ./blocktools run 'xrp-tx keys < /in/xrp-seed.txt'
+
+<!-- e2e: rc=3 ; expect=rLUEXYuLiQptky37CqLcm9USQpPiz5rkpD -->
+    recipes/recover.sh /in/xrp-seed.txt -
+
+BIP44 XRP wallets (Ledger, Xumm imports of a 12/24-word phrase, `m/44'/144'/0'/0/i`):
+
+<!-- e2e: expect=rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3 -->
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain xrp --count 1'
