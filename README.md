@@ -14,6 +14,7 @@ make reveal                       # human at a terminal: shows keys after typed 
 ```
 
 Tools: `seed-repair`, `derive`, `keystore-open`, `kr-redact` (phase 1).
+Tools read stdin and write stdout only (see DESIGN.md "Pipe principles").
 Dev: `cargo test --release && sh scripts/e2e-local.sh`.
 
 Test vectors are public (BIP39 "abandon … about", Web3 Secret Storage spec).

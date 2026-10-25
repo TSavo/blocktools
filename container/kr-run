@@ -10,17 +10,17 @@ mode="${1:-}"; pipeline="${2:-}"
 umask 077
 case "$mode" in
   agent)
-    # stderr of tools is also kept off the agent channel.
-    sh -c "$pipeline" 2>/run/kr/stderr.log | tee /run/kr/raw.jsonl | kr-redact
-    ;;
+ stderr of tools is also kept off the agent channel.# stderr of tools is also kept off the agent channel.
+ stderr of tools is also kept off the agent channel.sh -c "$pipeline" 2>/dev/null | kr-redact
+ stderr of tools is also kept off the agent channel.;;
   human)
-    [ -t 0 ] && [ -t 1 ] || { echo '{"tool":"kr-redact","status":"bad_input"}'; exit 3; }
-    code=$(od -An -N3 -tu1 /dev/urandom | tr -s ' ' '-' | sed 's/^-//;s/-$//')
-    printf 'This will print PRIVATE KEYS to this terminal.\nType the code %s to continue: ' "$code" > /dev/tty
-    read -r answer < /dev/tty
-    [ "$answer" = "$code" ] || { echo "aborted" > /dev/tty; exit 4; }
-    sh -c "$pipeline" > /dev/tty 2>&1
-    echo '{"tool":"kr-redact","status":"done"}'
-    ;;
+ stderr of tools is also kept off the agent channel.[ -t 0 ] && [ -t 1 ] || { echo '{"tool":"kr-redact","status":"bad_input"}'; exit 3; }
+ stderr of tools is also kept off the agent channel.code=$(od -An -N3 -tu1 /dev/urandom | tr -s ' ' '-' | sed 's/^-//;s/-$//')
+ stderr of tools is also kept off the agent channel.printf 'This will print PRIVATE KEYS to this terminal.\nType the code %s to continue: ' "$code" > /dev/tty
+ stderr of tools is also kept off the agent channel.read -r answer < /dev/tty
+ stderr of tools is also kept off the agent channel.[ "$answer" = "$code" ] || { echo "aborted" > /dev/tty; exit 4; }
+ stderr of tools is also kept off the agent channel.sh -c "$pipeline" > /dev/tty 2>&1
+ stderr of tools is also kept off the agent channel.echo '{"tool":"kr-redact","status":"done"}'
+ stderr of tools is also kept off the agent channel.;;
   *) echo '{"tool":"kr-redact","status":"bad_input"}'; exit 2 ;;
 esac

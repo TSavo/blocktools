@@ -18,8 +18,7 @@ The rule that **the agent never sees secrets** is enforced at one boundary:
 host (agent)                         sealed container (--network none)
 -----------                          ---------------------------------
 ./keyrescue run '<pipeline>'  --->   kr-run agent '<pipeline>'
-                                       sh -c pipeline 2>/run/kr/stderr.log
-                                         | tee /run/kr/raw.jsonl   (tmpfs, dies with container)
+                                       sh -c pipeline 2>/dev/null
                                          | kr-redact               ---> stdout to the agent
 ./keyrescue reveal '<pipeline>' -->  kr-run human: needs a TTY + typed one-time code,
    (T at a terminal)                   writes raw output to /dev/tty only
@@ -28,7 +27,7 @@ host (agent)                         sealed container (--network none)
 * `kr-redact` is the only process whose stdout reaches the agent. It keeps only
   allowlisted fields, each with a strict validator (§3). A line that fails any
   check is dropped completely. It ends with a summary line (kept/dropped counts).
-* Tool stderr goes to tmpfs, never to the agent.
+* Tool stderr is discarded. Raw output is never written to disk, not even tmpfs.
 * Leak tests target `kr-redact` and the end-to-end agent view
   (`crates/kr-schema` tests, `scripts/e2e-local.sh`), not the individual tools.
 
@@ -72,9 +71,9 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 
 | tool | in | out (raw, may contain secrets) | phase |
 |---|---|---|---|
-| `seed-repair` | phrase file/stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
-| `derive` | seed-repair lines or `--phrase-file`, `--passphrase-file` | `{kind, path, address, wif / private_key}` | 1 ✅ |
-| `keystore-open` | Web3 v3 keystore JSON + `--password-file`/`--password-tty` | `{kind:eth, address, private_key}` | 1 ✅ |
+| `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
+| `derive` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{kind, path, address, wif / private_key}` | 1 ✅ |
+| `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
 | `kr-redact` | raw lines | public lines only | 1 ✅ |
 | `walletdat-read` | Bitcoin Core `wallet.dat` (BDB/SQLite, bounded own parser, no libdb) | keys, addresses | 2 |
 | `electrum-open`, `multibit-open`, `armory-open` | respective formats | keys, addresses | 2 |
@@ -82,7 +81,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | `tx-verify` | unsigned PSBT/tx file | plain summary: inputs, outputs, fee, change | 2 |
 | `tx-sign` | PSBT + key stream + confirmation | signed raw tx hex | 2 |
 
-Composition example (in the container): `seed-repair --in /in/seed.txt | derive --count 5`.
+Composition example (in the container): `seed-repair < /in/seed.txt | derive --count 5`.
 
 **seed-repair algorithm (phase 1):** lengths 12/15/18/21/24. Unknown words → words
 within edit distance 2 or sharing the 4-letter prefix (BIP39 words are unique by
@@ -97,9 +96,51 @@ Electrum-seed derivation, custom paths.
 
 ## 5. Passwords and passphrases
 
-Only two sources: a file in `$KR_SECRETS` (mounted read-only at `/secrets`, host
-dir chmod 700, git-ignored), or a prompt to the human on `/dev/tty`. Never from
-argv, env or stdin from the agent. Values are zeroized after use (`zeroize`).
+Passwords and passphrases arrive on **stdin**, as data in the stream. The human
+puts them in `$KR_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
+git-ignored), and the pipeline's shell feeds them in, e.g.
+`cat /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
+opens a named file. The only other source is `keystore-open --password-tty`, a
+prompt to the human on `/dev/tty`. Nothing is ever read from argv or env.
+Values are zeroized after use (`zeroize`).
+
+## 5a. Pipe principles
+
+1. **Utilities, not a server.** keyrescue is separate Unix programs, not an MCP
+   server. Each does exactly one thing, keeps no hidden state, and is named for
+   what it does: one reads DAT files (`dat-read`, phase 2), one opens JSON
+   keystores (`keystore-open`), one repairs recovery phrases (`seed-repair`).
+   Each takes its format in and gives its format out (JSON lines).
+2. **stdin and stdout only.** Secrets and outputs travel only through stdin and
+   stdout: never environment variables, never file names, never argv. Output is
+   always on stdout. Files reach a tool only via shell redirection
+   (`< /in/x`, `cat a b |`) in the pipeline script. The tool sees a stream,
+   not a path. argv carries only non-secret options (`--count 5`).
+3. **A half-complete pipe leaks secrets. A complete pipe emits only the intended output.**
+   Complete pipe: `wallet file → master key → derived key → signed transaction`.
+   The secret never leaves the pipe and only the signed tx comes out. So a
+   recovery utility may output only a master key, with derivation as a second
+   utility piped after it. Cutting the pipe early (stopping after `derive`) prints
+   keys, which is fine for a human at a terminal and never shown to the agent.
+4. **Agent workflow.** The agent writes a short script that chains the utilities,
+   runs it with `./keyrescue run '<script>'`, and gets back only the final
+   output. `kr-redact` still filters everything the agent sees (§3), so even a
+   half-complete pipe written by mistake shows the agent only addresses, paths
+   and statuses.
+
+### Conformance audit (phase 1 code)
+
+| Place | Status |
+|---|---|
+| `seed-repair` | ✅ stdin only (`--in FILE` removed) |
+| `derive` | ✅ stdin only (`--phrase-file`, `--passphrase-file` removed; passphrase is a `{"passphrase":…}` line) |
+| `keystore-open` | ✅ stdin only: line 1 = password, rest = keystore (`--in`, `--password-file` removed) |
+| `kr-run` agent mode | ✅ no longer tees raw output to a tmpfs file; tool stderr is discarded |
+| **Deviation:** `keystore-open --password-tty` | Reads the password from `/dev/tty`, a human side channel, not stdin. Kept for typing passwords that are never stored. To decide: keep, or require stdin only (human pipes `cat /dev/tty` themselves). |
+| **Deviation:** `derive` emits a `wif`/`private_key` per address | That is a half-complete pipe by design today. Planned split: `seed-to-master` (mnemonic → master xprv), `derive` (xprv → child keys + addresses), `tx-sign` (keys + PSBT → signed tx). |
+| **Deviation:** `kr-run`/`keyrescue` take the pipeline script via argv | The script is agent-written public text, never a secret. Alternative: feed the script on stdin. |
+| **Deviation:** passwords staged as files in `/secrets` | The human stores them, and the tool still receives them via stdin. Alternative: a dedicated fd (e.g. `3< /secrets/pw`) if mixing with data on stdin proves awkward. |
+| Naming | `derive` is generic. Planned names: `dat-read`, `keystore-open`, `seed-repair`, `seed-to-master`, `derive`, `tx-verify`, `tx-sign`. |
 
 ## 6. Signing flow (phase 2, designed only)
 

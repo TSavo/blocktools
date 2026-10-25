@@ -1,6 +1,8 @@
 //! keystore-open: Ethereum Web3 Secret Storage v3 JSON + password -> address
 //! and private key. Output CONTAINS SECRETS ("private_key").
-//! Password: --password-file (read-only mount) or --password-tty (/dev/tty).
+//! stdin: first line = password, rest = keystore JSON.
+//! With --password-tty the password is asked from the human on /dev/tty and
+//! all of stdin is the keystore JSON.
 use aes::cipher::{KeyIvInit, StreamCipher};
 use serde_json::Value;
 use sha3::{Digest, Keccak256};
@@ -76,25 +78,17 @@ fn read_tty_password() -> Zeroizing<String> {
 
 fn main() {
     let a: Vec<String> = std::env::args().collect();
-    let (mut input, mut pwf, mut tty) = (None, None, false);
-    let mut i = 1;
-    while i < a.len() {
-        match a[i].as_str() {
-            "--in" => { input = a.get(i + 1).cloned(); i += 1; }
-            "--password-file" => { pwf = a.get(i + 1).cloned(); i += 1; }
-            "--password-tty" => tty = true,
-            _ => st("bad_input"),
-        }
-        i += 1;
-    }
-    let mut json = String::new();
-    std::fs::File::open(input.unwrap_or_else(|| st("bad_input"))).and_then(|f| f.take(MAX_FILE).read_to_string(&mut json)).unwrap_or_else(|_| st("bad_input"));
-    let pw = match (pwf, tty) {
-        (Some(p), false) => { let mut s = String::new(); std::fs::File::open(p).and_then(|f| f.take(1024).read_to_string(&mut s)).unwrap_or_else(|_| st("bad_input")); Zeroizing::new(s.trim_end_matches(['\n', '\r']).to_string()) }
-        (None, true) => read_tty_password(),
-        _ => st("bad_input"),
+    let tty = match a.get(1).map(|s| s.as_str()) { None => false, Some("--password-tty") if a.len() == 2 => true, _ => st("bad_input") };
+    let mut raw = Zeroizing::new(Vec::new());
+    std::io::stdin().take(MAX_FILE).read_to_end(&mut raw).unwrap_or_else(|_| st("bad_input"));
+    let text = Zeroizing::new(String::from_utf8(raw.to_vec()).unwrap_or_else(|_| st("bad_input")));
+    let (pw, json) = if tty {
+        (read_tty_password(), text.as_str())
+    } else {
+        let (p, rest) = text.split_once('\n').unwrap_or_else(|| st("bad_input"));
+        (Zeroizing::new(p.trim_end_matches('\r').to_string()), rest)
     };
-    match open(&json, pw.as_bytes()).and_then(|k| Ok((eth_address(&k)?, hex::encode(&k[..])))) {
+    match open(json, pw.as_bytes()).and_then(|k| Ok((eth_address(&k)?, hex::encode(&k[..])))) {
         Ok((addr, k)) => println!("{}", serde_json::json!({"tool":"keystore-open","status":"ok","kind":"eth","address":addr,"private_key":k})),
         Err(e) => st(e),
     }
