@@ -51,6 +51,15 @@ assert.equal(typeof v.ok, 'boolean');
   assert.throws(() => bt.solBuildTransfer(JSON.stringify({ from: cs[0].from, to: cs[0].from, blockhash: cs[0].blockhash, lamports: '1' })), /from_equals_to/);
   console.log('ok solBuildTransfer');
 }
+{
+  // Mainnet block 60,000,000 TRX transfer (crates/blocktools/src/tron.rs) rebuilt from its fields.
+  const TRX = '0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431';
+  const plan = { from: 'TMxXrJ5u3Qsh7scpn4zRUzrxYtBoPCW5GM', to: 'TXfrRsqwPbMi4Leb4EGB7dv5NMMWmkdRwk', ref_block_bytes: '86ec', ref_block_hash: '05d9f8c360a410c4',
+    expiration_ms: '1710640770000', timestamp_ms: '1710640711685', amount_sun: '1' };
+  assert.equal(bt.tronBuildTransfer(JSON.stringify(plan)), TRX);
+  assert.throws(() => bt.tronBuildTransfer(JSON.stringify({ ...plan, amount_sun: '0' })), /zero_amount/);
+  console.log('ok tronBuildTransfer');
+}
 const v2 = JSON.parse(bt.verifyTx(b170, 'btc', ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'], [], undefined, '', true));
 assert.equal(v2.ok, false);
 // Stable API (EXPORTS.md)

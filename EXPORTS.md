@@ -53,6 +53,7 @@ absent from the binary (by checking the name section). Outputs are JSON strings 
 | `selectUtxos(utxosJson, scriptHex, feeRate)` | `build::select_utxos` | SwapChan coin selection. `utxosJson` = `[{txid, vout, value, script, ...}]`. Keeps own script (case-insensitive), drops value < rate×148×20 (spend fee > 5%), largest first (stable), cap 200. → `{selected:[...input objects], total, count, dropped_foreign, dropped_uneconomic, dropped_cap, min_value}` (`total`, `min_value` decimal strings). Throws `bad_utxos`, `bad_utxo`, `bad_utxo_value`, `bad_rate` |
 | `checkTxPolicy(input, chain, policyJson)` | `tx::policy_file::check` | Offline policy file (docs/POLICY.md), deny by default. Uses the rule under `chains[chain]`. Returns `{ok, failures:["policy:<rule>"|base finding], warnings, policy_sha256}`. Throws on a bad tx or `policy_bad_*`. |
 | `solBuildTransfer(planJson)` | `blocktools::sol::build_transfer` | Unsigned Solana legacy transfer (SOL send, sweep, SPL/Token-2022 transfer_checked + optional ATA create, priority fee). Byte-identical to @solana/kit 8.5 (tests/sol_build.rs). No keys. |
+| `tronBuildTransfer(planJson)` | `blocktools::tron::build_transfer` | Unsigned Tron raw_data: TRX send, sweep (caller-chosen reserve), TRC-20 transfer. Reproduces mainnet raw_data bytes. No keys. |
 
 ### detectAddress semantics
 

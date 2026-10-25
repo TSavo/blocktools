@@ -69,6 +69,55 @@ pub fn decode(bytes: &[u8]) -> Result<Value, &'static str> {
     }))
 }
 
+// ---- Unsigned builder (TransferContract / TRC-20 transfer), field order as java-tron serializes. ----
+fn pv(o: &mut Vec<u8>, mut v: u64) { loop { let b = (v & 0x7f) as u8; v >>= 7; if v == 0 { o.push(b); return } o.push(b | 0x80) } }
+fn pb(o: &mut Vec<u8>, n: u64, b: &[u8]) { pv(o, n << 3 | 2); pv(o, b.len() as u64); o.extend_from_slice(b) }
+fn pn(o: &mut Vec<u8>, n: u64, v: u64) { pv(o, n << 3); pv(o, v) }
+
+/// What a Tron transfer moves. `Sweep` sends `balance - reserve_sun`; Tron fees (bandwidth burn) are
+/// not knowable offline, so the caller chooses the reserve (0 when free bandwidth covers it).
+pub enum TronAmount { Send(u64), Sweep { balance: u64, reserve_sun: u64 }, Trc20 { contract: [u8; 21], amount: u128, fee_limit_sun: u64 } }
+/// Reference block: `ref_block_bytes` = block number bytes 6..8, `ref_block_hash` = block id bytes 8..16.
+pub struct TronPlan { pub from: [u8; 21], pub to: [u8; 21], pub ref_block_bytes: [u8; 2], pub ref_block_hash: [u8; 8],
+    pub expiration_ms: u64, pub timestamp_ms: u64, pub memo: Option<Vec<u8>>, pub amount: TronAmount }
+
+/// Parse a base58check T-address into its 21 bytes (0x41 prefix).
+pub fn parse_address(s: &str) -> Result<[u8; 21], &'static str> {
+    let b = bitcoin::base58::decode_check(s).map_err(|_| "bad_address")?;
+    if b.len() != 21 || b[0] != 0x41 { return Err("bad_address") }
+    Ok(b.try_into().unwrap())
+}
+
+/// Unsigned `raw_data` bytes; txid = sha256 of these; sign the txid elsewhere.
+pub fn build_transfer(p: &TronPlan) -> Result<Vec<u8>, &'static str> {
+    if p.from == p.to { return Err("from_equals_to") }
+    if p.expiration_ms <= p.timestamp_ms { return Err("expiration_not_after_timestamp") }
+    let mut par = vec![]; let (url, ty, fee_limit);
+    match p.amount {
+        TronAmount::Send(_) | TronAmount::Sweep { .. } => {
+            let v = match p.amount { TronAmount::Send(v) => v, TronAmount::Sweep { balance, reserve_sun } => balance.checked_sub(reserve_sun).ok_or("balance does not cover reserve")?, _ => unreachable!() };
+            if v == 0 { return Err("zero_amount") }
+            pb(&mut par, 1, &p.from); pb(&mut par, 2, &p.to); pn(&mut par, 3, v);
+            url = "type.googleapis.com/protocol.TransferContract"; ty = 1; fee_limit = None;
+        }
+        TronAmount::Trc20 { contract, amount, fee_limit_sun } => {
+            if amount == 0 { return Err("zero_amount") }
+            if fee_limit_sun == 0 { return Err("zero_fee_limit") }
+            let mut d = vec![0xa9, 0x05, 0x9c, 0xbb]; d.extend([0u8; 12]); d.extend(&p.to[1..]); d.extend([0u8; 16]); d.extend(amount.to_be_bytes());
+            pb(&mut par, 1, &p.from); pb(&mut par, 2, &contract); pb(&mut par, 4, &d);
+            url = "type.googleapis.com/protocol.TriggerSmartContract"; ty = 31; fee_limit = Some(fee_limit_sun);
+        }
+    }
+    let mut any = vec![]; pb(&mut any, 1, url.as_bytes()); pb(&mut any, 2, &par);
+    let mut c = vec![]; pn(&mut c, 1, ty); pb(&mut c, 2, &any);
+    let mut o = vec![];
+    pb(&mut o, 1, &p.ref_block_bytes); pb(&mut o, 4, &p.ref_block_hash); pn(&mut o, 8, p.expiration_ms);
+    if let Some(m) = &p.memo { pb(&mut o, 10, m) }
+    pb(&mut o, 11, &c); pn(&mut o, 14, p.timestamp_ms);
+    if let Some(f) = fee_limit { pn(&mut o, 18, f) }
+    Ok(o)
+}
+
 #[cfg(test)]
 mod t {
     use super::*;
@@ -94,5 +143,30 @@ mod t {
         // Full Transaction wrapper (raw_data = 1, one 65-byte signature = 2) gives the same txid.
         let raw = h(TRX); let mut w = vec![0x0a]; w.push(raw.len() as u8 | 0x80); w.push((raw.len() >> 7) as u8); w.extend(&raw); w.extend([0x12, 65]); w.extend([7u8; 65]);
         let d = decode(&w).unwrap(); assert_eq!(d["txid"], "07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00"); assert_eq!(d["signatures"], 1);
+    }
+    /// Builder reproduces the mainnet raw_data bytes (block 60,000,000) from their decoded fields.
+    #[test] fn builder_matches_mainnet() {
+        let a = |x: &str| -> [u8; 21] { h(x).try_into().unwrap() };
+        let rb = |d: &Value, k: &str| h(d[k].as_str().unwrap());
+        for (hexs, amt) in [(TRX, None), (TRC20, Some(1402330000u128))] {
+            let d = decode(&h(hexs)).unwrap(); let c = &d["contracts"][0];
+            let from = parse_address(c["owner"].as_str().unwrap()).unwrap();
+            let (to, amount) = match amt {
+                None => (parse_address(c["to"].as_str().unwrap()).unwrap(), TronAmount::Send(1)),
+                Some(v) => (parse_address(c["trc20_transfer"]["to"].as_str().unwrap()).unwrap(),
+                    TronAmount::Trc20 { contract: parse_address(c["contract"].as_str().unwrap()).unwrap(), amount: v, fee_limit_sun: 35001000 }),
+            };
+            let p = TronPlan { from, to, ref_block_bytes: rb(&d, "ref_block_bytes").try_into().unwrap(), ref_block_hash: rb(&d, "ref_block_hash").try_into().unwrap(),
+                expiration_ms: d["expiration"].as_u64().unwrap(), timestamp_ms: d["timestamp"].as_u64().unwrap(), memo: d["memo"].as_str().map(|m| m.as_bytes().to_vec()), amount };
+            // The TRC-20 vector also carries raw_data.scripts (field 12, "scripts"), which the builder never emits.
+            // That sender's wallet also left the 0x41 prefix inside the ABI address word; the builder emits the
+            // standard 12 zero bytes + 20-byte address (what tronweb / Solidity abi.encode produce).
+            assert_eq!(crate::hex_enc(build_transfer(&p).unwrap()), hexs.replace("620773637269707473", "").replace("000000000041641b18", "000000000000641b18"));
+        }
+        let p = |amount| TronPlan { from: a("41595c4a379ab80c202f0372bbf9bbf3fad6ca8768"), to: a("41641b18d083a10dee3cfe1d6b8871a55e2eb3ac42"), ref_block_bytes: [0; 2], ref_block_hash: [0; 8], expiration_ms: 2, timestamp_ms: 1, memo: None, amount };
+        let d = decode(&build_transfer(&p(TronAmount::Sweep { balance: 1000, reserve_sun: 268 })).unwrap()).unwrap();
+        assert_eq!(d["contracts"][0]["amount_sun"], "732");
+        assert_eq!(build_transfer(&p(TronAmount::Sweep { balance: 1, reserve_sun: 2 })).unwrap_err(), "balance does not cover reserve");
+        assert_eq!(build_transfer(&p(TronAmount::Send(0))).unwrap_err(), "zero_amount");
     }
 }
