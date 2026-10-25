@@ -57,6 +57,7 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         "kind" => s.map_or(false, |s| KINDS.contains(&s)),
         "chain" => s.map_or(false, |s| CHAINS.contains(&s)),
         "scheme" => s.map_or(false, |s| SCHEMES.contains(&s)),
+        "preset" => s.map_or(false, |s| s.len() <= 16 && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')),
         k if SECRET_FIELDS.contains(&k) => return None, // replaced by a placeholder in redact_line
         "address" => s.map_or(false, is_address),
         "path" => s.map_or(false, is_path),

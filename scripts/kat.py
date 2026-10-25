@@ -54,3 +54,11 @@ for i in (44, 501, 0, 0):
     I = hmac.new(I[32:], b"\0" + I[:32] + struct.pack(">I", i | 1 << 31), hashlib.sha512).digest()
 pk = ed25519.Ed25519PrivateKey.from_private_bytes(I[:32]).public_key().public_bytes(S.Encoding.Raw, S.PublicFormat.Raw)
 print("sol", b58(pk))
+# companion vectors marked "from memory" in docs/prior-art-crypto-plugins.md, checked here independently
+k = path(seed, "m/84'/0'/0'/0/0"); print("btc bip84", segwit("bc", h160(pub(k))))
+k = path(seed, "m/44'/60'/0'/0/0"); print("eth bip44 (lowercase)", "0x" + keccak.new(digest_bits=256, data=pub(k, False)[1:]).digest()[12:].hex())
+k = path(seed, "m/44'/195'/0'/0/1"); print("tron idx1", b58c(b"\x41" + keccak.new(digest_bits=256, data=pub(k, False)[1:]).digest()[12:]))
+k = path(seed, "m/44'/0'/0'/0/0"); print("btc bip44-path p2wpkh", segwit("bc", h160(pub(k))))
+k = path(seed, "m/84'/0'/0'/1/0"); print("btc bip84 change /1/0", segwit("bc", h160(pub(k))))
+print("sol key1 pub", ed25519.Ed25519PrivateKey.from_private_bytes(bytes(31) + b"\1").public_key().public_bytes(S.Encoding.Raw, S.PublicFormat.Raw).hex())
+print("b58 edge", b58(b"\xff"), b58(b"\0\0\0"), b58(b"\1"))

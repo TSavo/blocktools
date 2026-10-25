@@ -78,7 +78,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 |---|---|---|---|
 | `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
-| `derive` | stdin JSON lines `{xprv, candidate}` | `{kind, path, address, wif / private_key}` | ✅ |
+| `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
 | `kr-cat` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |
 | `kr-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
@@ -98,9 +98,23 @@ BIP39 checksum is valid. If every word is known but the checksum fails, it tries
 adjacent swaps, then each single-word substitution. Phase 2: missing word
 positions and wordlists in other languages.
 
-**derive paths** (from the master key): m/44'/0'/0'/0/i, m/49'…, m/84'…, m/86'… (BIP86 taproot), and
-m/44'/60'/0'/0/i (ETH, EIP-55). Phase 2: change chain, more accounts,
-Electrum-seed derivation, custom paths.
+**derive: plan, then walk.** Flags and presets build a *plan* of
+(chain, address type, path template) families plus account/change/index ranges.
+The plan contains no key material and `derive --explain` prints it without reading
+stdin. The plan is then walked for every master key on stdin. Flags carry **public
+parameters only**: chain, coin type, purpose, ranges, templates, address types,
+compression, curve, gap limit, and a file of *public* target addresses
+(`--match`, which prints only hits together with the path that produced them, so
+the output answers "which path made this address?"). Passphrases are never flags;
+they reach `seed-to-master` as a stdin JSON line. Templates are validated before
+use (placeholders `{purpose} {coin} {account} {change} {i}`, must parse as a
+BIP32 path, max 96 chars). Hard caps: 1M entries per range and 5M derivations per run
+(`too_many_candidates`). Duplicate (path, chain, kind) rows are emitted once.
+Presets (`--list-presets`): common, exhaustive, recovery, exodus, tronlink,
+ledger-live, legacy-hd. See docs/recipes/derive.md. Ed25519 (Solana) paths must be
+all-hardened (SLIP-10) and need the `seed` field from seed-to-master.
+Planned: TON v4r2, old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
+seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
 
 ## 5. Passwords and passphrases
 
