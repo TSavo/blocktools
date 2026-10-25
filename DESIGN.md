@@ -211,6 +211,24 @@ as files in `in/` and lines from `kr-redact`.
 * `./keyrescue build | run '<pipeline>' | reveal '<pipeline>'`, plus `make recover`
   and `make reveal` for one-command use.
 
+### Verified status (2026-10-24, Battleaxe, Docker 29.8.2, linux/amd64)
+
+Measured: the image builds (dependency allowlist check + `cargo test` in the build stage), and the
+runtime image is 18.2 MB. Under the full sealing flags:
+* `seed-repair | derive` on the public "abandon … about" vector with typos, through `kr-run agent`:
+  7 lines, only addresses, paths and statuses, with the expected BIP44/49/84/86/ETH addresses.
+* `keystore-open` on the Web3 spec vector: only `0x008AeEda4D805471dF9b2A5B0f38A0C3bCBA786b`.
+* Leak grep (wif, private_key, mnemonic, abandon, 64-hex) on agent output: 0 matches. The raw tool output
+  without the boundary does contain keys, as intended.
+* Inside: uid 10001, only `lo` interface, an HTTP connect to 1.1.1.1 fails, DNS fails, `touch /usr/x`
+  gives "Read-only file system", executing a binary copied to the tmpfs fails, CapEff=0, NoNewPrivs=1.
+* `kr-run human` without a TTY refuses (exit 3).
+
+Not yet exercised: `./keyrescue` itself (its `-v`-style bind mounts resolve on the Docker *host*, so
+with a remote context like Battleaxe, `in/` and `secrets/` must exist there; the test above fed data on stdin),
+and `reveal` with a real TTY. Note: busybox still contains a `wget` applet (symlinks removed only);
+harmless with `--network none`, but a distroless/scratch runtime would drop it.
+
 ## 9. Out of scope
 
 Brute-forcing unknown passwords at scale (GPU cracking), any network access in
