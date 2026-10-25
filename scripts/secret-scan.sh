@@ -6,7 +6,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 pat='xprv[1-9A-HJ-NP-Za-km-z]{100,}|\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b|\b[0-9a-f]{64}\b'
-hits=$(git ls-files -co --exclude-standard | grep -vE '^(scripts/public-vectors.txt|Cargo.lock|crates/tx/tests/vectors/bip341-wallet.json)$' | xargs grep -EnoI "$pat" 2>/dev/null || true)
+hits=$(git ls-files -co --exclude-standard | grep -vE '^(scripts/public-vectors.txt|Cargo.lock|bindings/wasm/Cargo.lock|crates/tx/tests/vectors/bip341-wallet.json)$' | xargs grep -EnoI "$pat" 2>/dev/null || true)
 rc=0
 echo "$hits" | while IFS= read -r h; do
   [ -n "$h" ] || continue
