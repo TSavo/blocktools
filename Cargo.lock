@@ -470,6 +470,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kr-tx"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "kr-core",
+ "secp256k1",
+ "serde_json",
+ "sha3",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -726,6 +737,15 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "tx-decode"
+version = "0.1.0"
+dependencies = [
+ "kr-io",
+ "kr-tx",
+ "serde_json",
+]
 
 [[package]]
 name = "typenum"

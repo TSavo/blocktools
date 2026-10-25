@@ -9,16 +9,7 @@ use kr_io::outln;
 use std::io::{BufRead, Read};
 use zeroize::Zeroizing;
 
-/// Standard base64 / base64url decoding (encoding only, not cryptography).
-fn b64(s: &str) -> Option<Vec<u8>> {
-    let s = s.trim_end_matches('=');
-    let val = |c: u8| -> Option<u32> { Some(match c {
-        b'A'..=b'Z' => c - b'A', b'a'..=b'z' => c - b'a' + 26, b'0'..=b'9' => c - b'0' + 52,
-        b'+' | b'-' => 62, b'/' | b'_' => 63, _ => return None } as u32) };
-    let (mut acc, mut bits, mut out) = (0u32, 0, Vec::new());
-    for c in s.bytes() { acc = (acc << 6) | val(c)?; bits += 6; if bits >= 8 { bits -= 8; out.push((acc >> bits) as u8); } }
-    Some(out)
-}
+use kr_core::b64::decode as b64;
 /// (encoding name, 32 bytes, compressed-hint) for each decoding that works.
 fn decodings(s: &str) -> Vec<(&'static str, Zeroizing<Vec<u8>>, Option<bool>)> {
     let mut v = Vec::new();

@@ -24,3 +24,9 @@ Rows 9–16 come from docs/prior-art-crypto-plugins.md.
 | 18 | `seed-to-master --passphrase-prompt` (reads /dev/tty; never argv). Echo-off needs termios: libc dep or documented visible echo. | M5 |
 | 19 | Presets still planned: `electrum-old` (non-BIP32 mpk sequence, needs item 2), `ton` (item 10), Exodus per-asset paths verified against a public Exodus vector (current `exodus` preset is best-effort). | M5 |
 | 20 | Gap analysis: Signum/Burst from 12-word passphrase; Monero key extraction; Exodus multi-coin; EVM (legacy + 1559), Tron and keystore-JSON signing, each simulate-before-sign (decode, check destination, fee, chain id, plain summary, human TTY code); allowlist redaction; KATs with control addresses. | M4–M6 |
+| 21 | **Done**: `kr-tx` + `tx-decode` (BTC raw/PSBT, EVM legacy/1559, ERC-20 selectors, sender recovery, fixed warning vocabulary). KATs: block 170, BIP-174 valid+invalid vectors, EIP-155 example (byte-exact re-sign), EIP-1559 txs cross-checked with eth-account. | M4 |
+| 22 | `tx-build` (offline, file-driven; PSBT; EVM legacy/1559; ERC-20 with explicit gas top-up; --sweep/--send/--fee-rate/--rbf/--consolidate/--dust-limit). Tron planned. | M4 |
+| 23 | `tx-verify` (reuses kr-tx; expected-address, change, chain-id, fee caps). | M4 |
+| 24 | `tx-sign`: shows the tx-decode summary on the TTY, fee cap, `--expect-to`, TTY code, then signs. | M5 |
+| 25 | `utxo-fetch` (host only, network) and `tx-broadcast` (host only, smallest HTTP crate, mock-tested). | M5 |
+| 26 | Tron tx decode (protobuf), multisig PSBT, taproot script-path. | later |

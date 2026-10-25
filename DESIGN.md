@@ -226,21 +226,70 @@ and to read the typed confirmation code before signing. No other libc calls. If 
 cannot be disabled the prompt refuses (`bad_input`) instead of echoing a secret.
 Only the tools that prompt depend on kr-tty.
 
-## 6. Signing flow (phase 2, designed only)
+## 6. Transactions: build → decode → confirm → sign → decode → broadcast
 
-1. Host: the agent uses SwapChan `find_money` to locate funds for the public
-   addresses and `signing_guide` to build an **unsigned** PSBT. The agent writes
-   the PSBT and UTXO JSON into `in/`.
-2. Container: `tx-verify` decodes the PSBT itself, checks that the inputs match the
-   UTXO file, and sums inputs, outputs, fee and change. Change must go back to an
-   address we derived. It returns the public summary to the agent.
-3. `keyrescue sign` (human mode, TTY required) prints a plain-language summary on
-   the TTY ("Send 0.0123 BTC to bc1q…, fee 0.00002 BTC (5 sat/vB), change 0 → …"),
-   plus a random code. The human types the code. The agent never sees or relays it.
-4. `tx-sign` signs only the exact PSBT hash that was confirmed and writes the
-   signed raw hex to stdout. The redactor passes it through as a typed
-   `signed_tx` field (raw tx only, shape-checked).
-5. Host: the agent runs SwapChan `verify_tx` on the hex, then `broadcast_tx`.
+Every step is a separate tool. Only `utxo-fetch` and `tx-broadcast` touch the network,
+and both run on the host, never in the container.
+
+```
+utxo-fetch (host, network)  ->  utxos.json / nonce.json / fees.json   (public data)
+tx-build   (offline)        ->  unsigned PSBT  |  unsigned EVM RLP (legacy / EIP-1559)
+tx-decode  (offline)        ->  what the exact bytes do (JSON lines, or --text)
+human reads the summary; tx-sign shows that SAME tx-decode summary and asks for a TTY code
+tx-sign    (sealed)         ->  keys on stdin, signs only the bytes it just decoded
+tx-decode  (offline)        ->  on the SIGNED output: same outputs, fee and sender?
+tx-broadcast (host)         ->  submit the raw bytes (mock-tested only)
+```
+
+**Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host
+builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with a chain id,
+or EIP-1559 type 2). Tron (protobuf with energy/bandwidth) is planned. Multisig is planned,
+but not soon.
+
+**tx-decode** (`crates/kr-tx` library plus the thin `tools/tx-decode`, **built**). The input
+format is auto-detected: hex or base64, a raw Bitcoin tx, a PSBT, EVM RLP, or a JSON line
+with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
+- a summary line: chain/type, signed, counts, txid, fee and fee rate (when the input amounts
+  are known), locktime, RBF, EVM chain id/nonce/gas/fees/value/to/from (`from` is recovered
+  from the signature), and ERC-20 `transfer`/`approve`/`transferFrom` with token, recipient
+  and amount;
+- one line per input/output: outpoint, address, kind, amount;
+- warnings, from a fixed vocabulary: `high_fee`, `high_fee_pct`, `high_fee_rate`,
+  `input_amounts_unknown`, `dust_output`, `nonstandard_output`, `op_return_output`,
+  `locktime_set`, `unsigned`, `partially_signed`, `utxo_txid_mismatch`, `no_chain_id`,
+  `contract_creation`, `high_gas_price`, `token_approve`, `unlimited_approve`,
+  `token_transfer_from`, `unknown_calldata`, `bad_signature`, `no_inputs_or_outputs`.
+
+Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
+(depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
+`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `kr-redact`:
+amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
+indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
+directly to see txids.
+
+**tx-build** (planned, next). Offline and file-driven: UTXOs, nonce and gas/fee rates are
+input files, never fetched. Modes: `--sweep`, `--send AMOUNT`, `--fee-rate`, `--rbf`,
+`--consolidate`, `--dust-limit`. Output: a PSBT, or unsigned EVM legacy/1559. ERC-20 sweeps
+are two transactions: an explicit, separately confirmed gas top-up from a funding address,
+then the token `transfer`.
+
+**tx-verify** (planned) reuses `kr-tx` and checks the decoded tx against expectations:
+outputs equal the expected addresses, change goes to a derived address, the chain id is
+right, the fee and fee percentage are under caps, and no unknown outputs exist. Any failure
+gives a non-zero exit.
+
+**tx-sign** (planned) reads keys on stdin and the tx on a second stdin line or `--tx FILE`.
+It then:
+1. decodes the tx with `kr-tx` and **prints the tx-decode `--text` summary on /dev/tty**;
+2. refuses if the fee exceeds `--max-fee` (a default cap guards against typo burns) or if
+   `--expect-to ADDR` (validated by `kr_core::validate`) is not the destination;
+3. asks for a random 6-character code typed on the TTY (`kr_tty::confirm`);
+4. signs exactly those bytes and emits the signed tx.
+EVM signing refuses transactions without a chain id. Signing reuses the
+`kr_tx::evm::Tx::sign` path that already reproduces the EIP-155 example byte for byte.
+
+**SwapChan** stays host-side: `find_money` → UTXO/nonce files for tx-build; `verify_tx`
+can double-check tx-decode output before broadcast.
 
 ## 7. SwapChan integration (host side only)
 

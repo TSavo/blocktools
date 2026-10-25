@@ -9,13 +9,20 @@ pub const STATUSES: &[&str] = &[
     "bad_input", "wrong_password", "unsupported", "error", "done",
 ];
 pub const TOOLS: &[&str] = &["seed-repair", "seed-to-master", "derive", "keystore-open", "kr-redact", "kr-run", "kr-cat", "dat-read",
-    "key-to-addresses", "classify", "tx-verify", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read"];
-pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol"];
+    "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read"];
+pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol",
+    "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
 pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
 pub const SECRET_FIELDS: &[&str] = &["wif", "private_key", "xprv", "seed", "mnemonic", "passphrase", "password", "secret", "signed_tx_secret"];
+/// tx-decode warning vocabulary (public). Anything else drops the line.
+pub const TX_WARNINGS: &[&str] = &["input_amounts_unknown", "outputs_exceed_inputs", "high_fee", "high_fee_pct", "high_fee_rate",
+    "nonstandard_output", "op_return_output", "dust_output", "locktime_set", "unsigned", "partially_signed", "utxo_txid_mismatch",
+    "no_inputs_or_outputs", "no_chain_id", "contract_creation", "high_gas_price", "token_approve", "unlimited_approve",
+    "token_transfer_from", "unknown_calldata", "bad_signature"];
+pub const TX_TYPES: &[&str] = &["btc-tx", "psbt", "evm-legacy", "evm-1559"];
 pub const PLACEHOLDER: &str = "[REDACTED]";
 
 const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -61,6 +68,17 @@ fn validate(key: &str, v: &Value) -> Option<bool> {
         k if SECRET_FIELDS.contains(&k) => return None, // replaced by a placeholder in redact_line
         "address" => s.map_or(false, is_address),
         "path" => s.map_or(false, is_path),
+        // Transactions (tx-decode). txids are deliberately NOT allowlisted: 64 hex is key-shaped.
+        "role" => s.map_or(false, |s| ["summary", "input", "output"].contains(&s)),
+        "type" => s.map_or(false, |s| TX_TYPES.contains(&s)),
+        "selector" => s.map_or(false, |s| ["transfer", "approve", "transferFrom"].contains(&s)),
+        "signed" | "rbf" => v.is_boolean(),
+        "warnings" => v.as_array().map_or(false, |a| a.len() <= 32 && a.iter().all(|w| w.as_str().map_or(false, |w| TX_WARNINGS.contains(&w)))),
+        "from" | "to" | "token" | "token_to" => s.map_or(false, is_address),
+        "amount" | "fee" => v.as_u64().map_or(false, |n| n <= 21_000_000 * 100_000_000),
+        "value" | "max_fee" | "max_fee_per_gas" | "max_priority_fee_per_gas" | "token_amount" =>
+            s.map_or(false, |s| (1..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit())),
+        "inputs" | "outputs" | "vout" | "vsize" | "fee_rate" | "locktime" | "nonce" | "gas" | "chain_id" | "data_len" => v.as_u64().map_or(false, |n| n <= u32::MAX as u64),
         "candidate" | "count" | "index" | "changed_words" | "line" | "branch" => small_uint(v),
         _ => return None,
     })
@@ -120,6 +138,12 @@ pub fn redact_line(raw: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test] fn tx_decode_lines() {
+        let l = r#"{"tool":"tx-decode","status":"ok","role":"summary","chain":"eth","type":"evm-1559","signed":true,"from":"0x9d8A62f656a8d1615C1294fd71e9CFb3E4855A4F","value":"1000000000000000000","warnings":["unsigned"],"txid":"0xdaf5a779ae972f972197303d7b574746c7ef83eadac0f2791ad23db92e4c8e53"}"#;
+        let o = super::redact_line(l).unwrap();
+        assert!(o.contains("evm-1559") && !o.contains("txid"));
+        assert!(super::redact_line(&l.replace("unsigned", "evil")).is_none());
+    }
     use super::*;
     const MN: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     #[test] fn passes_public() {

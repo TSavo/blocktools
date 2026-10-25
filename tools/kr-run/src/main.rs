@@ -11,7 +11,7 @@ use std::process::{Child, Command, Stdio};
 const ALLOWED: &[&str] = &[
     "seed-repair", "seed-to-master", "derive", "keystore-open", "kr-cat", "kr-redact",
     "dat-read", "electrum-read", "multibit-read", "armory-read",
-    "tx-verify", "tx-sign", "tx-build-sweep", "key-to-addresses", "classify",
+    "tx-decode", "tx-build", "tx-verify", "tx-sign", "tx-build-sweep", "key-to-addresses", "classify",
 ];
 
 fn out(status: &str) -> ! { kr_io::outln!(r#"{{"tool":"kr-run","status":"{status}"}}"#); std::process::exit(2) }

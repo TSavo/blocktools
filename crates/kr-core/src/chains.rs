@@ -176,3 +176,43 @@ mod kat_key_one {
         assert_eq!(a("ltc", "p2wpkh"), "ltc1qw508d6qejxtdg4y5r3zarvary0c5xw7kgmn4n9");
     }
 }
+
+/// Standard output script -> (kind, address) on a UTXO chain. None for non-standard scripts
+/// (bare multisig, OP_RETURN, ...); callers show those as "nonstandard".
+pub fn script_to_address(c: &Chain, s: &[u8]) -> Option<(&'static str, String)> {
+    let Enc::Utxo { p2pkh, p2sh, hrp, .. } = c.enc else { return None };
+    let seg = |v: u8, p: &[u8]| -> Option<String> {
+        let h = Hrp::parse(hrp?).ok()?;
+        bech32::segwit::encode(h, bech32::Fe32::try_from(v).ok()?, p).ok()
+    };
+    match s {
+        [0x76, 0xa9, 0x14, h @ .., 0x88, 0xac] if h.len() == 20 => Some(("p2pkh", b58check(&ver(p2pkh, h)))),
+        [0xa9, 0x14, h @ .., 0x87] if h.len() == 20 => Some(("p2sh", b58check(&ver(p2sh, h)))),
+        [0x00, 0x14, h @ ..] if h.len() == 20 => Some(("p2wpkh", seg(0, h)?)),
+        [0x00, 0x20, h @ ..] if h.len() == 32 => Some(("p2wsh", seg(0, h)?)),
+        [0x51, 0x20, h @ ..] if h.len() == 32 => Some(("p2tr", seg(1, h)?)),
+        // Pay-to-pubkey (early coinbase era): shown as the P2PKH address of that key.
+        [0x41, k @ .., 0xac] if k.len() == 65 => Some(("p2pk", b58check(&ver(p2pkh, &h160(k))))),
+        [0x21, k @ .., 0xac] if k.len() == 33 => Some(("p2pk", b58check(&ver(p2pkh, &h160(k))))),
+        _ => None,
+    }
+}
+/// Inverse of script_to_address for the standard kinds (destinations for tx-build).
+pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
+    let Enc::Utxo { p2pkh, p2sh, hrp, .. } = c.enc else { return None };
+    if let Some(h) = hrp {
+        if a.to_ascii_lowercase().starts_with(&format!("{h}1")) {
+            let (hh, v, p) = bech32::segwit::decode(a).ok()?;
+            if hh.as_str() != h { return None }
+            let v = v.to_u8();
+            if !matches!((v, p.len()), (0, 20) | (0, 32) | (1, 32)) { return None }
+            let mut s = vec![if v == 0 { 0 } else { 0x50 + v }, p.len() as u8]; s.extend(p); return Some(s);
+        }
+    }
+    let b = bitcoin::base58::decode_check(a).ok()?;
+    if b.len() != 21 { return None }
+    let h = &b[1..];
+    if b[0] == p2pkh { let mut s = vec![0x76, 0xa9, 0x14]; s.extend(h); s.extend([0x88, 0xac]); Some(s) }
+    else if b[0] == p2sh { let mut s = vec![0xa9, 0x14]; s.extend(h); s.push(0x87); Some(s) }
+    else { None }
+}
