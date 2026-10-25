@@ -23,3 +23,7 @@ pub mod repair;
 pub mod seed;
 #[cfg(feature = "walk")]
 pub mod walk;
+#[cfg(feature = "bip38")]
+pub mod bip38;
+#[cfg(feature = "blockchain")]
+pub mod blockchain;

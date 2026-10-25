@@ -59,6 +59,8 @@ case $class in
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;
   monero_address)  say "watch-only ($class): Monero balances need the view key (recipes/monero.md)"; exit 3 ;;
   keystore_v3)     CHAIN=eth; keys() { pw_then_file | "$B/keystore-open"; } ;;
+  blockchain_wallet) keys() { pw_then_file | "$B/blockchain-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
+  bip38)           keys() { pw_then_file | "$B/bip38-open" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   *)               say "no reader for $class yet (see docs/ROADMAP.md)"; exit 3 ;;
 esac
 

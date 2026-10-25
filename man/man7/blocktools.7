@@ -13,6 +13,12 @@ account\-model payments for xlm, algo and atom. Encoded transactions are base64 
 \fBarmory\-read\fR(1)
 Armory (PyBtcWallet) `.wallet` \-> {"wif","chain_index"} per stored address
 .TP
+\fBbip38\-open\fR(1)
+BIP38 encrypted private key + passphrase \-> WIF. Spec vectors only for non\-EC
+.TP
+\fBblockchain\-read\fR(1)
+Blockchain.com wallet.aes.json (v2/v3) + password \-> wif / xprv lines
+.TP
 \fBchain\-table\fR(1)
 print the chain registry (crates/core chains.rs) as data, one JSON object per
 .TP

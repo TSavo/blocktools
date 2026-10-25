@@ -47,6 +47,7 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
     if t.starts_with('{') {
         let has = |k: &str| t.contains(&format!("\"{k}\"")) || t.contains(&format!("'{k}'"));
         if has("version") && (has("crypto") || has("Crypto")) { return file("keystore_v3") }
+        if has("version") && has("pbkdf2_iterations") && has("payload") { return file("blockchain_wallet") }
         if has("seed_version") || has("wallet_type") { return file("electrum_wallet") }
     }
     let mut out = vec![];
@@ -73,6 +74,7 @@ fn line(l: &str, n: u64) -> Row {
     if l.len() == 111 && ["xpub", "ypub", "zpub", "tpub"].iter().any(|p| l.starts_with(p)) && (base58::decode_check(l).is_ok() || crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l).is_ok()) {
         return Row { public: Some(l.into()), ..row("xpub", n, l.as_bytes()) } }
     if ["xprv", "yprv", "zprv", "tprv", "Yprv", "Zprv", "uprv", "vprv", "Uprv", "Vprv"].iter().any(|p| l.starts_with(p)) && base58::decode_check(l).map_or(false, |b| b.len() == 78) { return row("xprv", n, l.as_bytes()) }
+    if l.starts_with("6P") { if let Ok(b) = base58::decode_check(l) { if b.len() == 39 && b[0] == 1 && (b[1] == 0x42 || b[1] == 0x43) { return row("bip38", n, l.as_bytes()) } } }
     if let Ok(b) = base58::decode_check(l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && [0x80, 0xb0, 0x9e, 0xef].contains(&b[0]) { return row("wif", n, l.as_bytes()) } }
     if let Ok(b) = crate::chains::decode_check_ck(crate::chains::Ck::Groestl, l) { if (b.len() == 33 || b.len() == 34 && b[33] == 1) && b[0] == 0x80 { return Row { chain: Some("grs"), ..row("wif", n, l.as_bytes()) } } }
     let h = l.strip_prefix("0x").unwrap_or(l);
@@ -106,6 +108,7 @@ mod t {
         assert_eq!(c("cycle rocket west magnet parrot shuffle foot correct salt library feed song"), "electrum_seed");
         assert_eq!(c("0000000000000000000000000000000000000000000000000000000000000001"), "hex_key");
         assert_eq!(c("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"), "wif");
+        assert_eq!(c("6PRVWUbkzzsbcVac2qwfssoUJAN1Xhrg6bNk8J7Nzm5H7kxEbn2Nh2ZoGg"), "bip38");
         assert_eq!(c("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"), "wif");
         assert_eq!(c("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"), "address");
         assert_eq!(c("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"), "address");
@@ -119,6 +122,7 @@ mod t {
         // Groestl-checksummed GRS tpub (Groestlcoin/eclair f52fbf9 vector)
         assert_eq!(c("tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK"), "xpub");
         assert_eq!(c(r#"{"version":3,"crypto":{}}"#), "keystore_v3");
+        assert_eq!(c(r#"{"version":3,"pbkdf2_iterations":5000,"payload":"QQ=="}"#), "blockchain_wallet");
         assert_eq!(c("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="), "b64_key");
         assert_eq!(c("hello"), "unknown");
         let r = &classify(b"0000000000000000000000000000000000000000000000000000000000000001")[0];

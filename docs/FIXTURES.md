@@ -11,7 +11,7 @@ The repo holds **no wallet files**. `scripts/secret-scan.sh` rejects wallet-like
   those tests print `skip` (set `BLOCKTOOLS_REQUIRE_FIXTURES=1` to make that a failure).
 * **Third-party** public test wallets (btcrecover, GPL, password `btcr-test-password`) are
   downloaded and sha256-checked by `scripts/fetch-fixtures.sh` into the git-ignored
-  `fixtures/external/`; tests skip them when absent.
+  `fixtures/external/`; tests skip them when absent. Blockchain.com e2e builds its own v3 wrapper in-process (openssl); BIP38 uses public BIP ciphertext strings.
 
 ## Git history note
 Commit 360a78e (and its parent state) still contains the earlier committed
