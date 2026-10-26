@@ -1,8 +1,12 @@
 # CI runners
 
-Linux gate jobs (`lint`, `test`, `negatives`, `e2e`) run on the self-hosted Battleaxe runner
-(`battleaxe-blocktools-1`, labels `self-hosted, Linux, X64, blocktools, battleaxe`). The `macos` job
+Linux gate jobs (`lint`, `test`, `negatives`, `e2e`) run on four self-hosted Battleaxe runners
+(`battleaxe-blocktools-1` to `battleaxe-blocktools-4`, all with labels `self-hosted, Linux, X64, blocktools, battleaxe`). The extra three come from
+`docker-compose.blocktools-extra.yml` (compose project `github-runners-bt-extra`) on Battleaxe. All four
+share the tool-cache volume and mount the host Docker socket. The `macos` job
 stays on GitHub-hosted `macos-latest`. The release workflow stays GitHub-hosted.
+
+Timings below were measured with one runner; no timing with four runners has been measured yet.
 
 Measured from our own run 40270984219 (c0ece5e) with
 `gh api repos/TSavo/blocktools/actions/runs/40270984219/jobs`: all four Linux jobs succeeded on
@@ -31,11 +35,11 @@ while private") is therefore no longer met. What limits the risk today:
   contributor's code on Battleaxe.
 - Runs from pushes to this repo need write access.
 
-What remains: the runner is persistent (not ephemeral) and mounts the host Docker socket, which is
+What remains: the runners are persistent (not ephemeral) and mount the host Docker socket, which is
 root-equivalent on Battleaxe; an approved fork run, or a PR that edits `.github/workflows/`, gets
 that access. Do not approve fork runs without reading the diff (workflows and `scripts/` included).
 Options to remove the exposure: route `pull_request` runs from forks to GitHub-hosted runners
-(`ubuntu-latest`) in ci.yml, or set `RUNNER_LABELS` to `"ubuntu-latest"` and retire the runner.
+(`ubuntu-latest`) in ci.yml, or set `RUNNER_LABELS` to `"ubuntu-latest"` and retire the runners.
 Neither is done yet.
 
 ## What the runner must have / what the job installs
@@ -55,7 +59,12 @@ Runner image (per SwapChan's check of Battleaxe): node 24.19.0, bun, Docker, no 
 
 ## Persistent runner
 
-The runner is not ephemeral and mounts the host Docker socket (root-equivalent on Battleaxe). Each Linux job
-ends with an `if: always()` cleanup (git worktree prune, git clean except target/, temp files).
-`scripts/gate.sh` creates no Docker images or containers. Workflow-level `concurrency` serializes runs per ref;
-with one runner, jobs within a run already execute one at a time.
+The four runners are not ephemeral, and each mounts the host Docker socket (root-equivalent on Battleaxe).
+They share the tool-cache volume, so the four jobs of one run can now execute in parallel on different
+runners and use that cache at the same time. Each Linux job ends with an `if: always()` cleanup: git worktree
+prune, git clean except target/, and removal of `$TMPDIR/blocktools-*` and `$TMPDIR/ci-gate.*`. The cleanup
+touches only that runner's checkout, so it is safe with parallel jobs as long as each runner container has
+its own `/tmp`. That is the case unless the compose file mounts a shared `/tmp`; we have not verified it.
+`scripts/gate.sh` creates no Docker images or containers. Workflow-level `concurrency` (`ci-<ref>`, no
+cancel-in-progress) still serializes runs per ref. It does not serialize the jobs inside a run, which now
+run in parallel.
