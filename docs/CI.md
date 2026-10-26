@@ -142,3 +142,13 @@ Checking out with `clean: false` keeps `target` between jobs (it is the per-ref 
 stage's `cargo build --release` is incremental from the last commit built on that ref. Before this,
 actions/checkout's default `git clean -ffdx` emptied target/ at the start of every job and rust-cache
 restored it from GitHub's cache (0.3-0.5 min restore, 1.1-2.7 min save).
+
+## Gate image (Dockerfile.gate)
+
+`Dockerfile.gate` is a pinned toolchain image with exactly what `scripts/gate.sh` needs (rust 1.85.1 by
+base-image digest, wasm32 target, wasm-bindgen-cli 0.2.100, clang/lld, node 20.19.5 by tarball checksum,
+python3 with cryptography and pyyaml, groff, git, file) and nothing of the general-purpose runner image.
+`sh scripts/gate-docker.sh [STAGE]` builds it once and runs the gate inside it with the checkout
+bind-mounted at `/src` and cargo caches in named volumes. Bind mounts resolve on the Docker host: from a
+Mac whose docker context is Battleaxe, point `GATE_SRC` at a checkout on Battleaxe. The sealed runtime image
+is still `Dockerfile`; the two share nothing. Measured: see the "measured" line in this section's commit.
