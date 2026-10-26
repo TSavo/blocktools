@@ -11,7 +11,7 @@ use zeroize::Zeroizing;
 
 fn hex(b: &[u8]) -> String { b.iter().map(|x| format!("{x:02X}")).collect() }
 fn unhex(s: &str) -> Option<Vec<u8>> { let s = s.trim(); (s.len() % 2 == 0).then(|| (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect::<Option<Vec<_>>>()).flatten() }
-fn fail(e: &str) -> ! { println!("{}", json!({"status":"error","error":e})); std::process::exit(1) }
+fn fail(e: &str) -> ! { blocktools_io::outln!("{}", json!({"status":"error","error":e})); std::process::exit(1) }
 fn opt<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
 fn num<T: std::str::FromStr>(a: &[String], k: &str) -> Option<T> { opt(a, k).map(|v| v.parse().unwrap_or_else(|_| fail(&format!("bad_number:{k}")))) }
 fn stdin_secret() -> Zeroizing<String> { let mut s = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut s).ok(); s }
@@ -32,7 +32,7 @@ fn main() {
             let s = stdin_secret();
             let (algo, e) = decode_seed(&s).unwrap_or_else(|e| fail(e));
             let k = key_from_seed(algo, &e);
-            println!("{}", json!({"tool":"xrp-tx","status":"ok","chain":"xrp","kind":"xrp","algo":format!("{algo:?}").to_lowercase(),"address":k.address(),
+            blocktools_io::outln!("{}", json!({"tool":"xrp-tx","status":"ok","chain":"xrp","kind":"xrp","algo":format!("{algo:?}").to_lowercase(),"address":k.address(),
                 "x_address":x_address(&account_id(&k.public), None, false),"public":hex(&k.public)}));
         }
         Some("build") => {
@@ -51,13 +51,13 @@ fn main() {
                 flags: 0x8000_0000, destination_tag: xtag.or(tag), last_ledger_sequence: num(&a, "--last-ledger"), ..Default::default() };
             let d = describe(&p);
             for w in d["warnings"].as_array().unwrap() { eprintln!("xrp-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"xrp","unsigned":hex(&p.encode(false)),"warnings":d["warnings"],"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"xrp","unsigned":hex(&p.encode(false)),"warnings":d["warnings"],"summary":d}));
         }
         Some("decode") => {
             let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok();
             let s = serde_json::from_str::<Value>(&s).ok().and_then(|v| v["unsigned"].as_str().or(v["tx_blob"].as_str()).map(String::from)).unwrap_or(s);
             let p = Payment::decode(&unhex(&s).unwrap_or_else(|| fail("bad_hex"))).unwrap_or_else(|e| fail(&e));
-            println!("{}", describe(&p));
+            blocktools_io::outln!("{}", describe(&p));
         }
         Some("sign") => {
             let raw = std::fs::read_to_string(opt(&a, "--tx").unwrap_or_else(|| fail("missing --tx"))).unwrap_or_else(|_| fail("cannot_read_tx"));
@@ -73,9 +73,9 @@ fn main() {
             let summary = format!("XRP Payment {} XRP (+{} drops fee)\n  from {}\n  to   {}  tag {}\n{}", d["amount_xrp"].as_str().unwrap(), p.fee_drops,
                 classic(&p.account), classic(&p.destination), p.destination_tag.map_or("NONE".into(), |t| t.to_string()),
                 d["warnings"].as_array().unwrap().iter().map(|w| format!("  WARNING {}\n", w.as_str().unwrap())).collect::<String>());
-            if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
+            if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             sign(&mut p, &k).unwrap_or_else(|e| fail(e));
-            println!("{}", json!({"status":"ok","chain":"xrp","tx_blob":hex(&p.encode(false)),"txid":hex(&p.hash())}));
+            blocktools_io::outln!("{}", json!({"status":"ok","chain":"xrp","tx_blob":hex(&p.encode(false)),"txid":hex(&p.hash())}));
         }
         _ => { eprintln!("usage: xrp-tx keys|build|decode|sign (see source header)"); std::process::exit(2) }
     }

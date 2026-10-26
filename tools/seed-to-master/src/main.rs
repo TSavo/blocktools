@@ -19,7 +19,6 @@ fn main() {
             Some(p) => passphrase = p,
             None => { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
         },
-        ["--help"] => { println!("seed-to-master [--passphrase-prompt]  < {{\"mnemonic\":...}} lines\n  tries BIP39 and Electrum (standard/segwit); 2FA and old-Electrum: unsupported (planned)"); return }
         _ => { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) }
     }
     let mut n = 0u64;

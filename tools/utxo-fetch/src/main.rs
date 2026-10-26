@@ -117,7 +117,7 @@ fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
         let num = u64::from_str_radix(hdr["number"].as_str().unwrap_or("0x0").trim_start_matches("0x"), 16).unwrap_or_else(|_| die("bad header"));
         let mut w = vec![];
         if ver["specVersion"] != json!(2005000) || ver["transactionVersion"] != json!(15) { w.push("runtime_differs_from_tested_2005000/15: acct-tx dot layout unchecked for this runtime") }
-        println!("{}", json!({"chain":"dot","network":"Polkadot Asset Hub","address":ad,"free_planck":free.to_string(),"nonce":nonce,"spec":ver["specVersion"],"tx_version":ver["transactionVersion"],
+        blocktools_io::outln!("{}", json!({"chain":"dot","network":"Polkadot Asset Hub","address":ad,"free_planck":free.to_string(),"nonce":nonce,"spec":ver["specVersion"],"tx_version":ver["transactionVersion"],
             "block_number":num,"block_hash":head,"warnings":w,"source":node}));
         return
     }
@@ -128,7 +128,7 @@ fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
         let mut w = vec![];
         if r["wallet_type"].as_str() != Some("wallet v4 r2") { w.push("not_wallet_v4r2: acct-tx builds v4r2 messages only") }
         if r["account_state"].as_str() != Some("active") { w.push("not_active: seqno 0 / undeployed wallets need the deploy message (NOT BUILT)") }
-        println!("{}", json!({"chain":"ton","address":ad,"balance_nanoton":r["balance"],"seqno":r["seqno"],"wallet_type":r["wallet_type"],"account_state":r["account_state"],"subwallet_id":r["wallet_id"],"warnings":w,"source":node}));
+        blocktools_io::outln!("{}", json!({"chain":"ton","address":ad,"balance_nanoton":r["balance"],"seqno":r["seqno"],"wallet_type":r["wallet_type"],"account_state":r["account_state"],"subwallet_id":r["wallet_id"],"warnings":w,"source":node}));
         return
     }
     if chain == "atom" {
@@ -137,7 +137,7 @@ fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
         let b = get_json(&format!("{node}/cosmos/bank/v1beta1/balances/{ad}/by_denom?denom=uatom"));
         let acc = &v["account"];
         let pk = acc["pub_key"]["key"].as_str().and_then(blocktools_core::b64::decode).map(|k| k.iter().map(|x| format!("{x:02x}")).collect::<String>());
-        println!("{}", json!({"chain":"atom","address":ad,"balance_uatom":b["balance"]["amount"],"account_number":acc["account_number"],"sequence":acc["sequence"],"pubkey":pk,"source":node}));
+        blocktools_io::outln!("{}", json!({"chain":"atom","address":ad,"balance_uatom":b["balance"]["amount"],"account_number":acc["account_number"],"sequence":acc["sequence"],"pubkey":pk,"source":node}));
         return
     }
     if chain == "xlm" {
@@ -145,12 +145,12 @@ fn acct(chain: &str, url: Option<&str>, addrs: &[String]) {
         let v = get_json(&format!("{node}/accounts/{ad}"));
         let bal = v["balances"].as_array().and_then(|b| b.iter().find(|x| x["asset_type"] == "native")).map(|x| x["balance"].clone());
         let seq: i64 = v["sequence"].as_str().and_then(|s| s.parse().ok()).unwrap_or_else(|| die("no sequence (account not funded?)"));
-        println!("{}", json!({"chain":"xlm","address":ad,"balance_str":bal,"next_seq":seq + 1,"subentry_count":v["subentry_count"],"source":node}));
+        blocktools_io::outln!("{}", json!({"chain":"xlm","address":ad,"balance_str":bal,"next_seq":seq + 1,"subentry_count":v["subentry_count"],"source":node}));
     } else {
         let node = url.unwrap_or("https://mainnet-api.algonode.cloud").trim_end_matches('/');
         let v = get_json(&format!("{node}/v2/accounts/{ad}?exclude=all"));
         let p = get_json(&format!("{node}/v2/transactions/params"));
-        println!("{}", json!({"chain":"algo","address":ad,"amount_microalgo":v["amount"],"min_balance_microalgo":v["min-balance"],
+        blocktools_io::outln!("{}", json!({"chain":"algo","address":ad,"amount_microalgo":v["amount"],"min_balance_microalgo":v["min-balance"],
             "total_assets_opted_in":v["total-assets-opted-in"],"last_round":p["last-round"],"min_fee":p["min-fee"],"genesis_id":p["genesis-id"],"source":node}));
     }
 }

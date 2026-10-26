@@ -26,7 +26,7 @@ use zeroize::Zeroizing;
 /// Print the full decode, then one schema-clean public line (tool/status/chain/from/to/amount/fee/signed)
 /// so the decoded payment survives `redact` behind sealed-run.
 fn emit(v: Value) {
-    println!("{v}");
+    blocktools_io::outln!("{v}");
     let n = |pre: &str| v.as_object().and_then(|o| o.iter().find(|(k, x)| k.starts_with(pre) && k.as_str() != "amount_str" && k.as_str() != "fee_str"
         && (x.as_u64().is_some() || x.as_str().map_or(false, |s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())))).map(|(_, x)| x.as_u64().unwrap_or_else(|| x.as_str().unwrap().parse().unwrap_or(0))));
     let mut o = serde_json::Map::new();
@@ -34,9 +34,9 @@ fn emit(v: Value) {
     for k in ["chain", "from", "to", "signed"] { if let Some(x) = v.get(k).filter(|x| !x.is_null()) { o.insert(k.into(), x.clone()); } }
     if let Some(a) = n("amount_") { o.insert("amount".into(), json!(a)); }
     if let Some(f) = n("fee_") { o.insert("fee".into(), json!(f)); }
-    println!("{}", Value::Object(o));
+    blocktools_io::outln!("{}", Value::Object(o));
 }
-fn fail(e: &str) -> ! { println!("{}", json!({"status":"error","error":e})); std::process::exit(1) }
+fn fail(e: &str) -> ! { blocktools_io::outln!("{}", json!({"status":"error","error":e})); std::process::exit(1) }
 fn opt<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
 fn req<'a>(a: &'a [String], k: &str) -> &'a str { opt(a, k).unwrap_or_else(|| fail(&format!("missing {k}"))) }
 fn num<T: std::str::FromStr>(a: &[String], k: &str) -> Option<T> { opt(a, k).map(|v| v.parse().unwrap_or_else(|_| fail(&format!("bad_number:{k}")))) }
@@ -186,7 +186,7 @@ fn main() {
             let t = if t.time == Some((0, 0)) { xlm::Tx { time: None, ..t } } else { t };
             let d = xlm_describe(&t, net);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"xlm","unsigned":b64::encode(&t.envelope()),"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"xlm","unsigned":b64::encode(&t.envelope()),"summary":d}));
         }
         (Some("build"), "algo") => {
             let snd = algo::decode_address(req(&a, "--from")).unwrap_or_else(|e| fail(e));
@@ -202,7 +202,7 @@ fn main() {
             if p.lv < p.fv || p.lv - p.fv > 1000 { fail("last_round_must_be_within_1000_of_first") }
             let d = algo_describe(&p);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"algo","unsigned":b64::encode(&p.encode()),"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"algo","unsigned":b64::encode(&p.encode()),"summary":d}));
         }
         (Some("build"), "ton") => {
             let (wallet, _) = ton::parse_address(req(&a, "--from")).unwrap_or_else(|e| fail(e));
@@ -218,7 +218,7 @@ fn main() {
                 mode: if sweep { ton::MODE_SWEEP } else { ton::MODE_PAY }, to, bounce, amount, comment, sig: [0; 64] };
             let d = ton_describe(&t, None);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"ton","unsigned":b64::encode(&t.encode()),"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"ton","unsigned":b64::encode(&t.encode()),"summary":d}));
         }
         (Some("build"), "ada") => {
             let from = req(&a, "--from"); let fb = ada::decode_address(from).unwrap_or_else(|e| fail(e));
@@ -247,7 +247,7 @@ fn main() {
             if fee < t.min_fee() { fail(&format!("fee_below_size_minimum: need >= {} lovelace", t.min_fee())) }
             let d = ada_describe(&t, Some(from), Some(total));
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"ada","unsigned":hex(&t.encode()),"from":from,"input_lovelace":total.to_string(),"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"ada","unsigned":hex(&t.encode()),"from":from,"input_lovelace":total.to_string(),"summary":d}));
         }
         (Some("build"), "dot") => {
             let from = dot::parse_address(req(&a, "--from")).unwrap_or_else(|e| fail(e)); let to = dot::parse_address(req(&a, "--to")).unwrap_or_else(|e| fail(e));
@@ -260,7 +260,7 @@ fn main() {
                 spec: num(&a, "--spec").unwrap_or(dot::SPEC), tx_version: num(&a, "--tx-version").unwrap_or(dot::TX_VERSION), genesis: dot::GENESIS, sig: None };
             let d = dot_describe(&t);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            let mut o = dot_json(&t, "unsigned"); o["summary"] = d; println!("{o}");
+            let mut o = dot_json(&t, "unsigned"); o["summary"] = d; blocktools_io::outln!("{o}");
         }
         (Some("decode"), "dot") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); emit(dot_describe(&dot_read(&s))) }
         (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); emit(ada_describe(&t, f.as_deref(), i)) }
@@ -268,7 +268,7 @@ fn main() {
         (Some("keys"), "atom") => {
             let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
             let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
-            println!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
         }
         (Some("build"), "atom") => {
             let pubkey: [u8; 33] = unhex(req(&a, "--pubkey")).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"));
@@ -284,7 +284,7 @@ fn main() {
                 chain_id: opt(&a, "--chain-id").unwrap_or("cosmoshub-4").into(), account_number: num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number")) };
             let d = atom_describe(&t, None);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
-            println!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
+            blocktools_io::outln!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
         }
         (Some("decode"), "atom") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = atom_read(&s); emit(atom_describe(&t, sig.as_ref())) }
         (Some("decode"), c) => {
@@ -354,8 +354,8 @@ fn main() {
                 d["amount_str"].as_str().unwrap_or("ENTIRE BALANCE"), d["fee_str"].as_str().unwrap(), d["from"].as_str().unwrap(), d["to"].as_str().unwrap(),
                 d["close_to"].as_str().map(|c| format!("\n  CLOSE REMAINDER TO {c}")).unwrap_or_default(),
                 d["warnings"].as_array().unwrap().iter().map(|w| format!("  WARNING {}\n", w.as_str().unwrap())).collect::<String>());
-            if !blocktools_tty::confirm(&summary) { println!("{}", json!({"status":"aborted"})); std::process::exit(1) }
-            println!("{}", out());
+            if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }
+            blocktools_io::outln!("{}", out());
         }
         _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton|ada|dot (see source header)"); std::process::exit(2) }
     }

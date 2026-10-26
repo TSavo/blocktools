@@ -16,7 +16,7 @@ fn main() {
     std::io::stdin().read_to_string(&mut s).ok();
     match seed_to_spend(&s) {
         Ok(sp) => { let k = keys_from_spend(&sp);
-            println!("{{\"tool\":\"xmr-keys\",\"status\":\"ok\",\"chain\":\"xmr\",\"kind\":\"xmr\",\"address\":\"{}\",\"spend_public\":\"{}\",\"view_public\":\"{}\"}}",
+            blocktools_io::outln!("{{\"tool\":\"xmr-keys\",\"status\":\"ok\",\"chain\":\"xmr\",\"kind\":\"xmr\",\"address\":\"{}\",\"spend_public\":\"{}\",\"view_public\":\"{}\"}}",
                 address(net, &k.spend_public, &k.view_public), hex(&k.spend_public), hex(&k.view_public));
             if let Some(path) = arg(&a, "--scan-out") {
                 let height: u64 = match arg(&a, "--restore-height").map(|h| h.parse()) {

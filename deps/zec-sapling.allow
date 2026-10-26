@@ -12,6 +12,7 @@ bitvec
 blake2b_simd
 blake2s_simd
 block-buffer
+blocktools-io
 bls12_381
 bs58
 byteorder

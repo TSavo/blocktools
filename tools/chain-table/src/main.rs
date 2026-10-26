@@ -7,8 +7,8 @@ fn main() {
     use blocktools_core::chains;
     let a: Vec<String> = std::env::args().skip(1).collect();
     match a.first().map(String::as_str) {
-        None => for c in chains::CHAINS { println!("{}", chains::chain_json(c)) },
-        Some("--array") => println!("{}", chains::table_json()),
-        Some(n) => match chains::chain(n) { Some(c) => println!("{}", chains::chain_json(c)), None => { eprintln!("chain-table: unknown chain {n}"); std::process::exit(2) } },
+        None => for c in chains::CHAINS { blocktools_io::outln!("{}", chains::chain_json(c)) },
+        Some("--array") => blocktools_io::outln!("{}", chains::table_json()),
+        Some(n) => match chains::chain(n) { Some(c) => blocktools_io::outln!("{}", chains::chain_json(c)), None => { eprintln!("chain-table: unknown chain {n}"); std::process::exit(2) } },
     }
 }

@@ -23,5 +23,5 @@ fn main() {
         eprintln!("{{\"tool\":\"tx-envelope\",\"status\":\"bad_input\",\"error\":\"empty_input\"}}");
         std::process::exit(2);
     }
-    println!("{}", blocktools::envelope::run(&input));
+    blocktools_io::outln!("{}", blocktools::envelope::run(&input));
 }

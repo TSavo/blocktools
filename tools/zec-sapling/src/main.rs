@@ -56,11 +56,11 @@ fn main() {
     for i in 0..count {
         let xsk = account(&seed[..], i);
         let (_, addr) = xsk.default_address();
-        println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"sapling\",\"path\":\"m/32'/133'/{i}'\",\"address\":\"{}\"}}", zs(&addr));
+        blocktools_io::outln!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"sapling\",\"path\":\"m/32'/133'/{i}'\",\"address\":\"{}\"}}", zs(&addr));
         if a.iter().any(|x| x == "--unified") {
             let (j, ua, t) = unified(&seed[..], i);
-            println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"unified\",\"path\":\"m/32'/133'/{i}'\",\"diversifier_index\":{j},\"receivers\":\"orchard,sapling,p2pkh\",\"address\":\"{ua}\"}}");
-            println!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"p2pkh\",\"path\":\"m/44'/133'/{i}'/0/{j}\",\"address\":\"{t}\"}}");
+            blocktools_io::outln!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"unified\",\"path\":\"m/32'/133'/{i}'\",\"diversifier_index\":{j},\"receivers\":\"orchard,sapling,p2pkh\",\"address\":\"{ua}\"}}");
+            blocktools_io::outln!("{{\"tool\":\"zec-sapling\",\"status\":\"ok\",\"chain\":\"zec\",\"kind\":\"p2pkh\",\"path\":\"m/44'/133'/{i}'/0/{j}\",\"address\":\"{t}\"}}");
         }
         #[allow(deprecated)]
         let fvk = xsk.to_extended_full_viewing_key();

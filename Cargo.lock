@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "blocktools-acct",
  "blocktools-core",
+ "blocktools-io",
  "blocktools-tty",
  "serde_json",
  "zeroize",
@@ -1872,6 +1873,7 @@ dependencies = [
 name = "xmr-keys"
 version = "0.1.0"
 dependencies = [
+ "blocktools-io",
  "blocktools-monero",
  "zeroize",
 ]
@@ -1880,6 +1882,7 @@ dependencies = [
 name = "xmr-wallet"
 version = "0.1.0"
 dependencies = [
+ "blocktools-io",
  "blocktools-monero",
  "blocktools-tty",
  "serde_json",
@@ -1899,6 +1902,7 @@ dependencies = [
 name = "xrp-tx"
 version = "0.1.0"
 dependencies = [
+ "blocktools-io",
  "blocktools-tty",
  "blocktools-xrp",
  "serde_json",
@@ -1970,6 +1974,7 @@ dependencies = [
  "bech32",
  "bip39",
  "bitcoin",
+ "blocktools-io",
  "orchard",
  "sapling-crypto",
  "zcash_address",

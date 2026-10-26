@@ -44,7 +44,7 @@ fn report_balance(rpc: &str, kind: &str) -> (String, u64, u64) {
     let addr = call(rpc, "get_address", json!({"account_index":0}))["address"].as_str().unwrap_or("").to_string();
     let b = call(rpc, "get_balance", json!({"account_index":0}));
     let h = u(&call(rpc, "get_height", json!({})), "height");
-    println!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":kind,"address":addr,
+    blocktools_io::outln!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":kind,"address":addr,
         "balance":u(&b,"balance"),"unlocked":u(&b,"unlocked_balance"),"wallet_height":h}));
     (addr, u(&b, "balance"), u(&b, "unlocked_balance"))
 }
@@ -80,7 +80,7 @@ fn main() {
             // get_transfers works for view-only wallets (incoming_transfers needs key images).
             let t = call(&rpc, "get_transfers", json!({"in":true,"pool":true,"account_index":0}));
             for k in ["in", "pool"] { for o in t.get(k).and_then(|x| x.as_array()).cloned().unwrap_or_default() {
-                println!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"received","txid":o["txid"],
+                blocktools_io::outln!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"received","txid":o["txid"],
                     "amount":u(&o,"amount"),"height":u(&o,"height"),"confirmations":u(&o,"confirmations"),"pool":k=="pool"}));
             } }
             call(&rpc, "close_wallet", json!({}));
@@ -107,14 +107,14 @@ fn main() {
             let meta: Vec<String> = r["tx_metadata_list"].as_array().cloned().unwrap_or_default().iter().filter_map(|x| x.as_str().map(String::from)).collect();
             let (sa, sf) = (amts.iter().sum::<u64>(), fees.iter().sum::<u64>());
             let ok = sa + sf == unlocked && !meta.is_empty() && meta.len() == amts.len();
-            println!("{}", json!({"tool":"xmr-wallet","status": if ok {"ok"} else {"error"},"chain":"xmr","kind":"sweep-plan","to":to,
+            blocktools_io::outln!("{}", json!({"tool":"xmr-wallet","status": if ok {"ok"} else {"error"},"chain":"xmr","kind":"sweep-plan","to":to,
                 "amount":sa,"fee":sf,"txs":meta.len(),"tx_hashes":hashes,"amount_plus_fee_equals_unlocked":ok,"relayed":false}));
             if !ok { call(&rpc, "close_wallet", json!({})); die(3, "plan_check_failed") }
             if a.iter().any(|x| x == "--relay") {
                 if !tty_confirm(&format!("Sweep {sa} atomic units (fee {sf}) to {to}")) { call(&rpc, "close_wallet", json!({})); die(3, "not_confirmed (needs a human at a TTY)") }
                 let mut sent = Vec::new();
                 for m in &meta { sent.push(call(&rpc, "relay_tx", json!({"hex":m}))["tx_hash"].clone()); }
-                println!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"sweep-relayed","to":to,"tx_hashes":sent,"relayed":true}));
+                blocktools_io::outln!("{}", json!({"tool":"xmr-wallet","status":"ok","chain":"xmr","kind":"sweep-relayed","to":to,"tx_hashes":sent,"relayed":true}));
             }
             call(&rpc, "close_wallet", json!({}));
         }

@@ -6,6 +6,7 @@ bitcoin-io
 bitcoin-units
 bitcoin_hashes
 block-buffer
+blocktools-io
 blocktools-tty
 blocktools-xrp
 cfg-if

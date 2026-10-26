@@ -10,6 +10,7 @@ bitcoin_hashes
 block-buffer
 blocktools-acct
 blocktools-core
+blocktools-io
 blocktools-monero
 blocktools-tty
 byteorder

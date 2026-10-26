@@ -1,4 +1,5 @@
 block-buffer
+blocktools-io
 blocktools-monero
 blocktools-tty
 cfg-if
