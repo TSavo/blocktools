@@ -13,6 +13,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | scrypt-bounds | security | linux | measured | Keystore scrypt is bounded by 128*N*r <= 256 MiB and N*r*p <= 2^24; a hostile 8 GiB request is refused | `cargo test -q --release -p blocktools-secrets --all-features -- scrypt_bounds hostile_kdf` | fbcf2b3 | 2026-10-25 |
 | prepush-2mb | security | linux | measured | prepush-check refuses any tracked file over 2 MB | `sh scripts/gate-negatives.sh P-large` | fbcf2b3 | 2026-10-25 |
 | image-size-readme | number | linux | measured | Sealed runtime image (Dockerfile build, blocktools:local) is 33.2 MB, from docker image inspect (Linux docker on the box) | `BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh` | 26b3373 | 2026-10-25 |
+| sealed-run-linux | security | linux | measured | ./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on the box) | `BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh` | 61ff186 | 2026-10-25 |
 
 ## Untested
 

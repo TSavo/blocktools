@@ -184,3 +184,17 @@ platform = "any"
 status = "unmeasurable"
 reason = "describes other projects' code"
 doc = [{ file = "docs/prior-art-crypto-plugins.md", text = "20 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "33 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "64 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "10000 sats" }, { file = "docs/prior-art-crypto-plugins.md", text = "25 bytes" }]
+
+[[claim]]
+id = "sealed-run-linux"
+statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on the box)"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
+expect = "sealed-check ok"
+commit = "61ff186"
+date = "2026-10-25"
+cheap = false
+depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
+doc = [{ file = "README.md", text = "checks the sealed run on a real container" }]
