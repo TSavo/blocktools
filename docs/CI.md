@@ -26,6 +26,13 @@ serial local gate; `WAIT=0` returns right after the push; `scripts/verify-and-pu
 The heavy stages run in parallel on the four runners, so the agent is blocked for one lint stage plus one CI
 run instead of the whole gate twice.
 
+## Image size claims drift by a page between builds
+
+Two builds of the same sources minutes apart (7c0d1be at 30489d3: 46138880 bytes; c695b54 at 727537d: 46134784
+bytes, docs-only difference between the commits) differ by 4096 bytes of docker-save layer tar. A byte-exact
+`expect` for image-size-readme therefore does not reproduce across builds; the claim pins one measurement and
+names its store. Treat a re-measurement within a few KiB as the same image.
+
 ## Per-job overhead removed on 2026-10-26 (unmeasured until the next runs)
 
 Measured on runs 40388233412..40401710490 (four runners): push to green 12-25 min, of which 7-19 min was
@@ -44,6 +51,8 @@ longest job 7-12 min, and the `cargo build --release` inside a job 0.5-1.8 min. 
   `cargo test --release`. The shipped artifacts keep fat LTO: the Dockerfile sets `CARGO_PROFILE_RELEASE_LTO=fat`
   for the sealed image and release.yml sets it for the tarball. scripts/wasm-build.sh unsets the variable so the
   wasm bytes never depend on the caller's environment.
+  Measured: the sealed image built at b6d9c5f (fat LTO everywhere) and at 4431115 (thin default, Dockerfile pins fat)
+  are both 45451776 bytes by `scripts/image-size.sh` on the same containerd store, so the change moved no shipped bytes.
 - `scripts/wasm-check.sh` deleted the default wasm build dir after its first build, and the job cleanup deleted
   it again, so every job's first wasm build was a clean build on top of the clean reproducibility rebuild. Both
   now keep it.
