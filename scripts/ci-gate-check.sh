@@ -1,4 +1,5 @@
 #!/bin/sh
+# finding:R2-10 (docs/FINDINGS.md)
 # Fails if a workflow runs anything other than scripts/gate.sh or an exact line from
 # scripts/ci-allowed-setup.txt. Multi-line `run: |` blocks are refused (fail closed).
 # Usage: sh scripts/ci-gate-check.sh [workflow.yml]   (default .github/workflows/ci.yml)

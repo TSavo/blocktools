@@ -1,4 +1,5 @@
 #!/bin/sh
+# finding:R2-9 (docs/FINDINGS.md): gates must test the property; this file proves each rule fires.
 # Negative tests for every gate rule: each `neg` plants one violation in a throwaway worktree
 # of HEAD, runs the gate script, and requires (a) a non-zero exit and (b) the rule's own FAIL
 # message, so a rule that greps for a word instead of testing the property, or that went inert,
@@ -47,6 +48,7 @@ neg D-tooldoc docs-check "tool zzfake not documented" 'mkdir -p tools/zzfake && 
 neg D-counts docs-check "hard-coded test counts" 'echo "123 tests pass" >> README.md'
 neg D-planned docs-check "exists but is called planned" 'echo "**tx-sign** (planned)" >> README.md'
 neg D-sealed docs-check "sealed-run allows utxo-fetch" 'echo "// \"utxo-fetch\"" >> tools/sealed-run/src/main.rs'
+# finding:R2-2 (non-ASCII man page must fail docs-check)
 neg D-ascii docs-check "non-ASCII in" 'printf "\342\234\205\n" >> man/man1/tx-sign.1'
 neg D-stale docs-check "man/ is stale" 'echo ".\\\" zz" >> man/man1/tx-sign.1'
 neg D-guides docs-check "missing or empty docs/cookbook.md" ': > docs/cookbook.md'
@@ -54,6 +56,14 @@ neg D-sections docs-check "missing .SH EXAMPLES" 'grep -v "^\.SH EXAMPLES$" man/
 neg D-man7 docs-check "man7 missing NAME" 'grep -v "^\.SH NAME$" man/man7/blocktools.7 > t && mv t man/man7/blocktools.7'
 neg D-share docs-check "package-dist missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-dist.sh > t && mv t scripts/package-dist.sh'
 neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-native.sh > t && mv t scripts/package-native.sh'
+# ---- findings-check.sh (via docs-check)
+neg F-guard docs-check "has no guard file" 'sed "s/| R2-5 \\(.*\\) | scripts\\/check-deps-regress.sh |/| R2-5 \\1 | - |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-token docs-check "does not carry finding:R2-5" 'grep -v "finding:R2-5" scripts/check-deps-regress.sh > t && mv t scripts/check-deps-regress.sh'
+neg F-commit docs-check "is not a commit" 'sed "s/| bb1ceff |/| 0000000 |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-status docs-check "unknown status" 'sed "s/| R1-2 \\(.*\\) | open |/| R1-2 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
+neg F-rows docs-check "no rows in" 'grep -v "^| R" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-file docs-check "findings: no docs/FINDINGS.md" 'rm docs/FINDINGS.md'
 # ---- prepush-check.sh
 neg P-untracked prepush-check "untracked files" 'echo x > zz-untracked.txt'
 neg P-unstaged prepush-check "unstaged changes" 'echo x >> README.md'

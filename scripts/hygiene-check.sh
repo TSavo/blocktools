@@ -26,7 +26,7 @@ done
 # POSIX classes only ([[:space:]], never \s): macOS git grep -E does not know \s, which made this inert there.
 WC_PAT='\[[[:space:]]+"\$\(wc [^]]+\)"[[:space:]]*=[[:space:]]*[0-9]+'
 SED_PAT='(^|[^[:alnum:]_-])sed[[:space:]]+-i[[:space:]]+[^[:space:]'\''"]'
-# Self-test: each rule must fire on a planted bad line via the same git grep engine (property, not the word).
+# finding:R2-3 (docs/FINDINGS.md). Self-test: each rule must fire on a planted bad line via the same git grep engine (property, not the word).
 st=$(mktemp -d); w=wc; sd=sed
 printf '[ "$(%s -l < f)" = 100 ]\n' "$w" > "$st/a"; printf '%s -i s/a/b/ f\n' "$sd" > "$st/b"
 (cd "$st" && git grep --no-index -qE "$WC_PAT" -- a) || { echo "FAIL hygiene self-test: wc rule does not match on this git"; rc=1; }  # rule:H-selftest
@@ -54,7 +54,7 @@ done
 rm -rf "$st"
 # Every gate rule (a FAIL line tagged `# rule:ID` in a gate script) needs a planted-violation test
 # (`neg ID` in scripts/gate-negatives.sh) or an explicit `neg-exempt: reason` on its line.
-G="scripts/hygiene-check.sh scripts/docs-check.sh scripts/prepush-check.sh scripts/secret-scan.sh scripts/check-deps.sh"
+G="scripts/findings-check.sh scripts/hygiene-check.sh scripts/docs-check.sh scripts/prepush-check.sh scripts/secret-scan.sh scripts/check-deps.sh"
 for f in $G; do
   u=$(grep -nE 'rc=1|exit 1' "$f" | grep -vE '# rule:|neg-exempt:|^[0-9]+:[[:space:]]*#|\[ \$rc = 0 \]|usage' || [ $? -eq 1 ])
   [ -z "$u" ] || { echo "FAIL gate rule without a # rule: tag in $f:"; echo "$u"; rc=1; }  # rule:H-neg

@@ -57,5 +57,7 @@ if sz=$(sh scripts/image-size.sh 2>/dev/null); then
   [ -n "$claim" ] || { echo "FAIL README missing Battleaxe image size claim"; rc=1; }  # rule:D-imgsize neg-exempt: needs a built sealed image; rewritten by the sealed-image item (R2-1)
   [ "$claim" = "$sz" ] || { echo "FAIL README image size $claim MB != measured $sz MB (run sh scripts/image-size.sh)"; rc=1; }  # rule:D-imgsize neg-exempt: needs a built sealed image; rewritten by the sealed-image item (R2-1)
 fi
+# 11. review findings ledger: every fixed finding has a guard test (docs/FINDINGS.md)
+sh scripts/findings-check.sh || rc=1  # rule:F-guard F-token F-commit F-status F-dup F-rows F-file
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc

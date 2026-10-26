@@ -1,4 +1,5 @@
 #!/bin/sh
+# finding:R2-5 (docs/FINDINGS.md)
 # Regression for check-deps.sh: it must FAIL (never pass) on
 #   (a) a planted network crate in a no-network crate, and
 #   (b) a stale Cargo.lock (cargo exits 101; a pipe must not mask that),

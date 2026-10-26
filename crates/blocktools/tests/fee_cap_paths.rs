@@ -1,3 +1,4 @@
+// finding:R1-1 (docs/FINDINGS.md): every route to a signature applies the default fee cap.
 //! Security regression (T review 2026-10-25): a plain ETH transfer whose fee is 9.99 ETH passed the
 //! envelope verify path while tx-verify refused it. Every route to a signature must reject it with the
 //! default cap, and every route must go through `blocktools_tx::policy::check` (the one verifier).
