@@ -9,7 +9,7 @@ pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub pub
 
 /// Every class name classify can print.
 pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
-    "keystore_v3", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
+    "bip38", "keystore_v3", "blockchain_wallet", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
     let h = crate::hex_enc(sha256::Hash::hash(b).to_byte_array());
@@ -142,5 +142,23 @@ mod named_tests {
         assert_eq!(super::classify_named("/in/mbhd.wallet.aes", &bin)[0].class, "multibit_hd_wallet");
         assert_ne!(super::classify_named("x/other.bin", &bin)[0].class, "multibit_hd_wallet");
         assert_ne!(super::classify_named("mbhd.wallet.aes", &bin[..40])[0].class, "multibit_hd_wallet");
+    }
+    /// finding:R1-3: every class literal this file can emit (row("…") and file("…")) is in CLASSES,
+    /// and every CLASSES entry is emitted somewhere, so the list cannot drift from the code.
+    #[test] fn classes_list_matches_emitted_kinds() {
+        let src = include_str!("classify.rs");
+        let code = &src[..src.find("#[cfg(test)]").unwrap_or(src.len())];
+        // A class literal is a string right after `row(`, `file(` or an if/else arm `{ ` on a line that calls one.
+        let mut emitted = std::collections::BTreeSet::new();
+        for l in code.lines().filter(|l| l.contains("row(") || l.contains("file(")) {
+            for pre in ["row(\"", "file(\"", "{ \""] {
+                for (i, _) in l.match_indices(pre) {
+                    let r = &l[i + pre.len()..];
+                    if let Some(e) = r.find('"') { emitted.insert(&r[..e]); }
+                }
+            }
+        }
+        for k in &emitted { assert!(super::CLASSES.contains(k), "classify emits {k} but CLASSES lacks it"); }
+        for k in super::CLASSES { assert!(emitted.contains(k), "CLASSES lists {k} but classify never emits it"); }
     }
 }
