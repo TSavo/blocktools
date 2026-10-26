@@ -14,7 +14,7 @@ pub fn is_xrp_seed(s: &str) -> bool {
     s.starts_with('s') && xrp_decode_check(s).map_or(false, |b| (b.len() == 17 && b[0] == 0x21) || (b.len() == 19 && b[..3] == [0x01, 0xe1, 0x4b]))
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Cosmos, Algo, Ss58, Ton, Ada, Xmr,
+pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Ed, Cosmos, Algo, Ss58, Ton, Ada, Xmr,
     /// Firo EXX / PIVX EXM exchange address (3-byte version + hash160). Validate/detect only: no script is built for it.
     Exchange,
     /// PIVX cold-staking staker address (version 63, `S...`). Validate/detect only.
@@ -77,6 +77,16 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
         Enc::Ss58 { prefix } => chains::ss58_decode(prefix, addr).map(|_| AddrKind::Ss58),
         Enc::Algo => chains::algo_decode(addr).map(|_| AddrKind::Algo),
         Enc::Xlm => match chains::strkey_decode(addr)? { (48, p) if p.len() == 32 => Ok(AddrKind::Xlm), (48, _) => Err("bad length"), _ => Err("wrong network") },
+        Enc::Ed(a) => {
+            use chains::EdAddr;
+            let lower_hex = |h: &str| h.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b.to_ascii_lowercase()));
+            match a {
+                // 0x + 64 hex, or the one-digit special addresses 0x0..0xf (TWC AptosAddress tests).
+                EdAddr::Aptos => { let h = addr.strip_prefix("0x").ok_or("missing 0x")?; if (h.len() == 64 || h.len() == 1) && lower_hex(h) { Ok(AddrKind::Ed) } else { Err("bad length") } }
+                EdAddr::Sui => { let h = addr.strip_prefix("0x").unwrap_or(addr); if h.len() == 64 && lower_hex(h) { Ok(AddrKind::Ed) } else { Err("bad length") } }
+                EdAddr::Near => if addr.len() == 64 && addr.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) { Ok(AddrKind::Ed) } else { Err("implicit account (64 lowercase hex) only") },
+            }
+        }
         Enc::Sol => { let b = base58::decode(addr).map_err(|_| "bad base58")?; if b.len() == 32 { Ok(AddrKind::Sol) } else { Err("32-byte") } }
     }
 }

@@ -28,3 +28,6 @@ net = ["dep:blocktools-net"]
 [[test]]
 name = "secrets"
 required-features = ["secrets"]
+[[test]]
+name = "twc_ed25519"
+required-features = ["secrets", "ed25519"]

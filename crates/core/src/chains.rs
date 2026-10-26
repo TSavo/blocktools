@@ -14,6 +14,25 @@ use sha3::{Digest, Keccak256};
 #[cfg(feature = "secrets")]
 use std::str::FromStr;
 
+/// Address form of an `Enc::Ed` chain (public specs; KAT Trust Wallet Core adf80f8 tests).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum EdAddr {
+    /// Aptos: 0x || hex(sha3-256(pub || 0x00)) (single-signer authentication key).
+    Aptos,
+    /// Sui: 0x || hex(blake2b-256(0x00 || pub)) (ed25519 scheme flag 0).
+    Sui,
+    /// NEAR implicit account: lowercase hex(pub).
+    Near,
+}
+/// Address of an `Enc::Ed` chain from an ed25519 public key.
+pub fn ed_address(a: EdAddr, pubk: &[u8; 32]) -> String {
+    use sha3::{Digest, Sha3_256};
+    match a {
+        EdAddr::Aptos => { let mut h = Sha3_256::new(); h.update(pubk); h.update([0u8]); format!("0x{}", crate::hex_enc(h.finalize())) }
+        EdAddr::Sui => { let mut d = vec![0u8]; d.extend_from_slice(pubk); format!("0x{}", crate::hex_enc(crate::blake2b::blake2b(32, &[0; 16], &d))) }
+        EdAddr::Near => crate::hex_enc(pubk),
+    }
+}
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Enc {
     /// Bitcoin-family UTXO chain: base58 versions, optional segwit hrp, WIF version.
@@ -23,6 +42,8 @@ pub enum Enc {
     Xrp,
     /// ed25519, SLIP-0010, path m/44'/501'/i'/0' (Phantom/Solflare/solana-keygen style).
     Sol,
+    /// Plain ed25519 account chain: SLIP-0010 key, address from the 32-byte public key (see `ed_address`).
+    Ed(EdAddr),
     /// Cosmos SDK: secp256k1, bech32(hrp, ripemd160(sha256(compressed pubkey))), m/44'/118'/0'/0/i
     /// `eth: true` = ethsecp256k1 (Ethermint: Injective, Evmos, Canto, ZetaChain): address payload is
     /// keccak256(uncompressed pubkey)[12..] (the EVM address bytes), path m/44'/60'/0'/0/i.
@@ -52,7 +73,7 @@ pub enum Sign { Standard, ForkId(u8), PosTime, Unknown,
     /// (and its hashPrevouts/hashSequence/hashOutputs) are single SHA-256 (Groestlcoin).
     Sha256Single }
 impl Enc { /// ed25519 chain (SLIP-0010, hardened only; no xpub).
-    pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm) }
+    pub fn ed25519(self) -> bool { matches!(self, Enc::Sol | Enc::Xlm | Enc::Ed(_)) }
     /// Keys not derived from a BIP39 seed by path (own mnemonic formats).
     pub fn native_seed(self) -> bool { matches!(self, Enc::Algo | Enc::Ada | Enc::Ton | Enc::Xmr | Enc::Ss58 { .. }) } }
 impl Sign { /// tx-build CLI can sign this scheme without a special layout (legacy / single-SHA).
@@ -110,6 +131,9 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "ada", ticker: "ADA", title: "Cardano", coin: 1815, enc: Enc::Ada, default_count: 5, sign: Unknown, verified: true, source: "CIP-1852/CIP-0019: Icarus master, BIP32-Ed25519, base address (Yoroi/Eternl/Daedalus Shelley)", sources: &[] },
     Chain { name: "ton", ticker: "TON", title: "TON", coin: 607, enc: Enc::Ton, default_count: 1, sign: Unknown, verified: true, source: "tonsdk/tonweb: TON mnemonic (HMAC-SHA512 + PBKDF2 \"TON default seed\"), wallet v4r2, workchain 0", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
+    Chain { name: "aptos", ticker: "APT", title: "Aptos", coin: 637, enc: Enc::Ed(EdAddr::Aptos), default_count: 5, sign: Unknown, verified: true, source: "aptos-core AuthenticationKey: sha3-256(pub || 0x00), SLIP-0010 m/44'/637'/i'/0'/0'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
+    Chain { name: "sui", ticker: "SUI", title: "Sui", coin: 784, enc: Enc::Ed(EdAddr::Sui), default_count: 5, sign: Unknown, verified: true, source: "Sui docs: blake2b-256(0x00 || pub), SLIP-0010 m/44'/784'/i'/0'/0'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
+    Chain { name: "near", ticker: "NEAR", title: "NEAR", coin: 397, enc: Enc::Ed(EdAddr::Near), default_count: 5, sign: Unknown, verified: true, source: "NEAR implicit account = hex(pub), SLIP-0010 m/44'/397'/i'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
     // ---- Cosmos SDK, Hub address form (secp256k1, bech32 hash160). Params and KAT: Trust Wallet Core adf80f8
@@ -307,7 +331,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
         Enc::Cosmos { hrp, eth } => vec![row("cosmos", cosmos_address(hrp, &if eth { keccak_addr20(pk) } else { h160(&pk.serialize()) }))],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
+        Enc::Sol | Enc::Xlm | Enc::Ed(_) | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
     }
 }
 /// Cosmos SDK account address: plain bech32 (not segwit) of a 20-byte hash.
@@ -663,7 +687,16 @@ pub fn xlm_row(path: &str, seed: &[u8; 32]) -> Row {
 }
 /// ed25519 row for an ed25519 chain (sol / xlm).
 #[cfg(all(feature = "ed25519", feature = "secrets"))]
-pub fn ed_row(c: &Chain, path: &str, seed: &[u8; 32]) -> Row { if c.enc == Enc::Xlm { xlm_row(path, seed) } else { sol_row(path, seed) } }
+pub fn ed_row(c: &Chain, path: &str, seed: &[u8; 32]) -> Row {
+    match c.enc {
+        Enc::Xlm => xlm_row(path, seed),
+        Enc::Ed(a) => {
+            let pubk = ed25519_dalek::SigningKey::from_bytes(seed).verifying_key().to_bytes();
+            Row { chain: c.name, kind: c.name, path: path.into(), address: ed_address(a, &pubk), secret_field: "private_key", secret: crate::hex_enc(seed) }
+        }
+        _ => sol_row(path, seed),
+    }
+}
 /// SLIP-0010 ed25519 derivation (hardened only) from a BIP39 seed.
 #[cfg(feature = "secrets")]
 pub fn slip10_ed25519(seed: &[u8], path: &[u32]) -> [u8; 32] {
@@ -685,7 +718,7 @@ pub fn derive_chain(master: &Xpriv, c: &Chain, count: u32, secp: &Secp256k1<All>
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => &["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => &["p2pkh"],
-        Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } => return vec![],
+        Enc::Sol | Enc::Xlm | Enc::Ed(_) | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } => return vec![],
         _ => &[""],
     };
     let mut out = Vec::new();
@@ -968,12 +1001,12 @@ fn js(s: &str) -> String {
 /// (with its version bytes / hrp), signer kind, whether unsigned-sweep builds it (`buildable` = `Chain::tx_format().1`), verified, source.
 /// Public data only (no keys). Used by the `chain-table` tool, wasm `chainTable` and the C ABI.
 pub fn chain_json(c: &Chain) -> String {
-    let curve = match c.enc { Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton => "ed25519", Enc::Ada => "ed25519-bip32", Enc::Ss58 { .. } => "sr25519", Enc::Xmr => "ed25519-monero", _ => "secp256k1" };
+    let curve = match c.enc { Enc::Sol | Enc::Xlm | Enc::Ed(_) | Enc::Algo | Enc::Ton => "ed25519", Enc::Ada => "ed25519-bip32", Enc::Ss58 { .. } => "sr25519", Enc::Xmr => "ed25519-monero", _ => "secp256k1" };
     let (enc, extra) = match c.enc {
         Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot } => ("utxo", format!(",\"p2pkh\":{p2pkh},\"p2sh\":{p2sh},\"wif\":{wif},\"hrp\":{},\"taproot\":{taproot}", hrp.map_or("null".into(), js))),
         Enc::Cosmos { hrp, .. } => ("cosmos", format!(",\"hrp\":{}", js(hrp))),
         Enc::Ss58 { prefix } => ("ss58", format!(",\"ss58_prefix\":{prefix}")),
-        e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", _ => "xmr" }, String::new()),
+        e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", Enc::Ed(EdAddr::Aptos) => "aptos", Enc::Ed(EdAddr::Sui) => "sui", Enc::Ed(EdAddr::Near) => "near", _ => "xmr" }, String::new()),
     };
     let sign = match c.sign { Sign::Standard => "standard".to_string(), Sign::ForkId(f) => format!("forkid:{f}"), Sign::PosTime => "pos_time".into(), Sign::Unknown => if matches!(c.enc, Enc::Utxo { .. }) { "none".into() } else { "account_family".into() }, Sign::Sha256Single => "sha256_single".into() };
 

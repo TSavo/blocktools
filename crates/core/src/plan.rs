@@ -11,7 +11,7 @@ pub struct Spec { pub chain: &'static Chain, pub coin: u32, pub kind: &'static s
 #[derive(Clone, Debug)]
 pub struct Ranges { pub account: Vec<u32>, pub change: Vec<u32>, pub index: Vec<u32> }
 
-pub const ADDRESS_TYPES: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm"];
+pub const ADDRESS_TYPES: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near"];
 /// Name, description. TON / electrum-old are listed in docs/ROADMAP.md (planned).
 pub const PRESETS: &[(&str, &str)] = &[
     ("common", "standard wallet paths per chain: BIP44/49/84/86 by script type, EVM/Tron/XRP m/44'/c'/0'/0/i, Solana m/44'/501'/i'/0'"),
@@ -31,11 +31,11 @@ pub fn kinds_of(c: &Chain) -> Vec<&'static str> {
         Enc::Utxo { hrp: Some(_), taproot: true, .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh", "p2tr"],
         Enc::Utxo { hrp: Some(_), .. } => vec!["p2pkh", "p2sh-p2wpkh", "p2wpkh"],
         Enc::Utxo { .. } => vec!["p2pkh"],
-        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Algo | Enc::Ton | Enc::Ada => vec![], Enc::Ss58 { .. } => vec![], Enc::Xmr => vec![],
+        Enc::Eth => vec!["eth"], Enc::Tron => vec!["tron"], Enc::Xrp => vec!["xrp"], Enc::Sol => vec!["sol"], Enc::Xlm => vec!["xlm"], Enc::Ed(_) => vec![c.name], Enc::Cosmos { .. } => vec!["cosmos"], Enc::Algo | Enc::Ton | Enc::Ada => vec![], Enc::Ss58 { .. } => vec![], Enc::Xmr => vec![],
     }
 }
 pub fn std_template(c: &Chain) -> &'static str {
-    if c.enc == Enc::Sol { "m/44'/{coin}'/{i}'/{change}'" } else if c.enc == Enc::Xlm { "m/44'/{coin}'/{i}'" } else { "m/{purpose}'/{coin}'/{account}'/{change}/{i}" }
+    if c.enc == Enc::Sol { "m/44'/{coin}'/{i}'/{change}'" } else if matches!(c.enc, Enc::Ed(crate::chains::EdAddr::Aptos | crate::chains::EdAddr::Sui)) { "m/44'/{coin}'/{i}'/0'/0'" } else if matches!(c.enc, Enc::Xlm | Enc::Ed(_)) { "m/44'/{coin}'/{i}'" } else { "m/{purpose}'/{coin}'/{account}'/{change}/{i}" }
 }
 pub fn sp(c: &'static Chain, kind: &'static str, t: &str, unc: bool) -> Spec { Spec { chain: c, coin: c.coin, kind, template: t.into(), uncompressed: unc, label: "" } }
 fn spl(c: &'static Chain, kind: &'static str, t: &str, label: &'static str) -> Spec { Spec { label, ..sp(c, kind, t, false) } }
@@ -84,6 +84,8 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
                     for t in ["m/0'/{change}'/{i}'", "m/0'/{change}/{i}", "m/{change}/{i}"] { v.push(sp(c, "p2pkh", t, true)); v.push(sp(c, "p2wpkh", t, false)) }
                 } else if c.enc == Enc::Xlm {
                     for t in ["m/44'/{coin}'/{i}'", "m/44'/{coin}'/{account}'/{i}'", "m/44'/{coin}'/{i}'/0'"] { v.push(sp(c, "xlm", t, false)) }
+                } else if matches!(c.enc, Enc::Ed(_)) {
+                    v.push(sp(c, c.name, std_template(c), false))
                 } else if c.enc == Enc::Sol {
                     for t in ["m/44'/{coin}'/{i}'/{change}'", "m/44'/{coin}'/{i}'", "m/44'/{coin}'/{account}'/{i}'"] { v.push(sp(c, "sol", t, false)) }
                 } else {

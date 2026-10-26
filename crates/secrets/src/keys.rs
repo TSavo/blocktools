@@ -40,9 +40,9 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
         #[cfg(feature = "sr25519")]
         (Enc::Ss58 { .. }, _) => vec![chains::ss58_row(c, "", bytes)],
         #[cfg(feature = "ed25519")]
-        (Enc::Sol | Enc::Xlm, _) => vec![chains::ed_row(c, "", bytes)],
+        (Enc::Sol | Enc::Xlm | Enc::Ed(_), _) => vec![chains::ed_row(c, "", bytes)],
         #[cfg(not(feature = "ed25519"))]
-        (Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton, _) => vec![],
+        (Enc::Sol | Enc::Xlm | Enc::Ed(_) | Enc::Algo | Enc::Ton, _) => vec![],
         (Enc::Ada, _) => vec![], // needs the 96-byte Icarus master: keys::ada_rows
         #[cfg(not(feature = "sr25519"))]
         (Enc::Ss58 { .. }, _) => vec![],
