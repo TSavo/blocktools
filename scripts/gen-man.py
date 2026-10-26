@@ -24,7 +24,15 @@ def tools():
     s = open(os.path.join(ROOT, "Cargo.toml")).read()
     return sorted(m for m in re.findall(r'"tools/([a-z0-9-]+)"', s))
 
+ASCII = {"\u2705": "yes", "\u274c": "no", "\u2192": "->", "\u2014": "--", "\u2013": "-", "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"', "\u2026": "...", "\u00d7": "x", "\u2264": "<=", "\u2265": ">="}
+
+def ascii_only(t):
+    # groff under LC_ALL=C rejects non-ASCII input; man pages are ASCII by construction.
+    t = "".join(ASCII.get(c, c) for c in t)
+    return t.encode("ascii", "replace").decode().replace("?\ufe0f", "")
+
 def esc(t):
+    t = ascii_only(t)
     t = t.replace("\\", "\\e").replace("-", "\\-")
     return ("\\&" + t) if t[:1] in ".'" else t
 
@@ -185,17 +193,25 @@ def generate(out):
     open(os.path.join(out, "man7", "blocktools.7"), "w").write("\n".join(ov) + "\n")
 
 def lint(d):
+    """Render every page with groff under LC_ALL=C (-wall, any diagnostic fatal), as CI does; also mandoc
+    if present. Fails closed when groff is missing: the gate must test the property, not skip it."""
     pages = [os.path.join(d, s, f) for s in ("man1", "man7") for f in sorted(os.listdir(os.path.join(d, s)))]
-    for tool, args in [("mandoc", ["-T", "lint", "-W", "warning"]), ("groff", ["-man", "-ww", "-z"])]:
-        if shutil.which(tool):
-            bad = 0
-            for p in pages:
-                r = subprocess.run([tool] + args + [p], capture_output=True, text=True)
-                msg = "\n".join(l for l in (r.stdout + r.stderr).splitlines() if "no blank" not in l)
-                if (tool == "groff" and r.returncode) or msg.strip(): print(f"FAIL {tool} {p}: {msg[:300]}"); bad = 1
-            if shutil.which("man") and subprocess.run(["man", "-l", "-Tutf8", pages[0]], capture_output=True).returncode: print("FAIL man -l"); bad = 1
-            return bad
-    print("man lint skipped (no mandoc/groff)"); return 0
+    bad = 0
+    for p in pages:
+        try: open(p, encoding="ascii").read()
+        except UnicodeDecodeError: print(f"FAIL non-ASCII in {p}"); bad = 1
+    if not shutil.which("groff"): print("FAIL groff not installed (needed for the man render check)"); return 1
+    env = dict(os.environ, LC_ALL="C", LANG="C")
+    for p in pages:
+        r = subprocess.run(["groff", "-man", "-wall", "-z", p], capture_output=True, text=True, env=env)
+        msg = "\n".join(l for l in (r.stdout + r.stderr).splitlines() if "no blank" not in l)
+        if r.returncode or msg.strip(): print(f"FAIL groff LC_ALL=C {p}: {msg[:300]}"); bad = 1
+    if shutil.which("mandoc"):
+        for p in pages:
+            r = subprocess.run(["mandoc", "-T", "lint", "-W", "warning", p], capture_output=True, text=True)
+            msg = "\n".join(l for l in (r.stdout + r.stderr).splitlines() if "no blank" not in l)
+            if msg.strip(): print(f"FAIL mandoc {p}: {msg[:300]}"); bad = 1
+    return bad
 
 if __name__ == "__main__":
     dest = os.path.join(ROOT, "man")

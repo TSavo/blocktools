@@ -63,7 +63,18 @@ fn tty_confirm(summary: &str) -> bool {
     line.trim() == c
 }
 
+const HELP: &str = " xmr-wallet: host-side driver for a LOCAL monero-wallet-rpc (loopback only; never runs in the sealed image).
+   xmr-wallet scan  --rpc http://127.0.0.1:PORT --scan-req FILE [--open NAME]
+       FILE = the 0600 `generate_from_keys` request written by `xmr-keys --scan-out` (view key, no spend key).
+       Restores the view-only wallet (or opens NAME), refreshes, prints balance + received outputs (public).
+   xmr-wallet sweep --rpc URL --to ADDR [--net main|stage|test] [--restore-height N] [--relay] < 25-word seed
+       Restores the seed inside wallet-rpc, refreshes, builds sweep_all with do_not_relay, checks the plan
+       (destination network, amount + fee == unlocked balance), prints it. --relay needs a human at a TTY
+       typing the shown code; then relay_tx. Without --relay nothing is broadcast.
+ Seed and view key go only into the HTTP body sent to loopback; never to stdout/stderr.
+";
 fn main() {
+    blocktools_io::help(HELP);
     let a: Vec<String> = std::env::args().skip(1).collect();
     let rpc = loopback(arg(&a, "--rpc").unwrap_or("")).unwrap_or_else(|| die(2, "rpc must be http://127.0.0.1:PORT (loopback only)"));
     let _ = call(&rpc, "get_version", json!({}));

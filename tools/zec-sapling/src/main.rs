@@ -43,7 +43,18 @@ pub fn receivers(seed: &[u8], i: u32, j: zip32::DiversifierIndex) -> ([u8; 43], 
 }
 pub fn t1(h: &[u8; 20]) -> String { let mut v = vec![0x1c, 0xb8]; v.extend_from_slice(h); bitcoin::base58::encode_check(&v) }
 fn arg<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
+const HELP: &str = " zec-sapling [--count N] [--unified] [--viewkey-out FILE] < BIP39 mnemonic
+ --unified also emits, per account, the ZIP-316 unified address (orchard + sapling + p2pkh, all
+ at the account's first valid Sapling diversifier index j, as zcashd/librustzcash do) and the
+ transparent t1 address at m/44'/133'/i'/0/j. Orchard keys: ZIP-32 m/32'/133'/i' (orchard crate).
+ Zcash Sapling (ZIP-32): seed = BIP39(mnemonic, \"\"), account i = m/32'/133'/i', default
+ (first valid diversifier) payment address, encoded bech32 \"zs\". stdout: PUBLIC rows only.
+ --viewkey-out writes the accounts' extended full viewing keys (bech32 \"zxviews\", secret:
+ they reveal all incoming and outgoing funds, but cannot spend) to FILE, new, mode 0600.
+ The spending key is never output.
+";
 fn main() {
+    blocktools_io::help(HELP);
     let a: Vec<String> = std::env::args().skip(1).collect();
     let count: u32 = match arg(&a, "--count").map(|c| c.parse()) { None => 1, Some(Ok(n)) if (1..=100).contains(&n) => n,
         _ => { eprintln!("{{\"error\":\"bad_count\"}}"); std::process::exit(2) } };

@@ -3,7 +3,10 @@
 xmr\-keys \- xmr\-keys [\-\-net main|stage|test] [\-\-scan\-out FILE [\-\-restore\-height N]] < seed
 .SH SYNOPSIS
 .nf
-{"error":"monero_seed_needs_25_words"}
+ xmr\-keys [\-\-net main|stage|test] [\-\-scan\-out FILE [\-\-restore\-height N]] < seed
+ stdout: one JSON line of PUBLIC data (address, public spend/view keys).
+ (address + private view key, no spend key) to FILE, created new with mode 0600. The view key
+ is secret (it reveals incoming funds), so it never goes to stdout or stderr.
 .fi
 .SH DESCRIPTION
 stdout: one JSON line of PUBLIC data (address, public spend/view keys).
@@ -11,7 +14,9 @@ stdout: one JSON line of PUBLIC data (address, public spend/view keys).
 (address + private view key, no spend key) to FILE, created new with mode 0600. The view key
 is secret (it reveals incoming funds), so it never goes to stdout or stderr.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+ \-\-scan\-out writes a monero\-wallet\-rpc `generate_from_keys` request for a VIEW\-ONLY wallet
+.fi
 .SH INPUT/OUTPUT
 stdout: one JSON line of PUBLIC data (address, public spend/view keys).
 is secret (it reveals incoming funds), so it never goes to stdout or stderr.
@@ -33,7 +38,9 @@ See recipes/ for end\-to\-end flows. Search for xmr\-keys in recipes/*.md.
 | monero_seed | xmr\-keys address, exit 3 \-> xmr\-wallet (host) | monero.md |
 .fi
 .SH SECURITY NOTES
-DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
-Run secret\-touching tools only inside ./blocktools run (sealed, offline).
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

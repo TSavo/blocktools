@@ -7,7 +7,14 @@ use std::io::Read;
 use blocktools_monero::*;
 use zeroize::Zeroizing;
 fn hex(b: &[u8]) -> String { b.iter().map(|x| format!("{x:02x}")).collect() }
+const HELP: &str = " xmr-keys [--net main|stage|test] [--scan-out FILE [--restore-height N]] < seed
+ stdout: one JSON line of PUBLIC data (address, public spend/view keys).
+ --scan-out writes a monero-wallet-rpc `generate_from_keys` request for a VIEW-ONLY wallet
+ (address + private view key, no spend key) to FILE, created new with mode 0600. The view key
+ is secret (it reveals incoming funds), so it never goes to stdout or stderr.
+";
 fn main() {
+    blocktools_io::help(HELP);
     let a: Vec<String> = std::env::args().skip(1).collect();
     let net = match a.iter().position(|x| x == "--net").and_then(|i| a.get(i + 1)).map(|s| s.as_str()) {
         None | Some("main") => Net::Main, Some("stage") => Net::Stage, Some("test") => Net::Test,

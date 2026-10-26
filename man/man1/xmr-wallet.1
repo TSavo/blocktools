@@ -3,7 +3,15 @@
 xmr\-wallet \- host\-side driver for a LOCAL monero\-wallet\-rpc (loopback only; never runs in the sealed image)
 .SH SYNOPSIS
 .nf
-{"error":"rpc must be http://127.0.0.1:PORT (loopback only)","status":"error","tool":"xmr\-wallet"}
+ xmr\-wallet: host\-side driver for a LOCAL monero\-wallet\-rpc (loopback only; never runs in the sealed image).
+   xmr\-wallet scan  \-\-rpc http://127.0.0.1:PORT \-\-scan\-req FILE [\-\-open NAME]
+       FILE = the 0600 `generate_from_keys` request written by `xmr\-keys \-\-scan\-out` (view key, no spend key).
+       Restores the view\-only wallet (or opens NAME), refreshes, prints balance + received outputs (public).
+   xmr\-wallet sweep \-\-rpc URL \-\-to ADDR [\-\-net main|stage|test] [\-\-restore\-height N] [\-\-relay] < 25\-word seed
+       Restores the seed inside wallet\-rpc, refreshes, builds sweep_all with do_not_relay, checks the plan
+       (destination network, amount + fee == unlocked balance), prints it. \-\-relay needs a human at a TTY
+       typing the shown code; then relay_tx. Without \-\-relay nothing is broadcast.
+ Seed and view key go only into the HTTP body sent to loopback; never to stdout/stderr.
 .fi
 .SH DESCRIPTION
 .nf
@@ -42,10 +50,12 @@ Other nonzero codes are tool\-specific; always read the last JSON status line.
 .SH EXAMPLES
 .nf
 See recipes/ for end\-to\-end flows. Search for xmr\-wallet in recipes/*.md.
-| Monero | ✅ | ✅ xmr\-wallet scan (stagenet) | ✅ xmr\-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
+| Monero | yes | yes xmr\-wallet scan (stagenet) | yes xmr\-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
 .fi
 .SH SECURITY NOTES
-DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
-Run secret\-touching tools only inside ./blocktools run (sealed, offline).
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -25,7 +25,15 @@ fn describe(p: &Payment) -> Value {
         "signed":p.txn_signature.is_some(),"signature_valid":p.txn_signature.is_some().then(|| verify(p)),"hash":p.txn_signature.is_some().then(|| hex(&p.hash())),"warnings":w})
 }
 
+const HELP: &str = " xrp-tx keys   < family-seed                       -> {\"chain\":\"xrp\",\"algo\",\"address\",\"x_address\",\"public\"} (public only)
+ xrp-tx build  --account r.. --to r..|X.. (--amount DROPS | --sweep --balance DROPS [--reserve DROPS])
+               --fee DROPS --sequence N [--last-ledger N] [--destination-tag N]   -> {\"unsigned\":HEX,\"warnings\":[..]}
+ xrp-tx decode < HEX                               -> decoded JSON
+ xrp-tx sign   --tx FILE --expect-to r..|X..  < family-seed -> {\"status\":\"ok\",\"tx_blob\",\"hash\"} after a typed code on /dev/tty
+ The destination tag matters: exchanges credit deposits by tag, and a payment without it is usually lost to you.
+";
 fn main() {
+    blocktools_io::help(HELP);
     let a: Vec<String> = std::env::args().skip(1).collect();
     match a.first().map(|s| s.as_str()) {
         Some("keys") => {

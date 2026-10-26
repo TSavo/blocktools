@@ -3,7 +3,11 @@
 xrp\-tx \- xrp\-tx keys   < family\-seed                       \-> {"chain":"xrp","algo","address","x_address","public"} (public only)
 .SH SYNOPSIS
 .nf
-usage: xrp\-tx keys|build|decode|sign (see source header)
+ xrp\-tx keys   < family\-seed                       \-> {"chain":"xrp","algo","address","x_address","public"} (public only)
+ xrp\-tx build  \-\-account r.. \-\-to r..|X.. (\-\-amount DROPS | \-\-sweep \-\-balance DROPS [\-\-reserve DROPS])
+ xrp\-tx decode < HEX                               \-> decoded JSON
+ xrp\-tx sign   \-\-tx FILE \-\-expect\-to r..|X..  < family\-seed \-> {"status":"ok","tx_blob","hash"} after a typed code on /dev/tty
+ The destination tag matters: exchanges credit deposits by tag, and a payment without it is usually lost to you.
 .fi
 .SH DESCRIPTION
 xrp\-tx build  \-\-account r.. \-\-to r..|X.. (\-\-amount DROPS | \-\-sweep \-\-balance DROPS [\-\-reserve DROPS])
@@ -16,7 +20,9 @@ xrp\-tx decode < HEX                               \-> decoded JSON
 xrp\-tx sign   \-\-tx FILE \-\-expect\-to r..|X..  < family\-seed \-> {"status":"ok","tx_blob","hash"} after a typed code on /dev/tty
 The destination tag matters: exchanges credit deposits by tag, and a payment without it is usually lost to you.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+               \-\-fee DROPS \-\-sequence N [\-\-last\-ledger N] [\-\-destination\-tag N]   \-> {"unsigned":HEX,"warnings":[..]}
+.fi
 .SH INPUT/OUTPUT
 xrp\-tx decode < HEX                               \-> decoded JSON
 .SH EXIT STATUS
@@ -37,7 +43,9 @@ See recipes/ for end\-to\-end flows. Search for xrp\-tx in recipes/*.md.
 | xrp_seed | xrp\-tx keys, exit 3 \-> xrp\-tx build/sign | xrp.md |
 .fi
 .SH SECURITY NOTES
-DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
-Run secret\-touching tools only inside ./blocktools run (sealed, offline).
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

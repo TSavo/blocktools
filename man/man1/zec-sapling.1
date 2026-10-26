@@ -3,7 +3,13 @@
 zec\-sapling \- zec\-sapling [\-\-count N] [\-\-unified] [\-\-viewkey\-out FILE] < BIP39 mnemonic
 .SH SYNOPSIS
 .nf
-{"error":"bad_mnemonic"}
+ zec\-sapling [\-\-count N] [\-\-unified] [\-\-viewkey\-out FILE] < BIP39 mnemonic
+ at the account's first valid Sapling diversifier index j, as zcashd/librustzcash do) and the
+ transparent t1 address at m/44'/133'/i'/0/j. Orchard keys: ZIP\-32 m/32'/133'/i' (orchard crate).
+ Zcash Sapling (ZIP\-32): seed = BIP39(mnemonic, ""), account i = m/32'/133'/i', default
+ (first valid diversifier) payment address, encoded bech32 "zs". stdout: PUBLIC rows only.
+ they reveal all incoming and outgoing funds, but cannot spend) to FILE, new, mode 0600.
+ The spending key is never output.
 .fi
 .SH DESCRIPTION
 \-\-unified also emits, per account, the ZIP\-316 unified address (orchard + sapling + p2pkh, all
@@ -15,7 +21,10 @@ Zcash Sapling (ZIP\-32): seed = BIP39(mnemonic, ""), account i = m/32'/133'/i', 
 they reveal all incoming and outgoing funds, but cannot spend) to FILE, new, mode 0600.
 The spending key is never output.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+ \-\-unified also emits, per account, the ZIP\-316 unified address (orchard + sapling + p2pkh, all
+ \-\-viewkey\-out writes the accounts' extended full viewing keys (bech32 "zxviews", secret:
+.fi
 .SH INPUT/OUTPUT
 (first valid diversifier) payment address, encoded bech32 "zs". stdout: PUBLIC rows only.
 \-\-viewkey\-out writes the accounts' extended full viewing keys (bech32 "zxviews", secret:
@@ -38,7 +47,9 @@ See recipes/ for end\-to\-end flows. Search for zec\-sapling in recipes/*.md.
 \&./blocktools run zec\-sapling \-\-count 1 \-\-viewkey\-out /out/zec.view < /in/mnemonic.txt
 .fi
 .SH SECURITY NOTES
-DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
-Run secret\-touching tools only inside ./blocktools run (sealed, offline).
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
