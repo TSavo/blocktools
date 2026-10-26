@@ -32,7 +32,11 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
                 }
             }
             let b = chains::decode_check_ck(c.ck(), addr)?;
-            match (b.len(), b[0]) { (21, v) if v == p2pkh => Ok(AddrKind::P2pkh), (21, v) if v == p2sh => Ok(AddrKind::P2sh), (21, _) => Err("wrong network"), _ => Err("bad length") }
+            // Chain spec: an unknown version byte matches nothing (stable code, never a guess).
+            let no_pkh = crate::chain_spec::missing(c.name, "p2pkh");
+            let no_sh = crate::chain_spec::missing(c.name, "p2sh");
+            if b.len() == 21 && no_pkh.is_some() && no_sh.is_some() { return Err("spec_missing_p2pkh") }
+            match (b.len(), b[0]) { (21, v) if v == p2pkh && no_pkh.is_none() => Ok(AddrKind::P2pkh), (21, v) if v == p2sh && no_sh.is_none() => Ok(AddrKind::P2sh), (21, _) => Err("wrong network"), _ => Err("bad length") }
         }
         Enc::Eth => eth(addr).map(|_| AddrKind::Eth),
         Enc::Tron => tron_to_hex(addr).map(|_| AddrKind::Tron),

@@ -12,6 +12,7 @@ use bitcoin::{Address, CompressedPublicKey, Network, PrivateKey};
 use sha3::{Digest, Keccak256};
 pub mod blake2b;
 pub mod chains;
+pub mod chain_spec;
 pub mod plan;
 pub mod validate;
 pub mod b64;

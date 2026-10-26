@@ -63,6 +63,10 @@ fn line(l: &str, n: u64) -> Row {
     for c in ["btc", "ltc", "doge", "eth", "tron", "xrp", "xlm", "atom", "algo", "dot", "ton", "ada"] {
         if crate::validate::validate(c, l).is_ok() { return Row { public: Some(l.into()), chain: crate::chains::chain(c).map(|c| c.name), ..row("address", n, l.as_bytes()) } }
     }
+    // A loaded --chain-spec row (process-only, unverified) is checked after the built-ins.
+    if let Some(c) = crate::chain_spec::chain() {
+        if crate::validate::validate(c.name, l).is_ok() { return Row { public: Some(l.into()), chain: Some(c.name), ..row("address", n, l.as_bytes()) } }
+    }
     if blocktools_monero::validate(l).is_ok() { return Row { public: Some(l.into()), chain: Some("xmr"), ..row("monero_address", n, l.as_bytes()) } }
     if matches!(crate::chains::strkey_decode(l), Ok((144, ref p)) if p.len() == 32) && l.starts_with('S') { return Row { chain: Some("xlm"), ..row("xlm_seed", n, l.as_bytes()) } }
     #[cfg(feature = "algo")]

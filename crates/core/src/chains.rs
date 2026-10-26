@@ -151,7 +151,7 @@ impl Chain {
     /// transparent is outside CHAINS and handled by the facade.
     pub fn tx_format(&self) -> (&'static str, bool) {
         match (self.enc, self.sign) {
-            (Enc::Utxo { .. }, Sign::Standard) => ("legacy", self.verified),
+            (Enc::Utxo { .. }, Sign::Standard) => ("legacy", self.verified || crate::chain_spec::tx_ready(self.name, false).is_ok() && crate::chain_spec::is_spec(self.name)),
             (Enc::Utxo { .. }, Sign::ForkId(_)) => ("forkid", self.verified),
             (Enc::Utxo { .. }, Sign::PosTime) => ("pos-ntime", self.verified && Self::POS_SWEEP.contains(&self.name)),
             (Enc::Utxo { .. }, Sign::Unknown) => ("unknown", false),
@@ -182,9 +182,16 @@ pub fn decode_check_ck(ck: Ck, s: &str) -> Result<Vec<u8>, &'static str> {
         }
     }
 }
-pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.name == name) }
-/// Supported = verified row. Tools refuse unverified rows unless the caller opts in.
-pub fn supported(name: &str) -> Option<&'static Chain> { chain(name).filter(|c| c.verified) }
+/// Table row by name, or the process's chain spec (crate::chain_spec) when it has that name.
+pub fn chain(name: &str) -> Option<&'static Chain> { CHAINS.iter().find(|c| c.name == name).or_else(|| crate::chain_spec::chain().filter(|c| c.name == name)) }
+/// Supported = verified row, or the explicitly loaded chain spec (unverified, flagged everywhere).
+pub fn supported(name: &str) -> Option<&'static Chain> { chain(name).filter(|c| c.verified || crate::chain_spec::is_spec(c.name)) }
+/// True when `name` is the chain spec loaded in this process (crate::chain_spec).
+pub fn chain_spec_loaded(name: &str) -> bool { crate::chain_spec::is_spec(name) }
+/// "unverified chain spec" banner for plain summaries (None for table chains).
+pub fn chain_spec_banner(name: &str) -> Option<String> { crate::chain_spec::banner(name) }
+/// Verified rows plus the loaded spec chain: what auto-detect and "all chains" defaults use.
+pub fn detectable() -> impl Iterator<Item = &'static Chain> { CHAINS.iter().filter(|c| c.verified).chain(crate::chain_spec::chain()) }
 
 #[cfg(feature = "secrets")]
 pub struct Row { pub chain: &'static str, pub kind: &'static str, pub path: String, pub address: String, pub secret_field: &'static str, pub secret: String }
@@ -227,13 +234,16 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
     let row = |kind, address: String| AddrRow { chain: c.name, kind, path: path.to_string(), address };
     match c.enc {
         Enc::Utxo { p2pkh, p2sh, hrp, taproot, .. } => {
+            // Chain spec without p2pkh: no addresses at all (tools print spec_missing_p2pkh).
+            if crate::chain_spec::missing(c.name, "p2pkh").is_some() { return vec![] }
+            let no_p2sh = crate::chain_spec::missing(c.name, "p2sh").is_some();
             let cpk = pk.serialize();
             let b58check = |p: &[u8]| b58check_ck(c.ck(), p);
             let mut v = vec![row("p2pkh", b58check(&ver(p2pkh, &h160(&cpk))))];
             if uncompressed { v.push(row("p2pkh-uncompressed", b58check(&ver(p2pkh, &h160(&pk.serialize_uncompressed()))))) }
             if let Some(h) = hrp {
                 let mut redeem = vec![0u8, 20]; redeem.extend_from_slice(&h160(&cpk));
-                v.push(row("p2sh-p2wpkh", b58check(&ver(p2sh, &h160(&redeem)))));
+                if !no_p2sh { v.push(row("p2sh-p2wpkh", b58check(&ver(p2sh, &h160(&redeem))))) }
                 v.push(row("p2wpkh", segwit_v0(h, &h160(&cpk))));
             }
             if taproot {
@@ -573,6 +583,8 @@ pub fn secp_rows(c: &Chain, path: &str, sk: &SecretKey, uncompressed: bool, secp
     let pk = PublicKey::from_secret_key(secp, sk);
     pub_rows(c, path, &pk, uncompressed).into_iter().map(|r| {
         let (secret_field, secret) = match c.enc {
+            // Chain spec without a WIF byte: the address is shown, the key is not encoded (never guessed).
+            Enc::Utxo { .. } if crate::chain_spec::missing(c.name, "wif").is_some() => ("missing", "spec_missing_wif".to_string()),
             Enc::Utxo { wif: wv, .. } => ("wif", wif_ck(c.ck(), wv, sk, r.kind != "p2pkh-uncompressed")),
             _ => ("private_key", crate::hex_enc(sk.secret_bytes())),
         };
@@ -685,6 +697,9 @@ mod kat_key_one {
 /// (bare multisig, OP_RETURN, ...); callers show those as "nonstandard".
 pub fn script_to_address(c: &Chain, s: &[u8]) -> Option<(&'static str, String)> {
     let Enc::Utxo { p2pkh, p2sh, hrp, .. } = c.enc else { return None };
+    let (no_pkh, no_sh) = (crate::chain_spec::missing(c.name, "p2pkh").is_some(), crate::chain_spec::missing(c.name, "p2sh").is_some());
+    if no_pkh && !matches!(s, [0x00 | 0x51, ..]) { return None }
+    if no_sh && matches!(s, [0xa9, 0x14, .., 0x87]) { return None }
     let seg = |v: u8, p: &[u8]| -> Option<String> {
         let h = Hrp::parse(hrp?).ok()?;
         bech32::segwit::encode(h, bech32::Fe32::try_from(v).ok()?, p).ok()
@@ -719,8 +734,9 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
     let b = decode_check_ck(c.ck(), a).ok()?;
     if b.len() != 21 { return None }
     let h = &b[1..];
-    if b[0] == p2pkh { let mut s = vec![0x76, 0xa9, 0x14]; s.extend(h); s.extend([0x88, 0xac]); Some(s) }
-    else if b[0] == p2sh { let mut s = vec![0xa9, 0x14]; s.extend(h); s.push(0x87); Some(s) }
+    let (no_pkh, no_sh) = (crate::chain_spec::missing(c.name, "p2pkh").is_some(), crate::chain_spec::missing(c.name, "p2sh").is_some());
+    if b[0] == p2pkh && !no_pkh { let mut s = vec![0x76, 0xa9, 0x14]; s.extend(h); s.extend([0x88, 0xac]); Some(s) }
+    else if b[0] == p2sh && !no_sh { let mut s = vec![0xa9, 0x14]; s.extend(h); s.push(0x87); Some(s) }
     else { None }
 }
 
