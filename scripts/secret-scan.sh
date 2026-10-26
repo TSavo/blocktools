@@ -29,5 +29,8 @@ for f in $(git ls-files -co --exclude-standard); do
   m=$(od -An -tx1 -j12 -N4 "$f" | tr -d ' \n')
   case "$m" in 62310500|00053162) echo "Berkeley DB file: $f"; rc=1 ;; esac  # rule:S-bdb
 done
+# No PEM private-key block in any tracked file (the APK signing key lives only in Vault).  # rule:S-pem
+pem="-----BEGIN"; pem="$pem( RSA| EC| OPENSSH| ENCRYPTED)? PRIVATE KEY-----"
+git grep -nIE --untracked --exclude-standard -e "$pem" -- . && { echo "PEM private key block found"; rc=1; }  # rule:S-pem
 [ $rc = 0 ] && echo "secret-scan ok"
 exit $rc
