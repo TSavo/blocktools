@@ -1,5 +1,11 @@
 name: ci
-on: [push, pull_request]
+# push runs for main only: a same-repo branch with a pull request used to get two identical runs per commit
+# (push + pull_request, different concurrency groups), and the queue measured on 2026-10-26 was mostly those.
+# Branch commits run once, as pull_request; tag pushes are release.yml's.
+on:
+  push:
+    branches: [main]
+  pull_request:
 # Read-only token for every job (fork PRs never get secrets or a write token).
 permissions:
   contents: read
