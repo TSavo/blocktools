@@ -70,12 +70,12 @@ fn planted_denied_methods_are_refused_and_nothing_is_sent() {
         ("eth_sendRawTransaction", "[\"0x00\"]", "broadcast_needs_sendraw")] {
         let (url, log) = mock(vec![]);
         let (c, out, err) = run(&[&url, m, p], "");
-        assert_eq!(c, 3, "{m}"); assert!(out.is_empty()); assert!(err.contains(code), "{m}: {err}");
+        assert_eq!(c, 1, "{m}"); assert!(out.is_empty()); assert!(err.contains(code), "{m}: {err}");
         assert!(log.lock().unwrap().is_empty(), "{m} reached the server");
         // and the same inside a batch on stdin
         let (url, log) = mock(vec![]);
         let (c, _, _) = run(&[&url], &format!(r#"[{{"id":1,"method":"eth_chainId"}},{{"id":2,"method":"{m}","params":{p}}}]"#));
-        assert_eq!(c, 3); assert!(log.lock().unwrap().is_empty());
+        assert_eq!(c, 1); assert!(log.lock().unwrap().is_empty());
     }
 }
 #[test]
@@ -84,7 +84,7 @@ fn policy_adds_refusals() {
     std::fs::write(&d, r#"{"version":1,"rpc":{"deny":["eth_call"]}}"#).unwrap();
     let (url, log) = mock(vec![]);
     let (c, _, err) = run(&["--policy", d.to_str().unwrap(), &url, "eth_call", "[]"], "");
-    assert_eq!(c, 3); assert!(err.contains("method_denied_by_policy")); assert!(log.lock().unwrap().is_empty());
+    assert_eq!(c, 1); assert!(err.contains("method_denied_by_policy")); assert!(log.lock().unwrap().is_empty());
     std::fs::write(&d, r#"{"version":1,"rpc":{"allow":["eth_sign"]}}"#).unwrap();
     let (c, _, err) = run(&["--policy", d.to_str().unwrap(), &url, "eth_call", "[]"], "");
     assert_eq!(c, 2); assert!(err.contains("policy_unknown_key"));
@@ -95,7 +95,7 @@ fn wallet_sign_methods_refused_by_default() {
     for m in ["eth_sendTransaction", "eth_signTypedData_v4"] {
         let (url, log) = mock(vec![]);
         let (c, _, err) = run(&[&url, m, &format!("[{TX}]")], "");
-        assert_eq!(c, 3); assert!(err.contains("wallet_sign_needs_flag"), "{err}"); assert!(log.lock().unwrap().is_empty());
+        assert_eq!(c, 1); assert!(err.contains("wallet_sign_needs_flag"), "{err}"); assert!(log.lock().unwrap().is_empty());
     }
 }
 #[test]
@@ -112,7 +112,7 @@ fn flagged_send_transaction_prints_summary_and_sends_exact_bytes() {
 fn flagged_send_transaction_chain_mismatch_refused() {
     let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x89"}"#.into())]);
     let (c, _, err) = run(&["--allow-wallet-sign", &url, "eth_sendTransaction", &format!("[{TX}]")], "");
-    assert_eq!(c, 3); assert!(err.contains("wallet_sign_chain_mismatch")); assert_eq!(log.lock().unwrap().len(), 1);
+    assert_eq!(c, 1); assert!(err.contains("wallet_sign_chain_mismatch")); assert_eq!(log.lock().unwrap().len(), 1);
 }
 #[test]
 fn flagged_typed_data_summary_and_undecodable_refused() {
@@ -127,7 +127,7 @@ fn flagged_typed_data_summary_and_undecodable_refused() {
         let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into())]);
         let p = format!(r#"["0x1111111111111111111111111111111111111111",{bad}]"#);
         let (c, _, err) = run(&["--allow-wallet-sign", &url, "eth_signTypedData_v4", &p], "");
-        assert_eq!(c, 3, "{bad}"); assert!(err.contains("wallet_sign_undecodable"), "{err}"); assert!(log.lock().unwrap().is_empty());
+        assert_eq!(c, 1, "{bad}"); assert!(err.contains("wallet_sign_undecodable"), "{err}"); assert!(log.lock().unwrap().is_empty());
     }
 }
 #[test]
@@ -135,7 +135,7 @@ fn eth_sign_family_refused_even_with_flag() {
     for m in ["eth_sign", "personal_sign", "eth_signTransaction", "personal_sendTransaction", "eth_signTypedData", "eth_signTypedData_v3"] {
         let (url, log) = mock(vec![]);
         let (c, _, err) = run(&["--allow-wallet-sign", &url, m, "[]"], "");
-        assert_eq!(c, 3, "{m}"); assert!(!err.contains("wallet_sign_needs_flag")); assert!(err.contains("refused")); assert!(log.lock().unwrap().is_empty());
+        assert_eq!(c, 1, "{m}"); assert!(!err.contains("wallet_sign_needs_flag")); assert!(err.contains("refused")); assert!(log.lock().unwrap().is_empty());
     }
 }
 #[test]
@@ -160,8 +160,8 @@ fn auth_file_secret_never_on_stdout_or_stderr() {
 }
 #[test]
 fn credentials_on_command_line_refused() {
-    let (c, _, err) = run(&["--user", "a:b", "http://127.0.0.1:1", "getblockcount"], ""); assert_eq!(c, 3); assert!(err.contains("credential_on_command_line"));
-    let (c, _, err) = run(&["http://u:p@127.0.0.1:1", "getblockcount"], ""); assert_eq!(c, 3); assert!(err.contains("credential_on_command_line")); assert!(!err.contains(":p@"));
+    let (c, _, err) = run(&["--user", "a:b", "http://127.0.0.1:1", "getblockcount"], ""); assert_eq!(c, 1); assert!(err.contains("credential_on_command_line"));
+    let (c, _, err) = run(&["http://u:p@127.0.0.1:1", "getblockcount"], ""); assert_eq!(c, 1); assert!(err.contains("credential_on_command_line")); assert!(!err.contains(":p@"));
 }
 #[test]
 fn redirect_not_followed_and_size_capped() {
@@ -175,7 +175,7 @@ fn redirect_not_followed_and_size_capped() {
 fn response_with_private_key_withheld() {
     // public test vector: WIF of private key 1 (throwaway)
     let (url, _) = mock(vec![(200, r#"{"id":1,"result":{"privkey":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}}"#.into())]);
-    let (c, out, err) = run(&["--protocol", "btc", &url, "getwalletinfo"], ""); assert_eq!(c, 3); assert!(out.is_empty()); assert!(err.contains("response_contains_secret"));
+    let (c, out, err) = run(&["--protocol", "btc", &url, "getwalletinfo"], ""); assert_eq!(c, 1); assert!(out.is_empty()); assert!(err.contains("response_contains_secret"));
     assert!(!err.contains("KwDiBf89"));
 }
 #[test]
@@ -200,7 +200,7 @@ fn shortcuts_emit_tool_shapes() {
 fn detection_and_chain_id_pin() {
     let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x89"}"#.into())]);
     let (c, _, err) = run(&["--chain-id", "1", &url, "eth_blockNumber"], "");
-    assert_eq!(c, 3); assert!(err.contains("chain_id_mismatch")); assert_eq!(log.lock().unwrap().len(), 1);
+    assert_eq!(c, 1); assert!(err.contains("chain_id_mismatch")); assert_eq!(log.lock().unwrap().len(), 1);
     // shortcut probe: eth_chainId answers -> evm
     let (url, _) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0x10"}"#.into())]);
     let (c, out, err) = run(&[&url, "height"], ""); assert_eq!(c, 0, "{err}"); assert!(out.contains(r#""height":16"#) && out.contains("evm"));

@@ -29,6 +29,6 @@ python3 scripts/e2e-only/tty-drive.py right $T/es $T/o $PWD/$B/rpc --protocol ev
 grep -q '"status":"ok"' $T/o && grep -q eth_sendRawTransaction $T/log && echo "ok   rpc account | tx-build | tx-sign | rpc sendraw (evm mock), id matches" || f eth
 : > $T/log; for m in dumpprivkey dumpwallet walletpassphrase eth_sign personal_unlockAccount eth_sendTransaction; do
   st=0; $B/rpc $U $m '[]' >/dev/null 2>$T/err || st=$?
-  [ $st = 3 ] && grep -q '"status":"refused"' $T/err || f "deny $m"
+  [ $st = 1 ] && grep -q '"status":"refused"' $T/err || f "deny $m"
 done; [ ! -s $T/log ] && echo "ok   rpc refuses key-export / unlock / wallet-sign methods, nothing sent" || f deny
 kill $M 2>/dev/null; wait $M 2>/dev/null || true  # allow-true: wait returns the killed mock's signal status

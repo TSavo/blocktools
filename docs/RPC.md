@@ -23,7 +23,7 @@ rpc URL SHORTCUT [ARG]            height | chainid | balance ADDR | nonce ADDR |
 `URL` can also be a chain name from the shared table (`btc`, `ltc`, `eth`, `ada`, `dot`, `ton`, `atom`, `xlm`, `algo`) or the
 EVM chain id `1`. For any other EVM chain, pass its RPC URL and pin the chain id as a plain argument: `--chain-id 137`.
 
-Exit status: 0 ok, 1 RPC or HTTP error, 2 bad input, 3 refused (the same convention as the other tools).
+Exit status: 0 ok, 2 bad input, 1 everything else (RPC or HTTP error, refused, aborted): the shared rule in docs/EXIT-CODES.md.
 
 Options: `--protocol P`, `--chain-id N`, `--chain C` (UTXO chain for address checks and sendraw decoding; default btc),
 `--auth-file FILE`, `--auth-env NAME`, `--policy FILE`, `--allow-wallet-sign`, `--timeout N` (1..300, default 30).
@@ -205,7 +205,7 @@ These are SwapChan's field observations from `/workspace/handoff/rpc-knife-requi
 
 ## Safety: what is refused
 
-The agent must never see keys, seeds or passwords. Every refusal exits 3, and nothing is sent to the server:
+The agent must never see keys, seeds or passwords. Every refusal exits 1 (status refused), and nothing is sent to the server:
 
 | code | when |
 |---|---|
@@ -231,7 +231,7 @@ The agent must never see keys, seeds or passwords. Every refusal exits 3, and no
 
 Other statuses on stderr: `rpc_error` (the server returned a JSON-RPC error, exit 1), `http_error` (non-2xx, a non-JSON
 reply, a redirect, a timeout or an oversized response, exit 1), `bad_input` (exit 2), and `aborted` (sendraw got no terminal
-or a wrong code, exit 3).
+or a wrong code, exit 1).
 
 ### The deny-list (single source of truth)
 

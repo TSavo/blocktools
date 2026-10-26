@@ -22,8 +22,8 @@ pw-candidates | 0 | echo hunter 2 | pw-candidates --max 5
 read-file | 0 | read-file "$R/README.md"
 read-file | 2 | read-file /nonexistent
 redact | 0 | echo '{"tool":"x","status":"ok","wif":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}' | redact
-rpc | 3 | rpc http://127.0.0.1:9 dumpprivkey
-rpc | 3 | rpc http://127.0.0.1:9 personal_sign
+rpc | 1 | rpc http://127.0.0.1:9 dumpprivkey
+rpc | 1 | rpc http://127.0.0.1:9 personal_sign
 rpc | 1 | rpc http://127.0.0.1:9 getblockcount
 sealed-run | 2 | sealed-run agent 'rm -rf /'
 seed-repair | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon" | seed-repair --max 2

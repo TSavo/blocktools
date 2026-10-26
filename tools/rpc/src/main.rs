@@ -18,7 +18,7 @@
 //!   --timeout SECONDS     per request, 1..300 (default 30)
 //! stdout: the response body (JSON-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo-fetch lines
 //! (tx-build --utxos FILE) and account prints the utxo-fetch eth account object (tx-build --account FILE).
-//! stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 1 RPC/HTTP error, 2 bad input, 3 refused.
+//! stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT-CODES.md.
 //! Refused by default (deny-list in tools/rpc/src/lib.rs, see docs/RPC.md): methods that export, import or unlock keys, wallet
 //! signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 //! Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
@@ -29,15 +29,15 @@ use std::io::{IsTerminal, Read};
 
 struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, chain_id: Option<u64>, chain: String, timeout: u64 }
 
-fn fail(cx: Option<&Cx>, status: &str, code: i32, extra: Value) -> ! {
+fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
     v.as_object_mut().unwrap().extend(extra.as_object().cloned().unwrap_or_default());
     let s = v.to_string();
     eprintln!("{}", cx.map_or(s.clone(), |c| redact(&s, &c.secrets)));
-    std::process::exit(code)
+    std::process::exit(blocktools_io::exit_code(status))  // docs/EXIT-CODES.md: refused/aborted exit 1
 }
-fn bad(cx: Option<&Cx>, e: &str) -> ! { fail(cx, "bad_input", 2, json!({"error":e})) }
-fn refused(cx: &Cx, r: Refusal) -> ! { fail(Some(cx), "refused", 3, json!({"code":r.code,"detail":r.detail})) }
+fn bad(cx: Option<&Cx>, e: &str) -> ! { fail(cx, "bad_input", json!({"error":e})) }
+fn refused(cx: &Cx, r: Refusal) -> ! { fail(Some(cx), "refused", json!({"code":r.code,"detail":r.detail})) }
 
 /// stdout: data only. If stdout is a terminal, control characters (escape sequences) are replaced.
 fn emit(cx: &Cx, body: &str) {
@@ -48,7 +48,7 @@ fn emit(cx: &Cx, body: &str) {
 fn snippet(b: &[u8]) -> String { String::from_utf8_lossy(&b[..b.len().min(300)]).chars().map(|c| if c.is_control() { ' ' } else { c }).collect() }
 
 fn http(cx: &Cx, method: &str, url: &str, body: Option<&[u8]>) -> (i32, Vec<u8>) {
-    blocktools_net::send(method, url, body, &cx.headers, cx.timeout).unwrap_or_else(|e| fail(Some(cx), "http_error", 1, json!({"error":e})))
+    blocktools_net::send(method, url, body, &cx.headers, cx.timeout).unwrap_or_else(|e| fail(Some(cx), "http_error", json!({"error":e})))
 }
 fn withhold_secrets(cx: &Cx, v: &Value) { if let Some(w) = response_secret(v, 0) { refused(cx, Refusal { code: "response_contains_secret", detail: format!("{w}; nothing printed") }) } }
 
@@ -57,10 +57,10 @@ fn jr(cx: &Cx, method: &str, params: Value) -> Value {
     if let Err(r) = check_call(method, &params, &cx.deny, false, false) { refused(cx, r) }
     let req = json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string();
     let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
-    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", 1, json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
-    if !v["error"].is_null() { fail(Some(cx), "rpc_error", 1, json!({"method":method,"error":v["error"]})) }
+    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
+    if !v["error"].is_null() { fail(Some(cx), "rpc_error", json!({"method":method,"error":v["error"]})) }
     withhold_secrets(cx, &v);
-    v.get("result").cloned().unwrap_or_else(|| fail(Some(cx), "rpc_error", 1, json!({"method":method,"error":"no result"})))
+    v.get("result").cloned().unwrap_or_else(|| fail(Some(cx), "rpc_error", json!({"method":method,"error":"no result"})))
 }
 fn base(cx: &Cx) -> String {
     let u = cx.url.trim_end_matches('/');
@@ -72,12 +72,12 @@ fn rest(cx: &Cx, path: &str, body: Option<&Value>) -> Value {
     let url = format!("{}/{}", base(cx), path.trim_start_matches('/'));
     let bs = body.map(|b| b.to_string());
     let (code, b) = http(cx, if bs.is_some() { "POST" } else { "GET" }, &url, bs.as_deref().map(str::as_bytes));
-    if !(200..300).contains(&code) { fail(Some(cx), "http_error", 1, json!({"http_status":code,"body":snippet(&b)})) }
+    if !(200..300).contains(&code) { fail(Some(cx), "http_error", json!({"http_status":code,"body":snippet(&b)})) }
     let v = serde_json::from_slice(&b).unwrap_or_else(|_| json!(String::from_utf8_lossy(&b).trim()));
     withhold_secrets(cx, &v);
     v
 }
-fn qty(cx: &Cx, v: &Value) -> u128 { blocktools_net::qty(v).unwrap_or_else(|e| fail(Some(cx), "rpc_error", 1, json!({"error":e}))) }
+fn qty(cx: &Cx, v: &Value) -> u128 { blocktools_net::qty(v).unwrap_or_else(|e| fail(Some(cx), "rpc_error", json!({"error":e}))) }
 fn endpoint_chain_id(cx: &Cx) -> u64 { let v = jr(cx, "eth_chainId", json!([])); u64::try_from(qty(cx, &v)).unwrap_or_else(|_| bad(Some(cx), "chain id too large")) }
 fn pin_chain(cx: &Cx) { if let Some(want) = cx.chain_id { let got = endpoint_chain_id(cx); if got != want { refused(cx, Refusal { code: "chain_id_mismatch", detail: format!("endpoint eth_chainId {got}, --chain-id {want}") }) } } }
 
@@ -151,7 +151,7 @@ fn shortcut(cx: &Cx, name: &str, arg: Option<&str>) {
                         out(cx, o)
                     }
                 }
-                ("utxos", Proto::Esplora) => for o in blocktools_net::esplora_utxos(&base(cx), &a, legacy(&cx.chain, &a)).unwrap_or_else(|e| fail(Some(cx), "http_error", 1, json!({"error":e}))) { out(cx, o) },
+                ("utxos", Proto::Esplora) => for o in blocktools_net::esplora_utxos(&base(cx), &a, legacy(&cx.chain, &a)).unwrap_or_else(|e| fail(Some(cx), "http_error", json!({"error":e}))) { out(cx, o) },
                 ("utxos", Proto::Blockbook) => {
                     let v = rest(cx, &format!("api/v2/utxo/{a}"), None); let lg = legacy(&cx.chain, &a);
                     for u in v.as_array().cloned().unwrap_or_default() {
@@ -199,7 +199,7 @@ fn shortcut(cx: &Cx, name: &str, arg: Option<&str>) {
         }
         ("fee", Proto::Btc) => {
             let r = jr(cx, "estimatesmartfee", json!([6]));
-            let per_kvb = coins_to_units(&r["feerate"]).unwrap_or_else(|| fail(Some(cx), "rpc_error", 1, json!({"error":"no feerate (node has no estimate yet)","errors":r["errors"]})));
+            let per_kvb = coins_to_units(&r["feerate"]).unwrap_or_else(|| fail(Some(cx), "rpc_error", json!({"error":"no feerate (node has no estimate yet)","errors":r["errors"]})));
             out(cx, json!({"protocol":pn,"sat_per_vb":per_kvb as f64 / 1000.0,"blocks":r["blocks"]}))
         }
         ("fee", Proto::Esplora) => out(cx, json!({"protocol":pn,"sat_per_vb_by_target":rest(cx, "fee-estimates", None)})),
@@ -228,7 +228,7 @@ fn sendraw(cx: &Cx) {
     }
     let host = cx.url.split('/').take(3).collect::<Vec<_>>().join("/");
     let summary = format!("{}\nBROADCAST to {host} ({})\nThis is irreversible.\n", d.text().trim_end(), p.name());
-    if !blocktools_tty::confirm(&summary) { fail(Some(cx), "aborted", 3, json!({"detail":"no terminal or wrong code; nothing sent"})) }
+    if !blocktools_tty::confirm(&summary) { fail(Some(cx), "aborted", json!({"detail":"no terminal or wrong code; nothing sent"})) }
     let hex = blocktools_core::hex_enc(&raw);
     let got = match p {
         Proto::Evm => jr_send(cx, "eth_sendRawTransaction", json!([format!("0x{hex}")])),
@@ -236,7 +236,7 @@ fn sendraw(cx: &Cx) {
         Proto::Esplora | Proto::Blockbook => {
             let url = if p == Proto::Esplora { format!("{}/tx", base(cx)) } else { format!("{}/api/v2/sendtx/", base(cx)) };
             let (code, b) = http(cx, "POST", &url, Some(hex.as_bytes()));
-            if !(200..300).contains(&code) { fail(Some(cx), "http_error", 1, json!({"http_status":code,"body":snippet(&b)})) }
+            if !(200..300).contains(&code) { fail(Some(cx), "http_error", json!({"http_status":code,"body":snippet(&b)})) }
             let t = String::from_utf8_lossy(&b).trim().to_string();
             serde_json::from_str::<Value>(&t).ok().and_then(|v| v["result"].as_str().map(String::from)).unwrap_or(t)
         }
@@ -244,14 +244,14 @@ fn sendraw(cx: &Cx) {
     };
     let want = d.txid.clone().unwrap_or_default().trim_start_matches("0x").to_ascii_lowercase();
     let got = got.trim_start_matches("0x").to_ascii_lowercase();
-    if got != want { fail(Some(cx), "error", 1, json!({"error":"server_id_differs_from_local","txid":want})) }
+    if got != want { fail(Some(cx), "error", json!({"error":"server_id_differs_from_local","txid":want})) }
     out(cx, json!({"tool":"rpc","status":"ok","txid":want}))
 }
 fn jr_send(cx: &Cx, m: &str, params: Value) -> String {
     let req = json!({"jsonrpc":"2.0","id":1,"method":m,"params":params}).to_string();
     let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
-    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", 1, json!({"http_status":code,"body":snippet(&b)})));
-    if !v["error"].is_null() { fail(Some(cx), "rpc_error", 1, json!({"method":m,"error":v["error"]})) }
+    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"body":snippet(&b)})));
+    if !v["error"].is_null() { fail(Some(cx), "rpc_error", json!({"method":m,"error":v["error"]})) }
     v["result"].as_str().unwrap_or("").to_string()
 }
 
@@ -281,13 +281,13 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
     }
     if !pinned && cx.chain_id.is_some() { pin_chain(cx) }
     let (code, b) = http(cx, "POST", &cx.url, Some(&body));
-    let r: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", 1, json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
+    let r: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
     withhold_secrets(cx, &r);
     let errs: Vec<Value> = match &r { Value::Array(a) => a.iter().filter(|x| !x["error"].is_null()).map(|x| json!({"id":x["id"],"error":x["error"]})).collect(), o if !o["error"].is_null() => vec![json!({"id":o["id"],"error":o["error"]})], _ => vec![] };
-    if matches!(r, Value::Object(_)) && !errs.is_empty() { fail(Some(cx), "rpc_error", 1, json!({"error":errs[0]["error"]})) }
+    if matches!(r, Value::Object(_)) && !errs.is_empty() { fail(Some(cx), "rpc_error", json!({"error":errs[0]["error"]})) }
     emit(cx, &String::from_utf8_lossy(&b));
-    if !errs.is_empty() { fail(Some(cx), "rpc_error", 1, json!({"errors":errs})) }
-    if !(200..300).contains(&code) { fail(Some(cx), "http_error", 1, json!({"http_status":code})) }
+    if !errs.is_empty() { fail(Some(cx), "rpc_error", json!({"errors":errs})) }
+    if !(200..300).contains(&code) { fail(Some(cx), "http_error", json!({"http_status":code})) }
 }
 
 fn rest_call(cx: &Cx, path: &str, body: Option<&str>) {
@@ -297,7 +297,7 @@ fn rest_call(cx: &Cx, path: &str, body: Option<&str>) {
     let bs = b.map(|v| v.to_string());
     let (code, resp) = http(cx, if bs.is_some() { "POST" } else { "GET" }, &url, bs.as_deref().map(str::as_bytes));
     if let Ok(v) = serde_json::from_slice::<Value>(&resp) { withhold_secrets(cx, &v) }
-    if !(200..300).contains(&code) { fail(Some(cx), "http_error", 1, json!({"http_status":code,"body":snippet(&resp)})) }
+    if !(200..300).contains(&code) { fail(Some(cx), "http_error", json!({"http_status":code,"body":snippet(&resp)})) }
     emit(cx, &String::from_utf8_lossy(&resp));
 }
 
@@ -320,7 +320,7 @@ fn main() {
             "--allow-wallet-sign" => wallet_sign = true,
             "--timeout" => timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=300).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..300")),
             "--user" | "--password" | "--pass" | "--auth" | "--token" | "--header" | "-H" | "-u" | "--bearer" | "--cookie" =>
-                fail(None, "refused", 3, json!({"code":"credential_on_command_line","detail":"use --auth-file FILE or --auth-env NAME"})),
+                fail(None, "refused", json!({"code":"credential_on_command_line","detail":"use --auth-file FILE or --auth-env NAME"})),
             s if s.starts_with("--") => bad(None, "unknown flag"),
             _ => pos.push(a),
         }
@@ -330,7 +330,7 @@ fn main() {
         blocktools_net::default_endpoint(&url_arg).map(String::from).unwrap_or_else(|| bad(None, "not a URL, and no default endpoint for that chain name / id"))
     };
     if url.split("://").nth(1).and_then(|r| r.split('/').next()).is_some_and(|auth| auth.contains('@')) {
-        fail(None, "refused", 3, json!({"code":"credential_on_command_line","detail":"credentials in the URL; use --auth-file FILE or --auth-env NAME"}))
+        fail(None, "refused", json!({"code":"credential_on_command_line","detail":"credentials in the URL; use --auth-file FILE or --auth-env NAME"}))
     }
     if let Err(e) = blocktools_net::check_url(&url) { bad(None, &e) }
     let (headers, secrets) = match &auth { Some(a) => parse_auth(a).unwrap_or_else(|e| bad(None, e)), None => (vec![], vec![]) };
