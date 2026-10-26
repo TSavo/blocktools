@@ -1,5 +1,6 @@
 #!/bin/sh
 # Build DEB / RPM / APK from target/release (or MUSL_TARGET for apk).
+# Default payload is the static musl build so one package runs on any glibc (Debian 12, Fedora 40, Alpine).
 # Usage:
 #   scripts/package-native.sh deb
 #   scripts/package-native.sh rpm
@@ -27,7 +28,7 @@ stage() {
 
 case "$kind" in
 deb)
-  stage /tmp/blocktools-deb-rebuild target/release
+  stage /tmp/blocktools-deb-rebuild "${BINDIR:-target/x86_64-unknown-linux-musl/release}"
   mkdir -p /tmp/blocktools-deb-rebuild/DEBIAN
   cat > /tmp/blocktools-deb-rebuild/DEBIAN/control <<EOF
 Package: blocktools
@@ -43,18 +44,58 @@ EOF
   echo "wrote /tmp/blocktools_${ver}-1_amd64.deb"
   ;;
 rpm)
-  stage /tmp/blocktools-rpm-root target/release
-  # Build via rpmbuild in a fedora container when host lacks rpmbuild
-  if command -v rpmbuild >/dev/null 2>&1; then
-    echo "rpmbuild on host not wired; use docker fedora (see docs)"
-    exit 1
-  fi
-  echo "RPM: use prior dry-run artifact or docker fedora+rpmbuild; see docs/DOCS-READINESS.md"
+  stage /tmp/blocktools-rpm-root "${BINDIR:-target/x86_64-unknown-linux-musl/release}"
+  rm -rf /tmp/blocktools-rpmbuild; mkdir -p /tmp/blocktools-rpmbuild/SPECS
+  cat > /tmp/blocktools-rpmbuild/SPECS/blocktools.spec <<EOF
+Name: blocktools
+Version: ${ver}
+Release: 1
+Summary: blocktools offline chain utilities
+License: see LICENSE
+BuildArch: x86_64
+AutoReqProv: no
+%description
+Binaries + man pages. DANGEROUS: audit before use with real funds.
+%install
+cp -a /stage/. %{buildroot}/
+%files
+/usr/bin/*
+/usr/share/man/man1/*
+/usr/share/man/man7/*
+/usr/share/doc/blocktools
+EOF
+  ${DOCKER:-docker} run --rm -v /tmp/blocktools-rpm-root:/stage:ro -v /tmp/blocktools-rpmbuild:/out fedora:40 sh -euc '
+    dnf -q -y install rpm-build >/dev/null
+    rpmbuild -bb --define "_topdir /tmp/rb" --define "__strip /bin/true" --define "debug_package %{nil}" /out/SPECS/blocktools.spec >/dev/null
+    cp /tmp/rb/RPMS/x86_64/*.rpm /out/'
+  cp /tmp/blocktools-rpmbuild/blocktools-${ver}-1.x86_64.rpm /tmp/
+  echo "wrote /tmp/blocktools-${ver}-1.x86_64.rpm"
   ;;
 apk)
   bindir=${MUSL_BINDIR:-target/x86_64-unknown-linux-musl/release}
   stage /tmp/bt-apk "$bindir"
-  echo "APK payload staged at /tmp/bt-apk; build with alpine abuild (see docs)"
+  rm -rf /tmp/bt-apkbuild; mkdir -p /tmp/bt-apkbuild
+  cat > /tmp/bt-apkbuild/APKBUILD <<EOF
+pkgname=blocktools
+pkgver=${ver}
+pkgrel=0
+pkgdesc="blocktools offline chain utilities"
+url="https://github.com/TSavo/blocktools"
+arch="x86_64"
+license="custom"
+options="!check !strip !tracedeps"
+source=""
+package() { mkdir -p "\$pkgdir"; cp -a /stage/. "\$pkgdir"/; }
+EOF
+  ${DOCKER:-docker} run --rm -v /tmp/bt-apk:/stage:ro -v /tmp/bt-apkbuild:/out alpine:3.20 sh -euc '
+    apk add -q abuild >/dev/null
+    adduser -D -h /work b; addgroup b abuild
+    cp /out/APKBUILD /work/; chown -R b /work
+    su b -c "abuild-keygen -a -n >/dev/null 2>&1"; cp /work/.abuild/*.pub /etc/apk/keys/
+    su b -c "cd /work && abuild -d -P /work/pkgs >/dev/null 2>&1"
+    find /work/pkgs -name "*.apk" -exec cp {} /out/ \;'
+  cp -f /tmp/bt-apkbuild/blocktools-${ver}-r0.apk /tmp/ && chmod 644 /tmp/blocktools-${ver}-r0.apk
+  echo "wrote /tmp/blocktools-${ver}-r0.apk"
   ;;
 *) echo "unknown kind $kind"; exit 1 ;;
 esac
