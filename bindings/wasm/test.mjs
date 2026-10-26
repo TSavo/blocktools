@@ -333,3 +333,15 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmSigHash('f(uint7)'), /./);
   console.log('ok evm sig');
 }
+
+{ // finding 10: a non-string argument (e.g. numeric lamports' error object, or a number) must throw a
+  // TypeError, not corrupt wasm memory ("memory access out of bounds"), and the module must stay usable.
+  let e; try { bt.solBuildTransfer(JSON.stringify({ from: 'AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9', to: '11111111111111111111111111111112', blockhash: '11111111111111111111111111111111', lamports: 5 })) } catch (x) { e = x }
+  assert.match(String(e), /bad_number/);
+  for (const arg of [e, 5, {}, undefined]) {
+    assert.throws(() => bt.solDecodeTx(arg), (x) => x instanceof TypeError && /expected_string/.test(x.message));
+    assert.throws(() => bt.addressValidate(arg, 'btc'), (x) => x instanceof TypeError && /expected_string/.test(x.message));
+  }
+  assert.throws(() => bt.solDecodeTx('00'), (x) => /^[a-z_]+$/.test(x.message));  // still usable after: a normal error
+  console.log('ok non-string args throw TypeError expected_string (finding 10)');
+}

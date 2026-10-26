@@ -34,3 +34,10 @@ on default features (DESIGN §11).
 
 `tools/*/src/main.rs` is argv + stdin + one library call + JSONL out. Prefer calling
 the library from Rust tests; use CLIs for human/agent pipelines.
+
+## WebAssembly (bindings/wasm) argument types
+
+Every wasm function takes strings. Amounts inside plan JSON are decimal strings: `solBuildTransfer`
+needs `"lamports": "5000"`, not `5000` (a number is refused with `bad_number`). Passing a non-string
+argument (a number, an object, a caught `Error`) throws `TypeError: expected_string` instead of reaching
+wasm memory (finding 10; tested in `bindings/wasm/test.mjs`, Node on Linux only).

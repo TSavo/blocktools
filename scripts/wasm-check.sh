@@ -17,6 +17,12 @@ bad=$(cargo tree -q --locked --target wasm32-unknown-unknown -e normal --prefix 
   | grep -xE 'blocktools-secrets|blocktools-net|blocktools-tty|blocktools-io|bip39|scrypt|pbkdf2|aes|cbc|ctr|ed25519-dalek|minreq|rustls|ring|tokio|getrandom|rand' || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL wasm dep tree has: $bad"; rc=1; }
 rm -rf pkg && wasm-bindgen "$W" --out-dir pkg/node --target nodejs && wasm-bindgen "$W" --out-dir pkg/web --target web && echo '{"type":"module"}' > pkg/web/package.json
+# finding 10: wasm-bindgen's passStringToWasm0 trusts arg.length, so a non-string argument (a number, an
+# Error object) corrupts wasm memory ("memory access out of bounds"). Guard it; fail if the hook moved.
+for g in pkg/node/blocktools_wasm.js pkg/web/blocktools_wasm.js; do
+  grep -q '^function passStringToWasm0(arg, malloc, realloc) {$' "$g" || { echo "FAIL $g: passStringToWasm0 not found (string guard)"; exit 1; }
+  sed -i 's/^function passStringToWasm0(arg, malloc, realloc) {$/&\n    if (typeof arg !== "string") throw new TypeError("expected_string");/' "$g"
+done
 M=pkg/web/blocktools_wasm_bg.wasm
 python3 ../../scripts/wasm-names.py "$M" funcs > target/funcs.txt
 [ -s target/funcs.txt ] || { echo "FAIL no name section to check"; rc=1; }
