@@ -121,6 +121,7 @@ dependencies = [
 name = "blocktools-evm"
 version = "0.1.0"
 dependencies = [
+ "secp256k1",
  "serde_json",
  "sha3",
 ]

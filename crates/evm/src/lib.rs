@@ -3,10 +3,12 @@
 //!   sig:    function/event/error signatures -> canonical form, 4-byte selector, 32-byte topic
 //!   abi:    Solidity ABI type grammar, strict decoder, encoder
 //!   create: CREATE / CREATE2 contract addresses
+//!   eip712: typed-data hashing and signer recovery
 pub mod abi;
 pub mod api;
 pub mod bytecode;
 pub mod create;
+pub mod eip712;
 pub mod inspect;
 pub mod sig;
 pub mod u256;

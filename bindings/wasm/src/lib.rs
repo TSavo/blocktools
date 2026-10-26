@@ -435,3 +435,10 @@ pub fn evm_abi_inspect(abi_text: &str) -> Result<String, JsError> { Ok(blocktool
 /// Classify runtime bytecode (EIP-1167 / EIP-7702 / EOF), EIP-170 size, Solidity metadata, opcode counts, selector candidates.
 #[wasm_bindgen(js_name = evmBytecodeInspect)]
 pub fn evm_bytecode_inspect(code_hex: &str) -> Result<String, JsError> { Ok(blocktools::evm::bytecode::inspect(&blocktools::evm::unhex(code_hex).map_err(err)?).to_string()) }
+
+/// EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict.
+#[wasm_bindgen(js_name = evmTypedDataVerify)]
+pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, signer: Option<String>) -> Result<String, JsError> {
+    let td: serde_json::Value = serde_json::from_str(typed_data_json).map_err(|_| JsError::new("bad_typed_data_json"))?;
+    Ok(blocktools::evm::eip712::verify(&td, sig_hex.as_deref(), signer.as_deref()).map_err(err)?.to_string())
+}

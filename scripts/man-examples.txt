@@ -59,3 +59,5 @@ abi-inspect | 0 | abi-inspect "$R/recipes/fixtures/evm/erc20-plus-collision.txt"
 abi-inspect | 2 | echo '[' | abi-inspect
 bytecode-inspect | 0 | bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3
 bytecode-inspect | 2 | bytecode-inspect 0x1
+typed-data-verify | 0 | typed-data-verify "$R/recipes/fixtures/evm/eip712-mail-signed.json"
+typed-data-verify | 2 | typed-data-verify --sig 0x00 "$R/recipes/fixtures/evm/eip712-mail.json"

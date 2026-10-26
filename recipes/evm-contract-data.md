@@ -146,3 +146,21 @@ An EIP-1167 minimal proxy (the reference code from the EIP) gives its implementa
     bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3 | jq -c '{kind, implementation}'
 
 Live (UNTESTED here): `curl -s -X POST -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_getCode","params":["0x…","latest"]}' "$RPC" | bytecode-inspect`
+
+## (j) What a typed-data signature commits to: EIP-712
+
+`eip712-mail-signed.json` is the Mail example from the EIP-712 specification with its published signature.
+typed-data-verify prints the domain separator, message hash and digest (compare them with what a wallet
+shows) and recovers the signer:
+
+<!-- e2e: expect="status":"valid" ; expect=0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826 ; rc=0 -->
+    typed-data-verify recipes/fixtures/evm/eip712-mail-signed.json | jq -c '{primary_type, chain_id, recovered, status}'
+
+A different expected signer is a mismatch (exit 1):
+
+<!-- e2e: expect=signer_mismatch ; rc=1 -->
+    typed-data-verify --signer 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB recipes/fixtures/evm/eip712-mail-signed.json
+
+An `eth_signTypedData_v4` request (`{"params": [address, typedData]}`) can be piped in as-is with `--sig`;
+its address becomes the expected signer. Live (UNTESTED here): capture the request a dapp sends and the
+signature the wallet returns, then `typed-data-verify --sig 0x… request.json`.

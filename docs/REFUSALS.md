@@ -247,3 +247,8 @@ echo '[' | abi-inspect
 ```sh
 bytecode-inspect 0x1
 ```
+
+<!-- run rc=2 expect=signer_needs_sig -->
+```sh
+echo '{}' | typed-data-verify --signer 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB
+```

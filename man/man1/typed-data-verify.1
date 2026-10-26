@@ -1,0 +1,55 @@
+.TH TYPED\-DATA\-VERIFY 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+typed\-data\-verify \- EIP\-712 typed data \-> encodeType, domain separator, message hash and digest;
+.SH SYNOPSIS
+.nf
+typed\-data\-verify [\-\-sig HEX] [\-\-signer ADDR] [FILE]
+FILE (or stdin): EIP\-712 typed data {types, primaryType, domain, message}, an eth_signTypedData_v4
+request ({"params": [address, typedData]}, typedData as object or JSON string: the address becomes the
+expected signer), or {typed_data, signature, signer}. Without \-\-signer, prints the recovered address only.
+Prints domain_separator, message_hash and digest so you can compare them with what a wallet shows.
+.fi
+.SH DESCRIPTION
+with a signature, the recovered signer (65\-byte r||s||v or 64\-byte EIP\-2098); with \-\-signer, a verdict. Offline.
+.nf
+.RS 2
+  typed\-data\-verify mail.json
+  typed\-data\-verify \-\-sig 0x.. \-\-signer 0x.. < typed\-data.json
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-sig HEX       signature: 65 bytes r||s||v (v 27/28 or 0/1) or 64 bytes EIP\-2098 compact
+  \-\-signer ADDR   expected signer; status is valid (exit 0) or signer_mismatch (exit 1)
+.fi
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  typed\-data\-verify mail.json
+  typed\-data\-verify \-\-sig 0x.. \-\-signer 0x.. < typed\-data.json
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status valid
+.TP
+2
+last status error
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ typed\-data\-verify "$R/recipes/fixtures/evm/eip712\-mail\-signed.json"
+# exit 0, last status: valid
+$ typed\-data\-verify \-\-sig 0x00 "$R/recipes/fixtures/evm/eip712\-mail.json"
+# exit 2, last status: error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -401,3 +401,13 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmBytecodeInspect('0x1'), /odd_length_hex/);
   console.log('ok evm bytecode inspect');
 }
+
+{ // evmTypedDataVerify: the EIP-712 specification Mail example
+  const td = JSON.stringify({types:{EIP712Domain:[{name:'name',type:'string'},{name:'version',type:'string'},{name:'chainId',type:'uint256'},{name:'verifyingContract',type:'address'}],Person:[{name:'name',type:'string'},{name:'wallet',type:'address'}],Mail:[{name:'from',type:'Person'},{name:'to',type:'Person'},{name:'contents',type:'string'}]},primaryType:'Mail',domain:{name:'Ether Mail',version:'1',chainId:1,verifyingContract:'0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'},message:{from:{name:'Cow',wallet:'0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826'},to:{name:'Bob',wallet:'0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'},contents:'Hello, Bob!'}});
+  const sig = '0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c';
+  assert.equal(JSON.parse(bt.evmTypedDataVerify(td)).digest, '0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2');
+  assert.equal(JSON.parse(bt.evmTypedDataVerify(td, sig, '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826')).status, 'valid');
+  assert.equal(JSON.parse(bt.evmTypedDataVerify(td, sig, '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB')).status, 'signer_mismatch');
+  assert.throws(() => bt.evmTypedDataVerify(td, '0x00'), /signature_not_64_or_65_bytes/);
+  console.log('ok evm typed data verify');
+}
