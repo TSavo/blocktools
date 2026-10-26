@@ -77,6 +77,30 @@ pub fn open_v3(json: &str, password: &[u8]) -> Result<(String, Zeroizing<String>
     Ok((eth_address(&k)?, Zeroizing::new(hex_enc(&k[..]))))
 }
 
+/// Ethereum presale wallet (pyethsaletool, 2014): {"encseed","ethaddr",...}. Same algorithm as geth
+/// accounts/keystore/presale.go: key = PBKDF2-HMAC-SHA256(pw, salt = pw, 2000, 16); encseed = iv(16) ||
+/// AES-128-CBC(seed), PKCS#7; private key = keccak256(seed); its address must equal ethaddr (otherwise
+/// wrong_password: no MAC in the format, the address is the check).
+pub fn open_presale(json: &str, password: &[u8]) -> Result<(String, Zeroizing<String>), &'static str> {
+    use aes::cipher::{BlockDecryptMut, block_padding::Pkcs7};
+    let v: Value = serde_json::from_str(json).map_err(|_| "bad_input")?;
+    let enc = v.get("encseed").and_then(|x| x.as_str()).ok_or("bad_input")?;
+    if enc.len() > 1024 { return Err("bad_input"); }
+    let enc = hex_dec(enc).ok_or("bad_input")?;
+    let want = v.get("ethaddr").and_then(|x| x.as_str()).ok_or("bad_input")?.trim_start_matches("0x").to_ascii_lowercase();
+    if want.len() != 40 || hex_dec(&want).is_none() { return Err("bad_input"); }
+    if enc.len() < 32 || enc.len() % 16 != 0 { return Err("bad_input"); }
+    let mut dk = Zeroizing::new([0u8; 16]);
+    pbkdf2::pbkdf2_hmac::<sha2::Sha256>(password, password, 2000, &mut dk[..]);
+    let mut buf = Zeroizing::new(enc[16..].to_vec());
+    let seed = cbc::Decryptor::<aes::Aes128>::new(dk[..].into(), enc[..16].into())
+        .decrypt_padded_mut::<Pkcs7>(&mut buf[..]).map_err(|_| "wrong_password")?;
+    let mut key = Zeroizing::new([0u8; 32]);
+    key.copy_from_slice(&Keccak256::digest(&*seed));
+    let addr = eth_address(&key)?;
+    if addr[2..].to_ascii_lowercase() != want { return Err("wrong_password"); }
+    Ok((addr, Zeroizing::new(hex_enc(&key[..]))))
+}
 
 #[cfg(test)]
 mod tests {
@@ -86,6 +110,22 @@ mod tests {
     #[test] fn spec_vector() {
         let k = open(V, b"testpassword").unwrap();
         assert_eq!(hex_enc(&k[..]), "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d");
+    }
+    // go-ethereum accounts/keystore/plain_test.go TestImportPreSaleKey (pyethsaletool genwallet, password "foo"); email field replaced (unused by the algorithm).
+    const PRESALE: &str = r#"{"encseed": "26d87f5f2bf9835f9a47eefae571bc09f9107bb13d54ff12a4ec095d01f83897494cf34f7bed2ed34126ecba9db7b62de56c9d7cd136520a0427bfb11b8954ba7ac39b90d4650d3448e31185affcd74226a68f1e94b1108e6e0a4a91cdd83eba", "ethaddr": "d4584b5f6229b7be90727b0fc8c6b91bb427821f", "email": "redacted@example.invalid", "btcaddr": "1EVknXyFC68kKNLkh6YnKzW41svSRoaAcx"}"#;
+    #[test] fn presale_geth_vector() {
+        let (a, _k) = open_presale(PRESALE, b"foo").unwrap();
+        assert_eq!(a.to_ascii_lowercase(), "0xd4584b5f6229b7be90727b0fc8c6b91bb427821f");
+        assert_eq!(open_presale(PRESALE, b"wrong").unwrap_err(), "wrong_password");
+        assert_eq!(open_presale(&PRESALE.replace("d4584b5f", "d4584b5e"), b"foo").unwrap_err(), "wrong_password");
+        assert_eq!(open_presale(r#"{"encseed":"00","ethaddr":"d4584b5f6229b7be90727b0fc8c6b91bb427821f"}"#, b"foo").unwrap_err(), "bad_input");
+    }
+    // Independent vector: pycryptodome + pure-Python secp256k1 (see recipes/input-keystore.md), UTF-8 password.
+    #[test] fn presale_python_vector() {
+        let j = r#"{"encseed": "000102030405060708090a0b0c0d0e0fde0eef35a53455395542b1afa0b2c2977320c21483f5f3ea7beae6018c2f0fd79af2e8cc819d0d263c4fc6a21c99b27c", "ethaddr": "db3f1aab7a6c6b14cf2ba4ae43c14444cf008bd0", "email": "test@example.invalid", "btcaddr": ""}"#;
+        let (a, k) = open_presale(j, "pässwörd presale".as_bytes()).unwrap();
+        assert_eq!(a.to_ascii_lowercase(), "0xdb3f1aab7a6c6b14cf2ba4ae43c14444cf008bd0");
+        assert_eq!(k.as_str(), "8f0f1e46c96b6f8b176b3dae1e9b654c1f28c8ad57c820c5577e94241ea5f638");
     }
     #[test] fn wrong_pw() { assert_eq!(open(V, b"nope").unwrap_err(), "wrong_password"); }
     // Web3 Secret Storage Definition scrypt vector (N=262144, r=1, p=8): p=8 must be accepted.

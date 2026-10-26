@@ -40,6 +40,9 @@ rec electrum1-wallet fixtures/external/electrum-wallet 179dvQyWSyEHwcyugmjNQGtoE
 rec multibit fixtures/external/multibit-wallet.key "${MB:-}" btcr-test-password
 python3 -c 'import re;print(re.search(r"const V: &str = r#\"(.*?)\"#;", open("crates/secrets/src/keystore.rs").read()).group(1))' > "$R/keystore.json"
 rec keystore "$R/keystore.json" 0x008AeEda4D805471dF9b2A5B0f38A0C3BCBA786b testpassword
+# Ethereum presale wallet: go-ethereum's TestImportPreSaleKey vector (password "foo")
+python3 -c 'import re;print(re.search(r"const PRESALE: &str = r#\"(.*?)\"#;", open("crates/secrets/src/keystore.rs").read()).group(1))' > "$R/presale.json"
+rec presale "$R/presale.json" 0xd4584b5F6229b7BE90727b0FC8C6b91BB427821f foo
 # watch-only and wrong-code cases: nothing may be signed or sent
 echo bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu > "$R/addr.txt"; : > "$R/log"
 if BIN=$B recipes/recover.sh "$R/addr.txt" $D --url "$RU" 2>/dev/null; then echo "FAIL recover address"; exit 1; fi

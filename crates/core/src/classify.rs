@@ -9,7 +9,7 @@ pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub pub
 
 /// Every class name classify can print.
 pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
-    "bip38", "keystore_v3", "blockchain_wallet", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
+    "bip38", "keystore_v3", "eth_presale", "blockchain_wallet", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
     let h = crate::hex_enc(sha256::Hash::hash(b).to_byte_array());
@@ -47,6 +47,7 @@ pub fn classify(data: &[u8]) -> Vec<Row> {
     if t.starts_with('{') {
         let has = |k: &str| t.contains(&format!("\"{k}\"")) || t.contains(&format!("'{k}'"));
         if has("version") && (has("crypto") || has("Crypto")) { return file("keystore_v3") }
+        if has("encseed") && has("ethaddr") { return file("eth_presale") }
         if has("version") && has("pbkdf2_iterations") && has("payload") { return file("blockchain_wallet") }
         if has("seed_version") || has("wallet_type") { return file("electrum_wallet") }
     }
@@ -126,6 +127,7 @@ mod t {
         // Groestl-checksummed GRS tpub (Groestlcoin/eclair f52fbf9 vector)
         assert_eq!(c("tpubDMBn7xW1g1Gsok5eThkJAKJnB3ZFqZQnvsdWv8VvM3RjZkqVPZZpjPDAAmbyDHnZPdAZY8EnFBh1ibTBtiuDqb8t9wRcAZiFihma41vfyVK"), "xpub");
         assert_eq!(c(r#"{"version":3,"crypto":{}}"#), "keystore_v3");
+        assert_eq!(c(r#"{"encseed": "00", "ethaddr": "d4584b5f6229b7be90727b0fc8c6b91bb427821f"}"#), "eth_presale");
         assert_eq!(c(r#"{"version":3,"pbkdf2_iterations":5000,"payload":"QQ=="}"#), "blockchain_wallet");
         assert_eq!(c("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="), "b64_key");
         assert_eq!(c("hello"), "unknown");

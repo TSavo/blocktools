@@ -15,7 +15,7 @@
 # - tx-sign and tx-broadcast each print the decoded transaction on /dev/tty and wait for a
 #   typed code. Nothing is signed or sent without it.
 # - Wallet passwords come from --password-file (first line), read by the tool, not by bash.
-# - Bitcoin, except an Ethereum keystore, which sweeps ETH (--rpc URL, --chain-id N).
+# - Bitcoin, except an Ethereum keystore or presale wallet, which sweeps ETH (--rpc URL, --chain-id N).
 # Invoked by a POSIX shell instead of bash? dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
 # so re-exec under bash before the first bash-only line.
 if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
@@ -61,7 +61,7 @@ case $class in
   xpub)            WATCH=1; keys() { "$B/xpub-addresses" --chain "$CHAIN" --count "$COUNT" --change 0,1 < "$FILE"; } ;;
   address)         WATCH=1; keys() { "$B/classify" "$FILE" | sed -n 's/.*"address":"\([^"]*\)".*/{"status":"ok","chain":"'"$CHAIN"'","address":"\1"}/p'; } ;;
   monero_address)  say "watch-only ($class): Monero balances need the view key (recipes/monero.md)"; exit 3 ;;
-  keystore_v3)     CHAIN=eth; keys() { pw_then_file | "$B/keystore-open"; } ;;
+  keystore_v3|eth_presale) CHAIN=eth; keys() { pw_then_file | "$B/keystore-open"; } ;;
   blockchain_wallet) keys() { pw_then_file | "$B/blockchain-read" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   bip38)           keys() { pw_then_file | "$B/bip38-open" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   *)               say "no reader for $class yet (see docs/ROADMAP.md)"; exit 3 ;;

@@ -89,6 +89,7 @@ Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains u
 | bitcoinj_wallet | multibit-read -> key-to-addresses (or derive m/0'/c/i for an HD seed) | input-multibit.md |
 | armory_wallet | armory-read -> key-to-addresses | input-armory.md |
 | keystore_v3 | keystore-open (eth) | input-keystore.md |
+| eth_presale | keystore-open (eth) | input-keystore.md |
 | monero_seed | xmr-keys address, exit 3 -> xmr-wallet (host) | monero.md |
 | monero_address | exit 3 (needs the view key) | monero.md |
 | xrp_seed | xrp-tx keys, exit 3 -> xrp-tx build/sign | xrp.md |
