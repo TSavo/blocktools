@@ -186,7 +186,7 @@ fn shortcuts_emit_tool_shapes() {
     let v: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
     assert_eq!(v, serde_json::json!({"chain_id":1,"nonce":5,"balance":"1000000000000000000","max_fee_per_gas":"2100000000","max_priority_fee_per_gas":"100000000"}));
     assert_eq!(log.lock().unwrap().len(), 5);
-    // esplora utxos: utxo-fetch line shape
+    // esplora utxos: utxo-fetch line shape; dummy txid below is a throwaway, not a key
     let (url, _) = mock(vec![(200, r#"[{"txid":"aa00000000000000000000000000000000000000000000000000000000000000","vout":1,"value":5000}]"#.into())]);
     let (c, out, err) = run(&["--protocol", "esplora", &url, "utxos", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"], "");
     assert_eq!(c, 0, "{err}");
