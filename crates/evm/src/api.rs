@@ -180,6 +180,15 @@ pub fn encode_json(req: &Value) -> Result<Value, String> {
     encode_call(s, args)
 }
 
+/// Facade: `{types: "(int16,bytes1,...)", args:[..]}` -> Solidity `abi.encodePacked` bytes.
+pub fn encode_packed_json(req: &Value) -> Result<Value, String> {
+    let t = req.get("types").or_else(|| req.get("sig")).and_then(Value::as_str).ok_or("missing_types")?;
+    let args = req.get("args").and_then(Value::as_array).ok_or("missing_args")?;
+    let ps = abi::parse_types(t)?;
+    let d = abi::encode_packed(&ps, args)?;
+    Ok(json!({"status": "ok", "types": format!("({})", ps.iter().map(|p| p.ty.canon()).collect::<Vec<_>>().join(",")), "data": hex(&d), "keccak256": hex(&keccak(&d))}))
+}
+
 pub fn encode_call(s: &str, args: &[Value]) -> Result<Value, String> {
     if s.trim_start().starts_with('(') {
         let ps = abi::parse_types(s)?;

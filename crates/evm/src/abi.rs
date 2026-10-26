@@ -341,3 +341,34 @@ pub fn encode(params: &[Param], vals: &[Value]) -> Result<Vec<u8>, String> {
     let ts: Vec<&Ty> = params.iter().map(|p| &p.ty).collect();
     enc_tuple(&ts, vals, 0)
 }
+
+/// Solidity `abi.encodePacked` (non-standard packed mode, Solidity docs "Non-standard Packed Mode"):
+/// types shorter than 32 bytes are concatenated at their own width, `bytes`/`string` are raw with no
+/// length, array elements are padded to 32 bytes with no length prefix. Tuples, nested arrays and
+/// arrays of dynamic types are refused (Solidity does not support them in packed mode).
+pub fn encode_packed(params: &[Param], vals: &[Value]) -> Result<Vec<u8>, String> {
+    if params.len() != vals.len() { return Err(format!("expected_{}_values_got_{}", params.len(), vals.len())); }
+    let mut out = vec![];
+    for (p, v) in params.iter().zip(vals) {
+        match &p.ty {
+            Ty::Tuple(_) => return Err("packed_tuple_unsupported".into()),
+            Ty::Array(e, k) => {
+                if matches!(**e, Ty::Array(..) | Ty::Tuple(_)) || e.is_dynamic() { return Err("packed_array_element_must_be_static_elementary".into()); }
+                let mut o = None;
+                let a = arr_of(v, &mut o)?;
+                if let Some(k) = k { if a.len() != *k { return Err(format!("expected_{k}_elements")); } }
+                for x in a { out.extend(enc_value(e, x, 1)?); }
+            }
+            Ty::Bytes | Ty::String => {
+                let s = s_of(v)?;
+                out.extend(if p.ty == Ty::Bytes { unhex(&s)? } else { s.into_bytes() });
+            }
+            t => {
+                let w = enc_value(t, v, 1)?;
+                let n = match t { Ty::Uint(m) | Ty::Int(m) => m / 8, Ty::Address => 20, Ty::Bool => 1, Ty::FixedBytes(m) => *m, _ => 32 };
+                out.extend(if matches!(t, Ty::FixedBytes(_)) { &w[..n] } else { &w[32 - n..] });
+            }
+        }
+    }
+    Ok(out)
+}

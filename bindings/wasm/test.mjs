@@ -362,6 +362,12 @@ console.log('lift7 ok');
   console.log('ok evm abi decode');
 }
 
+{ // evmAbiEncodePacked: Solidity ABI spec "Non-standard Packed Mode" examples
+  const p = JSON.parse(bt.evmAbiEncodePacked(JSON.stringify({types: '(int16,bytes1,uint16,string)', args: ['-1', '0x42', '3', 'Hello, world!']})));
+  assert.equal(p.data, '0xffff42000348656c6c6f2c20776f726c6421');
+  assert.equal(JSON.parse(bt.evmAbiEncodePacked(JSON.stringify({types: '(uint16)', args: ['0x12']}))).data, '0x0012');
+  assert.throws(() => bt.evmAbiEncodePacked(JSON.stringify({types: '(string[])', args: [['a']]})), /packed_array_element/);
+}
 { // evmAbiEncode: Solidity ABI spec example baz(uint32,bool) 69,true, and a round trip through evmAbiDecode
   const e = JSON.parse(bt.evmAbiEncode(JSON.stringify({sig: 'baz(uint32,bool)', args: ['69', true]})));
   assert.equal(e.selector, '0xcdcd77c0');

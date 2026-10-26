@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 64. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 65. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -314,7 +314,7 @@ Example (executed):
 
 ```js
 bt.chainTable()
-// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 24552 chars total]
+// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 24561 chars total]
 ```
 
 ## `checkTx`
@@ -573,6 +573,30 @@ Error example (executed):
 ```js
 bt.evmAbiEncode("{\"sig\":\"f(uint8)\",\"args\":[\"256\"]}")
 // throws value_too_large_for_uint8
+```
+
+## `evmAbiEncodePacked`
+
+```ts
+evmAbiEncodePacked(request_json: string): string
+```
+
+Solidity abi.encodePacked. Request JSON {types:"(t1,t2,..)", args:[..]}; returns {data, keccak256}.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.evmAbiEncodePacked("{\"types\":\"(uint16)\",\"args\":[\"0x12\"]}")
+// -> {"data":"0x0012","keccak256":"0x677034980f47f6cb0a55e7d8674ba838c39165afe34da2fc538f695d4950b38e","status":"ok","types":"(uint16)"}
+```
+
+Error example (executed):
+
+```js
+bt.evmAbiEncodePacked("{\"types\":\"(string[])\",\"args\":[[\"a\"]]}")
+// throws packed_array_element_must_be_static_elementary
 ```
 
 ## `evmAbiInspect`
