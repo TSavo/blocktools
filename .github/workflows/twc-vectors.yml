@@ -1,0 +1,27 @@
+name: twc-vectors
+# Manual only: generates reference MsgSend vectors by running Trust Wallet Core's own Rust signer
+# (wallet-core adf80f8, pinned) with a TWC public test key and fixed inputs (tools/twc-vectors/).
+# Output is an artifact to be copied into tests by hand; nothing is committed or published by this job.
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: twc-vectors
+  cancel-in-progress: false
+jobs:
+  generate:
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: |
+          rm -rf "${RUNNER_TEMP}/wallet-core" && git init -q "${RUNNER_TEMP}/wallet-core"
+          cd "${RUNNER_TEMP}/wallet-core" && git fetch -q --depth 1 https://github.com/trustwallet/wallet-core adf80f8bac989e18a4ef1922e2b9eaeb4bf804a9 && git checkout -q FETCH_HEAD
+          test "$(git rev-parse HEAD)" = adf80f8bac989e18a4ef1922e2b9eaeb4bf804a9
+          cp "${GITHUB_WORKSPACE}/tools/twc-vectors/gen_ethermint.rs" rust/tw_tests/tests/bt_gen_ethermint.rs
+          cd rust && cargo test -q -p tw_tests --test bt_gen_ethermint -- --nocapture 2>&1 | tee "${RUNNER_TEMP}/twc-vectors.txt"
+          grep -E '^BT(VEC|ADDR) ' "${RUNNER_TEMP}/twc-vectors.txt" > "${RUNNER_TEMP}/twc-vectors-only.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with: { name: twc-vectors, path: "${{ runner.temp }}/twc-vectors-only.txt" }
+      - if: always()
+        run: rm -rf "${RUNNER_TEMP}/wallet-core"
