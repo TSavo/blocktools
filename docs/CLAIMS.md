@@ -20,6 +20,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | rpc-deny-list | security | linux | measured | Secret export/import/unlock and wallet-signing methods exit 3 with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box) | `cargo test -q -p rpc` | e85721e | 2026-10-26 |
 | rpc-publicnode-read-linux | platform | linux | measured | Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at e85721e); no broadcast was made | `echo '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \| ./target/release/rpc https://ethereum-rpc.publicnode.com` | e85721e | 2026-10-26 |
 | forkid-signing | security | linux | measured | Fork-id sighash matches all 495 SIGHASH_FORKID rows of Bitcoin ABC sighash.json; BCH and BSV mainnet and Trust Wallet Core BTG signatures verify under it and not under the BTC sighash | `cargo test -q --release -p blocktools-tx --test forkid` | a4c5680 | 2026-10-26 |
+| twc-evm-vectors | security | linux | measured | All 13 Trust Wallet Core EVM signer vectors (7 legacy EIP-155, 6 EIP-1559) parse, recover to their key and re-sign byte for byte | `cargo test -q --release -p blocktools-tx --features secrets --test twc_evm` | 728619c | 2026-10-26 |
 
 ## Untested
 

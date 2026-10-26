@@ -293,3 +293,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/digest.rs", "crates/tx/tests/forkid.rs", "crates/tx/tests/vectors/abc-sighash.json", "crates/tx/tests/vectors/forkid-signed.json"]
 doc = [{ file = "docs/CHAINS.md", text = "495 SIGHASH_FORKID rows" }]
+
+[[claim]]
+id = "twc-evm-vectors"
+statement = "All 13 Trust Wallet Core EVM signer vectors (7 legacy EIP-155, 6 EIP-1559) parse, recover to their key and re-sign byte for byte"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-tx --features secrets --test twc_evm"
+expect = "test result: ok. 2 passed"
+commit = "728619c"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/tx/src/evm.rs", "crates/tx/tests/twc_evm.rs", "crates/tx/tests/vectors/twc-evm.json"]
+doc = [{ file = "docs/CHAINS.md", text = "7 legacy + 6 EIP-1559" }]
