@@ -28,3 +28,23 @@ they can't be forgotten, and the check prints them on every run.
 | R2-10 | CI and local verify-and-push ran different step lists | fixed | 94449bd | scripts/ci-gate-check.sh |
 | R2-11 | No macOS CI coverage, so Mac failures surface only in manual reruns | open | - | - |
 | R2-12 | CI checkout was shallow (fetch-depth 1), so findings-check misreported real commits as missing | fixed | 14700aa | scripts/gate-negatives.sh |
+| D1-1 | BCH CashAddr not detected (reproduced on db291f5 by SwapChan run 2 and again here, 2026-10-25): wasm detectAddressInfo("bitcoincash:qpm2…gdx6a") and the bare "qpm2…" form both return candidates:[] (legacy 1BpEi… is detected). Repro: node -e 'console.log(require("./bindings/wasm/pkg/node/blocktools_wasm.js").detectAddressInfo("bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a"))' | open | - | - |
+| D1-3 | (reproduced on db291f5 by SwapChan run 2 and again here, 2026-10-25) EVM check_these prints "gas N x 0 gwei" when maxFeePerGas < 1 gwei (integer division, crates/tx/src/lib.rs:364); MAX FEE line is correct. Repro: buildEvmTransfer gasPrice 257309485, then verifyTx -> "(gas 124540 x 0 gwei)" | open | - | - |
+| D1-5 | recipes/chain-solana.md and chain-tron.md said transfers are NOT BUILT, but wasm solBuildTransfer (incl. sweep_balance) and tronBuildTransfer build unsigned txs; only the CLI lacks a builder. Sweep amount logic not reviewed | open | - | - |
+| D1-7 | EVM decode/verify names a contract call only by selector (Universal Router 0x3593564c) until abi-decode lands | open | - | - |
+| D1-8 | Algorand, TON, Cardano chain recipes: address-validate steps untested with real addresses (SwapChan used placeholders) | open | - | - |
+| D1-9 | (reproduces on db291f5) No signer for Solana or Tron, and no broadcast for any account chain (tx-broadcast is UTXO-only) | open | - | - |
+| D1-10 | (reproduces on db291f5) Tron has no offline verify-with-expectations (Solana has solVerifyTx; Tron only tronDecodeTx/tronTxId) | open | - | - |
+| D1-11 | tx-build --chain eth does not compare --chain-id with the chain_id in the --account file: an account fetched from a chain-1 node built a chain-8453 tx with chain 1 nonce/balance (rc=0). Repro: recipes/paths/evm-sweep.sh 8453 ... against scripts/mock-chain.py | open | - | - |
+| D1-12 | tx-verify emits three failure codes that are not in the schema TX_FAILURES vocabulary: eth_value_with_token_call, chain_id_not_pinned, legacy_input_amount_unproven. Inside a sealed run, redact drops the whole refusal line, so the agent sees no failure at all (redact reports count 0). Repro: python3 scripts/e2e-only/evm-fixture.py value-and-token, pipe it into target/release/tx-verify --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF, then pipe that output into target/release/redact | open | - | - |
+| D1-13 | wasm solBuildTransfer rejects a numeric lamports value with bad_number; a decimal string is accepted. The docs say lamports must be a string. (SwapChan also reported a memory-out-of-bounds trap; not reproduced here.) | open | - | - |
+| D1-14 | Bad input does not always exit with the same code. tx-verify, tx-decode, tx-build and bip38-open exit 2 with status bad_input. keystore-open, blockchain-read and tx-broadcast (bad_psbt) exit 1 with status bad_input. acct-tx, xrp-tx and xmr-keys exit 1 with status error, or with no status field at all. tx-envelope exits 0 with status error. The old man pages claimed "3 = refused", but the tools exit 1 for a refusal; only recover.sh uses 3. Repro: the EXAMPLES in man/man1/*.1, run by scripts/gen-man.py --check | open | - | - |
+
+## Notes outside this ledger (SwapChan side or expected; not blocktools defects)
+
+From SwapChan's chain-recipe drafts (2026-10-25, ~8:25-8:30 PM PDT); not reproduced here unless stated.
+
+- D1-2 (SwapChan): MCP verify_tx lists Bitcoin in its schema but refuses it ("verify_tx does not decode Bitcoin yet"). Not reproduced here (we do not call the SwapChan MCP).
+- D1-4 (shared doc): the stale "NOT BUILT" text was in this repo's recipes/chain-tron.md; tracked as D1-5.
+- D1-6 (expected): replaying already-mined fixtures through SwapChan verify_tx gives "danger" because the chain state moved on. verify_tx is for unsigned, not-yet-sent txs.
+- SwapChan #9: SwapChan's MCP verify_tx returned HTTP 502 for a Tron tx hex (evidence/r2). That is the SwapChan service, not blocktools; not reproduced here.

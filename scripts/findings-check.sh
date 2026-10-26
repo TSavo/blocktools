@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 F=${1:-docs/FINDINGS.md}
 [ -f "$F" ] || { echo "FAIL findings: no $F"; exit 1; }  # rule:F-file
 rc=0; nf=0; no=0
-rows=$(grep -E '^\| R[0-9]+-[0-9]+ \|' "$F" || [ $? -eq 1 ])
+rows=$(grep -E '^\| [A-Z][0-9]+-[0-9]+ \|' "$F" || [ $? -eq 1 ])
 [ -n "$rows" ] || { echo "FAIL findings: no rows in $F"; exit 1; }  # rule:F-rows
 dups=$(printf '%s\n' "$rows" | awk -F'|' '{gsub(/ /,"",$2); print $2}' | sort | uniq -d)
 [ -z "$dups" ] || { echo "FAIL findings: duplicate ids: $dups"; rc=1; }  # rule:F-dup
