@@ -6,8 +6,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 COPY tools tools
 COPY deps deps
-COPY docs/CHAINS.md docs/CHAINS.md
-# quirks test reads docs/CHAINS.md (doc/table drift check)
+COPY docs/CHAINS.md docs/RPC.md docs/
+# quirks test reads docs/CHAINS.md, rpc deny/summary tests read docs/RPC.md (doc/table drift checks)
 COPY scripts/check-deps.sh scripts/check-deps.sh
 RUN sh scripts/check-deps.sh && cargo test --release --locked -- --skip every_policy_entry_point_uses_shared_verifier && cargo build --release --locked
 # Collect every binary (host-side network tools utxo-fetch, tx-broadcast, xmr-wallet stay out) and refuse to continue unless each one is statically linked.
