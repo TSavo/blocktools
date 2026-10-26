@@ -15,7 +15,10 @@ head0=$(git rev-parse HEAD)
 git worktree add -q --detach "$wt" "$head0"
 cleanup() { git -C "$root" worktree remove --force "$wt" 2>/dev/null || rm -rf "$wt"; rm -rf "$base"; }  # allow-true: cleanup must not mask the result
 trap cleanup EXIT
-reset() { git -C "$wt" reset -q --hard "$head0" && git -C "$wt" clean -fdqx; }  # --hard to the start commit: undoes plants that commit (K-stale)
+# fixtures/external is untracked downloaded test data (man examples run against it); copy it into the worktree (1.1 MB).
+ext() { if [ -d "$root/fixtures/external" ]; then mkdir -p "$wt/fixtures" && cp -R "$root/fixtures/external" "$wt/fixtures/"; fi; }
+ext
+reset() { git -C "$wt" reset -q --hard "$head0" && git -C "$wt" clean -fdqx && ext; }  # --hard to the start commit: undoes plants that commit (K-stale)
 rc=0; n=0; want=" ${*:-} "
 # baseline: each gate script passes on the unplanted tree, else every negative would be vacuous
 for s in hygiene-check docs-check prepush-check secret-scan check-deps; do
