@@ -45,7 +45,7 @@ addressValidate(chain: string, addr: string): string
 
 `address::validate(chain, addr)`: address kind string; throws on invalid / unverified chain.
 
-Calls in test.mjs: 3.
+Calls in test.mjs: 7.
 
 Example (executed):
 
@@ -57,8 +57,8 @@ bt.addressValidate("btc", "1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3")
 Error example (executed):
 
 ```js
-bt.addressValidate("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV")
-// throws unverified_chain
+bt.addressValidate(, "btc")
+// throws expected_string
 ```
 
 ## `addressesFromXpub`
@@ -518,7 +518,7 @@ detectAddressInfo(addr: string): string
 
 Additive to detectAddress (whose shape is unchanged): JSON {candidates:[{chain,kind}], ambiguous, kinds_agree}. `ambiguous` = more than one chain; `kinds_agree` = every candidate has the same script kind.
 
-Calls in test.mjs: 5.
+Calls in test.mjs: 6.
 
 Example (executed):
 
@@ -770,7 +770,7 @@ solBuildTransfer(plan: string): string
 
 Build an unsigned Solana legacy transfer (one zeroed signature + message; byte-identical to @solana/kit). `plan` JSON: {from, to, blockhash, priority?:[micro_lamports_str, cu_limit]} plus one of lamports:"N" | sweep_balance:"N" | token:{mint, amount:"N", decimals, token_program, create_ata}. Returns hex. Takes no keys; sign elsewhere.
 
-Calls in test.mjs: 13.
+Calls in test.mjs: 14.
 
 Example (executed):
 
@@ -782,8 +782,8 @@ bt.solBuildTransfer("{\"from\":\"EWy75VpRJLEeT9HyrsfLowpCzbKawHyCLnJEP15FhSeu\",
 Error example (executed):
 
 ```js
-bt.solBuildTransfer("{\"from\":\"EWy75VpRJLEeT9HyrsfLowpCzbKawHyCLnJEP15FhSeu\",\"to\":\"EWy75VpRJLEeT9HyrsfLowpCzbKawHyCLnJEP15FhSeu\",\"blockhash\":\"BQfVAy4fAiU42cTCWXJsVY7Xg4kqByngTWVecs1cEsDc\",\"lamports\":\"1\"}")
-// throws from_equals_to
+bt.solBuildTransfer("{\"from\":\"AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9\",\"to\":\"11111111111111111111111111111112\",\"blockhash\":\"11111111111111111111111111111111\",\"lamports\":5}")
+// throws bad_number
 ```
 
 ## `solDecodeTx`
@@ -794,13 +794,20 @@ solDecodeTx(raw: string): string
 
 Decode a wire transaction (hex or base64; legacy or v0). JSON: see EXPORTS.md.
 
-Calls in test.mjs: 4.
+Calls in test.mjs: 9.
 
 Example (executed):
 
 ```js
 bt.solDecodeTx("AQ5j/IKjDBsuBYfoHM5E4X1rnnVuFJT8WzTvzlGSOdK3gSj6XpqpUBj9xZZJvqVcA8B6igAfkGCjVvHN1QI08A8BAAEDiojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1x+jAiHYL/eHd3PMsF/IJuCQu5SqvEx+s2I0OosbQsG8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxJrndgN4IFTxep3s6kO0ROug7bEsbx0xxuDkqEvwUusBAgIAAQwCAAAAh9YSAAAAAAA=")
 // -> {"accounts":[{"pubkey":"AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9","signer":true,"writable":true},{"pubkey":"9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM","signer":false,"writable":true},{"pubkey":"11111111111111111111111111111111","signer":false,"writable":false}],"address_table_lookups":[],"config":null,"fee_payer":"AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9","instructions":[{"account_indexes":[0,1],"data_hex":"0200000087d6120000000000","from":"AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9","kind":"system_transfer","lamports":"1234567","program":"11111111111111111111111111111111","progra … [cut: 1282 chars total]
+```
+
+Error example (executed):
+
+```js
+bt.solDecodeTx()
+// throws expected_string
 ```
 
 ## `solFindProgramAddress`
@@ -1117,7 +1124,7 @@ Example (executed):
 
 ```js
 bt.verifyTx("02f20109843b9aca008701b0a8dd03bb6e825208943535353535353535353535353535353535353535880de0b6b3a764000080c0", "eth", ["0x3535353535353535353535353535353535353535"], [], 1, "", true)
-// -> {"check_these":"=== TRANSACTION (eth evm-1559, unsigned) ===\n################ CHECK THESE ################\n## CHAIN ID  : 1 = ETHEREUM MAINNET\n## KIND      : NATIVE ETH\n## RECIPIENT : 0x3535353535353535353535353535353535353535\n## VALUE     : 1.0 ETH\n## MAX FEE   : 9.990000000000006 ETH\n#############################################\nnetwork chain id : 1 (Ethereum mainnet)\nto               : 0x3535353535353535353535353535353535353535\nvalue            : 1.0 (native coin, 1000000000000000000 wei)\nnonce            : 9\nmax network fee  : 9.990000000000006 (gas 21000 x 475714 gwei)\nWARNIN … [cut: 817 chars total]
+// -> {"check_these":"=== TRANSACTION (eth evm-1559, unsigned) ===\n################ CHECK THESE ################\n## CHAIN ID  : 1 = ETHEREUM MAINNET\n## KIND      : NATIVE ETH\n## RECIPIENT : 0x3535353535353535353535353535353535353535\n## VALUE     : 1.0 ETH\n## MAX FEE   : 9.990000000000006 ETH\n#############################################\nnetwork chain id : 1 (Ethereum mainnet)\nto               : 0x3535353535353535353535353535353535353535\nvalue            : 1.0 (native coin, 1000000000000000000 wei)\nnonce            : 9\nmax network fee  : 9.990000000000006 (gas 21000 x 475714.285714286 gwe … [cut: 827 chars total]
 ```
 
 Error example (executed):
