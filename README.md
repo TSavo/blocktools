@@ -68,6 +68,20 @@ and `objdump` results above, the `--address-list` count 0 and the `jq` workaroun
 and every wallet example below through `sealed-run agent`. Not measured: actually running on glibc 2.34-2.38 (only
 the symbol versions were read; `sealed-run` is expected to fail to load there) or older, macOS.
 
+### Debian / Ubuntu (apt, amd64)
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo wget -O /etc/apt/keyrings/blocktools-archive-keyring.asc \
+  https://raw.githubusercontent.com/TSavo/blocktools/main/packaging/apt/blocktools-archive-keyring.asc
+echo "deb [signed-by=/etc/apt/keyrings/blocktools-archive-keyring.asc] https://tsavo.github.io/blocktools/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/blocktools.list
+sudo apt update && sudo apt install blocktools
+```
+
+Needs glibc 2.34+ (Debian 12, Ubuntu 22.04+); `sealed-run` needs glibc 2.39+ (Ubuntu 24.04). Key
+fingerprint and measurements (debian:12, ubuntu:22.04 and 24.04 containers, 2026-10-26): [docs/APT-SIGNING.md](docs/APT-SIGNING.md).
+
 ### From source
 
 ```sh
