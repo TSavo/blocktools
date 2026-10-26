@@ -48,3 +48,4 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | Deployment tx → contract address (CREATE, from + nonce) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `create-address` |
 | Factory + salt + init-code hash → CREATE2 address (e.g. a Uniswap V3 pool) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `abi-encode`, `sig-hash --keccak`, `create-address` |
 | ABI → selectors, collisions, ERC-165/ERC-20 interfaces | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (h), `abi-inspect` |
+| `eth_getCode` → proxy / delegation / EOF, compiler version, size limit, selector candidates | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (i), `bytecode-inspect` |

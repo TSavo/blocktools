@@ -392,3 +392,12 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmAbiInspect('['), /bad_abi_json/);
   console.log('ok evm abi inspect');
 }
+
+{ // evmBytecodeInspect: EIP-1167 reference proxy and an EIP-7702 delegation designator
+  const p = JSON.parse(bt.evmBytecodeInspect('0x363d3d373d3d3d363d73' + 'be'.repeat(20) + '5af43d82803e903d91602b57fd5bf3'));
+  assert.equal(p.kind, 'eip1167_proxy'); assert.equal(p.implementation.toLowerCase(), '0x' + 'be'.repeat(20));
+  assert.equal(JSON.parse(bt.evmBytecodeInspect('0xef0100' + '11'.repeat(20))).kind, 'eip7702_delegation');
+  assert.equal(JSON.parse(bt.evmBytecodeInspect('0x')).kind, 'empty');
+  assert.throws(() => bt.evmBytecodeInspect('0x1'), /odd_length_hex/);
+  console.log('ok evm bytecode inspect');
+}

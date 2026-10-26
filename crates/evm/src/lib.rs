@@ -5,6 +5,7 @@
 //!   create: CREATE / CREATE2 contract addresses
 pub mod abi;
 pub mod api;
+pub mod bytecode;
 pub mod create;
 pub mod inspect;
 pub mod sig;

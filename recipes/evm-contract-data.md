@@ -125,3 +125,24 @@ whose selector is also `0x23b872dd` (`transferFrom`). abi-inspect reports the co
 
 A compiler artifact (`{"abi": [...]}`) or a bare ABI array works the same. Live (UNTESTED here): an explorer's
 verified-ABI download, e.g. `curl -s "$EXPLORER_ABI_URL" | jq -r .result | abi-inspect`.
+
+## (i) What is deployed: `eth_getCode`
+
+`06` (request "06") is the runtime code of a small mainnet contract. bytecode-inspect reads the response as-is;
+the Solidity metadata trailer says solc 0.8.20, and the dispatcher's PUSH4/EQ constants are listed as
+selector candidates (a heuristic: confirm each with `sig-hash --lookup` and a signature file you trust):
+
+<!-- e2e: expect="solc":"0.8.20" ; expect="0x8da5cb5b" ; rc=0 -->
+    bytecode-inspect < recipes/fixtures/evm-mainnet/06-getCode-small.json | jq -c '{kind, size, exceeds_eip170, solc: .metadata.solc, selector_candidates}'
+
+`0x8da5cb5b` is `owner()`:
+
+<!-- e2e: expect="owner()" ; rc=0 -->
+    sig-hash 'owner()'
+
+An EIP-1167 minimal proxy (the reference code from the EIP) gives its implementation:
+
+<!-- e2e: expect="kind":"eip1167_proxy" ; rc=0 -->
+    bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3 | jq -c '{kind, implementation}'
+
+Live (UNTESTED here): `curl -s -X POST -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_getCode","params":["0x…","latest"]}' "$RPC" | bytecode-inspect`

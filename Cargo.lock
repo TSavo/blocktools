@@ -433,6 +433,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bytecode-inspect"
+version = "0.1.0"
+dependencies = [
+ "blocktools-evm",
+ "blocktools-io",
+ "serde_json",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

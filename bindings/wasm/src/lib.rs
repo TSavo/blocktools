@@ -431,3 +431,7 @@ pub fn evm_create_address(request_json: &str) -> Result<String, JsError> { Ok(ev
 /// Inspect an ABI (JSON or signature lines): items with selectors/topics, selector collisions, ERC-165/ERC-20 interfaces.
 #[wasm_bindgen(js_name = evmAbiInspect)]
 pub fn evm_abi_inspect(abi_text: &str) -> Result<String, JsError> { Ok(blocktools::evm::inspect::inspect(abi_text).map_err(err)?.to_string()) }
+
+/// Classify runtime bytecode (EIP-1167 / EIP-7702 / EOF), EIP-170 size, Solidity metadata, opcode counts, selector candidates.
+#[wasm_bindgen(js_name = evmBytecodeInspect)]
+pub fn evm_bytecode_inspect(code_hex: &str) -> Result<String, JsError> { Ok(blocktools::evm::bytecode::inspect(&blocktools::evm::unhex(code_hex).map_err(err)?).to_string()) }

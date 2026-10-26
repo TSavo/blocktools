@@ -1,0 +1,56 @@
+.TH BYTECODE\-INSPECT 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+bytecode\-inspect \- classify runtime bytecode (EIP\-1167 proxy, EIP\-7702 delegation, EOF, plain code),
+.SH SYNOPSIS
+.nf
+bytecode\-inspect [HEX]
+HEX (or stdin): runtime code as 0x\-hex, or an eth_getCode JSON\-RPC response ({"result": "0x.."}) as\-is.
+Prints kind (empty, code, eip1167_proxy + implementation, eip7702_delegation + delegate, eof), size,
+exceeds_eip170, keccak256 (the code hash), metadata (solc version, ipfs/bzzr hash), opcode counts and
+selector_candidates: PUSH4 values compared with EQ (heuristic; confirm with sig\-hash \-\-lookup).
+.fi
+.SH DESCRIPTION
+check the EIP\-170 size limit, parse the Solidity CBOR metadata trailer, count notable opcodes
+and list dispatcher selector candidates (heuristic), offline.
+.nf
+.RS 2
+  jq \-r .result getCode.json | bytecode\-inspect
+  bytecode\-inspect < eth_getCode\-response.json
+.RE
+.fi
+.SH OPTIONS
+.nf
+\-\-lookup
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  jq \-r .result getCode.json | bytecode\-inspect
+  bytecode\-inspect < eth_getCode\-response.json
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status error
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ bytecode\-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3
+# exit 0, last status: ok
+$ bytecode\-inspect 0x1
+# exit 2, last status: error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -242,3 +242,8 @@ create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0
 ```sh
 echo '[' | abi-inspect
 ```
+
+<!-- run rc=2 expect=odd_length_hex -->
+```sh
+bytecode-inspect 0x1
+```

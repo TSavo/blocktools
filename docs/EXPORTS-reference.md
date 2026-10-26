@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 62. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 63. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -597,6 +597,30 @@ Error example (executed):
 ```js
 bt.evmAbiInspect("[")
 // throws bad_abi_json
+```
+
+## `evmBytecodeInspect`
+
+```ts
+evmBytecodeInspect(code_hex: string): string
+```
+
+Classify runtime bytecode (EIP-1167 / EIP-7702 / EOF), EIP-170 size, Solidity metadata, opcode counts, selector candidates.
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.evmBytecodeInspect("0x")
+// -> {"exceeds_eip170":false,"keccak256":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","kind":"empty","size":0,"status":"ok"}
+```
+
+Error example (executed):
+
+```js
+bt.evmBytecodeInspect("0x1")
+// throws odd_length_hex
 ```
 
 ## `evmCreateAddress`

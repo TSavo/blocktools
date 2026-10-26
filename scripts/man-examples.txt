@@ -57,3 +57,5 @@ create-address | 0 | create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b2
 create-address | 2 | create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0
 abi-inspect | 0 | abi-inspect "$R/recipes/fixtures/evm/erc20-plus-collision.txt"
 abi-inspect | 2 | echo '[' | abi-inspect
+bytecode-inspect | 0 | bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3
+bytecode-inspect | 2 | bytecode-inspect 0x1
