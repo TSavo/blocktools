@@ -230,8 +230,8 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
-commit = "fe3cf73"
-date = "2026-10-25"
+commit = "a285a8f"
+date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "8 MiB" }]
@@ -260,22 +260,22 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc"
 expect = "test result: ok. 16 passed"
-commit = "fe3cf73"
-date = "2026-10-25"
+commit = "a285a8f"
+date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
 doc = [{ file = "docs/RPC.md", text = "Safety: what is refused" }]
 
 [[claim]]
 id = "rpc-publicnode-read-linux"
-statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT); no broadcast was made"
+statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at a285a8f); no broadcast was made"
 kind = "platform"
 platform = "linux"
 status = "measured"
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
-commit = "fe3cf73"
-date = "2026-10-25"
+commit = "a285a8f"
+date = "2026-10-26"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "eth_blockNumber" }]
