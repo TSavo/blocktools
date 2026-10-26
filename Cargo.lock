@@ -375,7 +375,7 @@ dependencies = [
  "pbkdf2 0.12.2",
  "scrypt",
  "serde_json",
- "sha-1",
+ "sha1",
  "sha2 0.10.9",
  "sha3",
  "zeroize",
@@ -1569,10 +1569,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha-1"
-version = "0.10.1"
+name = "sha1"
+version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5058ada175748e33390e40e872bd0fe59a19f265d0158daa551c5a88a76009c"
+checksum = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",

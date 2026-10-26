@@ -99,6 +99,7 @@ neg S-walletname secret-scan "wallet-like file name" 'echo x > wallet1.txt && $A
 neg S-sqlite secret-scan "SQLite file" 'printf "SQLite format 3\0padpadpad" > zz.txt && $ADD zz.txt'
 neg S-bdb secret-scan "Berkeley DB file" 'printf "\0\0\0\0\0\0\0\0\0\0\0\0\142\61\5\0pad" > zz.txt && $ADD zz.txt'
 neg C-allow check-deps "new deps not in" 'tail -n +2 deps/blocktools-core.allow > t && mv t deps/blocktools-core.allow'
+neg C-renamed check-deps "deprecated crate name in Cargo.lock" 'printf "\n[[package]]\nname = \"sha-1\"\nversion = \"0.10.1\"\n" >> Cargo.lock'
 neg C-facade check-deps "default features pull secret/network crates" 'sed "s/^default = \[\]/default = [\"secrets\"]/" crates/blocktools/Cargo.toml > t && mv t crates/blocktools/Cargo.toml'
 neg W-repro wasm-check "FAIL wasm not reproducible" 'sed -i "s|/tmp/blocktools-wasm-build}|/tmp/blocktools-wasm-build\$src}|" scripts/wasm-build.sh'
 # ---- check-deps.sh: planted network crate + stale lock live in check-deps-regress.sh (C-net, C-stale)

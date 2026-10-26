@@ -17,6 +17,10 @@ tree() {
   awk '{print $1}' "$tmp/raw" | sort -u | grep -vx "$1" || [ $? -eq 1 ]
 }
 if [ "${1:-}" = "--regen" ]; then tree "$2" > "$tmp/t"; mv "$tmp/t" "deps/$2.allow"; echo "wrote deps/$2.allow"; exit 0; fi
+# finding:R1-4: crates published under a deprecated name are refused; use the maintained name
+# (sha-1 -> sha1, RustCrypto renamed it at 0.10). Read from Cargo.lock, before cargo runs.
+dep=$(grep -oxE 'name = "(sha-1)"' Cargo.lock || [ $? -eq 1 ])
+[ -z "$dep" ] || { echo "FAIL deprecated crate name in Cargo.lock: $dep (use sha1)"; exit 1; }  # rule:C-renamed
 # Workspace members from cargo itself (--locked: fail if Cargo.lock is stale), not a sed over Cargo.toml.
 cargo metadata --locked --no-deps --format-version 1 > "$tmp/meta" || { echo "FAIL cargo metadata exited non-zero"; exit 1; }  # rule:C-stale
 members=$(python3 -c 'import json,sys,os; d=json.load(sys.stdin); r=d["workspace_root"]; print("\n".join(os.path.relpath(os.path.dirname(p["manifest_path"]), r) for p in d["packages"] if p["id"] in d["workspace_members"]))' < "$tmp/meta")
