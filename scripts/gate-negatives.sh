@@ -69,7 +69,7 @@ neg F-commit docs-check "is not a commit" 'sed "s/| bb1ceff |/| 0000000 |/" docs
 # finding:R2-8 claims registry: an unregistered doc number must fail docs-check.
 neg K-unreg docs-check "unregistered claim" 'echo "The cache holds 77 MB." >> docs/ROADMAP.md'
 # K-agree: README number disagrees with the registry value.
-neg K-agree docs-check "does not carry" 'sed -i "s/^value = \"34.1\"/value = \"31.0\"/" docs/claims.toml'
+neg K-agree docs-check "does not carry" 'sed -i "s/^value = \"35.3\"/value = \"31.0\"/" docs/claims.toml'
 # K-assert: a registry-untested claim stated as fact (marker removed from its doc line) must fail.
 neg K-assert docs-check "as fact" 'sed -i "s/(reviewer report, not reproduced by us) (untested)/(reviewer report, not reproduced by us) verified/" README.md'
 neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs/SECURITY.md > t && mv t docs/SECURITY.md'

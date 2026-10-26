@@ -59,19 +59,19 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 34.1 MB = 34123264 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 34098808 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
+statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 35.3 MB = 35329536 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 35303528 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
-expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 34123264 bytes"
-value = "34.1"
+expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 35329536 bytes"
+value = "35.3"
 env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
-commit = "72ec3c8"
+commit = "75b758c"
 date = "2026-10-25"
 cheap = false
 depends = ["Dockerfile", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
-doc = [{ file = "README.md", text = "34.1 MB" }]
+doc = [{ file = "README.md", text = "35.3 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
@@ -203,7 +203,7 @@ platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "72ec3c8"
+commit = "75b758c"
 date = "2026-10-25"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
