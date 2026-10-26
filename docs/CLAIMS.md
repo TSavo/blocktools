@@ -22,6 +22,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | forkid-signing | security | linux | measured | Fork-id sighash matches all 495 SIGHASH_FORKID rows of Bitcoin ABC sighash.json; BCH and BSV mainnet and Trust Wallet Core BTG signatures verify under it and not under the BTC sighash | `cargo test -q --release -p blocktools-tx --test forkid` | a4c5680 | 2026-10-26 |
 | twc-evm-vectors | security | linux | measured | All 13 Trust Wallet Core EVM signer vectors (7 legacy EIP-155, 6 EIP-1559) parse, recover to their key and re-sign byte for byte | `cargo test -q --release -p blocktools-tx --features secrets --test twc_evm` | 728619c | 2026-10-26 |
 | twc-message-vectors | security | linux | measured | Trust Wallet Core message-signer vectors: 4 Ethereum personal_sign and 3 Bitcoin signmessage signatures reproduced byte for byte, 6 Bitcoin verify vectors recovered, TWC negatives refused | `cargo test -q --release -p blocktools-tx --features secrets --test twc_message` | 28fa876 | 2026-10-26 |
+| twc-cosmos-vectors | security | linux | measured | Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused | `cargo test -q --release -p blocktools-acct --test twc_cosmos` | 3ed2edf | 2026-10-26 |
 
 ## Untested
 

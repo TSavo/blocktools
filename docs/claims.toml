@@ -321,3 +321,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/message.rs", "crates/tx/tests/twc_message.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "2 tests" }]
+
+[[claim]]
+id = "twc-cosmos-vectors"
+statement = "Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-acct --test twc_cosmos"
+expect = "test result: ok. 7 passed"
+commit = "3ed2edf"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/acct/src/atom.rs", "crates/acct/tests/twc_cosmos.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "7 tests" }]
