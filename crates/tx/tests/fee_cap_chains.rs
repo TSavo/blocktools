@@ -91,3 +91,26 @@ fn psbt_n(n: usize, fee: u64) -> Vec<u8> {
     assert_eq!(tested, ["ppc", "nvc", "clam", "rdd", "zec"]);
     println!("pos/zec chains tested: {} {:?}", tested.len(), tested);
 }
+
+/// Fee over 10% of the inputs is refused under the absolute cap (no explicit max_fee); exactly 10%
+/// passes; an explicit max_fee waives it. The 35-sweep corpus never trips it.
+#[test] fn fee_over_10pct_of_inputs_refused() {
+    let one = |fee: u64, inp: u64| {
+        let spk = ScriptBuf::from_hex("76a914000102030405060708090a0b0c0d0e0f1011121388ac").unwrap();
+        let tx = Transaction { version: Version::TWO, lock_time: LockTime::ZERO,
+            input: vec![TxIn { previous_output: OutPoint { txid: bitcoin::Txid::from_raw_hash(bitcoin::hashes::Hash::all_zeros()), vout: 0 }, script_sig: ScriptBuf::new(), sequence: Sequence::MAX, witness: Witness::new() }],
+            output: vec![TxOut { value: Amount::from_sat(inp - fee), script_pubkey: spk.clone() }] };
+        let mut p = bitcoin::psbt::Psbt::from_unsigned_tx(tx).unwrap();
+        p.inputs[0].witness_utxo = Some(TxOut { value: Amount::from_sat(inp), script_pubkey: spk });
+        blocktools_tx::decode(&p.serialize().iter().map(|b| format!("{b:02x}")).collect::<String>(), "btc").unwrap()
+    };
+    let r = |d: &blocktools_tx::Decoded, p: &Policy| check(d, p).contains(&"fee_over_10pct_of_inputs");
+    assert!(r(&one(5_001, 50_000), &waived()), "10.002% refused");
+    assert!(!r(&one(5_000, 50_000), &waived()), "exactly 10% passes");
+    assert!(!r(&one(5_001, 50_000), &Policy { max_fee: Some(10_000), ..waived() }), "explicit max_fee waives");
+    for l in include_str!("data/feeprobe-corpus.jsonl").lines() {
+        let v: serde_json::Value = serde_json::from_str(l).unwrap();
+        let d = blocktools_tx::decode(v["input"].as_str().unwrap(), v["chain"].as_str().unwrap()).unwrap();
+        assert!(!r(&d, &Policy::default()), "corpus sweep {} refused", v["chain"]);
+    }
+}

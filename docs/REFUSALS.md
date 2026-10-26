@@ -102,6 +102,11 @@ Pass `--allow-warnings` only once you understand every warning.
 tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-transfer.txt"
 ```
 
+### `fee_over_10pct_of_inputs`
+The fee is more than 10% of what the inputs hold (UTXO chains), even though it is under the cap. This is
+usually a wrong change output or a unit slip. Rebuild the transaction. Pass an explicit `--max-fee` only if you
+meant to pay that share.
+
 ### `fee_above_cap`
 The fee is above the cap. `fee_cap.source` says where the cap came from (`explicit`, `default_evm`,
 `chain_rate_x_vsize`). Rebuild the transaction with a lower fee. Raise `--max-fee` only if you meant to pay that much.

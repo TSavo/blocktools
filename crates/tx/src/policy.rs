@@ -56,6 +56,16 @@ pub fn effective_max_fee(d: &Decoded, p: &Policy) -> u128 { fee_cap(d, p).cap }
 
 impl FeeCap { pub fn json(&self) -> serde_json::Value { serde_json::json!({"chain": self.chain, "cap": self.cap.to_string(), "source": self.source}) } }
 
+/// Share of the inputs a fee may take before `check` refuses it (no explicit max_fee): 1/10.
+pub const MAX_FEE_SHARE_OF_INPUTS_DIV: u128 = 10;
+/// Inputs total = the inputs' amounts when all are known, else fee + outputs (same thing for a
+/// well-formed tx). True when fee x 10 > that total.
+fn fee_over_input_share(d: &Decoded, fee: u64) -> bool {
+    let ins: Option<u128> = d.inputs.iter().map(|i| i.amount.map(u128::from)).sum();
+    let total = ins.filter(|_| !d.inputs.is_empty()).unwrap_or_else(|| fee as u128 + d.outputs.iter().filter_map(|o| o.amount).map(u128::from).sum::<u128>());
+    (fee as u128).saturating_mul(MAX_FEE_SHARE_OF_INPUTS_DIV) > total
+}
+
 pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
     let cap = effective_max_fee(d, p);
@@ -83,6 +93,9 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
         }
     } else {
         match d.fee { None => f.push(crate::code!("fee_unknown")), Some(x) if x as u128 > cap => f.push(crate::code!("fee_above_cap")), _ => {} }
+        // A fee over 10% of what the inputs hold is almost always a mistake (wrong change, unit slip),
+        // even under the absolute cap. Refused unless the human gave an explicit max_fee.
+        if p.max_fee.is_none() { if let Some(x) = d.fee { if fee_over_input_share(d, x) { f.push(crate::code!("fee_over_10pct_of_inputs")) } } }
         if !p.expect_to.is_empty() {
             for o in &d.outputs {
                 match &o.address {
