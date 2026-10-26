@@ -279,3 +279,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "eth_blockNumber" }]
+
+[[claim]]
+id = "forkid-signing"
+statement = "Fork-id sighash matches all 495 SIGHASH_FORKID rows of Bitcoin ABC sighash.json; BCH and BSV mainnet and Trust Wallet Core BTG signatures verify under it and not under the BTC sighash"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-tx --test forkid"
+expect = "test result: ok. 3 passed"
+commit = "a4c5680"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/tx/src/digest.rs", "crates/tx/tests/forkid.rs", "crates/tx/tests/vectors/abc-sighash.json", "crates/tx/tests/vectors/forkid-signed.json"]
+doc = [{ file = "docs/CHAINS.md", text = "495 SIGHASH_FORKID rows" }]
