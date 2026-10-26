@@ -7,7 +7,9 @@
 
 `./blocktools run '<pipeline>'` runs through the real agent boundary (target/release/sealed-run
 agent). `recipes/recover.sh ...` runs the front door (fund= funds one address on the mock chain and
-appends --url). /in/ and /secrets/ map to a temp dir of vectors made here. Checks: exit code,
+appends --url). A command starting with jq/sig-hash/abi-decode/abi-encode/create-address is an
+offline EVM pipeline on recipes/fixtures/ run by bash with BIN first on PATH.
+/in/ and /secrets/ map to a temp dir of vectors made here. Checks: exit code,
 every expect substring in stdout+stderr, and no secret value in stdout (public fields stripped).
 Every recipe file except README.md must carry at least one tested example.
 usage: recipe-check.py BIN_DIR TMP_DIR"""
@@ -112,9 +114,13 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address) ", cmd):
+                # offline, secret-free EVM filters on recorded fixtures: a plain bash pipeline with BIN on PATH
+                argv = ["bash", "-o", "pipefail", "-c", cmd]
             else:
                 bad.append(f"{where}: untestable command form: {cmd}"); continue
-            p = subprocess.run(argv, capture_output=True, text=True, env={**os.environ, "BIN": B}, stdin=subprocess.DEVNULL, timeout=120)
+            env_path = {"PATH": os.path.abspath(B) + os.pathsep + os.environ.get("PATH", "")} if argv[0] == "bash" and argv[1] == "-o" else {}
+            p = subprocess.run(argv, capture_output=True, text=True, env={**os.environ, "BIN": B, **env_path}, stdin=subprocess.DEVNULL, timeout=120)
             both = p.stdout + p.stderr; stripped = PUBLIC.sub("", p.stdout)
             errs = [f"exit {p.returncode} != {rc}"] if p.returncode != rc else []
             errs += [f"missing {x!r}" for x in want if x not in both]

@@ -1,0 +1,51 @@
+.TH SIG\-HASH 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+sig\-hash \- Solidity function/event/error selector and topic hash, plus reverse lookup against a file you supply
+.SH SYNOPSIS
+.nf
+sig\-hash [SIGNATURE...] [\-\-abi FILE] [\-\-lookup HASH \-\-sigs FILE] [\-\-keccak [HEX]]
+With no SIGNATURE arguments, signatures are read one per line from stdin.
+.fi
+.SH DESCRIPTION
+Offline, no network, no built\-in signature database. One JSON object per line.
+.nf
+.RS 2
+  sig\-hash 'transfer(address,uint256)'
+  sig\-hash 'event Transfer(address indexed from, address indexed to, uint256 value)'
+  sig\-hash \-\-lookup 0x5bf6f916 \-\-sigs my\-errors.txt
+  echo 0x68656c6c6f | sig\-hash \-\-keccak
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-abi FILE      print selector/topic for every function, event and error in an ABI JSON file
+  \-\-lookup HASH   find a 4\-byte selector or 32\-byte topic among the signatures in \-\-sigs (no built\-in database)
+  \-\-sigs FILE     ABI JSON, or one signature per line (# comments), used by \-\-lookup
+  \-\-keccak [HEX]  keccak256 of hex bytes (argument or stdin)
+.fi
+.SH INPUT/OUTPUT
+Offline, no network, no built\-in signature database. One JSON object per line.
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for sig\-hash in recipes/*.md.
+sig\-hash \-\-lookup "$(jq \-r .error.data recipes/fixtures/evm\-mainnet/04e\-custom\-error\-eth_call.json)" \-\-sigs recipes/fixtures/evm/candidate\-errors.txt
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

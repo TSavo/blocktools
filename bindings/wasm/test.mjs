@@ -320,3 +320,16 @@ console.log('lift7 ok');
   m(1); m(80); assert.throws(() => m(81), /memo_length/); assert.equal(JSON.parse(m(0)).outputs.length, 1); // empty memo = no OP_RETURN
   console.log('ok documented input limits (blake2b, decodeAccountInfo, solFindProgramAddress, memo)');
 }
+// EVM contract data: selectors/topics (EIP-20), keccak("") (Yellow Paper), lookup only against supplied signatures.
+{
+  assert.equal(bt.evmKeccak256('0x'), '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470');
+  const s = JSON.parse(bt.evmSigHash('function transfer(address to, uint256 amount)'));
+  assert.equal(s.selector, '0xa9059cbb'); assert.equal(s.signature, 'transfer(address,uint256)'); assert.equal(s.kind, 'function');
+  const e = JSON.parse(bt.evmSigHash('event Transfer(address indexed from, address indexed to, uint256 value)'));
+  assert.equal(e.topic, '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef');
+  const l = JSON.parse(bt.evmSigLookup('0x5bf6f916', 'error LengthMismatch()\nerror TransactionDeadlinePassed()'));
+  assert.deepEqual(l.matches, ['error TransactionDeadlinePassed()']);
+  assert.equal(JSON.parse(bt.evmSigLookup('0xa9059cbb', 'error LengthMismatch()')).status, 'no_match');
+  assert.throws(() => bt.evmSigHash('f(uint7)'), /./);
+  console.log('ok evm sig');
+}

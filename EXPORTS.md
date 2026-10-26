@@ -106,6 +106,19 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 - `warning:<w>`, for any decoder warning except `unsigned` and `input_amounts_unknown`.
 - EVM: the reasons from `tx::policy::check`.
 
+## EVM contract data (`blocktools::evm`)
+
+Offline, no keys, no network, no chain list. Same code as the `sig-hash`, `abi-decode`, `abi-encode` and
+`create-address` CLIs (`blocktools::evm::api`). Errors throw a short code string. Hex out is lowercase `0x…`;
+addresses are EIP-55. ABI values: `uint*`/`int*` decimal strings, `address` EIP-55 string, `bool`,
+`bytes`/`bytesN` `0x` hex, `string`, arrays and tuples JSON arrays.
+
+| JS export | Rust (`blocktools::evm::api`) | returns |
+|---|---|---|
+| `evmKeccak256(dataHex)` | `keccak256_hex` | `"0x"` + 64 hex; throws `bad_hex`, `odd_length_hex` |
+| `evmSigHash(signature)` | `sig_hash` | `{status:"ok", kind:"function"\|"event"\|"error"\|"constructor", signature (canonical), hash, selector}`; events give `topic` (and `anonymous:true`) instead of `selector`. Accepts `transfer(address,uint256)` or human-readable `function transfer(address to, uint amount) external returns (bool)` / `event …` / `error …`; tuples as `(…)` or `tuple(…)`. Throws on bad types (`uint7`, `bytes33`), names or brackets |
+| `evmSigLookup(hashHex, sigsText)` | `load_sigs` + `lookup` | `{status:"ok"\|"no_match", query, matches:["error X()", …]}`. `sigsText` is ABI JSON (array or `{abi:[…]}`) or one signature per line (`#` comments). A 4-byte hash matches functions/errors, a 32-byte hash matches events. No built-in database |
+
 ## Legacy exports (kept, not part of the stable list above)
 
 `validateAddress`, `listChains` (all rows, including unverified ones), `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx`.

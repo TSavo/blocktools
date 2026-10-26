@@ -13,6 +13,8 @@
 pub use blocktools_core::{b64, chains, eth_address_from_pubkey, hex_dec, hex_enc, kind_name, plan, validate, xpub, ACCOUNT_KINDS};
 /// Transactions: `build` (unsigned PSBT / EVM), `evm`, `policy` (verify), `rlp`; `sign` with `secrets`.
 pub use blocktools_tx as tx;
+/// Solidity ABI, selectors, CREATE/CREATE2 (offline, no keys): the library behind sig-hash, abi-decode, abi-encode, create-address.
+pub use blocktools_evm as evm;
 #[cfg(feature = "secrets")]
 pub use blocktools_secrets as secrets;
 #[cfg(feature = "schema")]

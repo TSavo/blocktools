@@ -1,0 +1,9 @@
+[package]
+name = "blocktools-evm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools offline EVM contract helpers (signature hashes, ABI decode/encode, CREATE/CREATE2). Public data only. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+sha3.workspace = true
+serde_json.workspace = true

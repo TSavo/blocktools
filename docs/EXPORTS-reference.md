@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 55. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 58. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -525,6 +525,64 @@ Example (executed):
 ```js
 bt.detectAddressInfo("nope")
 // -> {"ambiguous":false,"candidates":[],"kinds_agree":true}
+```
+
+## `evmKeccak256`
+
+```ts
+evmKeccak256(data_hex: string): string
+```
+
+keccak256 of hex bytes -> "0x" + 64 hex.
+
+Calls in test.mjs: 1.
+
+Example (executed):
+
+```js
+bt.evmKeccak256("0x")
+// -> 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
+```
+
+## `evmSigHash`
+
+```ts
+evmSigHash(signature: string): string
+```
+
+Selector / topic of one Solidity signature. JSON: see EXPORTS.md.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.evmSigHash("function transfer(address to, uint256 amount)")
+// -> {"hash":"0xa9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b","kind":"function","selector":"0xa9059cbb","signature":"transfer(address,uint256)","status":"ok"}
+```
+
+Error example (executed):
+
+```js
+bt.evmSigHash("f(uint7)")
+// throws bad_type:uint7
+```
+
+## `evmSigLookup`
+
+```ts
+evmSigLookup(hash_hex: string, sigs_text: string): string
+```
+
+Reverse lookup of a selector/topic among caller-supplied signatures (ABI JSON or one per line).
+
+Calls in test.mjs: 2.
+
+Example (executed):
+
+```js
+bt.evmSigLookup("0xa9059cbb", "error LengthMismatch()")
+// -> {"matches":[],"query":"0xa9059cbb","status":"no_match"}
 ```
 
 ## `explainPlan`

@@ -11,6 +11,7 @@ serde_json = { workspace = true }
 bitcoin = { workspace = true }
 curve25519-dalek = { workspace = true }
 sha3 = { workspace = true }
+blocktools-evm = { version = "0.1.0", path = "../evm" }
 blocktools-schema = { version = "0.1.0", path = "../schema", optional = true }
 blocktools-secrets = { version = "0.1.0", path = "../secrets", optional = true, features = ["repair", "seed", "dat", "keystore", "keys", "walk"] }
 blocktools-net = { version = "0.1.0", path = "../net", optional = true }

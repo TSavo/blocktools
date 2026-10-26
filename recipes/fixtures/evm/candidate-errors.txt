@@ -1,0 +1,11 @@
+# Candidate custom errors, typed by hand from the Uniswap Universal Router source
+# (contracts/UniversalRouter.sol, contracts/base/Dispatcher.sol, contracts/modules/uniswap/v3/V3SwapRouter.sol).
+# Not fetched from any RPC: this is the "file you supply" for sig-hash --lookup.
+error TransactionDeadlinePassed()
+error LengthMismatch()
+error ExecutionFailed(uint256 commandIndex, bytes message)
+error InvalidCommandType(uint256 commandType)
+error V3TooLittleReceived()
+error V3TooMuchRequested()
+error V2TooLittleReceived()
+error V2TooMuchRequested()

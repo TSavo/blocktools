@@ -34,3 +34,9 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | Sweep | [recipes/goal-sweep.md](../recipes/goal-sweep.md) |
 | Decode before sign | [recipes/decode-a-transaction.md](../recipes/decode-a-transaction.md) |
 | Offline verify + sign | [recipes/goal-verify-and-offline.md](../recipes/goal-verify-and-offline.md) |
+
+## Contract data (EVM, offline filters)
+
+| Goal | Recipe |
+|---|---|
+| Unknown selector → signature (from a file you supply) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (b), `sig-hash` |

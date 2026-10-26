@@ -399,3 +399,20 @@ pub fn select_utxos(utxos_json: &str, script_hex: &str, fee_rate: f64) -> Result
     let r = js_u64(fee_rate, "rate")? as u128;
     blocktools::build::select_utxos(&tx_json(utxos_json)?, script_hex, r).map(|v| v.to_string()).map_err(err)
 }
+
+// EVM contract data (blocktools::evm): JSON in, JSON out, same logic as the sig-hash / abi-decode /
+// abi-encode / create-address CLIs. Offline, no keys. Shapes: EXPORTS.md "EVM contract data".
+use blocktools::evm::api as evm_api;
+fn evm_req(j: &str) -> Result<serde_json::Value, JsError> { serde_json::from_str(j).map_err(|_| err("bad_json")) }
+/// keccak256 of hex bytes -> "0x" + 64 hex.
+#[wasm_bindgen(js_name = evmKeccak256)]
+pub fn evm_keccak256(data_hex: &str) -> Result<String, JsError> { evm_api::keccak256_hex(data_hex).map_err(err) }
+/// Selector / topic of one Solidity signature. JSON: see EXPORTS.md.
+#[wasm_bindgen(js_name = evmSigHash)]
+pub fn evm_sig_hash(signature: &str) -> Result<String, JsError> { Ok(evm_api::sig_hash(signature).map_err(err)?.to_string()) }
+/// Reverse lookup of a selector/topic among caller-supplied signatures (ABI JSON or one per line).
+#[wasm_bindgen(js_name = evmSigLookup)]
+pub fn evm_sig_lookup(hash_hex: &str, sigs_text: &str) -> Result<String, JsError> {
+    let s = evm_api::load_sigs(sigs_text).map_err(err)?;
+    Ok(evm_api::lookup(hash_hex, &s).map_err(err)?.to_string())
+}
