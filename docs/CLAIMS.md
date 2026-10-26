@@ -12,14 +12,15 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | fee-cap-utxo-default | security | linux | measured | With no --max-fee, every signing route caps UTXO fee at max(100,000 base units, chain rate limit x vsize); 35 of 35 corpus sweeps pass (flat cap refused 9 of 35); cap+1 refused on each of 27 buildable chains; 240,000 sat on a 1-input BTC tx refused | `cargo test -q --release -p blocktools-tx --test fee_cap_chains` | c381ec3 | 2026-10-25 |
 | scrypt-bounds | security | linux | measured | Keystore scrypt is bounded by 128*N*r <= 256 MiB and N*r*p <= 2^24; a hostile 8 GiB request is refused | `cargo test -q --release -p blocktools-secrets --all-features -- scrypt_bounds hostile_kdf` | fbcf2b3 | 2026-10-25 |
 | prepush-2mb | security | linux | measured | prepush-check refuses any tracked file over 2 MB | `sh scripts/gate-negatives.sh P-large` | fbcf2b3 | 2026-10-25 |
-| image-size-readme | number | linux | measured | Sealed runtime image (Dockerfile build, blocktools:local) is 33.2 MB, from docker image inspect (Linux docker on the box) | `BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh` | 26b3373 | 2026-10-25 |
+| image-size-readme | number | linux | measured | Sealed runtime image (Dockerfile build, blocktools:local) is 33.3 MB = 33255936 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 33232256 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us) | `BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh` | db291f5 | 2026-10-25 |
 | sealed-run-linux | security | linux | measured | ./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on the box) | `BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh` | 61ff186 | 2026-10-25 |
 
 ## Untested
 
 | id | kind | platform | status | statement | command | commit | date |
 |---|---|---|---|---|---|---|---|
-| image-sealed-battleaxe | platform | docker | untested | Sealed run on Battleaxe (manual run, never recorded) | `-` | - | - |
+| image-sealed-battleaxe | platform | docker | untested | Sealed run on Battleaxe at a15504d: build OK, 218 builder-stage tests pass, agent mode under --network none --read-only --cap-drop ALL prints seed and xprv as [REDACTED]; image inspect 56.2 MB (containerd image store). Reviewer report pasted by T, not reproduced by us | `-` | - | - |
+| image-size-battleaxe-reviewer | number | docker | untested | docker image inspect 56.2 MB on Battleaxe (containerd image store) at a15504d; reviewer report, not reproduced by us | `-` | - | - |
 | image-size-history | number | docker | untested | Historic image sizes in DESIGN (18.2, 40.4, 33.3 MB) | `-` | - | - |
 | redact-512 | number | linux | untested | Redacted JSON lines are at most 512 bytes | `-` | - | - |
 | read-file-64mib | number | linux | untested | read-file caps input at 64 MiB | `-` | - | - |

@@ -59,25 +59,35 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 33.2 MB, from docker image inspect (Linux docker on the box)"
+statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 33.3 MB = 33255936 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 33232256 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
-expect = "33.2"
-commit = "26b3373"
+expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 33255936 bytes"
+value = "33.3"
+env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
+commit = "db291f5"
 date = "2026-10-25"
 cheap = false
-depends = ["Dockerfile", "scripts/image-size.sh"]
-doc = [{ file = "README.md", text = "33.2 MB" }]
+depends = ["Dockerfile", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
+doc = [{ file = "README.md", text = "33.3 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
-statement = "Sealed run on Battleaxe (manual run, never recorded)"
+statement = "Sealed run on Battleaxe at a15504d: build OK, 218 builder-stage tests pass, agent mode under --network none --read-only --cap-drop ALL prints seed and xprv as [REDACTED]; image inspect 56.2 MB (containerd image store). Reviewer report pasted by T, not reproduced by us"
 kind = "platform"
 platform = "docker"
 status = "untested"
-doc = [{ file = "README.md", text = "Battleaxe sealed run" }]
+doc = [{ file = "README.md", text = "reviewer report, not reproduced by us" }]
+
+[[claim]]
+id = "image-size-battleaxe-reviewer"
+statement = "docker image inspect 56.2 MB on Battleaxe (containerd image store) at a15504d; reviewer report, not reproduced by us"
+kind = "number"
+platform = "docker"
+status = "untested"
+doc = [{ file = "README.md", text = "56.2 MB" }]
 
 [[claim]]
 id = "image-size-history"

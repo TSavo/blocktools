@@ -15,6 +15,8 @@ Exit status 1 when:
   * a re-run measured claim's command reports FALLBACK (measured something else);   [K-fallback]                                          [K-label]
   * a claim the registry does not mark measured is stated as fact: each doc line carrying its text
     must also carry "(untested)", "(unmeasured)" or "(unmeasurable)"                  [K-assert]
+  * a measured number claim lacks `value`/`env`, or a doc line for it doesn't carry
+    `value` (registry and README disagree on the number)                            [K-agree]
   * docs/CLAIMS.md's generated Measured/Untested sections are out of date.            [K-render]
 Usage: claims-check.py [--render] [--run-all]
 """
@@ -64,6 +66,15 @@ def main():
                         bad.append(f"[K-assert] {cid}: {f} states {t!r} as fact but the registry marks it {c.get('status')}")  # rule:K-assert
             if c.get("kind") == "number" and c.get("status") == "untested" and not all("(unmeasured)" in l for l in lines):
                 bad.append(f"[K-label] {cid}: unmeasured number {t!r} in {f} is not labelled (unmeasured)")  # rule:K-label
+        if c.get("status") == "measured" and c.get("kind") == "number":
+            v = c.get("value")
+            if not v or not c.get("env"): bad.append(f"[K-agree] {cid}: measured number needs value and env")  # rule:K-agree
+            elif v not in str(c.get("expect", "")) and v not in c.get("statement", ""): bad.append(f"[K-agree] {cid}: value {v!r} not in statement/expect")  # rule:K-agree
+            for loc in c.get("doc", []):
+                if v and os.path.exists(loc["file"]):
+                    ls = [l for l in open(loc["file"], encoding="utf-8").read().split("\n") if loc["text"] in l]
+                    if ls and not all(v in l for l in ls): bad.append(f"[K-agree] {cid}: {loc['file']} line disagrees with registry value {v!r}")  # rule:K-agree
+                    if v not in loc["text"]: bad.append(f"[K-agree] {cid}: doc text {loc['text']!r} does not carry registry value {v!r}")  # rule:K-agree
         if c.get("status") == "measured":
             for k in ("command", "expect", "commit", "date"):
                 if not c.get(k): bad.append(f"[K-fields] {cid}: measured but no {k}")  # rule:K-fields
