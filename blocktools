@@ -25,7 +25,9 @@ seal() {
     "$IMAGE" "$@"
 }
 case "${1:-}" in
-  build) $DOCKER build -t "$IMAGE" "$(dirname "$0")" ;;
+  build) d=$(dirname "$0"); c=$(git -C "$d" rev-parse HEAD 2>/dev/null || echo unknown)
+         [ -z "$(git -C "$d" status --porcelain --untracked-files=no 2>/dev/null)" ] || c="$c-dirty"
+         $DOCKER build --build-arg "BLOCKTOOLS_COMMIT=$c" -t "$IMAGE" "$d" ;;
   run) shift; seal -i agent "$*" < /dev/null ;;
   reveal) shift; [ -t 0 ] || { echo "reveal needs a human at a terminal" >&2; exit 3; }; seal -it human "$*" ;;
   *) sed -n '2,8p' "$0"; exit 2 ;;

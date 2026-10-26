@@ -20,6 +20,9 @@ RUN mkdir /out && for t in tools/*/; do n=$(basename "$t"); b=target/release/$n;
 # Runtime: nothing but the static tools. No shell, no busybox, no wget, no libc.
 # sealed-run executes pipelines itself (no shell), so nothing else is needed.
 FROM scratch
+# Source commit, set by `./blocktools build`; scripts/image-size.sh refuses an image whose label is not HEAD.
+ARG BLOCKTOOLS_COMMIT=unknown
+LABEL org.opencontainers.image.revision=$BLOCKTOOLS_COMMIT
 COPY --from=build /out/ /blocktools/
 USER 10001:10001
 WORKDIR /run/blocktools
