@@ -2,6 +2,9 @@
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
 //!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token] [--policy FILE]  < keys
 //! --policy FILE: offline policy file (docs/POLICY.md), checked in addition to the flags, before signing and on the signed bytes.
+//! --chain is optional: the chain comes from the tx-build file's "chain" field (a differing --chain is refused).
+//! bch/bsv/btg PSBTs are signed with the replay-protected fork-id sighash (SIGHASH_ALL|FORKID, BTG fork id 79;
+//! P2PKH/P2PK, plus P2WPKH on btg; every input needs its proving prev_tx), never the BTC sighash.
 //! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
@@ -100,7 +103,13 @@ fn main() {
         (t.serialize(), who.join(", "), blocktools_tx::zcash::envelope(&t, &prev).to_string().into_bytes())
     } else {
         let mut ps = Psbt::deserialize(&raw).unwrap_or_else(|_| bad("UTXO signing needs a PSBT (from tx-build)"));
-        let n = blocktools_tx::sign::sign_psbt_digest(&mut ps, &keys, blocktools_core::chains::chain(&chain).map(blocktools_tx::sign::Digest::for_chain).unwrap_or(blocktools_tx::sign::Digest::Sha256d)).unwrap_or_else(|e| bad(e));
+        let cc = blocktools_core::chains::chain(&chain);
+        let n = match cc.map(|c| c.sign) {
+            // BCH/BSV/BTG: replay-protected SIGHASH_ALL|FORKID (never the BTC sighash)
+            Some(blocktools_core::chains::Sign::ForkId(f)) => blocktools_tx::sign::sign_psbt_forkid(&mut ps, &keys, f, cc.is_some_and(|c| matches!(c.enc, blocktools_core::chains::Enc::Utxo { hrp: Some(_), .. }))),
+            Some(blocktools_core::chains::Sign::PosTime | blocktools_core::chains::Sign::Unknown) => Err("unsupported_sighash_for_chain"),
+            _ => blocktools_tx::sign::sign_psbt_digest(&mut ps, &keys, cc.map(blocktools_tx::sign::Digest::for_chain).unwrap_or(blocktools_tx::sign::Digest::Sha256d)),
+        }.unwrap_or_else(|e| bad(e));
         if n != ps.inputs.len() { out("refused", json!({"failures":[blocktools_tx::code!("input_without_key")],"inputs":ps.inputs.len(),"signed_inputs":n})) }
         let tx = blocktools_tx::sign::extract(&ps).unwrap_or_else(|e| bad(e));
         let mut bare = tx.clone();

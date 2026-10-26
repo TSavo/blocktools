@@ -13,6 +13,9 @@ tx\-sign \-\-tx FILE \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE
 .RE
 .fi
 \-\-policy FILE: offline policy file (docs/POLICY.md), checked in addition to the flags, before signing and on the signed bytes.
+\-\-chain is optional: the chain comes from the tx\-build file's "chain" field (a differing \-\-chain is refused).
+bch/bsv/btg PSBTs are signed with the replay\-protected fork\-id sighash (SIGHASH_ALL|FORKID, BTG fork id 79;
+P2PKH/P2PK, plus P2WPKH on btg; every input needs its proving prev_tx), never the BTC sighash.
 The transaction (PSBT from tx\-build, a pos\-ntime or zec JSON line from tx\-build, or an unsigned EVM tx) comes from \-\-tx FILE (it is public).
 Keys come ONLY on stdin: one per line, WIF or 64\-hex, or JSON lines with wif/private_key/key/secret
 (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
@@ -29,6 +32,7 @@ Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sa
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
+P2PKH/P2PK, plus P2WPKH on btg; every input needs its proving prev_tx), never the BTC sighash.
 The transaction (PSBT from tx\-build, a pos\-ntime or zec JSON line from tx\-build, or an unsigned EVM tx) comes from \-\-tx FILE (it is public).
 Keys come ONLY on stdin: one per line, WIF or 64\-hex, or JSON lines with wif/private_key/key/secret
 (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).

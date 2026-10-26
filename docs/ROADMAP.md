@@ -45,7 +45,8 @@ Rows L1–L8: library facade for SwapChan (DESIGN §11).
 
 - [x] Data-driven chain table: 31 verified rows (grs added) + 2 unverified (wdc, anc); zec excluded; KATs via scripts/kat-chains.py.
 - [x] Stable wasm API: version, supportedChains, unverifiedChains, deriveFromXpub, addressValidate, checkTx (EXPORTS.md).
-- [ ] Explorer sources for the rows that have none listed; signing for ForkId and PosTime chains; real-network test of any non-BTC signing.
+- [x] ForkId signing (BCH/BSV/BTG): SIGHASH_ALL|FORKID, 495 Bitcoin ABC sighash vectors, BCH/BSV mainnet + Trust Wallet Core BCH/BTG signatures, byte-exact signer KATs, e2e (docs/CHAINS.md). Untested: broadcast on any of the three networks.
+- [ ] Explorer sources for the rows that have none listed; real-network test of any non-BTC signing.
 - [x] detect (all candidates) / convert / chainParams / buildUnsignedSweep (legacy + forkid); ZEC t-address validate/convert; SwapChan probe sources per row.
 - [x] PoS nTime builder (PPC, NVC, CLAM, RDD; BLK is plain Bitcoin layout): 13 mainnet vectors (3 ppc, 3 nvc, 3 clam, 1 rdd, 3 blk) checked by txid + signature. Untested: network acceptance/min-fee, non-P2PKH inputs, POT (no vector, refused), more RDD vectors.
 - [x] Groestlcoin: Groestl-512 checksum (RustCrypto `groestl` 0.10), validate/convert/derive, `grs` row verified, single-SHA-256 txid + legacy/BIP143 sighash, sweep build+sign. KATs: groestlcoinjs-lib, Electrum-GRS, 2 real mainnet txs. e2e: scripts/e2e.d/sweep-alt.sh (GRS, LTC, DOGE through the pty driver). Untested: live GRS network/explorer. 2026-10-25: GRS xpubs (Groestl-512 checksum) accepted on `--chain grs` only (KAT: Groestlcoin/eclair f52fbf9 tpub pairs); grs1p taproot addresses derived (KAT: BIP341 wallet vector, Groestlcoin ships the identical file); GRS taproot spending still refused (sha256d-only taproot signer). Untested: a real mainnet GRS xpub from Electrum-GRS; any grs1p on mainnet.

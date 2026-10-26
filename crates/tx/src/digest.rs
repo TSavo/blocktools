@@ -57,6 +57,31 @@ pub fn legacy_sighash(tx: &Transaction, i: usize, script_code: &[u8], ty: u32, d
     if r.is_sighash_single_bug().map_err(|_| "sighash")? { let mut one = [0u8; 32]; one[0] = 1; return Ok(one) }
     Ok(d.hash(&w))
 }
+/// Fork-id sighash (BCH/BSV `Sign::ForkId(0)`, BTG `ForkId(79)`): the BIP143 layout, used for
+/// every input type (P2PKH included), committed with the full 32-bit type `ty`
+/// (low byte = base type | 0x40 FORKID [| 0x80 ANYONECANPAY], bits 8.. = fork id). Commits to the
+/// input amount. Known-answer tested against Bitcoin ABC's sighash.json (amount 0).
+pub fn forkid_sighash(tx: &Transaction, i: usize, script_code: &[u8], amount: u64, ty: u32) -> Result<[u8; 32], &'static str> {
+    use bitcoin::consensus::Encodable;
+    if ty & 0x40 == 0 { return Err("sighash_without_forkid") }
+    let ti = tx.input.get(i).ok_or("sighash")?;
+    let d = Digest::Sha256d;
+    let (acp, base) = (ty & 0x80 != 0, ty & 0x1f);
+    let mut prev = Vec::new(); let mut seq = Vec::new(); let mut outs = Vec::new();
+    for x in &tx.input { x.previous_output.consensus_encode(&mut prev).unwrap(); seq.extend(x.sequence.0.to_le_bytes()) }
+    let hp = if acp { [0u8; 32] } else { d.hash(&prev) };
+    let hs = if acp || base == 2 || base == 3 { [0u8; 32] } else { d.hash(&seq) };
+    let ho = if base != 2 && base != 3 { for o in &tx.output { o.consensus_encode(&mut outs).unwrap(); } d.hash(&outs) }
+        else if base == 3 && i < tx.output.len() { tx.output[i].consensus_encode(&mut outs).unwrap(); d.hash(&outs) } else { [0u8; 32] };
+    let mut w = Vec::new();
+    w.extend(tx.version.0.to_le_bytes()); w.extend(hp); w.extend(hs);
+    ti.previous_output.consensus_encode(&mut w).unwrap();
+    ScriptBuf::from_bytes(script_code.to_vec()).consensus_encode(&mut w).unwrap();
+    w.extend(amount.to_le_bytes()); w.extend(ti.sequence.0.to_le_bytes());
+    w.extend(ho);
+    w.extend(tx.lock_time.to_consensus_u32().to_le_bytes()); w.extend(ty.to_le_bytes());
+    Ok(d.hash(&w))
+}
 /// BIP143 sighash (SIGHASH_ALL only) with every inner hash under digest `d`.
 pub fn bip143_all(tx: &Transaction, i: usize, script_code: &[u8], amount: u64, d: Digest) -> Result<[u8; 32], &'static str> {
     use bitcoin::consensus::Encodable;

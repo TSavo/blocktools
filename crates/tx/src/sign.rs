@@ -82,6 +82,58 @@ pub fn sign_psbt_digest(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<
     }
     Ok(n)
 }
+/// Fork-id signing (BCH/BSV `fork_id` 0, BTG 79): SIGHASH_ALL|FORKID, the 32-bit type
+/// `0x41 | fork_id << 8` committed in `forkid_sighash`, the signature byte 0x41. Signs P2PKH
+/// (compressed and uncompressed) and P2PK; P2WPKH only when `segwit` (BTG). Every input must
+/// carry a `non_witness_utxo` proving its prevout, P2WPKH included (decided 2026-10-25, test
+/// `forkid_needs_prev_tx`): a missing proof is `legacy_input_amount_unproven`, any other script
+/// type is `forkid_script_unsupported`. Returns the number of inputs signed.
+pub fn sign_psbt_forkid(p: &mut Psbt, keys: &[SecretKey], fork_id: u8, segwit: bool) -> Result<usize, &'static str> {
+    let tx = p.unsigned_tx.clone();
+    let mut prev: Vec<TxOut> = Vec::new();
+    for (i, ti) in p.inputs.iter().zip(&tx.input) {
+        let o = proven_prevout(i, &ti.previous_output, Digest::Sha256d).ok_or("legacy_input_amount_unproven")?;
+        let s = o.script_pubkey.as_bytes();
+        let ok = s.len() == 25 && s[..3] == [0x76, 0xa9, 20] && s[23..] == [0x88, 0xac] || crate::build::p2pk_key(s).is_some() || segwit && s.len() == 22 && s[..2] == [0, 20];
+        if !ok { return Err("forkid_script_unsupported") }
+        prev.push(o);
+    }
+    sign_forkid_prevouts(p, &prev, keys, fork_id, segwit)
+}
+/// The signing half of `sign_psbt_forkid`, against prevouts the caller has ALREADY proven
+/// (public for the byte-exact known-answer tests, whose published vectors carry no prev tx).
+#[doc(hidden)]
+pub fn sign_forkid_prevouts(p: &mut Psbt, prev: &[TxOut], keys: &[SecretKey], fork_id: u8, segwit: bool) -> Result<usize, &'static str> {
+    let secp = Secp256k1::new();
+    let tx = p.unsigned_tx.clone();
+    let ty = 0x41u32 | (fork_id as u32) << 8;
+    if prev.len() != tx.input.len() { return Err("input_missing_utxo") }
+    let mut n = 0;
+    for i in 0..tx.input.len() {
+        let spk = prev[i].script_pubkey.as_bytes().to_vec();
+        let amt = prev[i].value.to_sat();
+        for sk in keys {
+            let pk = PublicKey::from_secret_key(&secp, sk);
+            let (c, u) = (pk.serialize(), pk.serialize_uncompressed());
+            let sig = |code: &[u8]| -> Result<Vec<u8>, &'static str> {
+                let h = forkid_sighash(&tx, i, code, amt, ty)?;
+                let mut s = secp.sign_ecdsa(&Message::from_digest(h), sk).serialize_der().to_vec(); s.push(0x41); Ok(s)
+            };
+            let inp = &mut p.inputs[i];
+            if segwit && spk == p2wpkh(&c) {
+                let s = sig(&p2pkh(&c))?; inp.final_script_witness = Some(Witness::from_slice(&[s, c.to_vec()]));
+            } else if spk == p2pkh(&c) || spk == p2pkh(&u) {
+                let k: &[u8] = if spk == p2pkh(&c) { &c } else { &u };
+                let mut ss = push(&sig(&spk)?); ss.extend(push(k));
+                inp.final_script_sig = Some(ScriptBuf::from_bytes(ss));
+            } else if crate::build::p2pk_key(&spk).is_some_and(|k| k == c || k == u) {
+                inp.final_script_sig = Some(ScriptBuf::from_bytes(push(&sig(&spk)?)));
+            } else { continue }
+            n += 1; break;
+        }
+    }
+    Ok(n)
+}
 /// Extract the network tx once every input is finalized.
 pub fn extract(p: &Psbt) -> Result<Transaction, &'static str> {
     if p.inputs.iter().any(|i| i.final_script_sig.is_none() && i.final_script_witness.is_none()) { return Err("input_without_key") }

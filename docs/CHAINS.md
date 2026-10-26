@@ -1,6 +1,6 @@
 # Chain table
 
-Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `scripts/kat-chains.py`, an independent base58check that uses only hashlib, and are checked in the `kat_long_tail` test. tx-build only signs chains whose Sign is `Standard`; it refuses ForkId (bch/bsv/btg), PosTime only for pot (ppc/nvc/clam/rdd have a dedicated pos-ntime builder/signer, `crates/tx/src/pos.rs`; blk is Standard) and Unknown (qrk, plus the non-UTXO chains, which have their own signers). No coin other than BTC has been signed and accepted on a real network.
+Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `scripts/kat-chains.py`, an independent base58check that uses only hashlib, and are checked in the `kat_long_tail` test. tx-build builds chains whose Sign is `Standard` or ForkId (bch/bsv/btg; tx-sign signs those with SIGHASH_ALL|FORKID, see below); it refuses PosTime only for pot (ppc/nvc/clam/rdd have a dedicated pos-ntime builder/signer, `crates/tx/src/pos.rs`; blk is Standard) and Unknown (qrk, plus the non-UTXO chains, which have their own signers). No coin other than BTC has been signed and accepted on a real network.
 
 ### Supported (verified)
 
@@ -109,7 +109,13 @@ wasm/lib `sol`: PDA/ATA, on-curve, Anchor discriminator, legacy+v0 tx decode, ed
 - 2026-10-25: `buildPsbtWithMemo` output order `[to, change, OP_RETURN]` (THORChain), optional memo, selected-input fee fix.
 - 2026-10-25: Tron txID + raw_data decode (`tronDecodeTx`); BTC-family PSBT with OP_RETURN memo (`buildPsbtWithMemo`).
 
-Every non-segwit input needs `prev_tx`: P2PKH on every chain including the fork-id chains BCH/BSV/BTG (their sighash commits the amount, but blocktools checks by script type and does not sign fork-id), GRS and PoS-nTime. Only zec is exempt (ZIP-243/244 amounts via `zec_prevouts`).
+## Fork-id signing (BCH, BSV, BTG)
+
+`tx-sign` signs bch/bsv/btg PSBTs from `tx-build` with the replay-protected fork-id sighash: the BIP143 digest layout for every input type (P2PKH included), committed with the 32-bit type `0x41 | forkid << 8` (BCH/BSV forkid 0 -> 0x41; BTG forkid 79 -> 0x4f41), signature byte 0x41. Never the BTC sighash. Signed: P2PKH (compressed and uncompressed) and P2PK on all three; P2WPKH on BTG only (the only one with an hrp). Refused: any other script (`forkid_script_unsupported`), any input without a proving `prev_tx` (`legacy_input_amount_unproven`), P2WPKH on bch/bsv.
+
+Measured (Linux only): `forkid_sighash` matches all 495 SIGHASH_FORKID rows of Bitcoin ABC's `src/test/data/sighash.json` (`crates/tx/tests/forkid.rs`; vendored verbatim as `crates/tx/tests/vectors/abc-sighash.json`); the signatures in BCH mainnet tx 96ee2000…bbb4, BSV mainnet tx 8f95d11f…508c (block 972,739) and Trust Wallet Core's BTG P2WPKH vector verify under it and do not verify under the BTC sighash (or, for BTG, fork id 0); tx-sign's signer reproduces Trust Wallet Core's BCH and BTG signed txs byte for byte (`forkid_bch_btg_byte_exact`); `scripts/e2e.d/forkid.sh` builds, tty-signs, decodes and re-verifies a sweep on each chain and checks each signature with an independent pure-Python ECDSA verifier. Untested: broadcast or acceptance on any of the three networks, BCH CashAddr destinations in tx-build, BCH Schnorr signatures, multi-input fork-id txs against a real node.
+
+Every non-segwit input needs `prev_tx`: P2PKH on every chain including the fork-id chains BCH/BSV/BTG (their sighash commits the amount, but every check keys on the script type and the fork-id signer requires the proof too), GRS and PoS-nTime. Only zec is exempt (ZIP-243/244 amounts via `zec_prevouts`).
 - 2026-10-25: `buildPsbtWithMemo` defaults to non-RBF (0xffffffff); optional trailing `rbf` arg.
 
 ## Chain quirks and their known-answer vectors (2026-10-25)

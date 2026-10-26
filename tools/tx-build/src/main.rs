@@ -2,6 +2,7 @@
 //! UTXO chains -> {"psbt": base64}; EVM -> {"unsigned_tx": hex}. Pipe the result to tx-decode.
 //!   tx-build --chain btc|ltc|doge --utxos FILE --to ADDR (--sweep | --consolidate | --send SATS --change ADDR)
 //!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N]
+//!   (also bch|bsv|btg: same flags; legacy inputs need prev_tx; tx-sign signs them with the fork-id sighash)
 //!   tx-build --chain ppc|nvc|clam|rdd --utxos FILE --to ADDR --sweep --fee-rate UNITS_PER_BYTE [--time UNIX]
 //!            -> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
 //!   tx-build --chain zec --utxos FILE --to t1... --sweep [--fee-rate N] [--branch-id HEX] [--expiry-height H]
@@ -44,14 +45,15 @@ fn main() {
         blocktools_io::outln!("{o}"); return
     }
     let c = blocktools_core::chains::chain(chain).filter(|c| matches!(c.enc, blocktools_core::chains::Enc::Utxo { .. })).unwrap_or_else(|| fail("unknown chain"));
-    // Only verified rows with Bitcoin-standard signing are built; fork-id (BCH/BSV/BTG), PoS
+    // Only verified rows with Bitcoin-standard or fork-id (BCH/BSV/BTG) signing are built; PoS
     // tx-time (PPC/NVC/CLAM/BLK/RDD/POT) and unknown formats are refused, not guessed.
     let spec = blocktools_core::chain_spec::is_spec(chain);
     if !c.verified && !spec { fail("unverified chain parameters: not supported") }
     // Chain spec: only sign "standard", 8 decimals, p2pkh known; else a stable spec_* code.
     blocktools_core::chain_spec::tx_ready(chain, false).unwrap_or_else(|e| fail(e));
     let pos = blocktools_tx::pos::layout(chain).is_some();
-    if !c.sign.buildable() && !pos { fail("unsupported signing scheme for this chain (fork-id / unknown / PoS tx time without a verified layout)") }
+    // Fork-id chains (BCH/BSV/BTG) build the same PSBT; tx-sign signs them with SIGHASH_ALL|FORKID.
+    if !c.sign.buildable() && !pos && !matches!(c.sign, blocktools_core::chains::Sign::ForkId(_)) { fail("unsupported signing scheme for this chain (fork-id / unknown / PoS tx time without a verified layout)") }
     let utxos = build::parse_utxos(c, &file(a.get("--utxos").unwrap_or_else(|| fail("--utxos FILE required")), 16 << 20)).unwrap_or_else(|e| fail(&e));
     if pos { // PPC/NVC/CLAM/RDD: sweep only, P2PKH inputs, tx time = --time or now
         if !a.has("--sweep") { fail("pos-ntime chains: only --sweep is supported") }

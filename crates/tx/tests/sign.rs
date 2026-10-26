@@ -197,3 +197,42 @@ fn bare_p2sh_is_not_amount_committed() {
     assert_eq!(sign::sign_psbt(&mut q.clone(), &[sk(K)]).unwrap(), 1);
     assert_eq!(sign::sign_psbt(&mut q.clone(), &[sk("0000000000000000000000000000000000000000000000000000000000000002")]).unwrap_err(), "legacy_input_amount_unproven");
 }
+
+/// Fork-id signing, byte-exact against Trust Wallet Core's published signed txs (public test keys
+/// from tests/chains/BitcoinCash/TWBitcoinCashTests.cpp and BitcoinGold/TWBitcoinGoldTests.cpp;
+/// the BCH one is mainnet tx 96ee2000…bbb4). RFC 6979 nonces make the bytes reproducible.
+#[test]
+fn forkid_bch_btg_byte_exact() {
+    let cases = [ // (prev spk, prev amount, key, fork id, segwit, expected signed tx; the unsigned tx is it with scriptSig/witness cleared)
+        ("76a914aff1e0789e5fe316b729577665aa0a04d5b0f8c788ac", 5151, "7fdafb9db5bc501f2096e7d13d331dc7a75d9594af3d251313ba8b6200f4e384", 0, false, // public test vector (Trust Wallet Core)
+         "0100000001e28c2b955293159898e34c6840d99bf4d390e2ee1c6f606939f18ee1e2000d05020000006b483045022100b70d158b43cbcded60e6977e93f9a84966bc0cec6f2dfd1463d1223a90563f0d02207548d081069de570a494d0967ba388ff02641d91cadb060587ead95a98d4e3534121038eab72ec78e639d02758e7860cdec018b49498c307791f785aa3019622f4ea5bffffffff0258020000000000001976a914769bdff96a02f9135a1d19b749db6a78fe07dc9088ace5100000000000001976a9149e089b6889e032d46e3b915a3392edfd616fb1c488ac00000000"),
+        ("0014d53cae7c6fb6c8efe4fd8bfecea36534105b1674", 10000, "cbe13a79b82ec7f8871b336a64fd8d531f598e7c9022e29c67e824cfd54af57f", 79, true, // public test vector (Trust Wallet Core)
+         "010000000001015727794fa2b94aa22a226e206130524201ede9b50e032526e713c848493a890f0000000000fdffffff028813000000000000160014db746a75d9aae8995d135b1e19a04d7765242a8ffb12000000000000160014ebae10950c8a35a506e0e265b928305233e802ab0247304402202b371b7cae885463c06357d1fc6ca95ab155613f212711bc7fb115500654946d0220430af77cbbb30afe7d7dcaccb72a55da802ee0a2bfea790dfe7c4e1a4c53fd7d412103e00b5dec8078d526fba090247bd92db6b67a4dd1953b788cea9b52de9471b8cf71890900"),
+    ];
+    for (spk, amt, k, fid, sw, want) in cases {
+        let want = want.replace(' ', "");
+        let mut u: Transaction = deserialize(&h(&want).unwrap()).unwrap();
+        for i in &mut u.input { i.script_sig = ScriptBuf::new(); i.witness = bitcoin::Witness::new() }
+        let mut p = Psbt::from_unsigned_tx(u).unwrap();
+        let prev = [TxOut { value: Amount::from_sat(amt), script_pubkey: ScriptBuf::from_bytes(h(spk).unwrap()) }];
+        assert_eq!(sign::sign_forkid_prevouts(&mut p, &prev, &[sk(k)], fid, sw).unwrap(), 1);
+        assert_eq!(blocktools_core::hex_enc(&serialize(&sign::extract(&p).unwrap())), want, "fork id {fid}");
+    }
+}
+/// Refusals kept on the fork-id signer: no proving prev tx, a script it does not sign, P2WPKH on
+/// a chain without segwit (BCH/BSV).
+#[test]
+fn forkid_signer_refusals() {
+    let tx: Transaction = { let mut t: Transaction = deserialize(&h("0100000001e28c2b955293159898e34c6840d99bf4d390e2ee1c6f606939f18ee1e2000d05020000006b483045022100b70d158b43cbcded60e6977e93f9a84966bc0cec6f2dfd1463d1223a90563f0d02207548d081069de570a494d0967ba388ff02641d91cadb060587ead95a98d4e3534121038eab72ec78e639d02758e7860cdec018b49498c307791f785aa3019622f4ea5bffffffff0258020000000000001976a914769bdff96a02f9135a1d19b749db6a78fe07dc9088ace5100000000000001976a9149e089b6889e032d46e3b915a3392edfd616fb1c488ac00000000").unwrap()).unwrap(); t.input[0].script_sig = ScriptBuf::new(); t };
+    let key = sk("0000000000000000000000000000000000000000000000000000000000000001");
+    let mut p = Psbt::from_unsigned_tx(tx.clone()).unwrap();
+    p.inputs[0].witness_utxo = Some(TxOut { value: Amount::from_sat(5151), script_pubkey: ScriptBuf::from_bytes(h("76a914aff1e0789e5fe316b729577665aa0a04d5b0f8c788ac").unwrap()) });
+    assert_eq!(sign::sign_psbt_forkid(&mut p, &[key], 0, false), Err("legacy_input_amount_unproven"));
+    for (spk, sw) in [("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387", true), ("0014d53cae7c6fb6c8efe4fd8bfecea36534105b1674", false)] {
+        let prev = Transaction { version: bitcoin::transaction::Version(1), lock_time: bitcoin::absolute::LockTime::ZERO, input: vec![bitcoin::TxIn::default()],
+            output: vec![TxOut { value: Amount::from_sat(5151), script_pubkey: ScriptBuf::from_bytes(h(spk).unwrap()) }] };
+        let mut t = tx.clone(); t.input[0].previous_output = bitcoin::OutPoint { txid: prev.compute_txid(), vout: 0 };
+        let mut p = Psbt::from_unsigned_tx(t).unwrap(); p.inputs[0].non_witness_utxo = Some(prev);
+        assert_eq!(sign::sign_psbt_forkid(&mut p, &[key], 0, sw), Err("forkid_script_unsupported"), "{spk}");
+    }
+}
