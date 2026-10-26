@@ -36,7 +36,8 @@ Version: ${ver}-1
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: TSavo <noreply@example.com>
+${DEB_DEPENDS:+Depends: $DEB_DEPENDS
+}Maintainer: TSavo <noreply@example.com>
 Description: blocktools offline chain utilities
  Binaries + man pages. DANGEROUS: audit before use with real funds.
 EOF
