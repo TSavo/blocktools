@@ -56,7 +56,7 @@ no container isolation (no `--network none`): use it only on an offline machine.
 
 **v0.1.0 and `derive --address-list`.** In v0.1.0, `redact` (and so `sealed-run agent` and
 `./blocktools run`) drops the plain `label<TAB>path<TAB>address` lines, so the list comes back
-empty (`"count":0`). A fix (redact passing those lines through its leak check) is queued for main. With v0.1.0, build the same list from JSON instead:
+empty (`"count":0`). Fixed on main after v0.1.0: redact now passes those lines through its leak check, so with a source build `./blocktools run '... | derive --address-list' > addresses.txt` works (recipes/derive.md). With v0.1.0, build the same list from JSON instead:
 
 ```sh
 ... | derive --chain btc --count 1 --public-only | redact | jq -r 'select(.address)|[.chain+" "+.kind,.path,.address]|@tsv' > addresses.txt

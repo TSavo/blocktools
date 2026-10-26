@@ -70,10 +70,11 @@ Or let the front door choose the pipeline for any file:
 <!-- e2e: expect=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu -->
     recipes/recover.sh /in/seed.txt - --goal addresses
 
-Many chains at once (the SwapChan SCAN_JS wallet table; `--public-only` drops key fields):
+Many chains at once, as a plain `label<TAB>path<TAB>address` list (SwapChan SCAN_JS layout;
+source build after v0.1.0, see the README):
 
 <!-- e2e: expect=0x9858EfFD232B4033E47d90003D41EC34EcaEda94 -->
-    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --preset scan-js --public-only'
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --preset scan-js --address-list'
 
 Passphrases: put candidates one per line in a file and use `seed-to-master --passphrase-file`
 (the empty passphrase is always tried first), or type one with `seed-to-master --passphrase-prompt`.
