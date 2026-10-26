@@ -67,7 +67,7 @@ command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
 expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 33255936 bytes"
 value = "33.3"
 env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
-commit = "db291f5"
+commit = "1e39a7f"
 date = "2026-10-25"
 cheap = false
 depends = ["Dockerfile", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
