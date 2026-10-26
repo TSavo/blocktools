@@ -27,7 +27,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | exchange-staking-addresses | security | linux | measured | Firo EXX (Firo wiki published pair) and PIVX EXM / S staking addresses (chainparams versions) validate and auto-detect; no script is built for them | `cargo test -q --release -p blocktools --test exchange_addr` | 9e2fb0c | 2026-10-26 |
 | bch-cashaddr-destinations | security | linux | measured | bch CashAddr (prefixed, bare, upper case) maps to the same output script as its legacy address; bad checksum, mixed case and bchtest are refused | `cargo test -q --release -p blocktools-core --test cashaddr_script` | 9e2fb0c | 2026-10-26 |
 | evm-encode-packed | security | linux | measured | evmAbiEncodePacked / abi::encode_packed reproduce the Solidity ABI spec Non-standard Packed Mode examples and refuse tuples, nested arrays and arrays of dynamic types | `cargo test -q --release -p blocktools-evm --test kat_packed` | c7bebbd | 2026-10-26 |
-| twc-ed25519-aptos-sui-near | security | linux | measured | aptos, sui and near rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey HD keys at the registry paths, and accept/refuse TWC's Aptos and Sui address lists | `cargo test -q --release -p blocktools --features secrets,ed25519 --test twc_ed25519` | 9e2fb0c | 2026-10-26 |
+| twc-ed25519-aptos-sui-near | security | linux | measured | aptos, sui, near, xtz and egld rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey/DeriveMultiversX HD keys at the registry paths, and accept/refuse TWC's Aptos, Sui, Tezos and MultiversX address lists | `cargo test -q --release -p blocktools --features secrets,ed25519 --test twc_ed25519` | 9e2fb0c | 2026-10-26 |
 
 ## Untested
 
