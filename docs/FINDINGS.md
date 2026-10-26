@@ -13,7 +13,7 @@ they can't be forgotten, and the check prints them on every run.
 | R1-2 | seed-repair accepts an unknown --scheme silently | fixed | 6f84c43 | scripts/e2e.d/seed-repair.sh |
 | R1-3 | classify CLASSES list misses bip38 and blockchain_wallet; no test ties it to emitted kinds | fixed | 657b4b2 | crates/core/src/classify.rs |
 | R1-4 | sha-1 crate (deprecated name) instead of sha1 | fixed | 9712e88 | scripts/check-deps.sh |
-| R1-5 | println! in tool bins (10 tools); no hygiene rule against it | open | - | - |
+| R1-5 | println! in tool bins; no hygiene rule against it. Measured 2026-10-26: 0 `println!` calls in tools/*/src (`grep -rnP '(?<![e\w])println!' tools/*/src`; the earlier "10 tools" was not a measured count) | open | - | - |
 | R1-6 | recipes.sh errors instead of skipping when python `cryptography` is missing | open | - | - |
 | R1-7 | Image size in docs not tied to a revision label | open | - | - |
 | R1-8 | Mac e2e tx-sign pin-tty step fails (rc=2 near tx-sign.sh:35) | open | - | - |
