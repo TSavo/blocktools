@@ -46,3 +46,5 @@ recover.sh | 0 | echo "abandon abandon abandon abandon abandon abandon abandon a
 recover.sh | 3 | echo hello world > f; BIN="$BIN" sh "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
 sig-hash | 0 | sig-hash 'transfer(address,uint256)'
 sig-hash | 2 | sig-hash 'not a signature('
+abi-decode | 0 | jq -r .result.input "$R/recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json" | abi-decode --sig 'transfer(address,uint256)'
+abi-decode | 2 | echo 0xa9059cbb00 | abi-decode --sig 'transfer(address,uint256)'

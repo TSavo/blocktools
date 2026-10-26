@@ -351,3 +351,13 @@ console.log('lift7 ok');
   assert.ok(JSON.stringify(i.candidates).includes('bch'), JSON.stringify(i));
   console.log('ok cashaddr detect bch (finding 1)');
 }
+{ // evmAbiDecode: a mainnet USDC transfer (recipes/fixtures/evm-mainnet/01a) and Error(string) revert data
+  const input = '0xa9059cbb000000000000000000000000264bd8291fae1d75db2c5f573b07faa6715997b5000000000000000000000000000000000000000000000000000000012d08aab0';
+  const d = JSON.parse(bt.evmAbiDecode(JSON.stringify({input, sig: 'transfer(address,uint256)'})));
+  assert.equal(d.args[0].value, '0x264bd8291fAE1D75DB2c5F573b07faA6715997B5'); assert.equal(d.args[1].value, '5050510000');
+  assert.equal(JSON.parse(bt.evmAbiDecode(JSON.stringify({input, sig: 'approve(address,uint256)'}))).status, 'no_match');
+  const r = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: '0x08c379a0' + '0000000000000000000000000000000000000000000000000000000000000020' + '0000000000000000000000000000000000000000000000000000000000000002' + '6869' + '0'.repeat(60)})));
+  assert.equal(r.signature, 'Error(string)'); assert.equal(r.args[0].value, 'hi');
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input.slice(0, -2), sig: 'transfer(address,uint256)'})), /./);
+  console.log('ok evm abi decode');
+}

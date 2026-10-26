@@ -204,3 +204,26 @@ tx-sign --tx "$FX/btc.psbt" --expect-to "$BTC_TO" < "$FX/key2"
 A non-segwit input's amount is not proven by its previous transaction, so the fee could be a lie.
 Supply `prev_tx`. Not run here: `tx-build` already refuses such inputs earlier
 (`legacy_input_needs_prev_tx`, rc=2). Only an externally built PSBT reaches this check.
+
+## EVM contract tools (`sig-hash`, `abi-decode`, `abi-encode`, `create-address`)
+
+These offline filters print `{"status":"error","error":CODE}` and exit 2 on malformed input; they never
+guess. A selector, topic or error with no signature you supplied is not an error: `{"status":"no_match"}`,
+exit 0. Codes come from `crates/evm`; the strict decoder refuses any encoding Solidity would not produce.
+
+| Group | Codes | Human action |
+|---|---|---|
+| Hex | `bad_hex`, `odd_length_hex` | Pass `0x` hex with an even number of digits |
+| Signatures | `empty_signature`, `signature_needs_parens`, `unbalanced_parens`, `bad_signature_name`, `bad_signature_suffix`, `bad_type`, `bad_param`, `empty_param`, `bad_array_suffix`, `bad_array_length`, `tuple_needs_components`, `returns_needs_parens`, `signature_too_long`, `too_deep` | Fix the Solidity signature (for example `uint7` or `bytes33` do not exist) |
+| ABI JSON | `bad_abi_json`, `abi_json_needs_array`, `bad_abi_item_type`, `bad_abi_item_name`, `bad_abi_params`, `abi_param_needs_type`, `abi_too_deep` | Pass a compiler ABI array, `{abi:[…]}`, or one signature per line |
+| Strict decode | `data_too_short`, `data_shorter_than_selector`, `offset_out_of_bounds`, `offset_overflow`, `offset_or_length_out_of_bounds`, `offset_or_length_too_large`, `bytes_out_of_bounds`, `array_length_out_of_bounds`, `bytes_padding_missing`, `dirty_address`, `dirty_bool`, `dirty_uint`, `dirty_int`, `dirty_bytes_padding`, `string_not_utf8` | The data does not match the signature, or is truncated or non-canonical: check the signature and that the whole field was copied |
+| Logs | `bad_topic`, `topic_not_32_bytes`, `more_than_4_topics`, `topic_count_mismatch`, `no_matching_event`, `types_need_data_not_a_log` | Give the event declaration with the right `indexed` markers |
+| Input JSON | `bad_input_json`, `input_json_has_no_input_data_or_topics`, `rpc_error_without_data`, `missing_input`, `missing_sig`, `output_needs_sig`, `output_needs_data`, `empty_input` | Pipe the JSON-RPC response or the hex field itself |
+| Encode values | `bad_uint`, `uint_overflow`, `int_out_of_range`, `value_too_large_for_uint`, `number_not_integer_use_a_string`, `bad_bool`, `address_needs_0x`, `address_not_20_bytes`, `bad_eip55_checksum`, `expected_json_array`, `expected_scalar`, `too_many_values`, `missing_args` | Pass integers as decimal or `0x` strings, addresses with a correct EIP-55 checksum (or all one case) |
+| Addresses | `missing_deployer`, `create_needs_nonce_or_salt`, `bad_nonce`, `nonce_out_of_range_eip2681`, `bad_salt`, `salt_not_32_bytes`, `init_code_hash_not_32_bytes`, `create2_needs_exactly_one_of_init_code_hash_init_code` | Give `--nonce` (CREATE), or `--salt` with exactly one of `--init-code-hash`/`--init-code` (CREATE2) |
+| Lookup | `lookup_needs_4_or_32_bytes`, `no_signature`, `cannot_read_file`, `cannot_read_abi_file` | Pass a selector or an event topic, and an existing signature file |
+
+<!-- run rc=2 expect=data_too_short -->
+```sh
+echo 0xa9059cbb00 | abi-decode --sig 'transfer(address,uint256)'
+```

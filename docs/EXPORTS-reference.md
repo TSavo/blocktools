@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 58. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 59. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -525,6 +525,30 @@ Example (executed):
 ```js
 bt.detectAddressInfo("nope")
 // -> {"ambiguous":false,"candidates":[],"kinds_agree":true}
+```
+
+## `evmAbiDecode`
+
+```ts
+evmAbiDecode(request_json: string): string
+```
+
+Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.evmAbiDecode("{\"input\":\"0xa9059cbb000000000000000000000000264bd8291fae1d75db2c5f573b07faa6715997b5000000000000000000000000000000000000000000000000000000012d08aab0\",\"sig\":\"approve(address,uint256)\"}")
+// -> {"selector":"0xa9059cbb","status":"no_match"}
+```
+
+Error example (executed):
+
+```js
+bt.evmAbiDecode("{\"input\":\"0xa9059cbb000000000000000000000000264bd8291fae1d75db2c5f573b07faa6715997b5000000000000000000000000000000000000000000000000000000012d08aa\",\"sig\":\"transfer(address,uint256)\"}")
+// throws data_too_short
 ```
 
 ## `evmKeccak256`

@@ -1,0 +1,61 @@
+.TH ABI\-DECODE 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+abi\-decode \- decode Solidity ABI calldata, returndata, revert data or event logs, offline
+.SH SYNOPSIS
+.nf
+abi\-decode [\-\-sig SIGNATURE] [\-\-abi FILE] [\-\-types '(T,..)'] [\-\-output] [INPUT]
+Prints status no_match with the selector/topic when nothing matches; malformed data is an error (exit 2).
+.fi
+.SH DESCRIPTION
+Input (stdin or last argument): hex, or a JSON\-RPC response/tx/receipt/log/getLogs result as\-is;
+arrays of logs and receipts' `logs` give one JSON line per log. Error(string) and Panic(uint256) are built in.
+.nf
+.RS 2
+  jq \-r .result.input tx.json | abi\-decode \-\-sig 'transfer(address,uint256)'
+  abi\-decode \-\-sig 'event Transfer(address indexed from, address indexed to, uint256 value)' < getLogs.json
+  abi\-decode \-\-sig 'balanceOf(address) returns (uint256)' \-\-output < eth_call.json
+  abi\-decode < revert.json
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-sig SIGNATURE  function, event or error signature, e.g. 'transfer(address,uint256)' (repeatable)
+  \-\-abi FILE       ABI JSON file (array or {"abi": [...]}) or one signature per line
+  \-\-types (T,..)   decode raw data as a type list, no selector (returndata, constructor args)
+  \-\-output         decode returndata with the first signature's returns (...) list
+.fi
+.SH INPUT/OUTPUT
+Input (stdin or last argument): hex, or a JSON\-RPC response/tx/receipt/log/getLogs result as\-is;
+arrays of logs and receipts' `logs` give one JSON line per log. Error(string) and Panic(uint256) are built in.
+.nf
+.RS 2
+  jq \-r .result.input tx.json | abi\-decode \-\-sig 'transfer(address,uint256)'
+  abi\-decode \-\-sig 'event Transfer(address indexed from, address indexed to, uint256 value)' < getLogs.json
+  abi\-decode \-\-sig 'balanceOf(address) returns (uint256)' \-\-output < eth_call.json
+  abi\-decode < revert.json
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status error
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ jq \-r .result.input "$R/recipes/fixtures/evm\-mainnet/01a\-erc20\-transfer\-tx.json" | abi\-decode \-\-sig 'transfer(address,uint256)'
+# exit 0, last status: ok
+$ echo 0xa9059cbb00 | abi\-decode \-\-sig 'transfer(address,uint256)'
+# exit 2, last status: error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
