@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 60. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 61. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -573,6 +573,30 @@ Error example (executed):
 ```js
 bt.evmAbiEncode("{\"sig\":\"f(uint8)\",\"args\":[\"256\"]}")
 // throws value_too_large_for_uint8
+```
+
+## `evmCreateAddress`
+
+```ts
+evmCreateAddress(request_json: string): string
+```
+
+CREATE / CREATE2 contract address. Request JSON {deployer, nonce} or {deployer, salt, init_code_hash | init_code}; a tx (from, nonce) also works.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.evmCreateAddress("{\"deployer\":\"0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0\",\"nonce\":0}")
+// -> {"address":"0xcd234A471b72ba2F1Ccf0A70FCABA648a5eeCD8d","deployer":"0x6AC7EA33F8831EA9dcC53393aAA88B25A785DBF0","nonce":0,"scheme":"create","status":"ok"}
+```
+
+Error example (executed):
+
+```js
+bt.evmCreateAddress("{\"deployer\":\"0x0000000000000000000000000000000000000000\"}")
+// throws create_needs_nonce_or_salt
 ```
 
 ## `evmKeccak256`

@@ -373,3 +373,13 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmAbiEncode(JSON.stringify({sig: 'f(uint8)', args: ['256']})), /value_too_large/);
   console.log('ok evm abi encode');
 }
+
+{ // evmCreateAddress: EIP-1014 example 1, and a CREATE nonce-0 address
+  const z = '0x' + '00'.repeat(20);
+  const c2 = JSON.parse(bt.evmCreateAddress(JSON.stringify({deployer: z, salt: '0x' + '00'.repeat(32), init_code: '0x00'})));
+  assert.equal(c2.address, '0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38'); assert.equal(c2.scheme, 'create2');
+  const c = JSON.parse(bt.evmCreateAddress(JSON.stringify({deployer: '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0', nonce: 0})));
+  assert.equal(c.address.toLowerCase(), '0xcd234a471b72ba2f1ccf0a70fcaba648a5eecd8d');
+  assert.throws(() => bt.evmCreateAddress(JSON.stringify({deployer: z})), /create_needs_nonce_or_salt/);
+  console.log('ok evm create address');
+}

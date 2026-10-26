@@ -89,3 +89,25 @@ Re-encoding the decoded arguments of `01a` gives its `input` byte for byte:
     abi-encode --raw 'transfer(address,uint256)' 0x264bd8291fae1d75db2c5f573b07faa6715997b5 5050510000 | abi-decode --sig 'transfer(address,uint256)'
 
 Live (UNTESTED here): `D=$(abi-encode --raw 'balanceOf(address)' 0x…); curl -s -X POST -H 'Content-Type: application/json' --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_call\",\"params\":[{\"to\":\"0x…\",\"data\":\"$D\"},\"latest\"]}" "$RPC" | abi-decode --sig 'balanceOf(address) returns (uint256)' --output`
+
+## (f) Contract addresses: CREATE and CREATE2
+
+CREATE: the address is `keccak256(rlp([deployer, nonce]))`. `05a` (request "05a") is a deployment tx;
+create-address reads `from` and `nonce` from it, and the result matches `contractAddress` in its receipt `05b`:
+
+<!-- e2e: expect="address":"0x0a0e5274D286A72614a4E4015370395Ef9E42EEd" ; rc=0 -->
+    create-address < recipes/fixtures/evm-mainnet/05a-create-tx.json
+
+CREATE2 (EIP-1014): `keccak256(0xff ++ deployer ++ salt ++ keccak256(init_code))`. `05c`/`05d` (requests
+"05c", "05d") create the Uniswap V3 USDT pool with token0 `0x3246…8edb`, token1 USDT, fee 100. The factory
+salt is `keccak256(abi.encode(token0, token1, fee))` and the init-code hash is the factory's fixed
+`POOL_INIT_CODE_HASH` from Uniswap's `PoolAddress.sol` (not fetched). The result matches the pool address in
+the `PoolCreated` log of `05d`:
+
+<!-- e2e: expect="address":"0x7fF72b3aab6db0398e7fbCaB8efcd37159323EcF" ; rc=0 -->
+    abi-encode --raw '(address,address,uint24)' 0x3246806c924fab68dd6db5d39b516ade72618edb 0xdac17f958d2ee523a2206206994597c13d831ec7 100 | sig-hash --keccak | jq -c '{deployer: "0x1F98431c8aD98523631AE4a59f267346ea31F984", salt: .keccak256, init_code_hash: "0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54"}' | create-address | jq -c '{scheme,address}'
+
+<!-- e2e: expect=0x7ff72b3aab6db0398e7fbcab8efcd37159323ecf ; rc=0 -->
+    jq -r '.result.logs[0].data' recipes/fixtures/evm-mainnet/05d-create2-pool-receipt.json | abi-decode --types '(int24,address)' | jq -r '.args[1].value' | tr A-F a-f
+
+Live (UNTESTED here): `curl -s -X POST -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionByHash","params":["0x…"]}' "$RPC" | create-address`

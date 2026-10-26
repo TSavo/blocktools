@@ -232,3 +232,8 @@ echo 0xa9059cbb00 | abi-decode --sig 'transfer(address,uint256)'
 ```sh
 abi-encode 'f(uint8)' 256
 ```
+
+<!-- run rc=2 expect=create_needs_nonce_or_salt -->
+```sh
+create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0
+```

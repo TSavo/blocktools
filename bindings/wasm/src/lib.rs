@@ -423,3 +423,7 @@ pub fn evm_abi_decode(request_json: &str) -> Result<String, JsError> { Ok(evm_ap
 /// ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
 #[wasm_bindgen(js_name = evmAbiEncode)]
 pub fn evm_abi_encode(request_json: &str) -> Result<String, JsError> { Ok(evm_api::encode_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
+
+/// CREATE / CREATE2 contract address. Request JSON {deployer, nonce} or {deployer, salt, init_code_hash | init_code}; a tx (from, nonce) also works.
+#[wasm_bindgen(js_name = evmCreateAddress)]
+pub fn evm_create_address(request_json: &str) -> Result<String, JsError> { Ok(evm_api::create_json(&evm_req(request_json)?).map_err(err)?.to_string()) }

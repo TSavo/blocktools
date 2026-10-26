@@ -45,3 +45,5 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | `eth_call` return data (e.g. `balanceOf`) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (d), `abi-decode` |
 | Revert data: `Error(string)`, `Panic`, custom errors | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (e), `abi-decode` |
 | Arguments → calldata (`eth_call`/tx `data`), or a bare tuple (CREATE2 salt preimage) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (g), `abi-encode` |
+| Deployment tx → contract address (CREATE, from + nonce) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `create-address` |
+| Factory + salt + init-code hash → CREATE2 address (e.g. a Uniswap V3 pool) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `abi-encode`, `sig-hash --keccak`, `create-address` |
