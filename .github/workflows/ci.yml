@@ -1,6 +1,9 @@
 name: ci
 on: [push, pull_request]
-# One run at a time: the self-hosted runner is persistent and shares Battleaxe's Docker daemon (docs/CI.md).
+# Read-only token for every job (fork PRs never get secrets or a write token).
+permissions:
+  contents: read
+# One run at a time per ref: the self-hosted runners are persistent and share Battleaxe's Docker daemon (docs/CI.md).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
@@ -16,7 +19,9 @@ jobs:
     # Self-hosted Battleaxe runner by default (docs/CI.md). Fallback to GitHub-hosted: set repo variable
     # RUNNER_LABELS to '"ubuntu-latest"' (JSON). Repo is public: outside-contributor runs need
     # maintainer approval and would run on this self-hosted runner (Docker socket); see docs/CI.md.
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
+    # Fork pull_request runs (head repo != this repo) always go to GitHub-hosted ubuntu-latest, never Battleaxe;
+    # scripts/ci-fork-check.py evaluates this expression for fork / same-repo / push events (rule H-fork).
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && '"ubuntu-latest"' || vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }  # findings/claims checks need full history (R2-12)

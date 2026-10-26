@@ -44,6 +44,7 @@ bad=$(git grep -nE 'stat[[:space:]]+-c' -- scripts recipes ':!scripts/hygiene-ch
 [ -z "$bad" ] || { echo "FAIL GNU-only stat -c (pair with stat -f or # allow-bsd:):"; echo "$bad"; rc=1; }  # rule:H-stat
 # CI and local gate are one script: ci.yml may run only gate.sh + allowlisted setup.
 sh scripts/ci-gate-check.sh || rc=1  # rule:H-cigate
+sh scripts/ci-fork-check.sh || rc=1  # rule:H-fork
 # negative tests: an extra check outside gate.sh, and a workflow that skips gate.sh, must fail
 st=$(mktemp -d)
 cp .github/workflows/ci.yml "$st/extra.yml"; printf '      - run: cargo test --workspace\n' >> "$st/extra.yml"

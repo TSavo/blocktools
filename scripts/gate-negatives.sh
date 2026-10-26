@@ -35,6 +35,8 @@ neg() {  # neg ID SCRIPT EXPECTED-SUBSTRING PLANT-SHELL
 }
 ADD='git add -f'
 # ---- hygiene-check.sh
+neg H-fork hygiene-check "fork pull_request selects" 'sed -i "s/github.event.pull_request.head.repo.full_name != github.repository/false/" .github/workflows/ci.yml'
+neg H-forkperm hygiene-check "not read-only on pull_request" 'sed -i "s/^  contents: read$/  contents: write/" .github/workflows/ci.yml'
 neg H-pin hygiene-check "unpinned actions" 'printf "      - uses: actions/checkout@v4\n" >> .github/workflows/ci.yml'
 neg U-untracked hygiene-check "untracked reference" 'x=local-only; echo "dat-read | 2 | dat-read < \"\$R/fixtures/external/$x.dat\"" >> scripts/man-examples.txt'
 neg B-bash-sh hygiene-check "bash script run via sh" 'echo "recover.sh | 0 | sh \"\$R/recipes/recover.sh\" s - --goal addresses" >> scripts/man-examples.txt'

@@ -4,7 +4,10 @@ Linux gate jobs (`lint`, `test`, `negatives`, `e2e`) run on four self-hosted Bat
 (`battleaxe-blocktools-1` to `battleaxe-blocktools-4`, all with labels `self-hosted, Linux, X64, blocktools, battleaxe`). The extra three come from
 `docker-compose.blocktools-extra.yml` (compose project `github-runners-bt-extra`) on Battleaxe. All four
 share the tool-cache volume and mount the host Docker socket. The `macos` job
-stays on GitHub-hosted `macos-latest`. The release workflow stays GitHub-hosted.
+stays on GitHub-hosted `macos-latest`. The release workflow (`release.yml`, tag push and workflow_dispatch only) runs on
+Battleaxe too: the v0.1.0 run 40368238848 ran release-env, build and publish on `battleaxe-blocktools-1`
+(measured with `gh api .../runs/40368238848/jobs`). Fork pull requests run on GitHub-hosted `ubuntu-latest`
+(next section).
 
 Timings below were measured with one runner; no timing with four runners has been measured yet.
 
@@ -23,24 +26,40 @@ Set the repository variable `RUNNER_LABELS` to the JSON string `"ubuntu-latest"`
 (Settings -> Secrets and variables -> Actions -> Variables). Unset it to return to the self-hosted
 runner. If no self-hosted runner is online and the variable is unset, Linux jobs queue until one is.
 
-## Security: the repo is public and still uses the self-hosted runner
+## Security: public repo, fork pull requests
 
-Current state (checked with the GitHub API on 2026-10-26): TSavo/blocktools is **public**, and the
-Linux jobs still default to the self-hosted Battleaxe runner. The earlier rule ("self-hosted only
-while private") is therefore no longer met. What limits the risk today:
+TSavo/blocktools is **public** (GitHub API, 2026-10-26). Which runner a job gets:
 
-- Actions setting "require approval for all external contributors" is on (API:
-  `approval_policy: all_external_contributors`), so a pull request from an outside contributor
-  runs no workflow until a maintainer approves the run. Approving such a run executes the
-  contributor's code on Battleaxe.
-- Runs from pushes to this repo need write access.
+| Event | Linux gate jobs | macos job |
+|---|---|---|
+| push to this repo (branches, tags) | Battleaxe (`RUNNER_LABELS` or the self-hosted default) | macos-latest |
+| pull_request from a branch of this repo | Battleaxe | macos-latest |
+| pull_request from a fork (`head.repo.full_name != github.repository`) | GitHub-hosted `ubuntu-latest`, whatever `RUNNER_LABELS` says | macos-latest |
+| release.yml (tag push v*, workflow_dispatch) | Battleaxe | none |
 
-What remains: the runners are persistent (not ephemeral) and mount the host Docker socket, which is
-root-equivalent on Battleaxe; an approved fork run, or a PR that edits `.github/workflows/`, gets
-that access. Do not approve fork runs without reading the diff (workflows and `scripts/` included).
-Options to remove the exposure: route `pull_request` runs from forks to GitHub-hosted runners
-(`ubuntu-latest`) in ci.yml, or set `RUNNER_LABELS` to `"ubuntu-latest"` and retire the runners.
-Neither is done yet.
+This is one `runs-on` expression in ci.yml, with no duplicated jobs. `scripts/ci-fork-check.py` (rule H-fork,
+run by hygiene-check in the lint stage) parses every workflow. For each job a `pull_request` can start, it
+evaluates the `runs-on` expression with a small GitHub-expression evaluator, for a fork PR and a same-repo
+PR or push, with `RUNNER_LABELS` unset, set to self-hosted, and set to ubuntu-latest. It fails if a fork PR
+can get any label other than a GitHub-hosted one, if a same-repo event stops getting self-hosted, if any
+workflow uses `pull_request_target`, or if a pull_request job's token is not read-only. ci.yml sets
+`permissions: contents: read` for every job. GitHub gives fork PRs no secrets. gate-negatives plants both
+violations (H-fork, H-forkperm).
+
+The Actions setting "require approval for all external contributors" stays on (API, 2026-10-26:
+`approval_policy: all_external_contributors`). A fork PR runs nothing until a maintainer approves it.
+
+Limits:
+- A pull_request run uses the workflow file from the PR itself. A fork PR that edits
+  `.github/workflows/ci.yml` can therefore put back a self-hosted `runs-on`, and ci-fork-check only checks
+  this repo's own copy. The only thing that stops that PR is the approval step: read the diff
+  (workflows and `scripts/` included) before you approve a fork run.
+- Same-repo branches and pushes still run on the persistent Battleaxe runners, which mount the host
+  Docker socket (root-equivalent on Battleaxe). Pushing needs write access.
+- GitHub-hosted Linux jobs did not start on this account while billing was failing (run 40265106260).
+  Until that is fixed, fork PR Linux jobs may not run at all.
+- No fork PR has been run yet, and `scripts/ci-require-tools.sh` has not been checked on ubuntu-latest
+  (it needs clang and lld).
 
 ## What the runner must have / what the job installs
 
