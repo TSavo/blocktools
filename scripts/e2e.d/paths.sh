@@ -22,7 +22,7 @@ for pass in 1 2; do mkdir -p $T/u$pass; : > $T/mlog
   [ $pass = 1 ] && txid $T/u1/signed.tx > $T/exp
 done
 S=$(python3 scripts/e2e-only/psbt-extract.py $T/u2/signed.tx); [ "$(grep "^/tx " $T/mlog)" = "/tx $S" ] && grep -q '"status":"ok"' $T/u2/sent.json && echo "ok   paths utxo-sweep: broadcast body == signed bytes" || { cat $T/mlog; f "utxo-sweep body"; }
-for id in 1 8453; do for pass in 1 2; do mkdir -p $T/e$id$pass; : > $T/mlog
+for id in 1 8453; do printf 0x%x $id > $T/exp.chainid; for pass in 1 2; do mkdir -p $T/e$id$pass; : > $T/mlog
   RPC=$MU W=$T/e$id$pass KEY=$T/k1 sh $P/evm-sweep.sh $id 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf $E > $T/e.out 2>&1 || [ $pass = 1 ] || { cat $T/e.out; f "evm-sweep $id"; }
   [ $pass = 1 ] && txid $T/e${id}1/signed.tx > $T/exp
 done
@@ -33,6 +33,7 @@ p = json.loads(l[0].split(" ", 1)[1])["params"][0].removeprefix("0x"); s = json.
 assert p == s, (p, s)
 PY
 done
+rm -f $T/exp.chainid
 mkdir -p $T/c; RPC=$RU W=$T/c KEY=$T/k2 sh $P/cosmos-send.sh cosmos1a0qwuze2h85zw7nqpsj3ga0z9geyrgwphl8j6w 1234567 7 123456 > $T/c.out 2>&1 || { cat $T/c.out; f cosmos; }
 grep -q '"signature_valid":true' $T/c.out && grep -q '"signed":true' $T/c.out && echo "ok   paths cosmos-send: signed, signature_valid" || f "cosmos txid"
 mkdir -p $T/b; RPC=$RU W=$T/b sh $P/utxo-inspect.sh btc bc1qevel27lv9l8qwrylu0z9rmec9cadujkkpxv2pn $D > $T/b.out 2>&1 || { cat $T/b.out; f utxo-inspect; }

@@ -99,7 +99,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/wrongid"): exp = "d" * 64
         if self.path.endswith("/tx"): return self.send(200, exp or txid(b.decode().strip()), "text/plain")
         r = json.loads(b); m = r["method"]
-        res = {"eth_chainId": "0x1", "eth_getTransactionCount": "0x5", "eth_getBalance": "0xde0b6b3a7640000",
+        try: cid = open(sys.argv[3] + ".chainid").read().strip()  # the chain id a test is impersonating
+        except OSError: cid = "0x1"
+        res = {"eth_chainId": cid, "eth_getTransactionCount": "0x5", "eth_getBalance": "0xde0b6b3a7640000",
                "eth_gasPrice": "0x3b9aca00", "eth_maxPriorityFeePerGas": "0x5f5e100"}.get(m)
         if m == "eth_sendRawTransaction": res = "0x" + (exp or keccak256(bytes.fromhex(r["params"][0][2:])).hex())
         self.send(200, json.dumps({"jsonrpc": "2.0", "id": 1, "result": res}))
