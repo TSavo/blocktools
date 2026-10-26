@@ -1,0 +1,92 @@
+.TH RPC 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+rpc \- pipe filter for node and wallet RPC endpoints (HOST\-SIDE, network)
+.SH SYNOPSIS
+.nf
+rpc URL METHOD [PARAMS\-JSON]       one JSON\-RPC call (EVM, bitcoind and forks, Solana); raw response on stdout
+\&... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
+rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
+rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+\&... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  rpc URL METHOD [PARAMS\-JSON]       one JSON\-RPC call (EVM, bitcoind and forks, Solana); raw response on stdout
+  ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
+  rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
+  rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+.RE
+.fi
+URL may also be a chain name from the shared endpoint table (btc, ltc, eth, atom, ...) or an EVM chain id with a default (1).
+The protocol is detected from the URL, then the method name, then (shortcuts only) read\-only probes; \-\-protocol overrides.
+Options:
+.nf
+.RS 2
+  \-\-protocol evm|btc|sol|tron|cosmos|esplora|blockbook   override detection
+  \-\-chain\-id N          EVM: refuse unless the endpoint's eth_chainId is N (chain_id_mismatch)
+  \-\-chain C             UTXO chain for utxos/sendraw address checks and decoding (default btc)
+  \-\-auth\-file FILE      credentials: "user:pass" or a bitcoind .cookie (Basic), "Bearer T" or a bare token, or "Header: value" lines
+  \-\-auth\-env NAME       same, read from environment variable NAME (the value is never printed)
+  \-\-policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
+  \-\-allow\-wallet\-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
+                        refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+  \-\-timeout SECONDS     per request, 1..300 (default 30)
+.RE
+.fi
+stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
+(tx\-build \-\-utxos FILE) and account prints the utxo\-fetch eth account object (tx\-build \-\-account FILE).
+stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 1 RPC/HTTP error, 2 bad input, 3 refused.
+Refused by default (deny\-list in tools/rpc/src/lib.rs, see docs/RPC.md): methods that export, import or unlock keys, wallet
+signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
+Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
+Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
+.SH OPTIONS
+.nf
+\-\-protocol evm|btc|sol|tron|cosmos|esplora|blockbook   override detection
+\-\-chain\-id N          EVM: refuse unless the endpoint's eth_chainId is N (chain_id_mismatch)
+\-\-chain C             UTXO chain for utxos/sendraw address checks and decoding (default btc)
+\-\-auth\-file FILE      credentials: "user:pass" or a bitcoind .cookie (Basic), "Bearer T" or a bare token, or "Header: value" lines
+\-\-auth\-env NAME       same, read from environment variable NAME (the value is never printed)
+\-\-policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
+\-\-allow\-wallet\-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
+                      refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+\-\-timeout SECONDS     per request, 1..300 (default 30)
+.fi
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  rpc URL METHOD [PARAMS\-JSON]       one JSON\-RPC call (EVM, bitcoind and forks, Solana); raw response on stdout
+  ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
+  rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
+  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+.RE
+.fi
+stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
+stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 1 RPC/HTTP error, 2 bad input, 3 refused.
+signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
+Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for rpc in recipes/*.md.
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -14,7 +14,7 @@ Run anything that touches secrets inside ./blocktools run (sealed, offline). Pol
 .SH OPTIONS
 See blocktools(1) and each tool's man page. The wrapper passes the pipeline to sealed\-run; tools parse their own flags.
 .SH INPUT/OUTPUT
-Pipelines speak JSONL. The sealed boundary redacts secret fields before host\-visible stdout. Host\-side network tools (utxo\-fetch, tx\-broadcast, xmr\-wallet) see addresses and signed transactions only.
+Pipelines speak JSONL. The sealed boundary redacts secret fields before host\-visible stdout. Host\-side network tools (utxo\-fetch, tx\-broadcast, rpc, xmr\-wallet) see addresses and signed transactions only.
 .SH EXIT STATUS
 .TP
 0
@@ -92,6 +92,9 @@ concatenate files to stdout (like cat), std only. Exists so the
 .TP
 \fBredact\fR(1)
 stdin raw JSON lines (may contain secrets) \-> stdout public lines
+.TP
+\fBrpc\fR(1)
+pipe filter for node and wallet RPC endpoints (HOST\-SIDE, network)
 .TP
 \fBsealed\-run\fR(1)
 the agent\-facing boundary. Runs a pipeline of blocktools tools

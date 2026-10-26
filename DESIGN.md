@@ -253,7 +253,7 @@ Only the tools that prompt depend on blocktools-tty.
 
 ### Network (host-side only)
 
-Only `utxo-fetch` and `tx-broadcast` use the network, through `crates/net`. They are
+Only `utxo-fetch`, `tx-broadcast` and `rpc` use the network, through `crates/net`. They are
 **not copied into the sealed image** (Dockerfile skips them) and `check-deps.sh` fails if any
 other crate pulls in `blocktools-net`, `minreq`, `rustls`, `ring` or `webpki-roots`.
 
@@ -274,8 +274,8 @@ Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted o
 
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
 
-Every step is a separate tool. Only `utxo-fetch` and `tx-broadcast` touch the network,
-and both run on the host, never in the container.
+Every step is a separate tool. Only `utxo-fetch`, `tx-broadcast` and `rpc` touch the network,
+and all run on the host, never in the container.
 
 ```
 utxo-fetch (host, network)  ->  utxos.json / nonce.json / fees.json   (public data)
@@ -285,6 +285,7 @@ human reads the summary; tx-sign shows that SAME tx-decode summary and asks for 
 tx-sign    (sealed)         ->  keys on stdin, signs only the bytes it just decoded
 tx-decode  (offline)        ->  on the SIGNED output: same outputs, fee and sender?
 tx-broadcast (host)         ->  submit the raw bytes (mock-tested only)
+rpc (host, network)         ->  same reads/broadcast for any RPC endpoint; deny-list refuses wallet key methods (docs/RPC.md)
 ```
 
 **Solana**: legacy, v0 and v1 (SIMD-0385) wire transactions decode and verify; `is_on_curve` is dalek `decompress`, as in the Solana runtime.
@@ -438,7 +439,7 @@ The native CLIs remain first-class: each is a thin stdin/stdout wrapper around t
 | `blocktools-schema` | agent allowlist + leak scan (optional dep) | public fields only |
 | `blocktools-secrets` (new, or feature modules in core/tx) | seed repair/master, xprv derive, keystore/DAT/Electrum parsers, `tx::sign` | **off unless `secrets` feature** |
 | `blocktools-tty` | echo-off prompts | only CLIs that prompt |
-| `blocktools-net` | host HTTP for utxo-fetch / tx-broadcast | never in sealed image |
+| `blocktools-net` | host HTTP for utxo-fetch / tx-broadcast / rpc | never in sealed image |
 
 Internal crates live under `crates/{core,tx,io,schema,tty,net}` with package names `blocktools-*`; tools keep plain job names (no prefix). The local checkout path may differ. The **published name** consumers depend on is `blocktools`.
 

@@ -17,7 +17,7 @@ for t in tools/*/; do n=$(basename "$t")
   if grep -nE "\*\*$n\*\* \(planned" $D; then echo "FAIL $n exists but is called planned"; rc=1; fi  # rule:D-planned
 done
 # 4. host-side network tools are never shipped in the sealed image or allowed by sealed-run
-for n in utxo-fetch tx-broadcast xmr-wallet; do
+for n in utxo-fetch tx-broadcast rpc xmr-wallet; do
   grep -q "$n" Dockerfile || { echo "FAIL Dockerfile does not exclude $n"; rc=1; }  # rule:D-sealed
   grep -q "\"$n\"" tools/sealed-run/src/main.rs && { echo "FAIL sealed-run allows $n"; rc=1; }  # rule:D-sealed
 done

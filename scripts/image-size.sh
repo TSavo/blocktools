@@ -16,7 +16,7 @@ if [ "${1:-}" = --binary-sum ]; then
   bytes=0
   for t in tools/*/; do
     n=$(basename "$t")
-    case "$n" in utxo-fetch|tx-broadcast|xmr-wallet) continue;; esac
+    case "$n" in utxo-fetch|tx-broadcast|rpc|xmr-wallet) continue;; esac
     [ -x "$root/$n" ] || continue
     bytes=$((bytes + $(wc -c < "$root/$n")))
   done

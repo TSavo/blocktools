@@ -1,0 +1,19 @@
+[package]
+name = "rpc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools rpc (HOST-SIDE, uses the network; not in the sealed image): pipe-friendly node/wallet RPC client that refuses secret-exporting wallet methods. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[lib]
+name = "rpc"
+path = "src/lib.rs"
+[[bin]]
+name = "rpc"
+path = "src/main.rs"
+[dependencies]
+blocktools-net = { version = "0.1.0", path = "../../crates/net" }
+blocktools-core = { version = "0.1.0", path = "../../crates/core" }
+blocktools-io = { version = "0.1.0", path = "../../crates/io" }
+blocktools-tx = { version = "0.1.0", path = "../../crates/tx", features = ["secrets"] }
+blocktools-tty = { version = "0.1.0", path = "../../crates/tty" }
+serde_json.workspace = true
