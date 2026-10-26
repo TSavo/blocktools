@@ -38,9 +38,12 @@ sealed CLIs (`./blocktools run`) on an offline machine ([docs/SECURITY.md](../..
 
 ## Reproducible build
 
-`scripts/wasm-build.sh` builds the `.wasm` from a copy of the sources at one fixed path
-(`/tmp/blocktools-wasm-build`, override with `BLOCKTOOLS_WASM_BUILD_DIR`), with the build path and
-`$CARGO_HOME` remapped. Cause of the earlier drift (measured on Linux): this crate is its own cargo
-workspace, so cargo put the absolute checkout path of `../../crates` into each crate's metadata hash.
-`scripts/wasm-check.sh` does a clean rebuild from a second checkout at another path and fails if the
-sha256 differs. Measured on Linux only. A different `CARGO_HOME`, toolchain or clang version is untested.
+`scripts/wasm-build.sh` builds the `.wasm` from a copy of the sources (default build dir
+`/tmp/blocktools-wasm-build`, override with `BLOCKTOOLS_WASM_BUILD_DIR`). Cause of the earlier drift
+(measured on Linux): this crate is its own cargo workspace, so `../../crates` sat outside the
+workspace root and cargo hashed their absolute path (and so the build dir) into each crate's
+metadata. The copy now makes its root the workspace (lock = both committed locks merged; the script
+fails if the resolved dependency tree differs from this crate's own lock), so the path is hashed
+relative to the root. `scripts/wasm-check.sh` does a clean rebuild from a second checkout at another
+path AND another build dir and fails if the sha256 differs. Measured on Linux only. A different
+`CARGO_HOME`, toolchain or clang version is untested.

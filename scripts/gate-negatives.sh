@@ -101,7 +101,8 @@ neg S-bdb secret-scan "Berkeley DB file" 'printf "\0\0\0\0\0\0\0\0\0\0\0\0\142\6
 neg C-allow check-deps "new deps not in" 'tail -n +2 deps/blocktools-core.allow > t && mv t deps/blocktools-core.allow'
 neg C-renamed check-deps "deprecated crate name in Cargo.lock" 'printf "\n[[package]]\nname = \"sha-1\"\nversion = \"0.10.1\"\n" >> Cargo.lock'
 neg C-facade check-deps "default features pull secret/network crates" 'sed "s/^default = \[\]/default = [\"secrets\"]/" crates/blocktools/Cargo.toml > t && mv t crates/blocktools/Cargo.toml'
-neg W-repro wasm-check "FAIL wasm not reproducible" 'sed -i "s|/tmp/blocktools-wasm-build}|/tmp/blocktools-wasm-build\$src}|" scripts/wasm-build.sh'
+# W-repro plants the original drift mechanism: the build dir hashed into every crate's -C metadata.
+neg W-repro wasm-check "FAIL wasm not reproducible" 'sed -i "s|=/cargo\"|=/cargo\$S-Cmetadata=\$B\"|" scripts/wasm-build.sh'
 # ---- check-deps.sh: planted network crate + stale lock live in check-deps-regress.sh (C-net, C-stale)
 case "$want" in "  "|*" C-net "*|*" C-stale "*) n=$((n+1)); sh scripts/check-deps-regress.sh > "$base/out" 2>&1 && echo "ok   neg C-net C-stale (check-deps-regress.sh)" || { echo "FAIL neg C-net/C-stale"; tail -5 "$base/out"; rc=1; };; esac
 # finding:R2-12 shallow clone (CI checkout default): history-based checks must refuse, not misreport.
