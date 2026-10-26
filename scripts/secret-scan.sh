@@ -32,5 +32,8 @@ done
 # No PEM private-key block in any tracked file (the APK signing key lives only in Vault).  # rule:S-pem
 pem="-----BEGIN"; pem="$pem( RSA| EC| OPENSSH| ENCRYPTED)? PRIVATE KEY-----"
 git grep -nIE --untracked --exclude-standard -e "$pem" -- . && { echo "PEM private key block found"; rc=1; }  # rule:S-pem
+# No OpenPGP private-key block either (the apt signing key lives only in Vault).  # rule:S-pgp
+pgp="-----BEGIN PGP PRIVATE"; pgp="$pgp KEY BLOCK-----"
+git grep -nIF --untracked --exclude-standard -e "$pgp" -- . && { echo "PGP private key block found"; rc=1; }  # rule:S-pgp
 [ $rc = 0 ] && echo "secret-scan ok"
 exit $rc
