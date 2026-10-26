@@ -8,7 +8,7 @@ permissions:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
-# Every check lives in scripts/gate.sh (the same script verify-and-push runs locally, all stages).
+# Every check lives in scripts/gate.sh (the same script verify-and-push runs locally: the lint stage by default, all stages with GATE=full).
 # CI runs each stage as a parallel job; ci-gate-check.sh fails unless the matrix equals
 # `sh scripts/gate.sh --list`. Other run: lines may only be setup from scripts/ci-allowed-setup.txt.
 jobs:

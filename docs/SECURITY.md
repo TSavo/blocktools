@@ -9,7 +9,7 @@
 > not a substitute for your own review. See [docs/SECURITY.md](SECURITY.md).
 
 ## What is tested (measured 2026-10-24, box, `cargo test --release` + `make e2e`)
-* Test counts are not written here (they went stale): `scripts/verify-and-push.sh` and CI run the whole
+* Test counts are not written here (they went stale): CI runs the whole
   workspace test suite and `scripts/e2e-local.sh`, and every push must be green.
 * Known-answer vectors: BIP39/BIP32 "abandon…about" root; BIP44/49/84/86 BTC;
   ETH (EIP-55); LTC, DOGE, Tron (indices 0/1 and xpub parity TDTk…), XRP (incl.

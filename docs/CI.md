@@ -16,6 +16,16 @@ pattern not starting with `v`; `scripts/e2e.d/release-env.sh` plants each of tho
 
 Timings below were measured with one runner; no timing with four runners has been measured yet.
 
+## Pushing (scripts/verify-and-push.sh)
+
+An agent's push used to run all four stages serially on its own machine and then CI ran them again. Since
+2026-10-26 `scripts/verify-and-push.sh "msg"` runs the lint stage locally (release build plus the static
+checks), commits, pushes main and waits for CI's verdict with `gh`, printing the failing job names and the
+FAIL lines when it is red (exit 1), or exit 3 when a newer push cancelled the run. `GATE=full` restores the
+serial local gate; `WAIT=0` returns right after the push; `scripts/verify-and-push.sh --wait [SHA]` only waits.
+The heavy stages run in parallel on the four runners, so the agent is blocked for one lint stage plus one CI
+run instead of the whole gate twice.
+
 ## Per-job overhead removed on 2026-10-26 (unmeasured until the next runs)
 
 Measured on runs 40388233412..40401710490 (four runners): push to green 12-25 min, of which 7-19 min was
