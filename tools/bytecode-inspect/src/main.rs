@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", json!({"tool": "bytecode-inspect", "status": "error", "error": e}));
+    eprintln!("{}", json!({"tool": "bytecode-inspect", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 
