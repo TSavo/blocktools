@@ -51,6 +51,8 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 
 Since 2026-10-25: (1) the `fee` limit is per started 1,000 vB of the tx (`FeeWarn::fee_for(vsize)` = fee x ceil(vsize/1000)), so a 147-input VTC sweep (~21,800 vB) is checked against 22 x 2,000,000, not 2,000,000; (2) the hard fee-rate cap in every sweep builder (`buildUnsignedSweep*`, legacy, pos-ntime and zec) is per coin, `FeeWarn::rate_cap()` = max(2,000, 4 x rate limit): btc/default 2,000, xpm 8,000,000 (measured median 100,312 sat/B is now buildable). **Break:** the pos-ntime and zec builders previously allowed up to 100,000 sat/B; they now get their row's cap (2,000 unless the row has a measured limit). (unmeasured)
 
+**Default fee cap (signing, no --max-fee; 3ec1d1a).** Every signing route (tx-sign, tx-verify, envelope, wasm `verifyTx`) refuses `fee_above_cap` above max(100,000 sat, the chain's rate limit from this table x the tx's vsize), even with warnings waived; an explicit max_fee replaces it. The verdict reports `fee_cap` {chain, cap, source}. Measured by `crates/tx/tests/fee_cap_chains.rs`: SwapChan's corpus of 35 legitimate sweeps all pass (the old flat 100,000-sat cap refused 9 of 35); on each of the 27 buildable chains a fee 1 unit over the cap is refused and 10x the cap passes only with an explicit max_fee. BTC: a 1-input tx paying 240,000 sat is refused.
+
 | chain | fee limit | rate limit | measured median | sample |
 |---|---|---|---|---|
 | dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io (unmeasured) |

@@ -9,7 +9,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools --test fee_cap_paths"
 expect = "test result: ok"
-commit = "fbcf2b3"
+commit = "3ec1d1a"
 date = "2026-10-25"
 cheap = false
 depends = ["crates/tx/src/policy.rs"]
@@ -17,17 +17,17 @@ doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = 
 
 [[claim]]
 id = "fee-cap-utxo-default"
-statement = "With no --max-fee, every signing route caps UTXO fee at 100,000 base units"
+statement = "With no --max-fee, every signing route caps UTXO fee at max(100,000 base units, chain rate limit x vsize); 35 of 35 corpus sweeps pass (flat cap refused 9 of 35); cap+1 refused on each of 27 buildable chains; 240,000 sat on a 1-input BTC tx refused"
 kind = "security"
 platform = "linux"
 status = "measured"
-command = "cargo test -q --release -p blocktools --test fee_cap_paths"
-expect = "test result: ok"
-commit = "fbcf2b3"
+command = "cargo test -q --release -p blocktools-tx --test fee_cap_chains"
+expect = "test result: ok. 4 passed"
+commit = "3ec1d1a"
 date = "2026-10-25"
 cheap = false
-depends = ["crates/tx/src/policy.rs"]
-doc = [{ file = "docs/CHAINS.md", text = "100,000 sat" }, { file = "recipes/chain-qtum.md", text = "100000 sats" }]
+depends = ["crates/tx/src/policy.rs", "crates/core/src/chains.rs", "crates/tx/tests/fee_cap_chains.rs", "crates/tx/tests/data/feeprobe-corpus.jsonl"]
+doc = [{ file = "docs/CHAINS.md", text = "100,000 sat" }, { file = "docs/CHAINS.md", text = "35 legitimate sweeps" }, { file = "docs/CHAINS.md", text = "9 of 35" }, { file = "docs/CHAINS.md", text = "27 buildable chains" }, { file = "docs/CHAINS.md", text = "240,000 sat" }]
 
 [[claim]]
 id = "scrypt-bounds"

@@ -23,7 +23,7 @@ list (`{"txid","vout","amount","address"}` per line), then build, read, and veri
 <!-- e2e: expect="tool":"tx-verify" ; expect="failures":[] -->
     ./blocktools run 'tx-build --chain qtum --utxos /in/u-qtum.json --to QMDLoKJqTv5YNaDbHuuEQPwmTFaiaKHJVp --sweep --fee-rate 700 | tx-verify --chain qtum --expect-to QMDLoKJqTv5YNaDbHuuEQPwmTFaiaKHJVp --max-fee 1000000'
 
-Sign with `tx-sign --chain qtum --max-fee 1000000` (the default cap of 100000 sats is below Qtum's fee floor; the same cap applies to tx-verify and tx-sign; TTY confirmation, as in goal-sweep.md) and broadcast the hex yourself
+Sign with `tx-sign --chain qtum` (the default cap is Qtum's per-chain cap, docs/CHAINS.md "Default fee cap"; pass --max-fee to set your own; the same cap applies to tx-verify and tx-sign; TTY confirmation, as in goal-sweep.md) and broadcast the hex yourself
 (qtum.info, or `sendrawtransaction` in Qtum Core). Qtum's fee floor is high: the fee warning uses a measured
 median of 700 sat/vB. Not covered: contract (OP_CALL/OP_CREATE) outputs, P2PK inputs. No Qtum tx built here (unmeasured)
 has been broadcast.
