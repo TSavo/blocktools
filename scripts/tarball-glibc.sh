@@ -11,6 +11,6 @@ curl -fsSLO "$B/blocktools-$TAG-linux-x86_64.tar.gz" && curl -fsSLO "$B/SHA256SU
 sha256sum -c --ignore-missing SHA256SUMS >/dev/null
 tar xzf "blocktools-$TAG-linux-x86_64.tar.gz"
 n=0; for b in */bin/*; do n=$((n + 1)); echo "$(objdump -T "$b" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1) $(basename "$b")"; done > floors
-c34=$(grep -c '^GLIBC_2.34 ' floors || true)
+c34=$(grep -c '^GLIBC_2.34 ' floors || true)  # allow-true: grep -c exits 1 on zero matches, count is still printed
 hi=$(awk '$1 != "GLIBC_2.34" {print $2 "=" $1}' floors | sort | tr '\n' ' ')
 echo "tarball-glibc $TAG: sha256 ok; $n binaries; $c34 need GLIBC_2.34; others: ${hi% }"
