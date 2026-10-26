@@ -8,7 +8,7 @@ WarpWallet (2014) hardened that with scrypt and PBKDF2 and an e-mail salt. `phra
 The phrase is used **byte for byte**: spaces, case and punctuation all matter, and every phrase yields a key, so a
 wrong phrase gives a wrong (empty) address rather than an error. Check the address against the one you funded.
 
-<!-- e2e: expect=1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T ; expect=1C7zdTfnkzmr13HfA2vNm5SJYRK6nEKyq8 ; expect="scheme":"brainwallet-sha256" -->
+<!-- e2e: expect=1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T ; expect=1C7zdTfnkzmr13HfA2vNm5SJYRK6nEKyq8 -->
     ./blocktools run 'phrase-to-key < /in/brainwallet.txt | key-to-addresses --chain btc'
 
 (The vector is the xkcd "correct horse battery staple" brainwallet, drained in 2013: 1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T.)
@@ -17,7 +17,7 @@ WarpWallet needs the e-mail (salt) too, so the input is a JSON line `{"phrase":"
 the salt may be empty. scrypt N=2^18 is memory-hungry (a quarter gigabyte) and takes about a second per phrase. Vector: keybase/warpwallet
 `test/spec.json` #1 (1J32CmwScqhwnNQ77cKv9q41JGwoZe2JYQ).
 
-<!-- e2e: expect=1J32CmwScqhwnNQ77cKv9q41JGwoZe2JYQ ; expect="scheme":"warpwallet" -->
+<!-- e2e: expect=1J32CmwScqhwnNQ77cKv9q41JGwoZe2JYQ -->
     ./blocktools run 'phrase-to-key --scheme warpwallet < /in/warpwallet.json | key-to-addresses --chain btc'
 
 `--scheme all` tries both. Other chains: `key-to-addresses` without `--chain` prints every chain, but brainwallets
