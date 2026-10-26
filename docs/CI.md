@@ -37,8 +37,13 @@ longest job 7-12 min, and the `cargo build --release` inside a job 0.5-1.8 min. 
   it again, so every job's first wasm build was a clean build on top of the clean reproducibility rebuild. Both
   now keep it.
 
-Still open: the four jobs of a run each do their own `cargo build --release --workspace` on a different runner
-(four compiles of one commit, in parallel on one CPU); and the per-ref queue. The second is the larger cost.
+The four jobs of a run no longer compile the commit four times: ci.yml links `target` to
+`$RUNNER_TOOL_CACHE/blocktools-target/<ref>` (the tool-cache volume all four runner containers share), so the
+first job to take cargo's build-directory lock compiles and the other three wait for the artifacts. The dir is
+per ref because the concurrency group allows one run per ref: no two commits build into one dir at once (a PR
+branch gets its own dir). `.gitignore` lists `/target` as well as `/target/` so the symlink is not an untracked
+file for prepush-check. Old ref dirs are not removed automatically: `du -sh /opt/hostedtoolcache/blocktools-target/*`
+in a runner container, delete what no branch needs. This is a repo change only; no compose change on Battleaxe.
 
 Measured from our own run 40270984219 (c0ece5e) with
 `gh api repos/TSavo/blocktools/actions/runs/40270984219/jobs`: all four Linux jobs succeeded on
@@ -115,6 +120,24 @@ prune, git clean except target/, and removal of `$TMPDIR/blocktools-*` and `$TMP
 wasm-check's reproducibility rebuild still runs in a fresh build dir. The cleanup
 touches only that runner's checkout, so it is safe with parallel jobs as long as each runner container has
 its own `/tmp`. That is the case unless the compose file mounts a shared `/tmp`; we have not verified it.
-`scripts/gate.sh` creates no Docker images or containers. Workflow-level `concurrency` (`ci-<ref>`, no
-cancel-in-progress) still serializes runs per ref. It does not serialize the jobs inside a run, which now
-run in parallel.
+`scripts/gate.sh` creates no Docker images or containers. Workflow-level `concurrency` (`ci-<ref>`) keeps one
+run per ref and, since 2026-10-26, cancels the previous commit's run when a new push arrives (see 'Queue').
+The jobs inside a run execute in parallel on different runners.
+
+## Queue (why push-to-green was 12-25 min)
+
+Measured on runs 40388233412..40401710490: pushes arrived every 2.4 min (median), the per-ref group kept
+`cancel-in-progress: false`, so every surviving run waited 7-19 min for the previous run to finish and 19 of
+30 runs were cancelled while pending. `cancel-in-progress` is now true: a push to a ref cancels the run of
+the commit before it, and the newest commit starts as soon as a runner is free. Consequences:
+
+- An intermediate commit in a burst gets no verdict of its own; the next commit's run covers its changes.
+  A claim or finding that cites 'measured by CI at <sha>' must cite a commit whose run completed.
+- While pushes keep arriving faster than a run takes (about 7 min after the overhead removal), nothing
+  finishes. A bot that waits for green before its next push gets one as soon as it waits one run-length.
+- Same-repo pull requests use the PR's own ref, so they do not cancel main's run.
+
+Checking out with `clean: false` keeps `target` between jobs (it is the per-ref symlink above), so each
+stage's `cargo build --release` is incremental from the last commit built on that ref. Before this,
+actions/checkout's default `git clean -ffdx` emptied target/ at the start of every job and rust-cache
+restored it from GitHub's cache (0.3-0.5 min restore, 1.1-2.7 min save).

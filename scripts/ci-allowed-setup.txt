@@ -11,3 +11,4 @@ rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '
 rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
 git worktree prune && git clean -ffdxq -e target && for d in "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*; do [ "$d" = "${TMPDIR:-/tmp}/blocktools-wasm-build" ] || rm -rf "$d"; done
 python3 -c 'import cryptography, yaml' 2>/dev/null || python3 -m pip install --user --break-system-packages cryptography pyyaml
+d="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}/blocktools-target/$(printf '%s' "$GITHUB_REF" | tr -c 'A-Za-z0-9._-' _)" && mkdir -p "$d" && { [ -L target ] || rm -rf target; } && ln -sfn "$d" target
