@@ -59,18 +59,9 @@ apk add ./blocktools-<version>-r0.apk                     # a downloaded, signed
 The file name in `/etc/apk/keys` must stay `blocktools@tsavo-2026.rsa.pub`; apk finds the key by the
 name recorded in the signature.
 
-## APK repository (built, NOT live)
+## APK repository (live on GitHub Pages)
 
-`scripts/apk-repo-build.sh OUTDIR signed.apk...` (Battleaxe host only) lays out `OUTDIR/x86_64/` with the
-signed APKs and an `APKINDEX.tar.gz` built by `apk index` and signed by `abuild-sign` with the same Vault
-key, through the same tmpfs, read-only-bind, output-suppressed flow as `apk-sign-host.sh`. It refuses
-input APKs that do not verify against the repo key, and finishes by checking that an Alpine container
-trusting only the repo key accepts the index and one with no key flags it UNTRUSTED.
-
-Intended hosting: GitHub Pages from a `gh-pages` branch pushed from the Battleaxe host (the signed files
-exist only there; CI runners never get the key). Intended repository URL:
-`https://tsavo.github.io/blocktools/alpine` (with `x86_64/APKINDEX.tar.gz` under it). **Pages is not
-enabled and nothing is published yet; these commands do not work until it is:**
+Repository URL: `https://tsavo.github.io/blocktools/alpine` (served from the `gh-pages` branch, `alpine/`).
 
 ```sh
 wget -O /etc/apk/keys/blocktools@tsavo-2026.rsa.pub \
@@ -79,23 +70,33 @@ echo https://tsavo.github.io/blocktools/alpine >> /etc/apk/repositories
 apk update && apk add blocktools
 ```
 
-Measured 2026-10-26 on Battleaxe, repo served over local HTTP to `alpine:latest` (Alpine 3.24.3,
-apk-tools 3.0.8, x86_64): with the key, `apk update` and `apk add blocktools` succeeded; without the key,
-`apk update` reported `UNTRUSTED signature` and `apk add blocktools` failed; a package with one flipped
-byte failed `apk verify` and `apk add` from the repo ("file format is invalid or inconsistent").
+The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
+(same SHA-256). Current package: `blocktools-0.1.1_pre20261026-r0`, an untagged pre-release built from
+main `ecf1e55` (apk orders `0.1.1_pre20261026` above `0.1.0` and below `0.1.1`, measured with
+`apk version -t`). Payload: the 41 CLIs as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
+in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
-**The current payload does not run on Alpine.** The packaged binaries are glibc builds
-(interpreter `/lib64/ld-linux-x86-64.so.2`): plain exit 127; with `gcompat` 1 of 43 binaries started,
-the rest fail on `libgcc_s.so.1`/glibc symbols. The package declares `arch=x86_64` and no dependencies.
-A usable repo needs a musl build (`x86_64-unknown-linux-musl`, the `MUSL_BINDIR` that
-`package-native.sh apk` already expects) before publishing.
+How it is built (Battleaxe host only): `PKG_VERSION=... APK_SIGN_HOST=1 scripts/package-native.sh apk`,
+then `scripts/apk-repo-build.sh OUTDIR signed.apk...`. That script refuses APKs not signed by the repo
+key, builds `APKINDEX.tar.gz` with `apk index`, signs it with `abuild-sign` using the Vault key through
+the same tmpfs, read-only-bind, output-suppressed flow as `apk-sign-host.sh`, and checks that Alpine
+trusts it with the repo key and flags it UNTRUSTED without. The published files were scanned for PEM
+private-key blocks before the push (none).
+
+Measured 2026-10-26 in fresh `alpine:latest` containers (Alpine 3.24.3, apk-tools 3.0.8, x86_64):
+- live Pages URL, key from the raw GitHub URL: `apk update` and `apk add blocktools` succeeded, and
+  43 of 43 installed executables ran `--help` (exit below 126);
+- live Pages URL without the key: `UNTRUSTED signature`, and `apk add blocktools` failed;
+- local HTTP copy with one byte flipped in the package: `apk add` failed ("file format is invalid or
+  inconsistent") and nothing was installed.
 
 ## Limits (what is not there or not measured)
 
-- **No hosted APK repository yet.** The index is built and tested locally (above) but not published.
+- The repo holds one x86_64 pre-release package; there is no arm64 build. The release workflow does not
+  build or publish it; updates are a manual host-side rebuild and `gh-pages` push.
 - Signed APKs are not attached to any release yet, and the release workflow does not call the signer.
 - Measured: signing and `apk verify` in `alpine:3.20` containers on x86_64. `apk add` from a
   signed index measured in an Alpine 3.24 container (apk-tools v3, v2 package format). Not measured:
-  arm64, a bare-metal/VM Alpine host, a hosted URL.
+  arm64, a bare-metal/VM Alpine host, Alpine releases other than 3.24.3.
 - The key has no expiry. Rotation means a new key name, a new `.pub` in this directory and a new Vault
   version; old packages still verify only against the old key.

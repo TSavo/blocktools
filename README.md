@@ -82,6 +82,19 @@ sudo apt update && sudo apt install blocktools
 Needs glibc 2.34+ (Debian 12, Ubuntu 22.04+); `sealed-run` needs glibc 2.39+ (Ubuntu 24.04). Key
 fingerprint and measurements (debian:12, ubuntu:22.04 and 24.04 containers, 2026-10-26): [docs/APT-SIGNING.md](docs/APT-SIGNING.md).
 
+### Alpine (apk, x86_64)
+
+```sh
+wget -O /etc/apk/keys/blocktools@tsavo-2026.rsa.pub \
+  https://raw.githubusercontent.com/TSavo/blocktools/main/packaging/alpine/keys/blocktools@tsavo-2026.rsa.pub
+echo https://tsavo.github.io/blocktools/alpine >> /etc/apk/repositories
+apk update && apk add blocktools
+```
+
+Static musl binaries; current package is the untagged pre-release `0.1.1_pre20261026`. Measured in an
+`alpine:latest` (3.24.3) container on 2026-10-26: install from the live URL, 43 of 43 executables run,
+refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md).
+
 ### From source
 
 ```sh
