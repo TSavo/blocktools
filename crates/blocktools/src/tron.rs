@@ -54,11 +54,76 @@ fn u256_dec(b: &[u8]) -> String {
     while n.iter().any(|&x| x != 0) { let mut r = 0u32; for x in n.iter_mut() { let c = (r << 8) | *x as u32; *x = (c / 10) as u8; r = c % 10 } s.push(b'0' + r as u8) }
     if s.is_empty() { "0".into() } else { s.reverse(); String::from_utf8(s).unwrap() }
 }
+/// (raw_data, signatures). A full Transaction has field 1 = raw_data whose own field 11 is a contract;
+/// anything else is taken as bare raw_data with no signatures.
+fn split<'a>(top: &'a [(u64, F<'a>)], bytes: &'a [u8]) -> (&'a [u8], Vec<&'a [u8]>) {
+    match get_b(top, 1) {
+        Some(r) if r.len() > 2 && fields(r).map(|f| get_b(&f, 11).is_some()).unwrap_or(false) =>
+            (r, top.iter().filter_map(|(k, v)| match v { F::B(b) if *k == 2 => Some(*b), _ => None }).collect()),
+        _ => (bytes, vec![]),
+    }
+}
+
+/// Default TRC-20 fee_limit cap when `max_fee_limit_sun` is not given: 150 TRX.
+pub const DEFAULT_MAX_FEE_LIMIT_SUN: u64 = 150_000_000;
+
+/// finding:D1-10. Check a Tron tx against `{owner?, to?, amount_sun?, contract?, amount?, max_fee_limit_sun?, now_ms?}`.
+/// Accepted: exactly one TransferContract (TRX) or TriggerSmartContract carrying a TRC-20 `transfer`.
+/// Every signature is recovered (secp256k1 over the txid) and must be the contract owner.
+pub fn verify_tx(bytes: &[u8], expect: &Value) -> Result<Value, &'static str> {
+    let d = decode(bytes)?; let top = fields(bytes)?; let (raw, sigs) = split(&top, bytes);
+    let digest: [u8; 32] = sha256::Hash::hash(raw).to_byte_array();
+    let mut fail: Vec<String> = vec![]; let mut warn: Vec<String> = vec![];
+    let s = |k: &str| expect.get(k).and_then(|v| v.as_str()).map(str::to_string);
+    let cs = d["contracts"].as_array().unwrap();
+    if cs.len() != 1 { fail.push("multiple_contracts".into()) }
+    let c = &cs[0]; let ty = c["type"].as_str().unwrap_or("");
+    // Permission_id (contract field 5) selects a multisig / custom permission: the owner key alone
+    // may not be what signs, and which keys count lives on chain.
+    let rf = fields(raw)?; let perm = rf.iter().find_map(|(k, v)| match v { F::B(b) if *k == 11 => fields(b).ok().and_then(|f| get_v(&f, 5)), _ => None }).unwrap_or(0);
+    if perm != 0 { fail.push(format!("permission_id_not_owner:{perm}")) }
+    let (mut to, mut trx, mut tok) = (Value::Null, 0u128, None::<String>);
+    match ty {
+        "TransferContract" => { to = c["to"].clone(); trx = c["amount_sun"].as_str().unwrap_or("0").parse().unwrap_or(0) }
+        "TriggerSmartContract" => match c.get("trc20_transfer") {
+            Some(t) => {
+                to = t["to"].clone(); tok = t["amount"].as_str().map(String::from);
+                if c["call_value_sun"] != "0" { fail.push("trx_value_with_token_call".into()) }
+                if let Some(k) = s("contract") { if c["contract"] != k.as_str() { fail.push("wrong_contract".into()) } } else { warn.push("token_contract_not_pinned".into()) }
+                let cap = expect.get("max_fee_limit_sun").and_then(|v| v.as_str()).map(|x| x.parse::<u64>().map_err(|_| "bad_max_fee_limit_sun")).transpose()?.unwrap_or(DEFAULT_MAX_FEE_LIMIT_SUN);
+                match d["fee_limit_sun"].as_str().and_then(|x| x.parse::<u64>().ok()) { Some(f) if f > cap => fail.push("fee_limit_above_cap".into()), None => fail.push("no_fee_limit".into()), _ => {} }
+            }
+            None if c.get("trc20_approve").is_some() => fail.push("trc20_approve".into()),
+            None => fail.push("unknown_contract_call".into()),
+        },
+        t => fail.push(format!("unsupported_contract:{t}")),
+    }
+    if let Some(e) = s("to") { if to != e.as_str() { fail.push("unexpected_recipient".into()) } }
+    if let Some(a) = s("amount_sun") { if a.parse::<u128>().ok() != Some(trx) || ty != "TransferContract" { fail.push("amount_sun_mismatch".into()) } }
+    if let Some(a) = s("amount") { if tok.as_deref() != Some(a.as_str()) { fail.push("amount_mismatch".into()) } }
+    if let Some(o) = s("owner") { if c["owner"] != o.as_str() { fail.push("owner_mismatch".into()) } }
+    if let Some(now) = expect.get("now_ms").and_then(|v| v.as_u64()) { if d["expiration"].as_u64().is_some_and(|x| x <= now) { fail.push("expired".into()) } }
+    let mut st = vec![];
+    for g in &sigs {
+        let r = blocktools_evm::eip712::recover(&digest, g).ok().and_then(|(a, low)| { let mut b = vec![0x41]; b.extend(a); address(&b).map(|x| (x, low)) });
+        st.push(match r { Some((a, low)) if c["owner"] == a.as_str() => { if !low { warn.push("high_s_signature".into()) } json!({"status": "valid", "signer": a}) }
+            Some((a, _)) => { fail.push("signer_not_owner".into()); json!({"status": "invalid", "signer": a}) }
+            None => { fail.push("bad_signature".into()); json!({"status": "invalid"}) } });
+    }
+    if sigs.is_empty() { warn.push("unsigned".into()) }
+    if sigs.len() > 1 { fail.push("extra_signatures".into()) }
+    fail.sort(); fail.dedup();
+    let nv = st.iter().filter(|x| x["status"] == "valid").count();
+    Ok(json!({"ok": fail.is_empty(), "failures": fail, "warnings": warn, "txid": d["txid"], "contract_type": ty, "owner": c["owner"], "to": to,
+        "amount_sun": trx.to_string(), "token_amount": tok, "fee_limit_sun": d["fee_limit_sun"], "expiration": d["expiration"],
+        "signatures": st, "fully_signed": nv == 1 && sigs.len() == 1}))
+}
+
 /// Decode `raw_data` bytes (tronweb `raw_data_hex`) or a full signed Transaction (raw_data = field 1, signatures = field 2).
 pub fn decode(bytes: &[u8]) -> Result<Value, &'static str> {
     let top = fields(bytes)?;
     // A full Transaction has field 1 = raw_data (bytes) and optional field 2 signatures; raw_data itself starts with field 1 ref_block_bytes (2 bytes).
-    let (raw, sigs): (&[u8], usize) = match get_b(&top, 1) { Some(r) if r.len() > 2 && fields(r).map(|f| get_b(&f, 11).is_some()).unwrap_or(false) => (r, top.iter().filter(|(k, _)| *k == 2).count()), _ => (bytes, 0) };
+    let (raw, sigs) = split(&top, bytes); let sigs = sigs.len();
     let f = fields(raw)?;
     let cs: Vec<Value> = f.iter().filter_map(|(k, v)| match v { F::B(b) if *k == 11 => Some(contract(b)), _ => None }).collect::<Result<_, _>>()?;
     if cs.is_empty() { return Err("no_contract") }
@@ -192,4 +257,44 @@ pub fn plan_from_json(v: &Value) -> Result<TronPlan, &'static str> {
     Ok(TronPlan { from: a(&v["from"])?, to: a(&v["to"])?, ref_block_bytes: hx(&v["ref_block_bytes"], 2)?.try_into().unwrap(),
         ref_block_hash: hx(&v["ref_block_hash"], 8)?.try_into().unwrap(), expiration_ms: n(&v["expiration_ms"])?, timestamp_ms: n(&v["timestamp_ms"])?,
         memo: v["memo"].as_str().map(|m| m.as_bytes().to_vec()), amount })
+}
+
+#[cfg(test)]
+mod verify_t {
+    use super::*;
+    // Mainnet vectors, TronGrid getnowblock block 87,447,813 (fetched 2026-10-26): raw_data_hex + signature
+    // wrapped as Transaction{raw_data=1, signature=2}; txID = sha256(raw_data) matched the API.
+    const TRX: &str = "0a83010a0258f12208b86eae4a9e4d8fc24098ca80c197345a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a154178c4eb1f2739cee08700d430e3e3384dd440848b121541ff9f68c375b0b740363c949ec0a9760eae981c7b180170868ffdc09734124110c6349ad8061e58be758d65d10ca021f8b7bae7402690e062690b9cf457b8a65deeede6cae51cc008251be7cca15e3ea7091c6d1c19a97f4a4f55c4ea67c0bf00";
+    const TRC: &str = "0ad3010a0259012208267ce33a3696003540a89b80c197345aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541fa334a6a9b4f327802a100b8db025db1af41113d121541a614f803b6fd780986a42c78ec9c7f77e6ded13c2244a9059cbb000000000000000000000000bc472c736b4f7b13324f77706f9f0eaac166e7b9000000000000000000000000000000000000000000000000000000174876e80070c8c6fcc09734900180c2d72f1241d58b0466d91a02f0e6e5a41dc84e1da9d48fb640afe55a8f6aa19259be3a29771c35028c8ec4a84eac53636795ba784027a10e52fe9acd2f3a7ac4b9c50e34b41c";
+    fn h(s: &str) -> Vec<u8> { crate::hex_dec(s).unwrap() }
+    fn f(v: &Value) -> Vec<&str> { v["failures"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect() }
+    #[test] fn mainnet_trx_transfer_verifies() {
+        let v = verify_tx(&h(TRX), &json!({"owner": "TLymzDFTSpmoFc51sTjLxSAAA4ALUqaAqX", "to": "TZGpGvWakYvAKixs982WpEiCn8JXd4157v", "amount_sun": "1"})).unwrap();
+        assert_eq!(v["ok"], true, "{v}"); assert_eq!(v["fully_signed"], true);
+        assert_eq!(v["txid"], "63c3baa2c4021528df4d0113384f537bcd1039eba24c52bcc4fb254fcd95ef62");
+        assert_eq!(v["signatures"][0]["signer"], "TLymzDFTSpmoFc51sTjLxSAAA4ALUqaAqX");
+    }
+    #[test] fn mainnet_trc20_transfer_verifies() {
+        let e = json!({"owner": "TYn9NkozfMGtkMznHVNgwS9u6JQnuH2yJP", "to": "TT8jJMVHtAjgGFrc463ZwZQnMXEr519q3u", "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "amount": "100000000000"});
+        let v = verify_tx(&h(TRC), &e).unwrap(); assert_eq!(v["ok"], true, "{v}");
+        assert_eq!(v["txid"], "56edd71e7530635c5a6e551c21c1bdb4620b850dad1db508dc822429219b23f4");
+        let mut e2 = e.clone(); e2["max_fee_limit_sun"] = json!("99999999");
+        assert_eq!(f(&verify_tx(&h(TRC), &e2).unwrap()), ["fee_limit_above_cap"]);
+        let mut e3 = e.clone(); e3["contract"] = json!("TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7");
+        assert_eq!(f(&verify_tx(&h(TRC), &e3).unwrap()), ["wrong_contract"]);
+        assert_eq!(f(&verify_tx(&h(TRC), &json!({"amount": "1"})).unwrap()), ["amount_mismatch"]);
+        assert_eq!(f(&verify_tx(&h(TRC), &json!({"now_ms": 1793016729000u64})).unwrap()), ["expired"]);
+    }
+    #[test] fn tampered_bytes_or_signature_fail() {
+        // Last byte of raw_data's amount (TRX: amount_sun=1 -> 2): the signature now recovers to someone else.
+        let mut b = h(TRX); let mut j = 1; let raw_len = varint(&b, &mut j).unwrap() as usize; let i = b[..j + raw_len].windows(2).rposition(|w| w == [0x18, 0x01]).unwrap(); b[i + 1] = 2;
+        let v = verify_tx(&b, &json!({})).unwrap(); assert!(f(&v).contains(&"signer_not_owner"), "{v}");
+        let mut b = h(TRX); let n = b.len(); b[n - 2] ^= 1; // flip a bit of s
+        let v = verify_tx(&b, &json!({})).unwrap(); assert!(!f(&v).is_empty(), "{v}"); assert_eq!(v["fully_signed"], false);
+    }
+    #[test] fn wrong_recipient_and_unsigned() {
+        let v = verify_tx(&h(TRX), &json!({"to": "TT8jJMVHtAjgGFrc463ZwZQnMXEr519q3u"})).unwrap(); assert_eq!(f(&v), ["unexpected_recipient"]);
+        let raw = { let b = h(TRX); let mut i = 1; let l = varint(&b, &mut i).unwrap() as usize; b[i..i + l].to_vec() };
+        let v = verify_tx(&raw, &json!({})).unwrap(); assert_eq!(v["warnings"], json!(["unsigned"])); assert_eq!(v["fully_signed"], false);
+    }
 }

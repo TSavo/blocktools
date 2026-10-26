@@ -65,3 +65,4 @@ sol-tron-tx | 0 | sol-tron-tx build --plan "$R/recipes/fixtures/sol-tron/sol-pla
 sol-tron-tx | 0 | sol-tron-tx decode < "$R/recipes/fixtures/sol-tron/tron-transfer.txt"
 sol-tron-tx | 0 | sol-tron-tx verify --expect '{"lamports":"1000"}' < "$R/recipes/fixtures/sol-tron/sol-transfer.txt"
 sol-tron-tx | 2 | sol-tron-tx decode ff00ff
+sol-tron-tx | 0 | sol-tron-tx verify --expect '{"to":"TT8jJMVHtAjgGFrc463ZwZQnMXEr519q3u","amount":"100000000000"}' < "$R/recipes/fixtures/sol-tron/tron-mainnet-trc20.txt"

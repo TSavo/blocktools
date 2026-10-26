@@ -262,7 +262,7 @@ echo '{}' | typed-data-verify --signer 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBb
 sol-tron-tx decode ff00ff
 ```
 
-<!-- run rc=2 expect=tron_verify_not_built -->
+<!-- run rc=1 expect=verify_failed,unexpected_recipient -->
 ```sh
-sol-tron-tx verify --expect '{}' < "$FX/tron-transfer.hex"
+sol-tron-tx verify --expect '{"to":"TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"}' < "$FX/tron-transfer.hex"
 ```

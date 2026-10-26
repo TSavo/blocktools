@@ -19,7 +19,9 @@ fn bad(e: &str) -> ! { emit(json!({"tool": "sol-tron-tx", "status": "bad_input",
 fn main() {
     blocktools_io::help("sol-tron-tx decode|verify|build [--chain sol|tron] [--expect JSON] [--plan FILE] [HEX_OR_BASE64]
   decode           decode a transaction (hex or base64, argument or stdin): Solana wire tx (legacy/v0) or Tron raw_data / Transaction
-  verify --expect  check a Solana tx against {owner?, to?, lamports?, mint?, amount?, allow_programs?}; Tron verify is not built (unsupported)
+  verify --expect  Solana: {owner?, to?, lamports?, mint?, amount?, allow_programs?}
+                   Tron:   {owner?, to?, amount_sun?, contract?, amount?, max_fee_limit_sun?, now_ms?}
+                   (one TRX transfer or TRC-20 transfer; signatures recovered and must be the owner)
   build --plan F   unsigned transfer from a plan file (solBuildTransfer / tronBuildTransfer JSON, EXPORTS.md); prints hex
   --chain sol|tron skip auto-detect. Without it, bytes that parse as both chains, or neither, are refused (bad_input).
 Takes no keys and signs nothing.");
@@ -41,8 +43,7 @@ Takes no keys and signs nothing.");
         "verify" => {
             let e: Value = serde_json::from_str(&val("--expect").unwrap_or_else(|| bad("verify_needs_--expect"))).unwrap_or_else(|_| bad("bad_expect"));
             let b = soltron::raw(&input()).unwrap_or_else(|e| bad(e)); let c = chain_of(&b);
-            if c == "tron" { emit(json!({"tool": "sol-tron-tx", "status": "unsupported", "chain": c, "error": "tron_verify_not_built"})) }
-            let r = sol::verify_tx(&b, &e).unwrap_or_else(|e| bad(e));
+            let r = if c == "sol" { sol::verify_tx(&b, &e) } else { tron::verify_tx(&b, &e) }.unwrap_or_else(|e| bad(e));
             let ok = r["ok"] == json!(true);
             emit(json!({"tool": "sol-tron-tx", "status": if ok { "ok" } else { "verify_failed" }, "chain": c, "result": r}))
         }

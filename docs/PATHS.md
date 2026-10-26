@@ -12,7 +12,7 @@ node. Pick the row for your chain and job.
 | 4 | fetch tx → rebuild → decode → verify (chain id) | EVM ERC-20 transfer | [evm-inspect.sh](../recipes/paths/evm-inspect.sh) | a verdict |
 | 5 | keys → build → decode → sign → decode | Cosmos (atom) | [cosmos-send.sh](../recipes/paths/cosmos-send.sh) | signed tx; broadcast **NOT BUILT** |
 | 6 | fetch blockhash → build → decode → verify | Solana | [sol-transfer.sh](../recipes/paths/sol-transfer.sh) | unsigned tx; sign **NOT BUILT** |
-| 7 | fetch block → build → decode → txid | Tron | [tron-transfer.sh](../recipes/paths/tron-transfer.sh) | unsigned tx; verify and sign **NOT BUILT** |
+| 7 | fetch block → build → decode → txid | Tron | [tron-transfer.sh](../recipes/paths/tron-transfer.sh) | unsigned tx; verify with `sol-tron-tx verify`; sign **NOT BUILT** |
 | 8 | fetch tx → abi-decode | EVM, any contract call | not written | pending: abi-decode has not landed |
 
 Paths 4, 6 and 7 call the wasm exports (`node`, `bindings/wasm/pkg/node`, built by `sh scripts/wasm-check.sh`)

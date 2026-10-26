@@ -5,7 +5,9 @@ sol\-tron\-tx \- build unsigned, decode and verify Solana and Tron transfers. Th
 .nf
 sol\-tron\-tx decode|verify|build [\-\-chain sol|tron] [\-\-expect JSON] [\-\-plan FILE] [HEX_OR_BASE64]
   decode           decode a transaction (hex or base64, argument or stdin): Solana wire tx (legacy/v0) or Tron raw_data / Transaction
-  verify \-\-expect  check a Solana tx against {owner?, to?, lamports?, mint?, amount?, allow_programs?}; Tron verify is not built (unsupported)
+  verify \-\-expect  Solana: {owner?, to?, lamports?, mint?, amount?, allow_programs?}
+                   Tron:   {owner?, to?, amount_sun?, contract?, amount?, max_fee_limit_sun?, now_ms?}
+                   (one TRX transfer or TRC\-20 transfer; signatures recovered and must be the owner)
   build \-\-plan F   unsigned transfer from a plan file (solBuildTransfer / tronBuildTransfer JSON, EXPORTS.md); prints hex
 Takes no keys and signs nothing.
 .fi
@@ -50,6 +52,8 @@ $ sol\-tron\-tx verify \-\-expect '{"lamports":"1000"}' < "$R/recipes/fixtures/s
 # exit 0, last status: ok
 $ sol\-tron\-tx decode ff00ff
 # exit 2, last status: bad_input
+$ sol\-tron\-tx verify \-\-expect '{"to":"TT8jJMVHtAjgGFrc463ZwZQnMXEr519q3u","amount":"100000000000"}' < "$R/recipes/fixtures/sol\-tron/tron\-mainnet\-trc20.txt"
+# exit 0, last status: ok
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
