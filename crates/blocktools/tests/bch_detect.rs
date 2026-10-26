@@ -1,4 +1,4 @@
-//! finding 1: a BCH CashAddr returned no candidates from address::detect (and so from detectAddress /
+//! finding:D1-1 (finding 1): a BCH CashAddr returned no candidates from address::detect (and so from detectAddress /
 //! detectAddressInfo). Vector: CashAddr spec example, same hash as 1BpEi6DfDAUFd7GtittLSdBeYJvcoaVggu.
 use blocktools::address::detect;
 use blocktools_core::validate::AddrKind;

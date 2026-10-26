@@ -22,6 +22,13 @@ pub struct Policy {
 }
 
 fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
+/// UTXO outputs: exact match, or on bch the same output script (CashAddr and legacy name one script).
+fn same_out(chain: &str, e: &str, a: &str) -> bool {
+    if e == a { return true }
+    if chain != "bch" { return false }
+    let Some(c) = blocktools_core::chains::chain(chain) else { return false };
+    matches!((blocktools_core::chains::address_to_script(c, e), blocktools_core::chains::address_to_script(c, a)), (Some(x), Some(y)) if x == y)
+}
 
 /// The fee cap a verdict used, and where it came from ("explicit" = the human's max_fee).
 #[derive(Debug, Clone, PartialEq)]
@@ -99,11 +106,11 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
         if !p.expect_to.is_empty() {
             for o in &d.outputs {
                 match &o.address {
-                    Some(a) if p.expect_to.iter().chain(&p.change).any(|e| same(e, a)) => {}
+                    Some(a) if p.expect_to.iter().chain(&p.change).any(|e| same_out(&d.chain, e, a)) => {}
                     _ => { f.push(crate::code!("unexpected_output")); break }
                 }
             }
-            for e in &p.expect_to { if !d.outputs.iter().any(|o| o.address.as_deref().is_some_and(|a| same(e, a))) { f.push(crate::code!("expected_destination_missing")); break } }
+            for e in &p.expect_to { if !d.outputs.iter().any(|o| o.address.as_deref().is_some_and(|a| same_out(&d.chain, e, a))) { f.push(crate::code!("expected_destination_missing")); break } }
         }
     }
     f

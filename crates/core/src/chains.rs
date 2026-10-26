@@ -780,7 +780,13 @@ pub fn address_to_script(c: &Chain, a: &str) -> Option<Vec<u8>> {
             let mut s = vec![if v == 0 { 0 } else { 0x50 + v }, p.len() as u8]; s.extend(p); return Some(s);
         }
     }
-    let b = decode_check_ck(c.ck(), a).ok()?;
+    // bch: CashAddr destinations (prefixed "bitcoincash:" or bare), mainnet prefix only, 20-byte hash, type 0/1.
+    let cash;
+    let b = if c.name == "bch" && !a.starts_with(['1', '3']) {
+        let (p, t, h) = crate::cashaddr::decode(a, "bitcoincash").ok()?;
+        if p != "bitcoincash" || h.len() != 20 || t > 1 { return None }
+        cash = [&[if t == 0 { p2pkh } else { p2sh }][..], &h].concat(); cash
+    } else { decode_check_ck(c.ck(), a).ok()? };
     if b.len() != 21 { return None }
     let h = &b[1..];
     let (no_pkh, no_sh) = (crate::chain_spec::missing(c.name, "p2pkh").is_some(), crate::chain_spec::missing(c.name, "p2sh").is_some());

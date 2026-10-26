@@ -37,6 +37,13 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
     if addr.is_empty() || addr.len() > 130 || !addr.is_ascii() { return Err("bad length") }
     match c.enc {
         Enc::Utxo { p2pkh, p2sh, hrp, .. } => {
+            // bch CashAddr (prefixed or bare), mainnet prefix, 20-byte hash; base58 legacy falls through.
+            if chain == "bch" {
+                if let Ok((p, t, h)) = crate::cashaddr::decode(addr, "bitcoincash") {
+                    if p != "bitcoincash" || h.len() != 20 { return Err("not a bch mainnet p2pkh/p2sh cashaddr") }
+                    return match t { 0 => Ok(AddrKind::P2pkh), 1 => Ok(AddrKind::P2sh), _ => Err("unknown cashaddr type") };
+                }
+            }
             if let Some(h) = hrp {
                 let lower = addr.to_ascii_lowercase();
                 if lower.starts_with(&format!("{h}1")) {

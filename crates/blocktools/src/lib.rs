@@ -57,14 +57,7 @@ pub mod address {
         let mut v: Vec<(&'static str, AddrKind)> = chains::detectable()
             .filter_map(|c| blocktools_core::validate::validate(c.name, addr).ok().map(|k| (c.name, k))).collect();
         if let Ok((k, _)) = zec(addr) { v.push(("zec", k)) }
-        // BCH CashAddr (finding 1): the per-chain validator only knows base58/bech32.
-        if chains::CHAINS.iter().any(|c| c.name == "bch" && c.verified) {
-            if let Ok((p, t, h)) = crate::cashaddr::decode(addr, "bitcoincash") {
-                if p == "bitcoincash" && h.len() == 20 {
-                    match t { 0 => v.push(("bch", AddrKind::P2pkh)), 1 => v.push(("bch", AddrKind::P2sh)), _ => {} }
-                }
-            }
-        }
+        // BCH CashAddr (finding 1) is validated by blocktools_core::validate for bch.
         v
     }
 

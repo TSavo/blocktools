@@ -2,7 +2,8 @@
 //! UTXO chains -> {"psbt": base64}; EVM -> {"unsigned_tx": hex}. Pipe the result to tx-decode.
 //!   tx-build --chain btc|ltc|doge --utxos FILE --to ADDR (--sweep | --consolidate | --send SATS --change ADDR)
 //!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N]
-//!   (also bch|bsv|btg: same flags; legacy inputs need prev_tx; tx-sign signs them with the fork-id sighash)
+//!   (also bch|bsv|btg: same flags; legacy inputs need prev_tx; tx-sign signs them with the fork-id sighash;
+//!    bch --to also takes CashAddr, bitcoincash:q... or bare, same output script as the legacy address)
 //!   tx-build --chain ppc|nvc|clam|rdd --utxos FILE --to ADDR --sweep --fee-rate UNITS_PER_BYTE [--time UNIX]
 //!            -> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
 //!   tx-build --chain zec --utxos FILE --to t1... --sweep [--fee-rate N] [--branch-id HEX] [--expiry-height H]
