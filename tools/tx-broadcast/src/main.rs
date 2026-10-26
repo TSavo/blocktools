@@ -30,8 +30,8 @@ fn main() {
     if !d.signed || (d.evm.is_some() != (chain == "eth")) { out("refused", json!({"error":"chain_or_signature_mismatch"})) }
     if d.outputs.iter().map(|o| (&o.address, o.amount)).ne(shown.outputs.iter().map(|o| (&o.address, o.amount))) { out("refused", json!({"error":"signed_tx_differs_from_psbt"})) }
     let local = d.txid.clone().unwrap_or_default();
-    let url = one("--url").unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(),
-        "eth" => "https://ethereum-rpc.publicnode.com".into(), _ => out("bad_input", json!({"error":"--url required"})) });
+    let url = one("--url").unwrap_or_else(|| match chain.as_str() { "btc" | "ltc" | "eth" => blocktools_net::default_endpoint(&chain).unwrap_or_default().into(),
+        _ => out("bad_input", json!({"error":"--url required"})) });
     let summary = format!("{}\nBROADCAST to {url}\nThis is irreversible.\n", shown.text().trim_end());
     if !blocktools_tty::confirm(&summary) { out("aborted", json!({})) }
     let hexs = blocktools_core::hex_enc(&raw);

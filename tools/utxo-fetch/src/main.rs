@@ -36,29 +36,19 @@ fn main() {
     for x in &addrs { if blocktools_core::validate::validate(vchain, x).is_err() { die("invalid address for chain") } }
     if chain == "ada" { return ada(url.as_deref().unwrap_or("https://api.koios.rest/api/v1"), &addrs) }
     if chain == "xlm" || chain == "algo" || chain == "atom" || chain == "ton" || chain == "dot" { return acct(&chain, url.as_deref(), &addrs) }
-    if chain == "eth" { return eth(url.as_deref().unwrap_or("https://ethereum-rpc.publicnode.com"), &addrs) }
-    let base = url.unwrap_or_else(|| match chain.as_str() { "btc" => "https://blockstream.info/api".into(), "ltc" => "https://litecoinspace.org/api".into(), _ => die("--url ESPLORA_BASE required for this chain") });
+    if chain == "eth" { return eth(url.as_deref().or(blocktools_net::default_endpoint("eth")).unwrap_or_default(), &addrs) }
+    let base = url.unwrap_or_else(|| match chain.as_str() { "btc" | "ltc" => blocktools_net::default_endpoint(&chain).unwrap_or_default().into(), _ => die("--url ESPLORA_BASE required for this chain") });
     let base = base.trim_end_matches('/');
     let (mut n, mut total) = (0u64, 0u64);
     for ad in &addrs {
-        let body = blocktools_net::get(&format!("{base}/address/{ad}/utxo")).unwrap_or_else(|e| die(&e));
-        let list: Vec<Value> = serde_json::from_slice(&body).unwrap_or_else(|_| die("bad utxo response"));
         // Legacy-sighash inputs (anything but a witness program; bare P2SH may wrap a legacy script) need the full previous tx:
         // their signature does not commit to the amount, and tx-build / tx-sign refuse them without it.
         let legacy = blocktools_core::chains::chain(&chain).and_then(|c| blocktools_core::chains::address_to_script(c, ad))
             .map(|s| !(matches!(s.first(), Some(0x00) | Some(0x51..=0x60)) && s.len() >= 4 && s.len() <= 42 && s[1] as usize == s.len() - 2))
             .unwrap_or(true);
-        for u in list {
-            let txid = u["txid"].as_str().filter(|t| t.len() == 64 && t.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| die("bad txid from server"));
-            let vout = u["vout"].as_u64().filter(|&v| v <= u32::MAX as u64).unwrap_or_else(|| die("bad vout from server"));
-            let value = u["value"].as_u64().filter(|&v| v > 0 && v <= i64::MAX as u64).unwrap_or_else(|| die("bad value from server"));
-            let mut o = json!({"txid":txid,"vout":vout,"amount":value,"address":ad});
-            if prev && legacy {
-                let hex = blocktools_net::get(&format!("{base}/tx/{txid}/hex")).unwrap_or_else(|e| die(&e));
-                let hex = String::from_utf8(hex).ok().map(|s| s.trim().to_string()).filter(|s| s.len() % 2 == 0 && s.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| die("bad tx hex from server"));
-                o["prev_tx"] = json!(hex);
-            }
-            blocktools_io::outln!("{o}"); n += 1; total = total.saturating_add(value);
+        for o in blocktools_net::esplora_utxos(base, ad, prev && legacy).unwrap_or_else(|e| die(&e)) {
+            total = total.saturating_add(o["amount"].as_u64().unwrap_or(0));
+            blocktools_io::outln!("{o}"); n += 1;
             if n > 2000 { die("more than 2000 utxos") }
         }
     }
