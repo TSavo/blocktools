@@ -42,9 +42,9 @@ python3 "$src/scripts/wasm-lock-merge.py" "$src/Cargo.lock" "$src/bindings/wasm/
 put "$B/root.toml" "$B/src/Cargo.toml"; put "$B/wasm.toml" "$B/src/bindings/wasm/Cargo.toml"; put "$B/lock" "$B/src/Cargo.lock"
 cd "$B/src"
 unset CARGO_TARGET_DIR CARGO_BUILD_TARGET_DIR
-cargo metadata --offline -q --format-version 1 >/dev/null  # prunes the merged lock to what is used
+cargo metadata -q --format-version 1 >/dev/null  # prunes the merged lock to what is used
 # The wasm crate's resolved tree (versions + features) must equal what its own committed lock gives.
-tree() { p=$1; shift; cargo tree --offline -q --locked --target wasm32-unknown-unknown -e normal,build,features --prefix none "$@" \
+tree() { p=$1; shift; cargo tree -q --locked --target wasm32-unknown-unknown -e normal,build,features --prefix none "$@" \
   | sed -e "s| ($p/| (|" -e 's| (\*)||' | sort -u; }
 t1=$(cd "$src/bindings/wasm" && tree "$src"); t2=$(tree "$B/src" -p blocktools-wasm)
 [ "$t1" = "$t2" ] || { echo "wasm-build: build-copy dependency tree differs from bindings/wasm/Cargo.lock" >&2; exit 1; }
