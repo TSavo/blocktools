@@ -84,6 +84,7 @@ pkgrel=0
 pkgdesc="blocktools offline chain utilities"
 url="https://github.com/TSavo/blocktools"
 arch="x86_64"
+depends="bash"  # recipes/recover.sh is #!/usr/bin/env bash; the CLIs are static musl
 license="custom"
 options="!check !strip !tracedeps"
 source=""
