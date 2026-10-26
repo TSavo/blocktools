@@ -345,3 +345,9 @@ console.log('lift7 ok');
   assert.throws(() => bt.solDecodeTx('00'), (x) => /^[a-z_]+$/.test(x.message));  // still usable after: a normal error
   console.log('ok non-string args throw TypeError expected_string (finding 10)');
 }
+
+{ // finding 1: BCH CashAddr shows up in detectAddress / detectAddressInfo
+  const i = JSON.parse(bt.detectAddressInfo('bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a'));
+  assert.ok(JSON.stringify(i.candidates).includes('bch'), JSON.stringify(i));
+  console.log('ok cashaddr detect bch (finding 1)');
+}
