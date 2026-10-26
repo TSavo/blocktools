@@ -1,6 +1,8 @@
 # Build: static musl binaries. Base images pinned by digest.
 FROM rust:1.85-alpine3.20@sha256:4ec3fedc5eff0bc1ca3ce0e2abbd7190585627eb2b3eedc25e0bf0712b209cd7 AS build
 RUN apk add --no-cache musl-dev file python3  # python3: check-deps.sh parses cargo metadata (build stage only; runtime is scratch)
+# Shipped binaries keep fat LTO (Cargo.toml defaults to thin for developer and gate builds).
+ENV CARGO_PROFILE_RELEASE_LTO=fat
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates

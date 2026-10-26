@@ -33,4 +33,7 @@ ed25519-dalek = { version = "2", default-features = false, features = ["std", "z
 [profile.release]
 panic = "abort"
 strip = true
-lto = true
+# Thin LTO by default: fat LTO relinked 43 binaries and every test binary through a whole-program pass on
+# each change, which is what made `cargo test --release` slow for everyone. The shipped artifacts keep fat
+# LTO: the Dockerfile (sealed image) and release.yml (tarball) set CARGO_PROFILE_RELEASE_LTO=fat.
+lto = "thin"
