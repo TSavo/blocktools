@@ -91,11 +91,13 @@ EOF
     apk add -q abuild >/dev/null
     adduser -D -h /work b; addgroup b abuild
     cp /out/APKBUILD /work/; chown -R b /work
+    # THROWAWAY build key: abuild always signs. Release signing is scripts/apk-sign-host.sh (docs/APK-SIGNING.md).
     su b -c "abuild-keygen -a -n >/dev/null 2>&1"; cp /work/.abuild/*.pub /etc/apk/keys/
     su b -c "cd /work && abuild -d -P /work/pkgs >/dev/null 2>&1"
     find /work/pkgs -name "*.apk" -exec cp {} /out/ \;'
   cp -f /tmp/bt-apkbuild/blocktools-${ver}-r0.apk /tmp/ && chmod 644 /tmp/blocktools-${ver}-r0.apk
   echo "wrote /tmp/blocktools-${ver}-r0.apk"
+  if [ "${APK_SIGN_HOST:-0}" = 1 ]; then scripts/apk-sign-host.sh /tmp/blocktools-${ver}-r0.apk; fi  # host only, see docs/APK-SIGNING.md
   ;;
 *) echo "unknown kind $kind"; exit 1 ;;
 esac
