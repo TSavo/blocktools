@@ -1,0 +1,403 @@
+# rpc: talk to node and wallet RPC endpoints
+
+`rpc` is a small host-side network tool that works as a pipe filter, in the style of netcat. It sends one call, or a stdin
+batch, to a node or wallet endpoint. The raw response goes to stdout. Errors go to stderr as one JSON line.
+It uses the same HTTP client (`crates/net`, minreq + rustls, no Tokio) and the same per-chain endpoint table
+(`blocktools_net::ENDPOINTS`) as `utxo-fetch` and `tx-broadcast`. Like them, it is excluded from the sealed image (Dockerfile,
+`scripts/docs-check.sh` rule 4) and sealed-run never allows it.
+
+`rpc` has no config or project files. The man page is `man/man1/rpc.1`, generated from `rpc --help` by `scripts/gen-man.py`.
+
+Platform: everything on this page was measured on Linux (x86_64). Nothing here was run on macOS.
+
+## Shapes
+
+```
+rpc URL METHOD [PARAMS-JSON]      one JSON-RPC call (EVM, bitcoind and forks, Solana)
+... | rpc URL                     JSON-RPC request(s) on stdin: one object or a batch array, sent byte-for-byte
+rpc URL /PATH [BODY-JSON]         REST: GET, or POST when BODY is given (Tron, Cosmos LCD, Esplora, Blockbook)
+rpc URL SHORTCUT [ARG]            height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+... | rpc URL sendraw             broadcast ONE signed tx; decoded summary + typed code on the terminal
+```
+
+`URL` can also be a chain name from the shared table (`btc`, `ltc`, `eth`, `ada`, `dot`, `ton`, `atom`, `xlm`, `algo`) or the
+EVM chain id `1`. For any other EVM chain, pass its RPC URL and pin the chain id as a plain argument: `--chain-id 137`.
+
+Exit status: 0 ok, 1 RPC or HTTP error, 2 bad input, 3 refused (the same convention as the other tools).
+
+Options: `--protocol P`, `--chain-id N`, `--chain C` (UTXO chain for address checks and sendraw decoding; default btc),
+`--auth-file FILE`, `--auth-env NAME`, `--policy FILE`, `--allow-wallet-sign`, `--timeout N` (1..300, default 30).
+
+## Auto-detection
+
+Detection runs in this order. The first rule that matches wins. `--protocol` overrides all of them.
+
+1. **URL substring** (`URL_RULES` in `tools/rpc/src/lib.rs`):
+   - `solana`, `:8899`, `helius` → sol
+   - `tron`, `:8090` → tron
+   - `blockbook`, `/api/v2` → blockbook
+   - `esplora`, `blockstream.info`, `mempool.space`, `litecoinspace` → esplora
+   - `cosmos-rest`, `lcd`, `:1317`, `cosmos.directory`, `polkachu` → cosmos
+   - bitcoind-family ports `:8332 :18332 :18443 :38332 :9332 :19332 :22555 :44555` → btc
+   - `:8545`, `infura`, `alchemy`, `-rpc.publicnode.com`, `flashbots`, `drpc`, `llamarpc` → evm
+2. **Method name**:
+   - `eth_` / `net_` / `web3_` / `personal_` / `wallet_` / `debug_` / `txpool_` → evm
+   - a known Solana camelCase method → sol
+   - all-lowercase → btc (bitcoind, litecoind, dogecoind and other forks)
+3. **Shortcuts only**, read-only probes in this order:
+   - `eth_chainId` returns a string → evm
+   - `getVersion` has `solana-core` → sol
+   - `getblockchaininfo` has `chain` → btc
+   - otherwise the call is refused with `protocol_unknown`; pass `--protocol`.
+
+Passthrough calls do not need a protocol. Their bytes are sent as given.
+
+## Per-protocol usage
+
+The output below was captured from the binary against `scripts/mock-chain.py` (port shown as PORT) and a one-shot local mock.
+The one public endpoint call is labelled.
+
+### EVM JSON-RPC (any chain)
+
+Measured on 2026-10-25 20:39 PDT on the Linux box (x86_64). This is a harmless read-only call to a public endpoint:
+
+```
+$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber
+{"jsonrpc":"2.0","result":"0x190e9b3","id":1}
+$ rpc eth height
+{"height":26274227,"protocol":"evm"}
+```
+
+Mock:
+
+```
+$ rpc --protocol evm http://127.0.0.1:PORT account 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+{"balance":"1000000000000000000","chain_id":1,"max_fee_per_gas":"2100000000","max_priority_fee_per_gas":"100000000","nonce":5}
+$ rpc --protocol evm http://127.0.0.1:PORT nonce 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+{"address":"0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf","nonce":5,"protocol":"evm"}
+```
+
+The `account` shortcut prints the same object as `utxo-fetch --chain eth` (the file that `tx-build --account FILE` reads). The
+e2e script checks this.
+
+The default shortcut set maps to the read-only EVM methods that SwapChan uses (`readchain.ts`):
+
+| shortcut | method |
+|---|---|
+| `height` | `eth_blockNumber` |
+| `chainid` | `eth_chainId` |
+| `balance ADDR` | `eth_getBalance [ADDR,"latest"]` |
+| `nonce ADDR` | `eth_getTransactionCount [ADDR,"pending"]` |
+| `tx HASH` | `eth_getTransactionByHash` |
+| `receipt HASH` | `eth_getTransactionReceipt` |
+| `fee` | `eth_gasPrice` + `eth_maxPriorityFeePerGas` |
+| `account ADDR` | chainId + nonce + balance + fees (utxo-fetch shape) |
+
+`eth_call`, `eth_getStorageAt`, `eth_getCode`, `eth_getLogs` and `eth_getBlockByNumber` / `eth_getBlockByHash` go through
+passthrough, for example `rpc URL eth_getCode '["0x...","latest"]'`.
+
+Public RPCs usually refuse a full-range `eth_getLogs`, one with no `fromBlock` or with `fromBlock` set to `earliest`/`0x0`. In
+that case `rpc` prints a `getlogs_full_range` warning on stderr and still sends the call.
+
+`--chain-id N` refuses the call (`chain_id_mismatch`) unless the endpoint's `eth_chainId` equals N.
+
+**Flashbots Protect**: `https://rpc.flashbots.net/fast` is an optional private broadcast URL, for example
+`... | rpc https://rpc.flashbots.net/fast sendraw`. No code is specific to Flashbots. It is simply a URL. Untested: no
+broadcast was made.
+
+### Bitcoin Core-style JSON-RPC (bitcoind, litecoind, dogecoind, other forks)
+
+```
+rpc --auth-file ~/.bitcoin/.cookie http://127.0.0.1:8332 getblockcount
+rpc --auth-file ~/.bitcoin/.cookie http://127.0.0.1:8332 utxos bc1q...      # scantxoutset; prints utxo-fetch lines
+rpc --chain ltc --auth-file ~/.litecoin/.cookie http://127.0.0.1:9332 balance ltc1q...
+```
+
+- `utxos` turns the node's decimal amounts into integer base units with an exact decimal parse, not floats. `0.29` becomes
+  `29000000`.
+- For legacy inputs, `utxos` adds `prev_tx` using `getblockhash` + `getrawtransaction`, using the same rule as utxo-fetch.
+- `fee` uses `estimatesmartfee 6` and reports sat/vB.
+
+### Solana JSON-RPC
+
+```
+rpc https://solana-rpc.publicnode.com getSlot
+rpc --protocol sol URL balance ADDR      # lamports
+rpc --protocol sol URL blockhash
+```
+
+### Tron HTTP API
+
+```
+rpc --protocol tron https://tron-rpc.publicnode.com balance TXYZ...           # POST wallet/getaccount {"address":..,"visible":true}
+rpc https://tron-rpc.publicnode.com /wallet/getnowblock '{}'
+```
+
+Tron quirks:
+- Reads work on PublicNode, but broadcast goes to TronGrid.
+- Requests need `"visible":true` so that addresses are base58. The shortcuts add it. With raw `/PATH` calls you must include
+  it yourself.
+- `rpc` does not broadcast Tron transactions. `wallet/broadcasttransaction` is refused with `broadcast_needs_sendraw`, and
+  `sendraw` does not support Tron (`sendraw_unsupported_protocol`). Untested.
+
+### Cosmos REST / LCD
+
+```
+rpc atom height
+rpc atom balance cosmos1...        # /cosmos/bank/v1beta1/balances/ADDR
+rpc atom nonce cosmos1...          # account_number + sequence
+rpc atom /cosmos/base/tendermint/v1beta1/node_info
+```
+
+### Esplora and Blockbook REST (GET passthrough)
+
+```
+$ rpc --protocol esplora http://127.0.0.1:PORT utxos bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+{"address":"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4","amount":50000,"txid":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","vout":0}
+rpc btc /blocks/tip/height
+rpc https://btc1.trezor.io/api/v2 utxos bc1q...      # blockbook
+```
+
+The Esplora `utxos` shortcut calls the same `blocktools_net::esplora_utxos` function as `utxo-fetch`. The e2e script checks
+that both commands print identical bytes.
+
+## Per-provider UTXO REST field differences
+
+`rpc` passes these responses through as raw bytes. Only Esplora, Blockbook and bitcoind are normalised by the `utxos` shortcut.
+Normalise other providers in your own pipeline:
+
+| provider | txid / index fields | amount |
+|---|---|---|
+| Esplora | `txid` / `vout` | `value`, integer base units |
+| Blockbook | `txid` / `vout` | `value`, decimal string in base units |
+| bitcoind `scantxoutset` | `txid` / `vout` | `amount`, coins (decimal) |
+| chainz.cryptoid.info | `tx_hash` / `tx_ouput_n` (sic, misspelled) | `value`, always 1e8 units, whatever the coin's decimals |
+| qtum.info | `transactionId` / `outputIndex` | `value` |
+| WhatsOnChain | `tx_hash` / `tx_pos` | `value` |
+| Insight | `txid` / `vout` | `satoshis` (plus `amount` in coins) |
+
+## Rate limits and pacing
+
+`rpc` has no hidden retries, and it never runs requests in parallel. Each run makes one request, plus any requests a shortcut
+needs, done in sequence. Pace the runs yourself (for example `sleep` between calls in a loop) and choose providers in this
+order:
+
+- novacoin explorers returned 503 at 8 parallel requests. Keep calls sequential.
+- cryptoid allows about 1 call per 10 s without a key.
+- the GRS explorer returned 429 on 2026-10-25.
+- keyless TronGrid returns 429. Try PublicNode first for Tron reads.
+
+These are SwapChan's field observations from `/workspace/handoff/rpc-knife-requirements.md`. `rpc` did not measure them
+(unmeasured).
+
+## Credentials (wallet RPC)
+
+- `--auth-file FILE` or `--auth-env NAME` accepts these forms:
+  - `user:pass` or a bitcoind `.cookie` → `Authorization: Basic`
+  - `Bearer TOKEN` or a bare token → `Authorization: Bearer`
+  - `Header-Name: value` lines (e.g. `TRON-PRO-API-KEY: ...`) → those headers
+- `--user`, `--password`, `--token`, `--header`, `-u` and `-H` are refused with `credential_on_command_line`.
+- Userinfo in the URL (`http://u:p@host`) is refused with the same code.
+- The raw value, the password, the token and the Base64 form are all redacted (`[REDACTED]`) from stdout and from stderr. This
+  covers the case where a server echoes them back.
+- Values shorter than 4 characters are not redacted, because that would mangle unrelated output. Do not use a password that
+  short.
+
+## Safety: what is refused
+
+The agent must never see keys, seeds or passwords. Every refusal exits 3, and nothing is sent to the server:
+
+| code | when |
+|---|---|
+| `method_exports_secrets` | a method from the table below that prints keys or seeds, or `listdescriptors` / `gethdkeys` with private=true |
+| `method_imports_secrets` | the method takes a private key or seed as a parameter |
+| `method_unlocks_wallet` | the method sends a wallet passphrase (`walletpassphrase`, `personal_unlockAccount`, `createwallet` with a passphrase) |
+| `method_wallet_signs` | the wallet signs with its own key (always refused, flag or not) |
+| `method_wallet_spends` | the wallet builds, signs and sends (`sendtoaddress`, `payto`, `transfer`, ...) |
+| `wallet_sign_needs_flag` | `eth_sendTransaction` / `eth_signTypedData_v4` without `--allow-wallet-sign` |
+| `wallet_sign_undecodable` | the flagged request cannot be decoded completely into a summary |
+| `wallet_sign_chain_mismatch` | the flagged request's chain id differs from the endpoint's `eth_chainId` (or from `--chain-id`) |
+| `wallet_sign_chain_unknown` | the flagged request has no chain id and none was given with `--chain-id` |
+| `method_denied_by_policy` | the method is in the `--policy` file's `rpc.deny` list |
+| `request_contains_secret_field` | the params contain a field named privateKey, password, mnemonic, seed, wif, xprv, ... |
+| `broadcast_needs_sendraw` | a raw broadcast (`eth_sendRawTransaction`, `sendrawtransaction`, POST `/tx`, Tron broadcast, ...) outside `sendraw` |
+| `response_contains_secret` | the response has a key-like field (privkey, mnemonic, ...) or an xprv/tprv string. Nothing is printed |
+| `credential_on_command_line` | a credential was given as an argument or in the URL |
+| `chain_id_mismatch` | `--chain-id`, or a sendraw tx's chain id, differs from the endpoint |
+| `protocol_unknown` | a shortcut could not detect the protocol |
+| `unsupported_for_protocol` | the shortcut does not exist for that protocol |
+| `not_signed`, `chain_or_signature_mismatch`, `sendraw_unsupported_protocol` | sendraw input checks |
+| `policy_unknown_key` | the policy file has a key other than `version`, `rpc.deny` or `chains` (exit 2) |
+
+Other statuses on stderr: `rpc_error` (the server returned a JSON-RPC error, exit 1), `http_error` (non-2xx, a non-JSON
+reply, a redirect, a timeout or an oversized response, exit 1), `bad_input` (exit 2), and `aborted` (sendraw got no terminal
+or a wrong code, exit 3).
+
+### The deny-list (single source of truth)
+
+`DENY` in `tools/rpc/src/lib.rs` is the only table. Matching ignores case and reads the whole method or path. The lib test
+`deny_table_documented` fails if a row is missing below. SwapChan's key-export list is a subset of these rows
+(`swapchan_key_export_list_is_a_subset`): dumpprivkey, dumpwallet, importprivkey, backupwallet, `listdescriptors true`, sethdseed,
+personal_importRawKey, personal_unlockAccount, keystore exports (`personal_*`, `parity_*`, `account_*`), and Electrum
+getprivatekeys/getseed.
+
+| method (case-insensitive) | match | refusal code | family |
+|---|---|---|---|
+| `dumpprivkey` | exact | `method_exports_secrets` | bitcoind |
+| `dumpwallet` | exact | `method_exports_secrets` | bitcoind |
+| `backupwallet` | exact | `method_exports_secrets` | bitcoind |
+| `dumpmasterprivkey` | exact | `method_exports_secrets` | bitcoind fork |
+| `dumphdinfo` | exact | `method_exports_secrets` | dashd |
+| `importprivkey` | exact | `method_imports_secrets` | bitcoind |
+| `importwallet` | exact | `method_imports_secrets` | bitcoind |
+| `importmulti` | exact | `method_imports_secrets` | bitcoind |
+| `importdescriptors` | exact | `method_imports_secrets` | bitcoind |
+| `sethdseed` | exact | `method_imports_secrets` | bitcoind |
+| `upgradetohd` | exact | `method_imports_secrets` | dashd |
+| `signrawtransactionwithkey` | exact | `method_imports_secrets` | bitcoind |
+| `signmessagewithprivkey` | exact | `method_imports_secrets` | bitcoind |
+| `walletpassphrase` | exact | `method_unlocks_wallet` | bitcoind |
+| `walletpassphrasechange` | exact | `method_unlocks_wallet` | bitcoind |
+| `encryptwallet` | exact | `method_unlocks_wallet` | bitcoind |
+| `signrawtransactionwithwallet` | exact | `method_wallet_signs` | bitcoind |
+| `signrawtransaction` | exact | `method_wallet_signs` | bitcoind (old) |
+| `walletprocesspsbt` | exact | `method_wallet_signs` | bitcoind |
+| `signmessage` | exact | `method_wallet_signs` | bitcoind |
+| `sendtoaddress` | exact | `method_wallet_spends` | bitcoind |
+| `sendmany` | exact | `method_wallet_spends` | bitcoind |
+| `send` | exact | `method_wallet_spends` | bitcoind |
+| `sendall` | exact | `method_wallet_spends` | bitcoind |
+| `sendfrom` | exact | `method_wallet_spends` | bitcoind (old) |
+| `bumpfee` | exact | `method_wallet_spends` | bitcoind |
+| `personal_unlockaccount` | exact | `method_unlocks_wallet` | geth |
+| `personal_importrawkey` | exact | `method_imports_secrets` | geth |
+| `personal_exportrawkey` | exact | `method_exports_secrets` | geth |
+| `personal_` | prefix | `method_wallet_signs` | geth |
+| `eth_sign` | exact | `method_wallet_signs` | geth |
+| `eth_signtransaction` | exact | `method_wallet_signs` | geth |
+| `eth_signtypeddata` | exact | `method_wallet_signs` | geth |
+| `eth_signtypeddata_v1` | exact | `method_wallet_signs` | wallet |
+| `eth_signtypeddata_v3` | exact | `method_wallet_signs` | wallet |
+| `account_` | prefix | `method_wallet_signs` | clef |
+| `parity_exportaccount` | exact | `method_exports_secrets` | openethereum |
+| `parity_` | prefix | `method_wallet_signs` | openethereum |
+| `getprivatekeys` | exact | `method_exports_secrets` | electrum |
+| `getseed` | exact | `method_exports_secrets` | electrum |
+| `getmasterprivate` | exact | `method_exports_secrets` | electrum |
+| `export_privkeys` | exact | `method_exports_secrets` | electrum |
+| `importprivkey` | exact | `method_imports_secrets` | electrum |
+| `signtransaction` | exact | `method_wallet_signs` | electrum |
+| `password` | exact | `method_unlocks_wallet` | electrum |
+| `payto` | exact | `method_wallet_spends` | electrum |
+| `paytomany` | exact | `method_wallet_spends` | electrum |
+| `query_key` | exact | `method_exports_secrets` | monero-wallet-rpc |
+| `restore_deterministic_wallet` | exact | `method_imports_secrets` | monero-wallet-rpc |
+| `generate_from_keys` | exact | `method_imports_secrets` | monero-wallet-rpc |
+| `open_wallet` | exact | `method_unlocks_wallet` | monero-wallet-rpc |
+| `transfer` | exact | `method_wallet_spends` | monero-wallet-rpc |
+| `sweep_all` | exact | `method_wallet_spends` | monero-wallet-rpc |
+| `wallet/easytransfer` | prefix | `method_imports_secrets` | tron |
+| `wallet/gettransactionsign` | exact | `method_imports_secrets` | tron |
+| `wallet/addtransactionsign` | exact | `method_imports_secrets` | tron |
+| `wallet/createaddress` | exact | `method_exports_secrets` | tron |
+| `wallet/generateaddress` | exact | `method_exports_secrets` | tron |
+| `wallet/getaddressbyprivatekey` | exact | `method_imports_secrets` | tron |
+| `wallet/getspendingkey` | exact | `method_exports_secrets` | tron |
+| `wallet/getexpandedspendingkey` | exact | `method_exports_secrets` | tron |
+| `wallet/getakfromask` | exact | `method_exports_secrets` | tron |
+| `wallet/getnkfromnsk` | exact | `method_exports_secrets` | tron |
+| `wallet/getnewshieldedaddress` | exact | `method_exports_secrets` | tron |
+| `wallet/createshieldedtransaction` | exact | `method_imports_secrets` | tron |
+| `wallet/createshieldedcontractparameters` | exact | `method_imports_secrets` | tron |
+| `wallet/createspendauthsig` | exact | `method_imports_secrets` | tron |
+| `keys` | prefix | `method_exports_secrets` | cosmos lcd (legacy) |
+| `eth_sendtransaction` | exact | `wallet_sign_needs_flag` | geth / wallet (opened only by `--allow-wallet-sign`) |
+| `eth_signtypeddata_v4` | exact | `wallet_sign_needs_flag` | geth / wallet (opened only by `--allow-wallet-sign`) |
+
+A `--policy FILE` (`{"version":1,"rpc":{"deny":["eth_call","debug_*"]}}`) can only **add** refusals. A trailing `*` makes the
+entry a prefix match. No key exists for allowing a method, and unknown keys are refused.
+
+### `--allow-wallet-sign`
+
+Only `eth_sendTransaction` and `eth_signTypedData_v4` can be opened, and only with the flag. With the flag, the wallet's own
+UI is the human confirmation. Before anything is sent, `rpc`:
+
+1. Decodes the request completely, or refuses it with `wallet_sign_undecodable`.
+   - For sendTransaction, only known keys are accepted. `from` and `to` must be 20-byte addresses, and contract creation is
+     refused. Quantities must be hex, and `data` and `input` must agree.
+   - For typed data, `types`, `primaryType`, `domain` and `message` are required, and the message fields must equal the primary
+     type's fields exactly. No hidden or extra fields are allowed.
+2. Fetches the endpoint's `eth_chainId`. The call is refused if it differs from the request's chain id (or from `--chain-id`),
+   or if neither one gives a chain id.
+3. Prints this summary on stderr, then sends the exact stdin or argument bytes:
+
+```
+wallet-sign eth_sendTransaction (the wallet will ask you to approve)
+  from:     0x1111111111111111111111111111111111111111
+  to:       0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+  value:    0 wei
+  data:     selector 0xa9059cbb, 68 bytes
+  chain id: 1
+  endpoint chain id: 1 (matches)
+```
+```
+wallet-sign eth_signTypedData_v4 (the wallet will ask you to approve)
+  signer:      0x1111111111111111111111111111111111111111
+  domain:
+    name: USD Coin
+    chainId: 1
+    verifyingContract: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+  primaryType: Permit
+  message:
+    owner: 0x1111111111111111111111111111111111111111
+    spender: 0x3333333333333333333333333333333333333333
+    value: 1000000
+    nonce: 0
+    deadline: 1767225600
+  endpoint chain id: 1 (matches)
+```
+
+The flag does not open `eth_sign`, `personal_sign`, `eth_signTransaction`, the other `personal_*` methods, or
+`eth_signTypedData` v1/v3. Those are always refused. TronLink signing is a browser wallet, not an RPC method, so it is out of
+scope.
+
+### Untrusted responses
+
+- Response bodies are data only. When stdout is a terminal, control characters are replaced so that escape sequences cannot
+  act on the terminal.
+- Responses larger than 8 MiB are refused.
+- Redirects are never followed, to any host. A 3xx is an `http_error`, and v1 has no flag to change this.
+- Only https URLs are accepted, except plain http to localhost/127.0.0.1.
+- Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
+
+## Cookbook (mock round trips, run by `scripts/e2e.d/rpc.sh`)
+
+```
+# BTC: rpc utxos | tx-build | tx-sign | rpc sendraw (esplora mock)
+rpc --protocol esplora $U utxos $ADDR > utxos.jsonl
+tx-build --chain btc --utxos utxos.jsonl --to $DEST --sweep --fee-rate 5 > unsigned
+tx-sign --tx unsigned --expect-to $DEST < key > signed     # typed code on the terminal
+rpc --protocol esplora $U sendraw < signed                 # summary + typed code; server id compared with local txid
+
+# EVM: rpc account | tx-build | tx-sign | rpc sendraw
+rpc --protocol evm $U account $ADDR > acct.json
+tx-build --chain eth --chain-id 1 --account acct.json --to $DEST --sweep > unsigned
+tx-sign --tx unsigned --chain-id 1 --expect-to $DEST < key > signed
+rpc --protocol evm $U sendraw < signed                     # also refuses when the tx chain id differs from eth_chainId
+```
+
+Per-chain recipes live in the docs index, which the docs worker owns.
+
+## What was run, and what is untested
+
+Run on Linux (x86_64) on 2026-10-25:
+- `cargo test -p rpc`: the lib tests, plus CLI tests against an in-process mock that records the raw request bytes.
+- `scripts/e2e.d/rpc.sh`.
+- The single public read shown above.
+
+Untested:
+- Any real broadcast, including Flashbots, Tron broadcast and every mainnet `sendraw`.
+- Real bitcoind, geth, Solana, Tron, Cosmos and Blockbook servers. Only mocks were used, except for the one publicnode read.
+- macOS.
+- The provider pacing figures (taken from SwapChan's notes).
+- A wasm facade, which is not exposed. The pure logic in `tools/rpc/src/lib.rs` needs no network, but v1 ships only the CLI.

@@ -173,9 +173,10 @@ fn redirect_not_followed_and_size_capped() {
 }
 #[test]
 fn response_with_private_key_withheld() {
-    let (url, _) = mock(vec![(200, r#"{"id":1,"result":{"privkey":"L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ"}}"#.into())]);
+    // public test vector: WIF of private key 1 (throwaway)
+    let (url, _) = mock(vec![(200, r#"{"id":1,"result":{"privkey":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}}"#.into())]);
     let (c, out, err) = run(&["--protocol", "btc", &url, "getwalletinfo"], ""); assert_eq!(c, 3); assert!(out.is_empty()); assert!(err.contains("response_contains_secret"));
-    assert!(!err.contains("L1aW4"));
+    assert!(!err.contains("KwDiBf89"));
 }
 #[test]
 fn shortcuts_emit_tool_shapes() {
