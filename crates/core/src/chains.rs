@@ -128,6 +128,10 @@ pub const CHAINS: &[Chain] = &[
     u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry; tx format Bitcoin-legacy confirmed on 4 mainnet txs (tx/tests/wdc.rs)", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
     u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
     u("bcc", "BCC", "BitConnect", 0, 18, 85, 146, None, PosTime, false, "bitconnectcoin/bitconnectcoin@3ab3d19 src/base58.h:279-280 (PUBKEY_ADDRESS 18, SCRIPT_ADDRESS 85), :408 (WIF = 128 + PUBKEY_ADDRESS = 146); tx nTime src/main.h:443; no SLIP-44 entry (268 BCC is BCChain)", &[]),
+    // Trust Wallet Core UTXO forks, address + WIF only (sign: Unknown = no tx build/sign claim).
+    u("pivx", "PIVX", "PIVX", 119, 30, 13, 212, None, Unknown, true, "PIVX-Project/PIVX src/chainparams.cpp; Trust Wallet Core registry + tests/chains/Pivx", &[]),
+    u("sys", "SYS", "Syscoin", 57, 63, 5, 128, Some("sys"), Unknown, true, "syscoin/syscoin src/kernel/chainparams.cpp (hrp sys); Trust Wallet Core tests/chains/Syscoin", &[]),
+    u("firo", "FIRO", "Firo", 136, 82, 7, 210, None, Unknown, true, "firoorg/firo src/chainparams.cpp; Trust Wallet Core tests/chains/Firo (EXX exchange addresses: unsupported)", &[]),
 ];
 /// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
 /// this crate does not have.
@@ -799,6 +803,9 @@ mod kat_long_tail {
         ("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV", "WjYjvSRpBu9ds1fQAELW1z1u2LP7o7W7ioDCUJe2hBV4c2yyqEp3"),
         ("anc", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3", "PLZDLNQqSDLm98zzWSbrDHHYacLW4Bwmai4gVbKJ9FoUXV7pNBkk"),
         ("bcc", "8Rm8H7Fo9KCXs7hYfL74Z7K9TC5XnPGnWq", "Nbf4UZcLZSm5GYw9k4dPEQp7LSLEt6b8mVx2hKapgs2v7q8URJUQ"),
+        ("pivx", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE", "YMvgDDPi7bE9ahorF4gKmu4Fm7bHyiV7Wf4ddJT56SmthgCGhJww"),
+        ("sys", "SXyGazfm6S3xfcySmD6QNkZYmtfysC2jvc", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        ("firo", "aBPjJ4LEarrcCrd6EBRTb8jVjUZuHQFVnD", "Y4mR4tfumHPsdfnK8utYBYsHGFBzJswfBmpNWPkt7VGU91p8Yd1d"),
     ];
     #[test] fn every_utxo_row_matches_independent_vector() {
         let s = Secp256k1::new(); let mut b = [0u8; 32]; b[31] = 1; let k = SecretKey::from_slice(&b).unwrap();

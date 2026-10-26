@@ -52,7 +52,7 @@ const BTC: &str = "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH";
 #[test] fn detect_returns_every_candidate() {
     let names = |a: &str| { let mut v: Vec<_> = address::detect(a).into_iter().map(|x| x.0).collect(); v.sort(); v };
     let k = |c: &str| KAT.iter().find(|x| x.0 == c).unwrap().1;
-    assert_eq!(names(k("doge")), ["dgb", "doge"]);          // version 30
+    assert_eq!(names(k("doge")), ["dgb", "doge", "pivx"]);  // version 30
     assert_eq!(names(k("vtc")), ["via", "vtc"]);            // version 71
     assert_eq!(names(BTC), ["bch", "bsv", "btc", "trc"]);   // version 0
     assert_eq!(names(k("mona")), ["ltc", "mec", "mona", "qtum"]); // 50: MONA/MEC p2pkh, LTC/QTUM p2sh

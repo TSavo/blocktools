@@ -297,7 +297,7 @@ Example (executed):
 
 ```js
 bt.chainParams()
-// -> [{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"bc","name":"btc","p2pkh":[0],"p2sh":[5],"slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"sweep_build":true,"ticker":"BTC","title":"Bitcoin","tx_format":"legacy","verified":true,"wif":128},{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"ltc","name":"ltc","p2pkh":[48],"p2sh … [cut: 17685 chars total]
+// -> [{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"bc","name":"btc","p2pkh":[0],"p2sh":[5],"slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"sweep_build":true,"ticker":"BTC","title":"Bitcoin","tx_format":"legacy","verified":true,"wif":128},{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"ltc","name":"ltc","p2pkh":[48],"p2sh … [cut: 18575 chars total]
 ```
 
 ## `chainTable`
@@ -314,7 +314,7 @@ Example (executed):
 
 ```js
 bt.chainTable()
-// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 12824 chars total]
+// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 13881 chars total]
 ```
 
 ## `checkTx`
@@ -507,7 +507,7 @@ Example (executed):
 
 ```js
 bt.detectAddress("DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE")
-// -> [{"chain":"doge","kind":"P2pkh"},{"chain":"dgb","kind":"P2pkh"}]
+// -> [{"chain":"doge","kind":"P2pkh"},{"chain":"dgb","kind":"P2pkh"},{"chain":"pivx","kind":"P2pkh"}]
 ```
 
 ## `detectAddressInfo`
@@ -777,7 +777,7 @@ Example (executed):
 
 ```js
 bt.listChains()
-// -> ["btc","ltc","doge","eth","tron","xrp","atom","algo","dot","ada","ton","xlm","sol","xmr","qtum","ftc","nmc","dash","vtc","dgb","via","mona","rvn","xpm","trc","mec","aur","bch","bsv","btg","ppc","nvc","clam","blk","rdd","pot","qrk","grs","wdc","anc","bcc","zec"]
+// -> ["btc","ltc","doge","eth","tron","xrp","atom","algo","dot","ada","ton","xlm","sol","xmr","qtum","ftc","nmc","dash","vtc","dgb","via","mona","rvn","xpm","trc","mec","aur","bch","bsv","btg","ppc","nvc","clam","blk","rdd","pot","qrk","grs","wdc","anc","bcc","pivx","sys","firo","zec"]
 ```
 
 ## `polkadotAccountStorageKey`
@@ -1060,7 +1060,7 @@ Example (executed):
 
 ```js
 bt.supportedChains()
-// -> [{"name":"btc","slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"ticker":"BTC","title":"Bitcoin","verified":true},{"name":"ltc","slip44":2,"sources":[{"api":"esplora:https://litecoinspace.org/api","checked":"2026-10-24","name":"litecoinspace.org","url":"https://litecoinspace.org/address/{addr}"}],"ticker":"LTC","title":"Litecoin","verified":true},{"name":"doge","slip44":3,"sources":[],"ticker":"DOGE","title":"Dogecoin","verified":true},{"name":"eth","slip44":60,"sources":[],"ti … [cut: 7695 chars total]
+// -> [{"name":"btc","slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"ticker":"BTC","title":"Bitcoin","verified":true},{"name":"ltc","slip44":2,"sources":[{"api":"esplora:https://litecoinspace.org/api","checked":"2026-10-24","name":"litecoinspace.org","url":"https://litecoinspace.org/address/{addr}"}],"ticker":"LTC","title":"Litecoin","verified":true},{"name":"doge","slip44":3,"sources":[],"ticker":"DOGE","title":"Dogecoin","verified":true},{"name":"eth","slip44":60,"sources":[],"ti … [cut: 7962 chars total]
 ```
 
 ## `tronBuildTransfer`

@@ -19,7 +19,7 @@ ROWS = {"btc": (0, 128), "ltc": (48, 176), "doge": (30, 158), "qtum": (58, 128),
         "xpm": (23, 151), "trc": (0, 128), "mec": (50, 178), "aur": (23, 176), "bch": (0, 128), "bsv": (0, 128),
         "btg": (38, 128), "ppc": (55, 183), "nvc": (8, 136), "clam": (137, 133), "blk": (25, 153), "rdd": (61, 189),
         "pot": (55, 183), "qrk": (58, 186), "wdc": (73, 201), "anc": (23, 151),
-        "bcc": (18, 146)}
+        "bcc": (18, 146), "pivx": (30, 212), "sys": (63, 128), "firo": (82, 210)}
 for n, (p, w) in ROWS.items():
     print(n, b58c(bytes([p]) + H160_G), b58c(bytes([w]) + K1 + b"\1"))
 # Zcash transparent (zcash/zcash src/chainparams.cpp): 2-byte prefixes t1 = 1CB8, t3 = 1CBD.

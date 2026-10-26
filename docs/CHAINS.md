@@ -189,3 +189,9 @@ array; `chain-table btc` for one row): name, ticker, SLIP-44 `coin_type`, `curve
 its version bytes / hrp / SS58 prefix, `native_seed`, `sign` (UTXO sighash scheme; `account_family`
 means the chain is signed by its own tool, e.g. acct-tx / xrp-tx), `buildable` (tx-build signs it),
 `verified` and the parameter `source`. The wasm build exports the same array as `chainTable()`.
+
+## Trust Wallet Core UTXO forks: PIVX, Syscoin, Firo (address + WIF only)
+
+Rows `pivx`, `sys`, `firo` carry each coin's own chainparams prefixes (PIVX 30/13/WIF 212; Syscoin 63/5/WIF 128, bech32 hrp `sys`; Firo 82/7/WIF 210). Signing is `Unknown`: `build`/`sign` refuse them; no transaction has been tested on any of these chains.
+
+Measured (Linux only): `scripts/e2e.d/twc-utxo.sh` gives Trust Wallet Core's published addresses (tests/chains, commit adf80f8) for Syscoin p2pkh and p2wpkh and Firo p2pkh from TWC's public test keys; the KAT table covers all three. Untested: PIVX against an outside vector from a private key (TWC only has a pubkey/mnemonic case), Firo EXX addresses (unsupported), Syscoin's other address types.

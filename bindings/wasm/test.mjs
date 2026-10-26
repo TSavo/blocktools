@@ -93,7 +93,7 @@ assert.equal(JSON.parse(bt.checkTx('{')).ok, false);
   const r = JSON.parse(bt.detectAddressInfo("r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59"));
   if (r.candidates[0].kind !== "Xrp") throw new Error("r-address kind"); }
 const det = a => JSON.parse(bt.detectAddress(a)).map(x => x.chain).sort();
-assert.deepEqual(det('DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE'), ['dgb', 'doge']);
+assert.deepEqual(det('DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE'), ['dgb', 'doge', 'pivx']);
 assert.deepEqual(det('t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), ['zec']);
 assert.equal(bt.convertAddress('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'zec'), 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs');
 assert.equal(bt.addressValidate('zec', 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs'), 'P2pkh');
