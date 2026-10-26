@@ -32,13 +32,16 @@ Options:
   \-\-policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
   \-\-allow\-wallet\-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
                         refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+  \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
+                        method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
   \-\-timeout SECONDS     per request, 1..300 (default 30)
 .RE
 .fi
 stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
 (tx\-build \-\-utxos FILE) and account prints the utxo\-fetch eth account object (tx\-build \-\-account FILE).
 stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT\-CODES.md.
-Refused by default (deny\-list in tools/rpc/src/lib.rs, see docs/RPC.md): methods that export, import or unlock keys, wallet
+Fail closed: only methods and REST paths in the per\-protocol read allowlist (ALLOW in tools/rpc/src/lib.rs) are sent.
+Refused even with \-\-allow\-unlisted (deny\-list, see docs/RPC.md): methods that export, import or unlock keys, wallet
 signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
 Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
@@ -52,6 +55,8 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
 \-\-policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
 \-\-allow\-wallet\-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
                       refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+\-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
+                      method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 \-\-timeout SECONDS     per request, 1..300 (default 30)
 .fi
 .SH INPUT/OUTPUT
@@ -61,6 +66,7 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
   ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
   rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
   ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+                        method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 .RE
 .fi
 stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
