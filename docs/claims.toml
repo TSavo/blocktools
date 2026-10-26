@@ -64,10 +64,10 @@ kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
-expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 33255936 bytes"
+expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 33264128 bytes"
 value = "33.3"
 env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
-commit = "1e39a7f"
+commit = "1fe5eac"
 date = "2026-10-25"
 cheap = false
 depends = ["Dockerfile", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
@@ -203,7 +203,7 @@ platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "2159c55"
+commit = "1fe5eac"
 date = "2026-10-25"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
