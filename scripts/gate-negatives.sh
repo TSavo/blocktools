@@ -62,6 +62,7 @@ neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|sha
 neg F-guard docs-check "has no guard file" 'sed "s/| R2-5 \\(.*\\) | scripts\\/check-deps-regress.sh |/| R2-5 \\1 | - |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-token docs-check "does not carry finding:R2-5" 'grep -v "finding:R2-5" scripts/check-deps-regress.sh > t && mv t scripts/check-deps-regress.sh'
 neg F-commit docs-check "is not a commit" 'sed "s/| bb1ceff |/| 0000000 |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+# finding:R2-8 claims registry: an unregistered doc number must fail docs-check.
 neg K-unreg docs-check "unregistered claim" 'echo "The cache holds 77 MB." >> docs/ROADMAP.md'
 neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs/SECURITY.md > t && mv t docs/SECURITY.md'
 neg K-fields docs-check "bad status" 'sed "0,/status = \"measured\"/s//status = \"verified\"/" docs/claims.toml > t && mv t docs/claims.toml'
