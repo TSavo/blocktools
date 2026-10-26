@@ -5,7 +5,8 @@ use crate::chains::{self, Chain, Enc};
 
 /// One path family: template with {purpose} {coin} {account} {change} {i}.
 #[derive(Clone, Debug)]
-pub struct Spec { pub chain: &'static Chain, pub coin: u32, pub kind: &'static str, pub template: String, pub uncompressed: bool }
+/// `label`: wallet name(s) known to use this path family (e.g. "Ledger Live EVM"), "" when none.
+pub struct Spec { pub chain: &'static Chain, pub coin: u32, pub kind: &'static str, pub template: String, pub uncompressed: bool, pub label: &'static str }
 
 #[derive(Clone, Debug)]
 pub struct Ranges { pub account: Vec<u32>, pub change: Vec<u32>, pub index: Vec<u32> }
@@ -20,6 +21,7 @@ pub const PRESETS: &[(&str, &str)] = &[
     ("tronlink", "TronLink: m/44'/195'/{i}'/0/0 and m/44'/195'/0'/0/{i}"),
     ("ledger-live", "Ledger Live EVM m/44'/60'/{i}'/0/0, BTC m/{purpose}'/0'/{i}'/0/0"),
     ("electrum", "Electrum 2.x+ wallets: standard seed m/{change}/{i} p2pkh, segwit seed m/0'/{change}/{i} p2wpkh (picked automatically from the seed scheme)"),
+    ("scan-js", "exactly SwapChan's SCAN_JS rows: 15 labeled paths (EVM MetaMask/Ledger Live/Ledger legacy, Tron, Solana x2, BTC 44/49/84/86, LTC 44/84, DOGE, BCH, BTG), 20 addresses each (--index overrides); default chains eth,tron,sol,btc,ltc,doge,bch,btg"),
     ("legacy-hd", "pre-BIP44 HD layouts, compressed and uncompressed p2pkh: Core 0.13+ m/0'/{change}'/{i}', MultiBit HD / BRD m/0'/{change}/{i}, Electrum 2.x m/{change}/{i}"),
 ];
 
@@ -35,11 +37,38 @@ pub fn kinds_of(c: &Chain) -> Vec<&'static str> {
 pub fn std_template(c: &Chain) -> &'static str {
     if c.enc == Enc::Sol { "m/44'/{coin}'/{i}'/{change}'" } else if c.enc == Enc::Xlm { "m/44'/{coin}'/{i}'" } else { "m/{purpose}'/{coin}'/{account}'/{change}/{i}" }
 }
-pub fn sp(c: &'static Chain, kind: &'static str, t: &str, unc: bool) -> Spec { Spec { chain: c, coin: c.coin, kind, template: t.into(), uncompressed: unc } }
+pub fn sp(c: &'static Chain, kind: &'static str, t: &str, unc: bool) -> Spec { Spec { chain: c, coin: c.coin, kind, template: t.into(), uncompressed: unc, label: "" } }
+fn spl(c: &'static Chain, kind: &'static str, t: &str, label: &'static str) -> Spec { Spec { label, ..sp(c, kind, t, false) } }
+
+/// SwapChan SCAN_JS (apps/api/src/keyrecovery.ts PATHS), in its order: label, chain, address type, path.
+/// Labels are SCAN_JS's own strings so its `label path address` lines can be compared as-is.
+pub const SCAN_JS: &[(&str, &str, &str, &str)] = &[
+    ("MetaMask/Trezor/Trust/Exodus/Rabby EVM", "eth", "eth", "m/44'/60'/0'/0/{i}"),
+    ("Ledger Live EVM", "eth", "eth", "m/44'/60'/{i}'/0/0"),
+    ("Ledger legacy/MEW EVM", "eth", "eth", "m/44'/60'/0'/{i}"),
+    ("TronLink/Trust Tron", "tron", "tron", "m/44'/195'/0'/0/{i}"),
+    ("Phantom/Solflare/Backpack/Trust/Exodus Solana", "sol", "sol", "m/44'/501'/{i}'/0'"),
+    ("Solflare legacy/Sollet Solana", "sol", "sol", "m/44'/501'/{i}'"),
+    ("BTC legacy (1...)", "btc", "p2pkh", "m/44'/0'/0'/0/{i}"),
+    ("BTC nested SegWit (3...)", "btc", "p2sh-p2wpkh", "m/49'/0'/0'/0/{i}"),
+    ("BTC native SegWit (bc1q...) Exodus/Trezor/Ledger", "btc", "p2wpkh", "m/84'/0'/0'/0/{i}"),
+    ("BTC Taproot (bc1p...)", "btc", "p2tr", "m/86'/0'/0'/0/{i}"),
+    ("LTC legacy (L...)", "ltc", "p2pkh", "m/44'/2'/0'/0/{i}"),
+    ("LTC SegWit (ltc1q...)", "ltc", "p2wpkh", "m/84'/2'/0'/0/{i}"),
+    ("DOGE (D...)", "doge", "p2pkh", "m/44'/3'/0'/0/{i}"),
+    ("BCH (legacy-format 1...)", "bch", "p2pkh", "m/44'/145'/0'/0/{i}"),
+    ("BTG (G...)", "btg", "p2pkh", "m/44'/156'/0'/0/{i}"),
+];
+/// Chains `--preset scan-js` covers when no --chain is given.
+pub const SCAN_JS_CHAINS: &[&str] = &["eth", "tron", "sol", "btc", "ltc", "doge", "bch", "btg"];
 
 /// Specs for one preset on the given chains.
 pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
     let mut v = Vec::new();
+    if name == "scan-js" {
+        for &(l, cn, k, t) in SCAN_JS { if let Some(&c) = chains_sel.iter().find(|c| c.name == cn) { v.push(spl(c, k, t, l)) } }
+        return Some(v)
+    }
     for &c in chains_sel {
         // Monero keys come from its own 25-word seed (crates/monero, xmr-keys), not BIP32 paths.
         if c.enc.native_seed() { continue }
@@ -63,20 +92,20 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
                 }
             }
             "exodus" => match c.name {
-                "btc" => { v.push(sp(c, "p2pkh", "m/44'/{coin}'/{account}'/{change}/{i}", false)); v.push(sp(c, "p2wpkh", "m/84'/{coin}'/{account}'/{change}/{i}", false)) }
-                _ => v.push(sp(c, kinds_of(c)[0], std_template(c), false)),
+                "btc" => { v.push(spl(c, "p2pkh", "m/44'/{coin}'/{account}'/{change}/{i}", "Exodus BTC legacy")); v.push(spl(c, "p2wpkh", "m/84'/{coin}'/{account}'/{change}/{i}", "Exodus BTC SegWit")) }
+                _ => v.push(spl(c, kinds_of(c)[0], std_template(c), "Exodus")),
             },
-            "tronlink" => if c.name == "tron" { for t in ["m/44'/{coin}'/{i}'/0/0", "m/44'/{coin}'/0'/0/{i}"] { v.push(sp(c, "tron", t, false)) } },
+            "tronlink" => if c.name == "tron" { v.push(spl(c, "tron", "m/44'/{coin}'/{i}'/0/0", "TronLink account")); v.push(spl(c, "tron", "m/44'/{coin}'/0'/0/{i}", "TronLink/Trust Tron")) },
             "ledger-live" => match c.enc {
-                Enc::Eth => v.push(sp(c, "eth", "m/44'/{coin}'/{i}'/0/0", false)),
-                Enc::Utxo { .. } => for k in kinds_of(c) { v.push(sp(c, k, "m/{purpose}'/{coin}'/{i}'/0/0", false)) },
+                Enc::Eth => v.push(spl(c, "eth", "m/44'/{coin}'/{i}'/0/0", "Ledger Live EVM")),
+                Enc::Utxo { .. } => for k in kinds_of(c) { v.push(spl(c, k, "m/{purpose}'/{coin}'/{i}'/0/0", "Ledger Live")) },
                 _ => {}
             },
             "electrum" | "electrum-standard" | "electrum-segwit" => if utxo {
-                if name != "electrum-segwit" { v.push(sp(c, "p2pkh", "m/{change}/{i}", false)) }
-                if name != "electrum-standard" && kinds_of(c).contains(&"p2wpkh") { v.push(sp(c, "p2wpkh", "m/0'/{change}/{i}", false)) }
+                if name != "electrum-segwit" { v.push(spl(c, "p2pkh", "m/{change}/{i}", "Electrum standard seed")) }
+                if name != "electrum-standard" && kinds_of(c).contains(&"p2wpkh") { v.push(spl(c, "p2wpkh", "m/0'/{change}/{i}", "Electrum segwit seed")) }
             },
-            "legacy-hd" => if utxo { for t in ["m/0'/{change}'/{i}'", "m/0'/{change}/{i}", "m/{change}/{i}"] { v.push(sp(c, "p2pkh", t, true)) } },
+            "legacy-hd" => if utxo { for (t, l) in [("m/0'/{change}'/{i}'", "Bitcoin Core 0.13+ HD"), ("m/0'/{change}/{i}", "MultiBit HD/BRD"), ("m/{change}/{i}", "Electrum 2.x")] { v.push(Spec { label: l, ..sp(c, "p2pkh", t, true) }) } },
             _ => return None,
         }
     }
@@ -123,6 +152,9 @@ pub struct Opts {
     pub gap: Option<u32>, pub explain: bool, pub only_uncompressed: bool,
     /// --stop-on-match: with --match, end the walk after the first hit.
     pub stop_on_match: bool,
+    /// --public-only: rows without the private key field. --address-list: `label<TAB>path<TAB>address`
+    /// lines (implies public_only). Neither prints key material.
+    pub public_only: bool, pub address_list: bool,
 }
 /// Build a plan from `derive` flags (argv without the program name). `--help` and
 /// `--list-presets` are the CLI's business and are rejected here. Public parameters only.
@@ -130,6 +162,7 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
     let (mut chains_sel, mut preset_name, mut types, mut purposes, mut paths) = (Vec::<&'static Chain>::new(), "common".to_string(), None::<Vec<String>>, None::<Vec<u32>>, Vec::<String>::new());
     let (mut coin, mut account, mut change, mut index, mut comp, mut curve) = (None, None, None, None, None::<&str>, None::<String>);
     let (mut match_file, mut gap, mut explain, mut stop_on_match) = (None::<String>, None, false, false);
+    let (mut public_only, mut address_list) = (false, false);
     let mut i = 0;
     while i < a.len() {
         let flag = a[i].as_str();
@@ -153,12 +186,15 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
             "--match" => match_file = Some(val()?),
             "--gap-limit" => gap = Some(val()?.parse::<u32>().ok().filter(|n| (1..=100_000).contains(n)).ok_or("bad_input")?),
             "--stop-on-match" => { stop_on_match = true; takes = false },
+            "--public-only" => { public_only = true; takes = false },
+            "--address-list" => { address_list = true; public_only = true; takes = false },
             _ => return Err("bad_input"),
         }
         i += if takes { 2 } else { 1 };
     }
     if types.as_ref().map_or(false, |t| t.iter().any(|t| t == "ton")) { return Err("unsupported") }
     if types.as_ref().map_or(false, |t| t.iter().any(|t| !ADDRESS_TYPES.contains(&t.as_str()))) { return Err("bad_input") }
+    if chains_sel.is_empty() && preset_name == "scan-js" { chains_sel = SCAN_JS_CHAINS.iter().map(|n| chains::chain(n).unwrap()).collect() }
     if chains_sel.is_empty() { chains_sel = vec![chains::chain("btc").unwrap(), chains::chain("eth").unwrap()] }
     let mut specs = if purposes.is_some() || !paths.is_empty() {
         let mut t = paths.clone();
@@ -183,6 +219,7 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
     match curve.as_deref() { Some("ed25519") => specs.retain(|s| s.chain.enc.ed25519()), Some("secp256k1") => specs.retain(|s| !s.chain.enc.ed25519()), None => {}, _ => return Err("bad_input") }
     if specs.is_empty() { return Err("no_candidates") }
     let (pa, pc) = preset_ranges(&preset_name);
+    if preset_name == "scan-js" && index.is_none() { index = Some((0..20).collect()) }  // SCAN_JS GAP default
     let index_set = index.is_some();
     let ranges = Ranges { account: account.unwrap_or(pa), change: change.unwrap_or(pc), index: index.unwrap_or_default() };
     if gap.is_some() && match_file.is_none() { return Err("bad_input") }
@@ -191,7 +228,7 @@ pub fn from_args(a: &[String]) -> Result<Opts, &'static str> {
     let explicit = a.iter().any(|x| x == "--preset" || x == "--path" || x == "--purpose");
     let auto = (!explicit).then(|| (chains_sel.clone(), comp.map(|c| c.to_string())));
     let only_uncompressed = comp == Some("uncompressed");
-    Ok(Opts { auto, specs, ranges, index_set, match_file, gap, explain, only_uncompressed, stop_on_match })
+    Ok(Opts { auto, specs, ranges, index_set, match_file, gap, explain, only_uncompressed, stop_on_match, public_only, address_list })
 }
 /// Normalise an address for matching (EVM hex is case-insensitive).
 pub fn norm(a: &str) -> String { if a.starts_with("0x") { a.to_ascii_lowercase() } else { a.to_string() } }
@@ -201,7 +238,7 @@ pub fn axis(t: &str, ph: &str, v: &[u32]) -> Vec<u32> { if t.contains(ph) { v.to
 
 /// One line of `derive --explain`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExplainRow { pub chain: &'static str, pub kind: String, pub template: String, pub path: String, pub count: u64 }
+pub struct ExplainRow { pub chain: &'static str, pub kind: String, pub template: String, pub path: String, pub count: u64, pub label: &'static str }
 /// The plan as rows (first path of each family and how many paths it covers). No keys.
 pub fn explain(o: &Opts) -> Vec<ExplainRow> {
     o.specs.iter().map(|s| {
@@ -210,6 +247,6 @@ pub fn explain(o: &Opts) -> Vec<ExplainRow> {
         let count = (acc.len() * ch.len() * idx.len()) as u64;
         let path = expand(&s.template, s, acc[0], ch[0], idx[0]).unwrap_or_default();
         let kind = if s.uncompressed && s.kind == "p2pkh" { "p2pkh,p2pkh-uncompressed".into() } else { s.kind.to_string() };
-        ExplainRow { chain: s.chain.name, kind, template: s.template.clone(), path, count }
+        ExplainRow { chain: s.chain.name, kind, template: s.template.clone(), path, count, label: s.label }
     }).collect()
 }

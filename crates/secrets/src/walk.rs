@@ -47,9 +47,9 @@ impl<'a> Walker<'a> {
 }
 
 /// Walk the plan for one master. `scheme` comes from seed-to-master ("bip39", "electrum-*").
-/// `emit` returns true when it printed the row (a hit, for --gap-limit). `tried` is shared
+/// `emit(row, label)` (label = the spec's wallet label, "" if none) returns true when it printed the row (a hit, for --gap-limit). `tried` is shared
 /// across masters. Err("too_many_candidates") past MAX_TRIED.
-pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: &mut u64, emit: &mut dyn FnMut(&Row) -> bool) -> Result<(), &'static str> {
+pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: &mut u64, emit: &mut dyn FnMut(&Row, &str) -> bool) -> Result<(), &'static str> {
     let el_specs;
     let mut el_ranges = None;
     let specs: &[Spec] = match (&o.auto, scheme) {
@@ -77,7 +77,7 @@ pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: 
             *tried += 1;
             if *tried > MAX_TRIED { return Err("too_many_candidates") }
             for r in w.rows(s, &p) {
-                if emit(&r) {
+                if emit(&r, s.label) {
                     last_hit = i.saturating_add(1);
                     if o.stop_on_match { return Ok(()); }
                 }
@@ -92,11 +92,11 @@ pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: 
 }
 
 /// Account-level key (dat-read): rows for path/branch/i. Branches default to --change plus 0 and 1.
-pub fn walk_account(o: &Opts, acct: &Xpriv, kind: &'static str, path: &str, branch: Option<u64>, emit: &mut dyn FnMut(&Row) -> bool) {
+pub fn walk_account(o: &Opts, acct: &Xpriv, kind: &'static str, path: &str, branch: Option<u64>, emit: &mut dyn FnMut(&Row, &str) -> bool) {
     let branches: Vec<u32> = match branch { Some(b) if b < 1 << 31 => vec![b as u32], _ => o.ranges.change.clone().into_iter().chain([0, 1]).collect::<std::collections::BTreeSet<_>>().into_iter().collect() };
     let cnt = if o.index_set { *o.ranges.index.iter().max().unwrap() + 1 } else { 10 };
     for b in branches { for r in blocktools_core::derive_account(acct, kind, path, b, cnt) {
-        if emit(&Row { chain: "btc", kind: r.kind, path: r.path, address: r.address, secret_field: "wif", secret: r.secret }) && o.stop_on_match { return }
+        if emit(&Row { chain: "btc", kind: r.kind, path: r.path, address: r.address, secret_field: "wif", secret: r.secret }, "") && o.stop_on_match { return }
     } }
 }
 
@@ -164,7 +164,7 @@ mod tests {
         let mut tried = 0u64;
         let mut hits = 0u64;
         let mut seen_i = Vec::new();
-        walk(&o, &master, None, "bip39", &mut tried, &mut |r| {
+        walk(&o, &master, None, "bip39", &mut tried, &mut |r, _| {
             if r.address == target { hits += 1; seen_i.push(r.path.clone()); true } else { false }
         }).unwrap();
         assert_eq!(hits, 1, "exactly one hit then stop");

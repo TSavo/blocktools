@@ -2,7 +2,7 @@
 //! did this wallet use?": presets plus composable flags build a PLAN (no key material,
 //! see --explain), which is then walked for each master key on stdin.
 //! Secrets arrive ONLY on stdin; flags carry public parameters only. Run --help.
-//! Output CONTAINS SECRETS ("wif"/"private_key") unless --explain/--list-presets.
+//! Output CONTAINS SECRETS ("wif"/"private_key") unless --explain/--list-presets/--public-only/--address-list.
 //! Master keys: {"xprv"} lines; SLIP-132 yprv/zprv/Yprv/Zprv (testnet uprv/vprv/Uprv/Vprv) are the same key and accepted.
 use bitcoin::bip32::Xpriv;
 use blocktools_core::chains::Row;
@@ -17,7 +17,8 @@ use zeroize::Zeroizing;
 const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -> addresses + keys
 
   --chain LIST         any verified row of `chains` (docs/CHAINS.md) or all (repeatable). Default btc,eth
-  --preset NAME        common (default), exhaustive, recovery, exodus, tronlink, ledger-live, legacy-hd
+  --preset NAME        common (default), exhaustive, recovery, exodus, tronlink, ledger-live, electrum,
+                       legacy-hd, scan-js (SwapChan SCAN_JS: its 15 labeled paths x 20 addresses)
   --list-presets       list presets and what they cover
   --address-type LIST  p2pkh,p2sh-p2wpkh,p2wpkh,p2tr,evm|eth,tron,xrp,solana|sol (filters, or with
                        --path/--purpose: which encodings to apply to every path)
@@ -32,13 +33,22 @@ const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -
   --match FILE         public target addresses, one per line: print only hits (with their path)
   --gap-limit N        with --match: keep scanning each branch until N misses after the last hit
   --stop-on-match      with --match: stop the whole walk after the first hit (address search)
+  --public-only        JSON rows WITHOUT the private key field (no key material printed)
+  --address-list       one `label<TAB>path<TAB>address` line per address, nothing else on stdout
+                       (status lines go to stderr; no key material printed). label = wallet name
+                       (e.g. \"Ledger Live EVM\") or \"CHAIN KIND\"; path gets \" [passphrase #N]\" for
+                       seed-to-master --passphrase-file candidate N >= 1. Rows with the same path
+                       but different wallet labels are each listed (as SCAN_JS does)
   --explain            print the plan (paths, address types, counts) and exit; no stdin, no keys
   --help
 
-  Passphrases are never flags: use seed-to-master (stdin {\"passphrase\":...} or --passphrase-prompt).
+  Passphrases are never flags: use seed-to-master (stdin {\"passphrase\":...}, --passphrase-prompt, or
+  --passphrase-file FILE with one candidate per line).
   TON and electrum-old derivation are planned (docs/ROADMAP.md).
 ";
 
+/// Status line: stdout, or stderr under --address-list (stdout carries only address lines there).
+fn status(list: bool, l: String) { if list { eprintln!("{l}") } else { outln!("{l}") } }
 fn fail(s: &str) -> ! { outln!(r#"{{"tool":"derive","status":"{s}"}}"#); std::process::exit(2) }
 
 fn main() {
@@ -54,13 +64,18 @@ fn main() {
     });
     if o.explain {
         let mut total = 0u64;
-        for e in plan::explain(&o) { total += e.count; outln!(r#"{{"tool":"derive","status":"ok","chain":"{}","kind":"{}","template":"{}","path":"{}","count":{}}}"#, e.chain, e.kind, e.template, e.path, e.count) }
+        for e in plan::explain(&o) {
+            total += e.count;
+            let lab = if e.label.is_empty() { String::new() } else { format!(r#","label":"{}""#, e.label) };
+            outln!(r#"{{"tool":"derive","status":"ok","chain":"{}","kind":"{}","template":"{}","path":"{}","count":{}{lab}}}"#, e.chain, e.kind, e.template, e.path, e.count)
+        }
         outln!(r#"{{"tool":"derive","status":"done","count":{total}}}"#);
         return
     }
     let mut n = 0u64;
     let mut tried = 0u64;
     let mut stop = false;
+    let (public, list) = (o.public_only, o.address_list);
     for line in std::io::stdin().lock().take(16 << 20).lines().map_while(Result::ok) {
         let line = Zeroizing::new(line);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
@@ -68,20 +83,36 @@ fn main() {
             // Leaf keys already carrying an address (e.g. legacy keys from dat-read) pass through.
             if let Some(a) = v.get("address").and_then(|a| a.as_str()) {
                 if v.get("status").and_then(|s| s.as_str()) == Some("ok") && match_set.as_ref().map_or(true, |m| m.contains(&norm(a))) {
-                    outln!("{}", line.as_str()); n += 1;
+                    // The leaf line carries its key: re-emit only public fields in the public modes.
+                    let p = v.get("path").and_then(|p| p.as_str()).unwrap_or("");
+                    let k = v.get("kind").and_then(|p| p.as_str()).unwrap_or("key");
+                    if list { outln!("{}\t{}\t{}", clean(k), clean(p), clean(a)) }
+                    else if public { outln!("{}", serde_json::json!({"tool":"derive","status":"ok","kind":k,"path":p,"address":a})) }
+                    else { outln!("{}", line.as_str()) }
+                    n += 1;
                     if o.stop_on_match { stop = true; break }
                 }
             }
             continue
         };
         let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
-        let Some(master) = slip132_prv(x).and_then(|x| Xpriv::from_str(&x).ok()) else { outln!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#); continue };
-        let mut seen: HashSet<(String, &'static str, &'static str)> = HashSet::new();
-        let mut emit = |r: &Row| {
-            if !seen.insert((r.path.clone(), r.chain, r.kind)) { return false }
+        let pi = v.get("passphrase_index").and_then(|c| c.as_u64());
+        let tag = match pi { Some(p) if p > 0 => format!(" [passphrase #{p}]"), _ => String::new() };
+        let pij = pi.map_or(String::new(), |p| format!(r#","passphrase_index":{p}"#));
+        let Some(master) = slip132_prv(x).and_then(|x| Xpriv::from_str(&x).ok()) else { status(list, format!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#)); continue };
+        let mut seen: HashSet<(String, &'static str, &'static str, String)> = HashSet::new();
+        let mut emit = |r: &Row, label: &str| {
+            if !seen.insert((r.path.clone(), r.chain, r.kind, label.to_string())) { return false }
             if let Some(m) = &match_set { if !m.contains(&norm(&r.address)) { return false } }
-            outln!(r#"{{"tool":"derive","status":"ok","candidate":{cand},"chain":"{}","kind":"{}","path":"{}","address":"{}","{}":"{}"}}"#,
-                r.chain, r.kind, r.path, r.address, r.secret_field, r.secret);
+            if list {
+                let l = if label.is_empty() { format!("{} {}", r.chain, r.kind) } else { label.to_string() };
+                outln!("{l}\t{}{tag}\t{}", r.path, r.address);
+            } else {
+                let lab = if label.is_empty() { String::new() } else { format!(r#","label":"{label}""#) };
+                let sec = if public { String::new() } else { format!(r#","{}":"{}""#, r.secret_field, r.secret) };
+                outln!(r#"{{"tool":"derive","status":"ok","candidate":{cand}{pij},"chain":"{}","kind":"{}","path":"{}","address":"{}"{lab}{sec}}}"#,
+                    r.chain, r.kind, r.path, r.address);
+            }
             n += 1; true
         };
         if let (Some(kind), Some(path)) = (v.get("kind").and_then(|k| k.as_str()).and_then(blocktools_core::kind_name), v.get("path").and_then(|p| p.as_str())) {
@@ -93,18 +124,21 @@ fn main() {
         }
         let seed = Zeroizing::new(v.get("seed").and_then(|s| s.as_str()).and_then(blocktools_core::hex_dec).filter(|s| s.len() == 64));
         if let Some(s) = o.specs.iter().find(|s| s.chain.enc.ed25519()).filter(|_| seed.is_none()) {
-            outln!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"{}"}}"#, s.chain.name);
+            status(list, format!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand},"chain":"{}"}}"#, s.chain.name));
         }
         let scheme = v.get("scheme").and_then(|s| s.as_str()).unwrap_or("bip39");
         if let Err(e) = walk::walk(&o, &master, seed.as_deref().map(|s| &s[..]), scheme, &mut tried, &mut emit) {
-            outln!(r#"{{"tool":"derive","status":"{e}","count":{tried}}}"#); std::process::exit(2)
+            status(list, format!(r#"{{"tool":"derive","status":"{e}","count":{tried}}}"#)); std::process::exit(2)
         }
         if o.stop_on_match && n > 0 { stop = true; break }
     }
     let _ = stop;
-    if match_set.is_some() && n == 0 { outln!(r#"{{"tool":"derive","status":"no_candidates","count":{tried}}}"#) }
-    outln!(r#"{{"tool":"derive","status":"done","count":{n}}}"#);
+    if match_set.is_some() && n == 0 { status(list, format!(r#"{{"tool":"derive","status":"no_candidates","count":{tried}}}"#)) }
+    status(list, format!(r#"{{"tool":"derive","status":"done","count":{n}}}"#));
 }
+
+/// A field of an --address-list line: no tabs or line breaks from input JSON.
+fn clean(s: &str) -> String { s.chars().filter(|c| !c.is_control()).collect() }
 
 /// SLIP-132 private versions (yprv/zprv/Yprv/Zprv, testnet uprv/vprv/Uprv/Vprv) carry the same key
 /// as an xprv/tprv; swap the version bytes. Script type still comes from --address-type / the walk.

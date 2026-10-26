@@ -28,6 +28,20 @@ Only hits are printed, each with `chain`, `kind` and `path`. If nothing matches,
 | Litecoin with a non-standard coin type | `--chain ltc --coin-type 0` |
 | Ledger Live ETH accounts 0..9 | `--chain eth --preset ledger-live --index 0..9` |
 | TronLink | `--chain tron --preset tronlink` |
+| Public addresses only (no key field in the JSON) | `--public-only` |
+
+## 4. A plain address list (SwapChan SCAN_JS layout)
+
+`--preset scan-js` is the same wallet path table as SwapChan's SCAN_JS script: the same wallet
+names, paths and order, 20 addresses each, over eth, tron, sol, btc, ltc, doge, bch and btg.
+`--address-list` prints one `label<TAB>path<TAB>address` line per address and no key material
+(status lines go to stderr). To also try passphrases, put one per line in a file:
+
+    seed-to-master --passphrase-file /in/passphrases.txt < /in/seed.txt | derive --preset scan-js --address-list
+
+The empty passphrase is tried first, then each non-empty line; rows from line N get
+`[passphrase #N]` after the path, as SCAN_JS prints them. Without `--chain` the preset uses all
+eight chains above; with `--chain` it keeps only the rows for those chains.
 | Solana only | `--curve ed25519 --chain sol` |
 | Keep scanning while hits continue | `--match targets.txt --gap-limit 20` |
 | Stop at first known address | `--match targets.txt --stop-on-match` |

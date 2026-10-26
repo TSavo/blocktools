@@ -9,12 +9,13 @@ derive: master key (stdin, from seed\-to\-master / dat\-read) \-> addresses + ke
 did this wallet use?": presets plus composable flags build a PLAN (no key material,
 see \-\-explain), which is then walked for each master key on stdin.
 Secrets arrive ONLY on stdin; flags carry public parameters only. Run \-\-help.
-Output CONTAINS SECRETS ("wif"/"private_key") unless \-\-explain/\-\-list\-presets.
+Output CONTAINS SECRETS ("wif"/"private_key") unless \-\-explain/\-\-list\-presets/\-\-public\-only/\-\-address\-list.
 Master keys: {"xprv"} lines; SLIP\-132 yprv/zprv/Yprv/Zprv (testnet uprv/vprv/Uprv/Vprv) are the same key and accepted.
 .SH OPTIONS
 .nf
   \-\-chain LIST         any verified row of `chains` (docs/CHAINS.md) or all (repeatable). Default btc,eth
-  \-\-preset NAME        common (default), exhaustive, recovery, exodus, tronlink, ledger\-live, legacy\-hd
+  \-\-preset NAME        common (default), exhaustive, recovery, exodus, tronlink, ledger\-live, electrum,
+                       legacy\-hd, scan\-js (SwapChan SCAN_JS: its 15 labeled paths x 20 addresses)
   \-\-list\-presets       list presets and what they cover
   \-\-address\-type LIST  p2pkh,p2sh\-p2wpkh,p2wpkh,p2tr,evm|eth,tron,xrp,solana|sol (filters, or with
                        \-\-path/\-\-purpose: which encodings to apply to every path)
@@ -29,15 +30,22 @@ Master keys: {"xprv"} lines; SLIP\-132 yprv/zprv/Yprv/Zprv (testnet uprv/vprv/Up
   \-\-match FILE         public target addresses, one per line: print only hits (with their path)
   \-\-gap\-limit N        with \-\-match: keep scanning each branch until N misses after the last hit
   \-\-stop\-on\-match      with \-\-match: stop the whole walk after the first hit (address search)
+  \-\-public\-only        JSON rows WITHOUT the private key field (no key material printed)
+  \-\-address\-list       one `label<TAB>path<TAB>address` line per address, nothing else on stdout
+                       (status lines go to stderr; no key material printed). label = wallet name
+                       (e.g. "Ledger Live EVM") or "CHAIN KIND"; path gets " [passphrase #N]" for
+                       seed\-to\-master \-\-passphrase\-file candidate N >= 1. Rows with the same path
+                       but different wallet labels are each listed (as SCAN_JS does)
   \-\-explain            print the plan (paths, address types, counts) and exit; no stdin, no keys
   \-\-help
-  Passphrases are never flags: use seed\-to\-master (stdin {"passphrase":...} or \-\-passphrase\-prompt).
+  Passphrases are never flags: use seed\-to\-master (stdin {"passphrase":...}, \-\-passphrase\-prompt, or
+  \-\-passphrase\-file FILE with one candidate per line).
   TON and electrum\-old derivation are planned (docs/ROADMAP.md).
 .fi
 .SH INPUT/OUTPUT
 see \-\-explain), which is then walked for each master key on stdin.
 Secrets arrive ONLY on stdin; flags carry public parameters only. Run \-\-help.
-Output CONTAINS SECRETS ("wif"/"private_key") unless \-\-explain/\-\-list\-presets.
+Output CONTAINS SECRETS ("wif"/"private_key") unless \-\-explain/\-\-list\-presets/\-\-public\-only/\-\-address\-list.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
@@ -48,6 +56,10 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 .SH EXAMPLES
 .nf
 $ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed\-to\-master | derive \-\-chain btc \-\-count 1
+# exit 0, last status: done
+$ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed\-to\-master | derive \-\-preset scan\-js \-\-address\-list
+# exit 0, last status: done
+$ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed\-to\-master | derive \-\-chain eth \-\-preset ledger\-live \-\-index 0..2 \-\-public\-only
 # exit 0, last status: done
 .fi
 .SH SECURITY NOTES

@@ -15,6 +15,8 @@ chain-table | 0 | chain-table btc
 classify | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | classify
 dat-read | 2 | dat-read < "$R/fixtures/external/bitcoincore-0.21.1-wallet.dat"
 derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master | derive --chain btc --count 1
+derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master | derive --preset scan-js --address-list
+derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master | derive --chain eth --preset ledger-live --index 0..2 --public-only
 electrum-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 electrum-read | 1 | { echo wrong; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 key-to-addresses | 0 | printf '%064x\n' 1 | key-to-addresses --chain btc
@@ -30,6 +32,8 @@ rpc | 1 | rpc http://127.0.0.1:9 getblockcount
 sealed-run | 2 | sealed-run agent 'rm -rf /'
 seed-repair | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon" | seed-repair --max 2
 seed-to-master | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master
+seed-to-master | 0 | printf 'TREZOR\n' > pp.txt; echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master --passphrase-file pp.txt
+seed-to-master | 2 | printf 'TREZOR\n' > pp.txt; seed-to-master --passphrase-file pp.txt --passphrase-prompt < /dev/null
 tx-broadcast | 2 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9
 tx-build | 2 | tx-build --chain eth
 tx-decode | 2 | echo zz | tx-decode

@@ -3,7 +3,7 @@
 seed\-to\-master \- seed phrase (+ optional passphrase) \-> BIP32 master key(s)
 .SH SYNOPSIS
 .nf
-seed\-to\-master [\-\-passphrase\-prompt] < {"mnemonic":...} lines \-> master keys (BIP39 and Electrum standard/segwit; 2FA and old\-Electrum: unsupported, planned)
+seed\-to\-master [\-\-passphrase\-prompt | \-\-passphrase\-file FILE] < {"mnemonic":...} lines \-> master keys (BIP39 and Electrum standard/segwit; 2FA and old\-Electrum: unsupported, planned)
 .fi
 .SH DESCRIPTION
 stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}, or a bare phrase line.
@@ -11,27 +11,47 @@ A phrase is tried as BIP39 AND as an Electrum (2.x+) seed; every valid reading i
 one output line with its "scheme". If the phrase has extra words (e.g. a note
 line), the trailing 12/13/15/18/21/24 words are tried too (sliding window).
 \-\-passphrase\-prompt asks the human on /dev/tty with echo off (never argv/env).
+\-\-passphrase\-file FILE: candidate passphrases, one per line (SwapChan SCAN_JS PASSPHRASES): each
+.nf
+.RS 2
+  phrase is tried with the empty passphrase first, then every non\-empty line in file order; each
+  output carries "passphrase_index" (0 = empty, N = line N of the non\-empty lines). The file's
+  text is never printed. A stdin {"passphrase"} field is refused (bad_input) in this mode.
+.RE
+.fi
 Output CONTAINS SECRETS ("xprv", "seed"). One job: phrase \-> master key.
 .SH OPTIONS
 .nf
-\-\-passphrase\-prompt
+  \-\-passphrase\-file FILE  one candidate passphrase per line; tried after the empty one; outputs carry passphrase_index
 .fi
-Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}, or a bare phrase line.
 one output line with its "scheme". If the phrase has extra words (e.g. a note
+.nf
+.RS 2
+  output carries "passphrase_index" (0 = empty, N = line N of the non\-empty lines). The file's
+  text is never printed. A stdin {"passphrase"} field is refused (bad_input) in this mode.
+.RE
+.fi
 Output CONTAINS SECRETS ("xprv", "seed"). One job: phrase \-> master key.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
 last status done
+.TP
+2
+last status bad_input
 .PP
 Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
 $ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed\-to\-master
 # exit 0, last status: done
+$ printf 'TREZOR\en' > pp.txt; echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed\-to\-master \-\-passphrase\-file pp.txt
+# exit 0, last status: done
+$ printf 'TREZOR\en' > pp.txt; seed\-to\-master \-\-passphrase\-file pp.txt \-\-passphrase\-prompt < /dev/null
+# exit 2, last status: bad_input
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
