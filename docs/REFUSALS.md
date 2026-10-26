@@ -206,7 +206,7 @@ Supply `prev_tx`. Not run here: `tx-build` already refuses such inputs earlier
 
 ## EVM contract tools (`sig-hash`, `abi-decode`, `abi-encode`, `create-address`)
 
-These offline filters print `{"status":"error","error":CODE}` and exit 2 on malformed input; they never
+These offline filters print `{"status":"bad_input","error":CODE}` and exit 2 on malformed input; they never
 guess. A selector, topic or error with no signature you supplied is not an error: `{"status":"no_match"}`,
 exit 0. Codes come from `crates/evm`; the strict decoder refuses any encoding Solidity would not produce.
 

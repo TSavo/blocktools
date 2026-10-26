@@ -8,7 +8,7 @@ use serde_json::json;
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", json!({"tool": "abi-inspect", "status": "error", "error": e}));
+    eprintln!("{}", json!({"tool": "abi-inspect", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 

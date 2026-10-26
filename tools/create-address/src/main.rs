@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", json!({"tool": "create-address", "status": "error", "error": e}));
+    eprintln!("{}", json!({"tool": "create-address", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 
