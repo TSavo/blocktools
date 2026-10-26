@@ -7,7 +7,7 @@ fixtures below and on mock chains before you touch a real key.
 
 Pick one.
 
-**Release tarball (Linux x86-64).** v0.1.0 ships `blocktools-v0.1.0-linux-x86_64.tar.gz` and
+**Release tarball (Linux x86_64 only; glibc 2.39 or newer, not static; see the README).** v0.1.0 ships `blocktools-v0.1.0-linux-x86_64.tar.gz` and
 `SHA256SUMS`. Verify before you unpack:
 
 ```sh
@@ -18,7 +18,7 @@ export PATH=$PWD/bin:$PATH MANPATH=$PWD/share/man:
 ```
 
 Tools are in `bin/`, manual pages in `share/man/` (`man derive`, `man blocktools`, `man recover.sh`).
-The tarball has no Dockerfile: for the sealed image, use a source checkout (below).
+The tarball has no Dockerfile: for the sealed image, `git clone --branch v0.1.0` and run `./blocktools build` there (below). In v0.1.0, `derive --address-list` through `redact` comes back empty; the README gives the `--public-only | jq` workaround.
 Measured on Linux 2026-10-26: checksum OK, `man -w blocktools` resolves, and the examples in
 section 3 pass with the release binaries. No macOS asset exists.
 

@@ -21,7 +21,9 @@ threat model.
 
 ## Install
 
-### From the v0.1.0 release (Linux x86-64)
+### From the v0.1.0 release (Linux x86_64 only)
+
+Releases are built for Linux x86_64 only. There is no macOS, Windows or ARM asset; on those, build from source.
 
 ```sh
 gh release download v0.1.0 -R TSavo/blocktools     # or download both files from the Releases page
@@ -32,13 +34,39 @@ export PATH=$PWD/bin:$PATH MANPATH=$PWD/share/man:
 man blocktools
 ```
 
-The tarball holds `bin/` (the tools, glibc-linked x86-64 ELF), `share/man/` and `man/`
-(manual pages), `recipes/`, `DESIGN.md`, `EXPORTS.md`, `LICENSE` and the `blocktools` wrapper.
-It does not hold the Dockerfile, so `./blocktools build` (the sealed image) needs a source
-checkout. Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run.
-Measured 2026-10-26 on Linux: download, `sha256sum -c` OK, and every wallet example below run with
-the release `bin/` through `sealed-run agent`. Not measured: other distributions' glibc, macOS
-(there is no macOS release asset).
+The tarball holds `bin/` (the tools), `share/man/` and `man/` (manual pages), `recipes/`,
+`DESIGN.md`, `EXPORTS.md`, `LICENSE` and the `blocktools` wrapper. The binaries are **not**
+static: they are dynamically linked against glibc (`ldd bin/derive` lists `libc.so.6` and
+`libgcc_s.so.1`), and the newest symbol version any of them needs is GLIBC_2.39
+(`objdump -T bin/* | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1`), so they need glibc 2.39 or
+newer. Only the sealed Docker image is built from static musl binaries.
+Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run.
+
+**Sealed mode from a tarball.** The tarball has no Dockerfile or sources, so its `./blocktools
+build` cannot work. To get the sealed image, check out the same release and build it there; the
+image does not depend on the tarball:
+
+```sh
+git clone --branch v0.1.0 https://github.com/TSavo/blocktools && cd blocktools
+./blocktools build                                 # image blocktools:local; then ./blocktools run '...'
+```
+
+Until then, the tarball's `bin/sealed-run agent '<pipeline>'` gives the same output redaction but
+no container isolation (no `--network none`): use it only on an offline machine.
+
+**v0.1.0 and `derive --address-list`.** In v0.1.0, `redact` (and so `sealed-run agent` and
+`./blocktools run`) drops the plain `label<TAB>path<TAB>address` lines, so the list comes back
+empty (`"count":0`). This is fixed on main after v0.1.0 (it passes those lines through its leak
+check). With v0.1.0, build the same list from JSON instead:
+
+```sh
+... | derive --chain btc --count 1 --public-only | redact | jq -r 'select(.address)|[.chain+" "+.kind,.path,.address]|@tsv' > addresses.txt
+```
+
+Measured 2026-10-26 on Linux with the v0.1.0 `bin/`: download, `sha256sum -c` OK, the `ldd`
+and `objdump` results above, the `--address-list` count 0 and the `jq` workaround (4 btc lines),
+and every wallet example below through `sealed-run agent`. Not measured: running on a glibc older
+than 2.39 (expected to fail to load), macOS.
 
 ### From source
 
