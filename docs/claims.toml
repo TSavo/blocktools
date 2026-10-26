@@ -324,17 +324,17 @@ doc = [{ file = "docs/CHAINS.md", text = "2 tests" }]
 
 [[claim]]
 id = "twc-cosmos-vectors"
-statement = "Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2, Crypto.org, Injective x2, ZetaChain, Evmos [TWC-signer-generated]) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused"
+statement = "Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2, Crypto.org, Injective x2, ZetaChain, Evmos and 20 address-only Cosmos hrps [TWC-signer-generated]) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused"
 kind = "security"
 platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools-acct --test twc_cosmos"
-expect = "test result: ok. 13 passed"
-commit = "1f1fa71"
+expect = "test result: ok. 33 passed"
+commit = "2c1d4f5"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/acct/src/atom.rs", "crates/acct/tests/twc_cosmos.rs"]
-doc = [{ file = "docs/CHAINS.md", text = "13 tests" }]
+doc = [{ file = "docs/CHAINS.md", text = "33 tests" }]
 
 [[claim]]
 id = "twc-cosmos-addresses"
