@@ -18,7 +18,7 @@ fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let net = match a.iter().position(|x| x == "--net").and_then(|i| a.get(i + 1)).map(|s| s.as_str()) {
         None | Some("main") => Net::Main, Some("stage") => Net::Stage, Some("test") => Net::Test,
-        _ => { eprintln!("{{\"error\":\"bad_net\"}}"); std::process::exit(2) } };
+        _ => { eprintln!("{{\"tool\":\"xmr-keys\",\"status\":\"bad_input\",\"error\":\"bad_net\"}}"); std::process::exit(2) } };
     let mut s = Zeroizing::new(String::new());
     std::io::stdin().read_to_string(&mut s).ok();
     match seed_to_spend(&s) {
@@ -28,14 +28,14 @@ fn main() {
             if let Some(path) = arg(&a, "--scan-out") {
                 let height: u64 = match arg(&a, "--restore-height").map(|h| h.parse()) {
                     None => 0, Some(Ok(h)) => h,
-                    Some(Err(_)) => { eprintln!("{{\"error\":\"bad_restore_height\"}}"); std::process::exit(2) } };
+                    Some(Err(_)) => { eprintln!("{{\"tool\":\"xmr-keys\",\"status\":\"bad_input\",\"error\":\"bad_restore_height\"}}"); std::process::exit(2) } };
                 let body = Zeroizing::new(format!(
                     "{{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"method\":\"generate_from_keys\",\"params\":{{\"restore_height\":{height},\"filename\":\"blocktools-viewonly\",\"address\":\"{}\",\"viewkey\":\"{}\",\"password\":\"\"}}}}\n",
                     address(net, &k.spend_public, &k.view_public), Zeroizing::new(hex(&k.view_secret[..])).as_str()));
-                if let Err(e) = write_private(path, body.as_bytes()) { eprintln!("{{\"error\":\"scan_out: {}\"}}", e.kind()); std::process::exit(1) }
+                if let Err(e) = write_private(path, body.as_bytes()) { eprintln!("{{\"tool\":\"xmr-keys\",\"status\":\"error\",\"error\":\"scan_out: {}\"}}", e.kind()); std::process::exit(1) }
                 eprintln!("{{\"scan_out\":\"written\",\"mode\":\"0600\",\"contains\":\"private view key\"}}");
             } }
-        Err(e) => { eprintln!("{{\"error\":\"{e}\"}}"); std::process::exit(1) }
+        Err(e) => { eprintln!("{{\"tool\":\"xmr-keys\",\"status\":\"bad_input\",\"error\":\"{e}\"}}"); std::process::exit(2) }
     }
 }
 fn arg<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }

@@ -23,6 +23,6 @@ fn main() {
                 }
             }
         }
-        Err(e) => { blocktools_io::outln!(r#"{{"tool":"blockchain-read","status":"{e}"}}"#); std::process::exit(1); }
+        Err(e) => { blocktools_io::outln!(r#"{{"tool":"blockchain-read","status":"{e}"}}"#); std::process::exit(blocktools_io::exit_code(e)); }
     }
 }

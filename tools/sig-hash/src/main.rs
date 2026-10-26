@@ -9,7 +9,7 @@ use blocktools_io::outln;
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", serde_json::json!({"tool": "sig-hash", "status": "error", "error": e}));
+    eprintln!("{}", serde_json::json!({"tool": "sig-hash", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 
@@ -47,7 +47,7 @@ With no SIGNATURE arguments, signatures are read one per line from stdin.");
     for l in lines {
         match api::sig_hash(&l) {
             Ok(v) => outln!("{v}"),
-            Err(e) => { bad = true; outln!("{}", serde_json::json!({"status": "error", "input": l, "error": e})); }
+            Err(e) => { bad = true; outln!("{}", serde_json::json!({"status": "bad_input", "input": l, "error": e})); }
         }
     }
     if bad { std::process::exit(2); }

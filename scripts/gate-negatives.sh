@@ -54,6 +54,7 @@ neg H-neg hygiene-check "has no negative test" 'printf "false # rule:Z-none\n" >
 neg D-tooldoc docs-check "tool zzfake not documented" 'mkdir -p tools/zzfake && echo x > tools/zzfake/f'
 neg D-counts docs-check "hard-coded test counts" 'echo "123 tests pass" >> README.md'
 neg D-planned docs-check "exists but is called planned" 'echo "**tx-sign** (planned)" >> README.md'
+neg X-exit docs-check "FAIL exit rule" 'echo "classify | 0 | echo _status_:_error_ | tr _ \\\"" >> scripts/man-examples.txt'
 neg D-sealed docs-check "sealed-run allows utxo-fetch" 'echo "// \"utxo-fetch\"" >> tools/sealed-run/src/main.rs'
 # finding:R2-2 (non-ASCII man page must fail docs-check)
 neg D-ascii docs-check "non-ASCII in" 'printf "\342\234\205\n" >> man/man1/tx-sign.1'

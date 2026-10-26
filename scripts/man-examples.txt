@@ -8,7 +8,7 @@ acct-tx | 1 | acct-tx build --chain xlm
 armory-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read
 armory-read | 1 | { echo wrong; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read
 bip38-open | 2 | echo 6Pnot-a-key | bip38-open
-blockchain-read | 1 | echo '' | blockchain-read
+blockchain-read | 2 | echo '' | blockchain-read
 chain-table | 0 | chain-table btc
 classify | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | classify
 dat-read | 2 | dat-read < "$R/fixtures/external/bitcoincore-0.21.1-wallet.dat"
@@ -16,11 +16,11 @@ derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon aband
 electrum-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 electrum-read | 1 | { echo wrong; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 key-to-addresses | 0 | printf '%064x\n' 1 | key-to-addresses --chain btc
-keystore-open | 1 | echo pw | keystore-open
+keystore-open | 2 | echo pw | keystore-open
 multibit-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/multibit-wallet.key"; } | multibit-read
 pw-candidates | 0 | echo hunter 2 | pw-candidates --max 5
 read-file | 0 | read-file "$R/README.md"
-read-file | 1 | read-file /nonexistent
+read-file | 2 | read-file /nonexistent
 redact | 0 | echo '{"tool":"x","status":"ok","wif":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}' | redact
 rpc | 3 | rpc http://127.0.0.1:9 dumpprivkey
 rpc | 3 | rpc http://127.0.0.1:9 personal_sign
@@ -28,14 +28,14 @@ rpc | 1 | rpc http://127.0.0.1:9 getblockcount
 sealed-run | 2 | sealed-run agent 'rm -rf /'
 seed-repair | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon" | seed-repair --max 2
 seed-to-master | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master
-tx-broadcast | 1 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9
+tx-broadcast | 2 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9
 tx-build | 2 | tx-build --chain eth
 tx-decode | 2 | echo zz | tx-decode
-tx-envelope | 0 | tx-envelope --json '{"op":"chain_table"}'
+tx-envelope | 1 | tx-envelope --json '{"op":"chain_table"}'
 tx-sign | 2 | echo x > t; tx-sign --tx t --expect-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 < /dev/null
 tx-verify | 2 | echo zz | tx-verify
 utxo-fetch | 1 | utxo-fetch --chain btc --url http://127.0.0.1:9 bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
-xmr-keys | 1 | echo not a seed | xmr-keys
+xmr-keys | 2 | echo not a seed | xmr-keys
 xmr-wallet | 2 | xmr-wallet scan
 xpub-addresses | 0 | echo xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj | xpub-addresses --count 1
 xrp-tx | 1 | echo zz | xrp-tx decode

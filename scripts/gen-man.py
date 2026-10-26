@@ -95,6 +95,11 @@ def load_cases():
         cases.setdefault(t, []).append((rc, cmd))
     return cases
 
+# D1-14: one exit-code rule for every tool (docs/EXIT-CODES.md).
+EXIT_RULE = {**{k: 0 for k in ("ok", "done", "checksum_ok")},
+             **{k: 1 for k in ("failed", "refused", "aborted", "wrong_password", "checksum_fail", "no_candidates", "too_many_candidates", "error")},
+             **{k: 2 for k in ("bad_input", "unsupported")}}
+
 def run_cases(cases):
     """Run every example (cwd = temp dir, PATH has BIN, no controlling terminal, stdin /dev/null).
     Returns {tool: [(cmd, rc, last_status)]}; any exit code that differs from the file is fatal."""
@@ -109,6 +114,11 @@ def run_cases(cases):
             shutil.rmtree(d)
             st = re.findall(r'"status":"([a-z_]+)"', p.stdout + p.stderr)
             if str(p.returncode) != want: bad.append(f"FAIL man example ({t}) exit {p.returncode}, file says {want}: {cmd}")
+            # rule:X-exit (D1-14, docs/EXIT-CODES.md): the exit code follows the last status field.
+            last = st[-1] if st else None
+            need = EXIT_RULE.get(last) if last else (0 if p.returncode == 0 else None)
+            if not t.endswith(".sh") and (need is None or p.returncode != need):  # recipes have their own codes (EXIT-CODES.md)
+                bad.append(f"FAIL exit rule ({t}): status {last or 'missing'} exited {p.returncode}, rule says {need if need is not None else 'a status field'}: {cmd}")
             out.setdefault(t, []).append((cmd, p.returncode, st[-1] if st else None))
     if bad: print("\n".join(bad)); sys.exit(1)
     return out

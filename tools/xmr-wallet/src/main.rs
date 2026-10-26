@@ -12,7 +12,7 @@ use blocktools_monero::*;
 use serde_json::{json, Value};
 use zeroize::Zeroizing;
 
-fn die(code: i32, e: &str) -> ! { eprintln!("{}", json!({"tool":"xmr-wallet","status":"error","error":e})); std::process::exit(code) }
+fn die(code: i32, e: &str) -> ! { eprintln!("{}", json!({"tool":"xmr-wallet","status": if code == 2 {"bad_input"} else {"error"},"error":e})); std::process::exit(code) }
 fn arg<'a>(a: &'a [String], k: &str) -> Option<&'a str> { a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).map(|s| s.as_str()) }
 
 /// Accept only plain-HTTP loopback endpoints: the wallet RPC holds keys, it must not be remote.

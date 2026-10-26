@@ -5,6 +5,11 @@ pub fn emit(line: &str) {
     let mut o = std::io::stdout().lock();
     if writeln!(o, "{line}").and_then(|_| o.flush()).is_err() { std::process::exit(0) }
 }
+/// D1-14 exit rule (docs/EXIT-CODES.md): 0 = ok/done/checksum_ok; 2 = bad_input/unsupported (change
+/// the input or arguments); 1 = every other status (refused, failed, aborted, wrong_password, error, ...).
+pub fn exit_code(status: &str) -> i32 {
+    match status { "ok" | "done" | "checksum_ok" => 0, "bad_input" | "unsupported" => 2, _ => 1 }
+}
 /// `outln!(...)`: like `println!`, but EPIPE-safe.
 #[macro_export]
 macro_rules! outln { ($($t:tt)*) => { $crate::emit(&format!($($t)*)) } }

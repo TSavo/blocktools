@@ -9,7 +9,7 @@ use std::io::Read;
 
 fn out(status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"tx-broadcast","status":status}); v.as_object_mut().unwrap().extend(extra.as_object().cloned().unwrap_or_default());
-    blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else { 1 })
+    blocktools_io::outln!("{v}"); std::process::exit(blocktools_io::exit_code(status))
 }
 fn main() {
     blocktools_io::help("tx-broadcast --chain btc|ltc|doge|eth [--url URL] < signed tx  (asks for a code on the terminal)");

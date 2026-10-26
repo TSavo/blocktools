@@ -7,7 +7,7 @@ use blocktools_secrets::keystore;
 use std::io::Read;
 use zeroize::Zeroizing;
 
-fn st(s: &str) -> ! { blocktools_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(1) }
+fn st(s: &str) -> ! { blocktools_io::outln!(r#"{{"tool":"keystore-open","status":"{s}"}}"#); std::process::exit(blocktools_io::exit_code(s)) }
 
 fn read_tty_password() -> Zeroizing<String> {
     blocktools_tty::read_secret("keystore password (not echoed): ").unwrap_or_else(|| st("bad_input"))

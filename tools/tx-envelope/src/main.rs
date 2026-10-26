@@ -23,5 +23,10 @@ fn main() {
         eprintln!("{{\"tool\":\"tx-envelope\",\"status\":\"bad_input\",\"error\":\"empty_input\"}}");
         std::process::exit(2);
     }
-    blocktools_io::outln!("{}", blocktools::envelope::run(&input));
+    let out = blocktools::envelope::run(&input);
+    blocktools_io::outln!("{}", out);
+    // D1-14: the exit code follows the status (an envelope error used to exit 0).
+    let o = out.to_string();
+    let st = o.split_once("\"status\":\"").and_then(|(_, r)| r.split_once('"')).map(|(s, _)| s);
+    std::process::exit(blocktools_io::exit_code(st.unwrap_or("error")))
 }

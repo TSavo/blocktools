@@ -20,7 +20,7 @@ UTXO chains \-> {"psbt": base64}; EVM \-> {"unsigned_tx": hex}. Pipe the result 
            | \-\-token CONTRACT \-\-token\-amount UNITS)
 .RE
 .fi
-\-\-account FILE is one JSON object with any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
+\-\-account FILE is one JSON object with chain_id (required, must equal \-\-chain\-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 (utxo\-fetch writes it); flags override it. ERC\-20 sends need native gas at the old address:
 build the gas top\-up first with \-\-topup GAS_UNITS from a funded address.
 .SH OPTIONS
@@ -35,7 +35,7 @@ Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help)
            \-> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
 .RE
 .fi
-\-\-account FILE is one JSON object with any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
+\-\-account FILE is one JSON object with chain_id (required, must equal \-\-chain\-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
