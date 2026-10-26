@@ -13,6 +13,10 @@ pub mod armory;
 pub mod bitcoinj;
 #[cfg(feature = "electrum")]
 pub mod electrum;
+#[cfg(any(feature = "electrum", feature = "seed", feature = "walk"))]
+pub mod electrum_old;
+#[cfg(feature = "brain")]
+pub mod brain;
 #[cfg(feature = "keys")]
 pub mod keys;
 #[cfg(feature = "keystore")]

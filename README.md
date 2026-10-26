@@ -142,6 +142,14 @@ Never put a real wallet on a networked machine.
 <!-- e2e: expect=0x008AeEda4D805471dF9b2A5B0f38A0C3bCBA786b -->
     ./blocktools run 'read-file /secrets/keystore.pw /in/keystore.json | keystore-open'
 
+**Old Electrum 1.x seed** (Electrum's own test vector; 12 words from the 1626-word list, or the 32-hex seed) and **brainwallets** (`phrase-to-key`: sha256 of the phrase as brainwallet.org/bitaddress.org did, or WarpWallet):
+
+<!-- e2e: expect=1FJEEB8ihPMbzs2SkLmr37dHyRFzakqUmo -->
+    ./blocktools run 'seed-to-master < /in/electrum-old-seed.txt | derive --chain btc --count 1'
+
+<!-- e2e: expect=1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T -->
+    ./blocktools run 'phrase-to-key < /in/brainwallet.txt | key-to-addresses --chain btc'
+
 **Electrum** (btcrecover's Electrum 4.4.3 wallet):
 
 <!-- e2e: expect=bc1qsz0dhew357cj6eznmcawgyf44jzpgcax2lvfvm ; needs=electrum-wallet -->

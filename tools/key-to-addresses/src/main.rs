@@ -1,7 +1,7 @@
 //! key-to-addresses: one raw 32-byte private key per line -> addresses on every chain in the
 //! table (BTC-family compressed AND uncompressed, ETH, Tron, XRP, and Solana treating the bytes
 //! as an ed25519 seed). Accepted encodings: 64 hex (0x optional), base64, base58, WIF,
-//! or a JSON line {"key":"..."} / {"wif":"..."}. An ambiguous string is tried in every encoding that yields
+//! or a JSON line {"key":"..."} / {"wif":"..."} / {"private_key":"..."} (phrase-to-key output). An ambiguous string is tried in every encoding that yields
 //! exactly 32 bytes; each decoding is a separate "candidate".
 //! Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: --chain a,b (default all; zec t1 only when listed).
 use blocktools_core::chains::{self, Chain, Enc};
@@ -27,7 +27,7 @@ fn main() {
         let line = Zeroizing::new(line);
         let t = line.trim();
         let tok = Zeroizing::new(match serde_json::from_str::<serde_json::Value>(t) {
-            Ok(v) => match v.get("key").or_else(|| v.get("wif")).and_then(|k| k.as_str()) { Some(k) => k.to_string(), None => continue },
+            Ok(v) => match v.get("key").or_else(|| v.get("wif")).or_else(|| v.get("private_key")).and_then(|k| k.as_str()) { Some(k) => k.to_string(), None => continue },
             Err(_) => t.to_string(),
         });
         if tok.is_empty() { continue }

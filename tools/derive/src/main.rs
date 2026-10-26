@@ -44,7 +44,8 @@ const HELP: &str = "derive: master key (stdin, from seed-to-master / dat-read) -
 
   Passphrases are never flags: use seed-to-master (stdin {\"passphrase\":...}, --passphrase-prompt, or
   --passphrase-file FILE with one candidate per line).
-  TON and electrum-old derivation are planned (docs/ROADMAP.md).
+  electrum-old: a seed-to-master line with scheme electrum-old (old 12-word / hex seed) walks the
+  Electrum 1.x non-BIP32 keys m/{change}/{i}, uncompressed p2pkh, btc only. TON derivation is planned.
 ";
 
 /// Status line: stdout, or stderr under --address-list (stdout carries only address lines there).
@@ -56,6 +57,7 @@ fn main() {
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("derive").into_iter().skip(1).collect();
     if a.iter().any(|x| x == "--list-presets") { for (n, d) in plan::PRESETS { outln!(r#"{{"tool":"derive","status":"ok","preset":"{n}","description":"{d}"}}"#) } return }
     let o: Opts = plan::from_args(&a).unwrap_or_else(|e| fail(e));
+    let old_preset = a.windows(2).any(|w| w[0] == "--preset" && w[1] == "electrum-old");
     for sp in &o.specs { blocktools_core::chain_spec::require_or_exit("derive", sp.chain.name, "p2pkh") }
     let match_set: Option<HashSet<String>> = o.match_file.as_ref().map(|f| {
         let mut b = String::new();
@@ -79,6 +81,28 @@ fn main() {
     for line in std::io::stdin().lock().take(16 << 20).lines().map_while(Result::ok) {
         let line = Zeroizing::new(line);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
+        if v.get("scheme").and_then(|s| s.as_str()) == Some("electrum-old") {
+            let Some(seed_hex) = v.get("seed").and_then(|s| s.as_str()).map(|s| Zeroizing::new(s.to_string())) else { status(list, format!(r#"{{"tool":"derive","status":"bad_input","candidate":{cand}}}"#)); continue };
+            let mut seen: HashSet<String> = HashSet::new();
+            let mut emit = |r: &Row, label: &str| {
+                if !seen.insert(r.path.clone()) { return false }
+                if let Some(m) = &match_set { if !m.contains(&norm(&r.address)) { return false } }
+                if list { outln!("{label}\t{}\t{}", r.path, r.address) }
+                else {
+                    let sec = if public { String::new() } else { format!(r#","{}":"{}""#, r.secret_field, r.secret) };
+                    outln!(r#"{{"tool":"derive","status":"ok","candidate":{cand},"chain":"{}","kind":"{}","scheme":"electrum-old","path":"{}","address":"{}","label":"{label}"{sec}}}"#, r.chain, r.kind, r.path, r.address);
+                }
+                n += 1; true
+            };
+            if let Err(e) = walk::walk_old(&o, &seed_hex, &mut tried, &mut emit) {
+                status(list, format!(r#"{{"tool":"derive","status":"{e}","candidate":{cand},"count":{tried}}}"#)); if e == "too_many_candidates" { std::process::exit(2) }
+            }
+            if o.stop_on_match && n > 0 { stop = true; break }
+            continue
+        }
+        // --preset electrum-old is the non-BIP32 scheme: a BIP32 master cannot be walked with it.
+        if old_preset && v.get("xprv").is_some() { status(list, format!(r#"{{"tool":"derive","status":"unsupported","candidate":{cand}}}"#)); continue }
         let Some(x) = v.get("xprv").and_then(|m| m.as_str()) else {
             // Leaf keys already carrying an address (e.g. legacy keys from dat-read) pass through.
             if let Some(a) = v.get("address").and_then(|a| a.as_str()) {
@@ -95,7 +119,6 @@ fn main() {
             }
             continue
         };
-        let cand = v.get("candidate").and_then(|c| c.as_u64()).unwrap_or(0);
         let pi = v.get("passphrase_index").and_then(|c| c.as_u64());
         let tag = match pi { Some(p) if p > 0 => format!(" [passphrase #{p}]"), _ => String::new() };
         let pij = pi.map_or(String::new(), |p| format!(r#","passphrase_index":{p}"#));

@@ -8,7 +8,7 @@ key\-to\-addresses [\-\-chain LIST] < raw 32\-byte key (hex, WIF, base58, base64
 .SH DESCRIPTION
 table (BTC\-family compressed AND uncompressed, ETH, Tron, XRP, and Solana treating the bytes
 as an ed25519 seed). Accepted encodings: 64 hex (0x optional), base64, base58, WIF,
-or a JSON line {"key":"..."} / {"wif":"..."}. An ambiguous string is tried in every encoding that yields
+or a JSON line {"key":"..."} / {"wif":"..."} / {"private_key":"..."} (phrase\-to\-key output). An ambiguous string is tried in every encoding that yields
 exactly 32 bytes; each decoding is a separate "candidate".
 Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: \-\-chain a,b (default all; zec t1 only when listed).
 .SH OPTIONS
@@ -17,7 +17,7 @@ Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: \-
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
-or a JSON line {"key":"..."} / {"wif":"..."}. An ambiguous string is tried in every encoding that yields
+or a JSON line {"key":"..."} / {"wif":"..."} / {"private_key":"..."} (phrase\-to\-key output). An ambiguous string is tried in every encoding that yields
 Output CONTAINS SECRETS. Thin wrapper around blocktools_secrets::keys. Flags: \-\-chain a,b (default all; zec t1 only when listed).
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):

@@ -23,6 +23,10 @@ def w(d, n, s): open(os.path.join(d, n), "w").write(s + "\n")
 # monero-python fixtures, Ethereum's keystore test vector).
 w(IN, "seed.txt", "abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot")
 w(IN, "electrum-seed.txt", "cycle rocket west magnet parrot shuffle foot correct salt library feed song")
+# Electrum 1.x old seed (Electrum tests test_electrum_seed_old), the xkcd brainwallet, keybase/warpwallet spec.json #1
+w(IN, "electrum-old-seed.txt", "powerful random nobody notice nothing important anyway look away hidden message over")
+w(IN, "brainwallet.txt", "correct horse battery staple")
+w(IN, "warpwallet.json", '{"phrase":"ER8FT+HFjk0","salt":"7DpniYifN6c"}')
 w(IN, "key.hex", "0" * 63 + "1")
 w(IN, "key.wif", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn")
 # Mock UTXO lists for offline tx-build examples: one 0.01-coin output (qtum: 1 QTUM, since its 700 sat/vB fee is 13% of 0.01) at key 1's address (txid all 'c').

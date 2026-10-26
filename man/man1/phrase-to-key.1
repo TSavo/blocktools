@@ -1,0 +1,47 @@
+.TH PHRASE\-TO\-KEY 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+phrase\-to\-key \- pre\-BIP39 brainwallet phrase \-> raw 32\-byte private key, one line per scheme
+.SH SYNOPSIS
+.nf
+phrase\-to\-key [\-\-scheme sha256|warpwallet|all] < phrase lines (or {"phrase":...,"salt":...}) \-> {"scheme","private_key"} per scheme; pipe into key\-to\-addresses
+.fi
+.SH DESCRIPTION
+stdin lines: a bare phrase (the whole line, byte for byte, without the line end), or a JSON line
+{"phrase":"...","salt":"..."} (salt = WarpWallet e\-mail, default empty). Output lines
+{"tool":"phrase\-to\-key","status":"ok","line":N,"scheme":S,"private_key":HEX} feed key\-to\-addresses,
+which prints the compressed AND uncompressed addresses (brainwallet.org used uncompressed).
+Schemes: sha256 (brainwallet.org, bitaddress.org; default) and warpwallet (keybase: scrypt 2^18 +
+PBKDF2, memory\-hungry and about a second per phrase; \-\-scheme warpwallet or all).
+No scheme has a checksum: a wrong phrase gives a wrong key, never an error. Output CONTAINS SECRETS.
+.SH OPTIONS
+.nf
+  \-\-scheme LIST  sha256 (brainwallet.org/bitaddress.org, default), warpwallet (keybase, needs salt = e\-mail, slow), or all
+.fi
+.SH INPUT/OUTPUT
+stdin lines: a bare phrase (the whole line, byte for byte, without the line end), or a JSON line
+{"phrase":"...","salt":"..."} (salt = WarpWallet e\-mail, default empty). Output lines
+No scheme has a checksum: a wrong phrase gives a wrong key, never an error. Output CONTAINS SECRETS.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status done
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ echo "correct horse battery staple" | phrase\-to\-key | key\-to\-addresses \-\-chain btc
+# exit 0, last status: done
+$ phrase\-to\-key \-\-scheme md5 < /dev/null
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

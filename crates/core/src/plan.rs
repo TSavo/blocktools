@@ -12,7 +12,7 @@ pub struct Spec { pub chain: &'static Chain, pub coin: u32, pub kind: &'static s
 pub struct Ranges { pub account: Vec<u32>, pub change: Vec<u32>, pub index: Vec<u32> }
 
 pub const ADDRESS_TYPES: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld"];
-/// Name, description. TON / electrum-old are listed in docs/ROADMAP.md (planned).
+/// Name, description. TON is listed in docs/ROADMAP.md (planned).
 pub const PRESETS: &[(&str, &str)] = &[
     ("common", "standard wallet paths per chain: BIP44/49/84/86 by script type, EVM/Tron/XRP m/44'/c'/0'/0/i, Solana m/44'/501'/i'/0'"),
     ("exhaustive", "every purpose (44/49/84/86) x every script type, change 0 and 1, uncompressed too, plus EVM Ledger-Live/MEW-legacy, Solana variants, legacy HD layouts"),
@@ -22,6 +22,7 @@ pub const PRESETS: &[(&str, &str)] = &[
     ("ledger-live", "Ledger Live EVM m/44'/60'/{i}'/0/0, BTC m/{purpose}'/0'/{i}'/0/0"),
     ("electrum", "Electrum 2.x+ wallets: standard seed m/{change}/{i} p2pkh, segwit seed m/0'/{change}/{i} p2wpkh (picked automatically from the seed scheme)"),
     ("scan-js", "exactly SwapChan's SCAN_JS rows: 15 labeled paths (EVM MetaMask/Ledger Live/Ledger legacy, Tron, Solana x2, BTC 44/49/84/86, LTC 44/84, DOGE, BCH, BTG), 20 addresses each (--index overrides); default chains eth,tron,sol,btc,ltc,doge,bch,btg"),
+    ("electrum-old", "Electrum 1.x (2011-2014) old seed: non-BIP32 keys m/{change}/{i}, uncompressed p2pkh, btc only; needs a seed-to-master line with scheme electrum-old (an xprv is refused)"),
     ("legacy-hd", "pre-BIP44 HD layouts, compressed and uncompressed p2pkh: Core 0.13+ m/0'/{change}'/{i}', MultiBit HD / BRD m/0'/{change}/{i}, Electrum 2.x m/{change}/{i}"),
 ];
 
@@ -103,6 +104,7 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
                 Enc::Utxo { .. } => for k in kinds_of(c) { v.push(spl(c, k, "m/{purpose}'/{coin}'/{i}'/0/0", "Ledger Live")) },
                 _ => {}
             },
+            "electrum-old" => if c.name == "btc" { v.push(Spec { uncompressed: true, ..spl(c, "p2pkh", "m/{change}/{i}", "Electrum 1.x old seed") }) },
             "electrum" | "electrum-standard" | "electrum-segwit" => if utxo {
                 if name != "electrum-segwit" { v.push(spl(c, "p2pkh", "m/{change}/{i}", "Electrum standard seed")) }
                 if name != "electrum-standard" && kinds_of(c).contains(&"p2wpkh") { v.push(spl(c, "p2wpkh", "m/0'/{change}/{i}", "Electrum segwit seed")) }
@@ -115,7 +117,7 @@ pub fn preset(name: &str, chains_sel: &[&'static Chain]) -> Option<Vec<Spec>> {
 }
 /// Default ranges for a preset (accounts / change branches); index comes from --index/--count or the chain default.
 pub fn preset_ranges(name: &str) -> (Vec<u32>, Vec<u32>) {
-    match name { "exhaustive" => (vec![0, 1, 2], vec![0, 1]), "recovery" | "electrum" | "electrum-standard" | "electrum-segwit" => (vec![0], vec![0, 1]), _ => (vec![0], vec![0]) }
+    match name { "exhaustive" => (vec![0, 1, 2], vec![0, 1]), "recovery" | "electrum" | "electrum-standard" | "electrum-segwit" | "electrum-old" => (vec![0], vec![0, 1]), _ => (vec![0], vec![0]) }
 }
 
 /// Expand a template. Errors on unknown placeholders or malformed result.

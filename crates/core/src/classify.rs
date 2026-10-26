@@ -8,7 +8,7 @@ use bitcoin::hashes::{hmac, sha256, sha512, Hash, HashEngine};
 pub struct Row { pub class: &'static str, pub line: u64, pub fp: String, pub public: Option<String>, pub chain: Option<&'static str> }
 
 /// Every class name classify can print.
-pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
+pub const CLASSES: &[&str] = &["mnemonic", "electrum_seed", "electrum_old_seed", "wif", "hex_key", "b58_key", "b64_key", "xprv", "xpub", "address", "monero_seed", "monero_address", "xrp_seed", "xlm_seed", "ton_mnemonic", "algo_mnemonic",
     "bip38", "keystore_v3", "eth_presale", "blockchain_wallet", "wallet_dat", "electrum_wallet", "electrum_wallet_file_encrypted", "multibit_key", "bitcoinj_wallet", "multibit_hd_wallet", "armory_wallet", "unknown"];
 
 pub fn fingerprint(b: &[u8]) -> String {
@@ -86,7 +86,12 @@ fn line(l: &str, n: u64) -> Row {
     if h.len() == 64 && h.bytes().all(|c| c.is_ascii_hexdigit()) { return row("hex_key", n, l.as_bytes()) }
     let w: Vec<&str> = l.split_whitespace().collect();
     if (12..=24).contains(&w.len()) && w.iter().all(|x| x.bytes().all(|c| c.is_ascii_alphabetic())) {
-        return row(if electrum_version(l).is_some() { "electrum_seed" } else { "mnemonic" }, n, l.as_bytes()) }
+        // Old Electrum 1.x words (1626-word list) are checked after the 2.x version hash and before the
+        // generic mnemonic class; a BIP39 phrase made only of old-list words would be reported old (it still
+        // reaches seed-to-master, which prints every reading).
+        if electrum_version(l).is_some() { return row("electrum_seed", n, l.as_bytes()) }
+        if crate::electrum_old::decode(&w).is_some() { return row("electrum_old_seed", n, l.as_bytes()) }
+        return row("mnemonic", n, l.as_bytes()) }
     if base58::decode(l).map_or(false, |b| b.len() == 32) { return row("b58_key", n, l.as_bytes()) }
     if crate::b64::decode(l).map_or(false, |b| b.len() == 32) { return row("b64_key", n, l.as_bytes()) }
     row("unknown", n, l.as_bytes())
@@ -111,6 +116,7 @@ mod t {
         assert_eq!(c("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"), "mnemonic");
         assert_eq!(c("abandon abandon abandn abandon abandon abandon abandon abandon abandon abandon abandon abuot"), "mnemonic");
         assert_eq!(c("cycle rocket west magnet parrot shuffle foot correct salt library feed song"), "electrum_seed");
+        assert_eq!(c("powerful random nobody notice nothing important anyway look away hidden message over"), "electrum_old_seed");
         assert_eq!(c("0000000000000000000000000000000000000000000000000000000000000001"), "hex_key");
         assert_eq!(c("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"), "wif");
         assert_eq!(c("6PRVWUbkzzsbcVac2qwfssoUJAN1Xhrg6bNk8J7Nzm5H7kxEbn2Nh2ZoGg"), "bip38");
