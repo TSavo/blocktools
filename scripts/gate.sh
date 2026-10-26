@@ -2,7 +2,7 @@
 # THE gate. CI (.github/workflows/ci.yml) and scripts/verify-and-push.sh both run this script,
 # so they cannot diverge. ci-gate-check.sh fails if ci.yml runs any command other than this
 # script or a listed environment-setup step, or if its stage matrix differs from `--list`.
-#   sh scripts/gate.sh            all stages, in order (local / verify-and-push)
+#   sh scripts/gate.sh            all stages, in order (local; verify-and-push runs `lint` and leaves the rest to CI)
 #   sh scripts/gate.sh STAGE      one stage (CI runs each stage as a parallel job)
 #   sh scripts/gate.sh --list     stage names
 # Expects cargo, node, clang/lld, wasm-bindgen and python3 on PATH.
