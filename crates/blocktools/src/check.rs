@@ -44,7 +44,7 @@ pub fn tx_json(input: &str) -> String {
     }
     let (outputs, inputs, fee): (Vec<(Option<String>, Option<u128>)>, Value, Option<u128>) = if let Some(t) = &d.evm {
         // EVM: one effective output (to + value, or token recipient + amount); fee = gas * max fee/gas.
-        let p = Policy { expect_to: expected.iter().map(|e| e.0.clone()).collect(), change: vec![], chain_id: None, max_fee, allow_warnings: false, allow_value_with_token: false };
+        let p = Policy { expect_to: expected.iter().map(|e| e.0.clone()).collect(), change: vec![], chain_id: v.get("chain_id").and_then(|x| x.as_u64().or_else(|| x.as_str().and_then(|s| s.trim().parse().ok()))), max_fee, allow_warnings: false, allow_value_with_token: false };
         reasons.extend(check(&d, &p).into_iter().filter(|r| *r != "fee_above_cap").map(String::from));
         let (to, amt) = match blocktools_tx::evm::token_call(&t.data) {
             Some(tc) => (Some(blocktools_tx::addr(&tc.to)), blocktools_tx::evm::dec(&tc.amount).parse().ok()),

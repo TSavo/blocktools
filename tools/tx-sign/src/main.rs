@@ -11,7 +11,7 @@
 //! Default fee cap: 100000 sats (UTXO) / 0.01 ETH (EVM); raise it with --max-fee.
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::Secp256k1;
-use blocktools_tx::policy::{self, check, Policy};
+use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::{BufRead, Read};
 use zeroize::Zeroizing;
@@ -33,8 +33,7 @@ fn main() {
     if d.signed { bad("already_signed") }
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
-        max_fee: Some(one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee")))
-            .unwrap_or(policy::default_max_fee(&d))),
+        max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))),
         allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token") };
     if p.expect_to.is_empty() { bad("--expect-to ADDR is required (destination assertion)") }
     for e in p.expect_to.iter().chain(&p.change) {

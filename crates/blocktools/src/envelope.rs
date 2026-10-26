@@ -15,7 +15,7 @@
 //!
 //! Response always carries `envelope`, `status` (`ok`|`error`), `op`, `chain`.
 use blocktools_core::chains;
-use blocktools_tx::policy::{check, Policy};
+use blocktools_tx::policy::Policy;
 use serde_json::{json, Value};
 
 pub const ENVELOPE: &str = "blocktools.sign/v1";
@@ -101,10 +101,12 @@ fn verify_utxo_evm(chain: &str, tx: &str, v: &Value) -> Result<Value, String> {
         allow_warnings: v.get("allow_warnings").and_then(|x| x.as_bool()).unwrap_or(false),
         allow_value_with_token: v.get("allow_value_with_token").and_then(|x| x.as_bool()).unwrap_or(false),
     };
-    let findings = check(&d, &p);
+    let v = blocktools_tx::policy::verify(&d, &p);
     Ok(json!({
-        "ok": findings.is_empty(),
-        "findings": findings,
+        "ok": v.findings.is_empty(),
+        "findings": v.findings,
+        "max_fee": blocktools_tx::policy::effective_max_fee(&d, &p).to_string(),
+        "check_these": v.check_these,
         "summary": d.json_lines().into_iter().next().unwrap_or_else(|| json!({})),
     }))
 }

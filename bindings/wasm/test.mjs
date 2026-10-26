@@ -282,3 +282,15 @@ console.log('addressToScript case + zec ok');
   assert.deepEqual([s.count, s.total, s.dropped_uneconomic, s.dropped_foreign, s.min_value], [1, '90000', 1, 1, '29600']);
 }
 console.log('lift7 ok');
+// Security regression: 9.99 ETH fee refused on every wasm verify path (shared policy::check default cap).
+{
+  const tx = readFileSync(new URL('../../crates/blocktools/tests/data/evm-fee-9.99eth.txt', import.meta.url), 'utf8').trim();
+  const to = '0x3535353535353535353535353535353535353535';
+  const v = JSON.parse(bt.verifyTx(tx, 'eth', [to], [], 1, '', true));
+  assert.equal(v.ok, false); assert.ok(v.failures.includes('fee_above_cap'), JSON.stringify(v)); assert.match(v.check_these, /CHECK THESE/);
+  const p = JSON.parse(bt.checkTxPolicy(tx, 'eth', JSON.stringify({version:1,chains:{eth:{chain_id:1,allow_to:[to]}}})));
+  assert.equal(p.ok, false); assert.ok(p.failures.includes('policy:max_fee'), JSON.stringify(p));
+  const c = JSON.parse(bt.checkTx(JSON.stringify({chain:'eth',raw_tx_hex:tx,expected_outputs:[{address:to}],owner_addr:to,max_fee:'10000000000000000',chain_id:1})));
+  assert.equal(c.ok, false);
+  console.log('ok fee-cap 9.99 ETH refused (verifyTx, checkTxPolicy, checkTx)');
+}

@@ -4,7 +4,7 @@
 //! --policy FILE: offline policy file (docs/POLICY.md); its findings are added and its sha256 is reported.
 //! EVM default fee cap: 0.01 ETH (same as tx-sign); UTXO: no cap unless --max-fee.
 //! Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
-use blocktools_tx::policy::{self, check, Policy};
+use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
@@ -21,8 +21,7 @@ fn main() {
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
     let chain = blocktools_tx::resolve_chain(&s, one("--chain")).unwrap_or_else(|e| bad(e));
     let d = blocktools_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
-    // EVM: same default total-fee cap as tx-sign (gas * maxFeePerGas <= 0.01 ETH) unless --max-fee is given.
-    let mut p = p; if p.max_fee.is_none() && d.evm.is_some() { p.max_fee = Some(policy::default_max_fee(&d)) }
+    // Default fee cap (same as tx-sign) is applied inside policy::check unless --max-fee is given.
     let mut f: Vec<String> = check(&d, &p).into_iter().map(String::from).collect();
     let mut o = json!({"tool":"tx-verify"});
     if let Some(file) = one("--policy") {
