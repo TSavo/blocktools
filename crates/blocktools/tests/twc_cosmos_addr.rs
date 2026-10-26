@@ -77,6 +77,32 @@ const ANY: &[(&str, &str, &str, &str)] = &[
     assert_eq!(ANY.len(), 19);
 }
 #[test] fn hrps_unique() {
-    let mut h: Vec<&str> = chains::CHAINS.iter().filter_map(|c| match c.enc { chains::Enc::Cosmos { hrp } => Some(hrp), _ => None }).collect();
+    let mut h: Vec<&str> = chains::CHAINS.iter().filter_map(|c| match c.enc { chains::Enc::Cosmos { hrp, .. } => Some(hrp), _ => None }).collect();
     let n = h.len(); h.sort(); h.dedup(); assert_eq!(h.len(), n, "duplicate cosmos hrp in table");
+}
+/// Ethermint (ethsecp256k1) rows: (table name, TWC coin, DERIVE address for 0x46 x 32, TWAnyAddress file, ANY address).
+/// ANY public key (all four files): 04868e7e…0ab8 (Secp256k1Extended), from
+/// tests/chains/Cosmos/Native{Injective,Evmos,Canto}/TWAnyAddressTests.cpp and
+/// rust/tw_tests/tests/chains/zetachain/zetachain_address.rs.
+const ETH_PK: &str = "04868e7e1634417db2adfd9fe38205bfa0fea01898a7fd30565d13f7056a37c065211845f6e553524c2c1611af9712ac02b7a3b439c9f0cfcadfd81a2c86cc0ab8";
+const ETHERMINT: &[(&str, &str, &str, &str, &str)] = &[
+    ("inj", "NativeInjective", "inj1nk9x9ajk4rgkzhqjjn7hr6w0k0jg2kj0knl55v", "Cosmos/NativeInjective/TWAnyAddressTests.cpp", "inj14py36sx57ud82t9yrks9z6hdsrpn5x6k8tf7m3"),
+    ("evmos", "NativeEvmos", "evmos1nk9x9ajk4rgkzhqjjn7hr6w0k0jg2kj07me7uu", "Cosmos/NativeEvmos/TWAnyAddressTests.cpp", "evmos14py36sx57ud82t9yrks9z6hdsrpn5x6k0r05np"),
+    ("canto", "NativeCanto", "canto1nk9x9ajk4rgkzhqjjn7hr6w0k0jg2kj0wvfqju", "Cosmos/NativeCanto/TWAnyAddressTests.cpp", "canto14py36sx57ud82t9yrks9z6hdsrpn5x6kl5l2ap"),
+    ("zeta", "NativeZetaChain", "zeta1nk9x9ajk4rgkzhqjjn7hr6w0k0jg2kj027x9uy", "rust/tw_tests/tests/chains/zetachain/zetachain_address.rs", "zeta14py36sx57ud82t9yrks9z6hdsrpn5x6kmxs0ne"),
+];
+#[test] fn twc_ethermint_address() {
+    let sk = SecretKey::from_slice(&[0x46; 32]).unwrap(); let pk = PublicKey::from_secret_key(&Secp256k1::new(), &sk);
+    let apk = PublicKey::from_slice(&hx(ETH_PK)).unwrap();
+    for (n, twc, want, f, any) in ETHERMINT {
+        assert_eq!(addr(n, &pk), *want, "{n} ({twc}) derive");
+        assert_eq!(addr(n, &apk), *any, "{n} ({f})");
+        for a in [*want, *any] {
+            let d: Vec<&str> = blocktools::address::detect(a).into_iter().map(|x| x.0).collect();
+            assert_eq!(d, vec![*n], "{n}: auto-detect from address");
+        }
+        let c = chains::chain(n).unwrap(); assert_eq!(c.coin, 60, "{n} coin type (TWC m/44'/60'/0'/0/0)");
+        assert_eq!(blocktools::address::decimals(n), Some(18), "{n} decimals");
+    }
+    assert_eq!(ETHERMINT.len(), 4);
 }

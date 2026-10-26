@@ -24,7 +24,9 @@ pub enum Enc {
     /// ed25519, SLIP-0010, path m/44'/501'/i'/0' (Phantom/Solflare/solana-keygen style).
     Sol,
     /// Cosmos SDK: secp256k1, bech32(hrp, ripemd160(sha256(compressed pubkey))), m/44'/118'/0'/0/i
-    Cosmos { hrp: &'static str },
+    /// `eth: true` = ethsecp256k1 (Ethermint: Injective, Evmos, Canto, ZetaChain): address payload is
+    /// keccak256(uncompressed pubkey)[12..] (the EVM address bytes), path m/44'/60'/0'/0/i.
+    Cosmos { hrp: &'static str, eth: bool },
     /// Algorand: ed25519 key from the native 25-word mnemonic (no BIP32 path); address =
     /// base32(pub || sha512/256(pub)[28..])
     Algo,
@@ -74,8 +76,13 @@ pub struct Chain {
 }
 /// Cosmos SDK row: path m/44'/coin'/0'/0/i, Hub address form with this hrp. Signing is not implied (acct-tx lists its own vectors).
 const fn cos(name: &'static str, ticker: &'static str, title: &'static str, coin: u32, hrp: &'static str) -> Chain {
-    Chain { name, ticker, title, coin, enc: Enc::Cosmos { hrp }, default_count: 10, sign: Sign::Unknown, verified: true,
+    Chain { name, ticker, title, coin, enc: Enc::Cosmos { hrp, eth: false }, default_count: 10, sign: Sign::Unknown, verified: true,
             source: "Trust Wallet Core adf80f8 registry.json (hrp, coin type); address KAT tests/common/CoinAddressDerivationTests.cpp", sources: &[] }
+}
+/// Ethermint (ethsecp256k1) Cosmos row: path m/44'/60'/0'/0/i, bech32(hrp, keccak256(pubkey)[12..]). Address only.
+const fn ceth(name: &'static str, ticker: &'static str, title: &'static str, hrp: &'static str) -> Chain {
+    Chain { name, ticker, title, coin: 60, enc: Enc::Cosmos { hrp, eth: true }, default_count: 10, sign: Sign::Unknown, verified: true,
+            source: "Trust Wallet Core adf80f8 registry.json (hrp, m/44'/60' path, ethsecp256k1); address KATs tests/common/CoinAddressDerivationTests.cpp + tests/chains/Cosmos/Native*/TWAnyAddressTests.cpp", sources: &[] }
 }
 const fn u(name: &'static str, ticker: &'static str, title: &'static str, coin: u32, p2pkh: u8, p2sh: u8, wif: u8, hrp: Option<&'static str>,
            sign: Sign, verified: bool, source: &'static str, sources: &'static [Source]) -> Chain {
@@ -95,7 +102,7 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "eth", ticker: "ETH", title: "Ethereum / EVM", coin: 60, enc: Enc::Eth, default_count: 5, sign: Standard, verified: true, source: "EIP-55, EIP-155, EIP-1559", sources: &[] },
     Chain { name: "tron", ticker: "TRX", title: "Tron", coin: 195, enc: Enc::Tron, default_count: 10, sign: Unknown, verified: true, source: "tronprotocol docs: 0x41 || keccak20, base58check", sources: &[] },
     Chain { name: "xrp", ticker: "XRP", title: "XRP Ledger", coin: 144, enc: Enc::Xrp, default_count: 10, sign: Unknown, verified: true, source: "xrpl.org: account ID, ripple base58 alphabet", sources: &[] },
-    Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos" }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
+    Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos", eth: false }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
     Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
     Chain { name: "dot", ticker: "DOT", title: "Polkadot", coin: 354, enc: Enc::Ss58 { prefix: 0 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey: mini-secret = PBKDF2(entropy), sr25519, SS58 prefix 0", sources: &[] },
     Chain { name: "ksm", ticker: "KSM", title: "Kusama", coin: 434, enc: Enc::Ss58 { prefix: 2 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey key (as dot), SS58 prefix 2 (paritytech ss58-registry kusama); encoding checked against Trust Wallet Core tests/chains/Kusama", sources: &[] },
@@ -131,6 +138,11 @@ pub const CHAINS: &[Chain] = &[
     cos("bld", "BLD", "Agoric", 564, "agoric"),
     cos("dydx", "DYDX", "dYdX Chain", 118, "dydx"),
     cos("rune", "RUNE", "THORChain", 931, "thor"),
+    // ---- Ethermint / ethsecp256k1 Cosmos chains: same key as the EVM address, bech32 with the chain hrp. ----
+    ceth("inj", "INJ", "Injective (native)", "inj"),
+    ceth("evmos", "EVMOS", "Evmos (native)", "evmos"),
+    ceth("canto", "CANTO", "Canto (native)", "canto"),
+    ceth("zeta", "ZETA", "ZetaChain (native)", "zeta"),
     // ---- Bitcoin-family long tail. Bytes are decimal as written in each coin's source. ----
     u("qtum", "QTUM", "Qtum", 2301, 58, 50, 128, Some("qc"), Standard, true, "qtumproject/qtum src/kernel/chainparams.cpp", &[bb("qtum.info", "https://qtum.info/address/{addr}", "qtuminfo:https://qtum.info/api")]),
     u("ftc", "FTC", "Feathercoin", 8, 14, 5, 142, Some("fc"), Standard, true, "FeatherCoin/Feathercoin src/chainparams.cpp", &[]),
@@ -294,7 +306,7 @@ pub fn pub_rows(c: &Chain, path: &str, pk: &PublicKey, uncompressed: bool) -> Ve
         Enc::Eth => vec![row("eth", crate::eth_address_from_pubkey(&pk.serialize_uncompressed()))],
         Enc::Tron => vec![row("tron", b58check(&ver(0x41, &keccak_addr20(pk))))],
         Enc::Xrp => vec![row("xrp", xrp_b58check(&ver(0x00, &h160(&pk.serialize()))))],
-        Enc::Cosmos { hrp } => vec![row("cosmos", cosmos_address(hrp, &h160(&pk.serialize())))],
+        Enc::Cosmos { hrp, eth } => vec![row("cosmos", cosmos_address(hrp, &if eth { keccak_addr20(pk) } else { h160(&pk.serialize()) }))],
         Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ada | Enc::Ton | Enc::Ss58 { .. } | Enc::Xmr => vec![],
     }
 }
@@ -849,7 +861,7 @@ mod kat_long_tail {
         }
         for c in CHAINS { if let Enc::Utxo { hrp: Some(h), .. } = c.enc { assert!(blocktools_schema::HRPS.contains(&h), "schema HRPS missing {h}") } }
         for c in CHAINS { assert!(blocktools_schema::CHAINS.contains(&c.name), "schema CHAINS missing {}", c.name) }
-        for c in CHAINS { if let Enc::Cosmos { hrp } = c.enc { assert!(blocktools_schema::COSMOS_HRPS.contains(&hrp) && blocktools_schema::HRPS.contains(&hrp), "schema COSMOS_HRPS missing {hrp}") } }
+        for c in CHAINS { if let Enc::Cosmos { hrp, .. } = c.enc { assert!(blocktools_schema::COSMOS_HRPS.contains(&hrp) && blocktools_schema::HRPS.contains(&hrp), "schema COSMOS_HRPS missing {hrp}") } }
         // every UTXO row in the table has a vector (grs: Groestl checksum, covered by grs_kats /
         // grs_wif_and_bip32_kats below from groestlcoinjs-lib and Electrum-GRS)
         for c in CHAINS.iter().filter(|c| matches!(c.enc, Enc::Utxo { .. }) && c.name != "grs") { assert!(V.iter().any(|v| v.0 == c.name), "{} has no KAT", c.name) }
@@ -953,7 +965,7 @@ pub fn chain_json(c: &Chain) -> String {
     let curve = match c.enc { Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton => "ed25519", Enc::Ada => "ed25519-bip32", Enc::Ss58 { .. } => "sr25519", Enc::Xmr => "ed25519-monero", _ => "secp256k1" };
     let (enc, extra) = match c.enc {
         Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot } => ("utxo", format!(",\"p2pkh\":{p2pkh},\"p2sh\":{p2sh},\"wif\":{wif},\"hrp\":{},\"taproot\":{taproot}", hrp.map_or("null".into(), js))),
-        Enc::Cosmos { hrp } => ("cosmos", format!(",\"hrp\":{}", js(hrp))),
+        Enc::Cosmos { hrp, .. } => ("cosmos", format!(",\"hrp\":{}", js(hrp))),
         Enc::Ss58 { prefix } => ("ss58", format!(",\"ss58_prefix\":{prefix}")),
         e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", _ => "xmr" }, String::new()),
     };

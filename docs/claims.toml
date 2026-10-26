@@ -338,14 +338,14 @@ doc = [{ file = "docs/CHAINS.md", text = "8 tests" }]
 
 [[claim]]
 id = "twc-cosmos-addresses"
-statement = "24 Cosmos SDK chain rows derive Trust Wallet Core's 0x46-key addresses, auto-detect uniquely, and match 19 TWC pubkey-to-address vectors"
+statement = "24 Cosmos SDK chain rows and 4 Ethermint rows (inj, evmos, canto, zeta) derive Trust Wallet Core's 0x46-key addresses, auto-detect uniquely, and match 23 TWC pubkey-to-address vectors"
 kind = "security"
 platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools --test twc_cosmos_addr"
-expect = "test result: ok. 3 passed"
+expect = "test result: ok. 4 passed"
 commit = "7ca91c5"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/blocktools/tests/twc_cosmos_addr.rs"]
-doc = [{ file = "docs/CHAINS.md", text = "(3 tests)" }]
+doc = [{ file = "docs/CHAINS.md", text = "(4 tests)" }]

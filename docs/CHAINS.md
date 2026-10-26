@@ -68,6 +68,10 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | bld | BLD | 564 | — | — | agoric | — | — | 6 | — | account | no | none |
 | dydx | DYDX | 118 | — | — | dydx | — | — | 18 | — | account | no | none |
 | rune | RUNE | 931 | — | — | thor | — | — | 8 | — | account | no | none |
+| inj | INJ | 60 | — | — | inj | — | — | 18 | — | account | no | none |
+| evmos | EVMOS | 60 | — | — | evmos | — | — | 18 | — | account | no | none |
+| canto | CANTO | 60 | — | — | canto | — | — | 18 | — | account | no | none |
+| zeta | ZETA | 60 | — | — | zeta | — | — | 18 | — | account | no | none |
 
 ### Fee-warning limits (verify-tx / wasm `verifyTx`, `chainParams().fee_warn`)
 
@@ -181,7 +185,11 @@ Refused: any other hrp (`cosmos_hrp_without_vector`), which includes ethsecp256k
 
 ### Cosmos SDK address rows (TWC address vectors, no signing)
 
-strd, axl, cre, kuji, cmdx, ntrn, somm, fet, mars, umee, noble, sei, tia, coreum, qsr, xprt, akt, kava, blz, band, bld, dydx and rune (THORChain), plus cro: derive (m/44'/coin'/0'/0/i), validate and auto-detect from the bech32 hrp. Hrp and coin type from TWC adf80f8 `registry.json`. Measured (Linux only): `crates/blocktools/tests/twc_cosmos_addr.rs` (3 tests) derives TWC's `tests/common/CoinAddressDerivationTests.cpp` address for the public 0x46×32 dummy key on all 24, checks the coin type and decimals and that `detect` returns exactly that chain, and replays 19 pubkey-to-address vectors from `tests/chains/Cosmos/<Chain>/TWAnyAddressTests.cpp`. `acct-tx` refuses to sign on these hrps (`cosmos_hrp_without_vector`) except cro, because TWC has no MsgSend vector for them. Untested: balance lookup, any transaction on these chains, the ethsecp256k1 chains (Injective, Evmos, Canto, Zeta).
+strd, axl, cre, kuji, cmdx, ntrn, somm, fet, mars, umee, noble, sei, tia, coreum, qsr, xprt, akt, kava, blz, band, bld, dydx and rune (THORChain), plus cro: derive (m/44'/coin'/0'/0/i), validate and auto-detect from the bech32 hrp. Hrp and coin type from TWC adf80f8 `registry.json`. Measured (Linux only): `crates/blocktools/tests/twc_cosmos_addr.rs` (4 tests) derives TWC's `tests/common/CoinAddressDerivationTests.cpp` address for the public 0x46×32 dummy key on all 24, checks the coin type and decimals and that `detect` returns exactly that chain, and replays 19 pubkey-to-address vectors from `tests/chains/Cosmos/<Chain>/TWAnyAddressTests.cpp`. `acct-tx` refuses to sign on these hrps (`cosmos_hrp_without_vector`) except cro, because TWC has no MsgSend vector for them. Untested: balance lookup, any transaction on these chains.
+
+### Ethermint (ethsecp256k1) address rows: inj, evmos, canto, zeta
+
+Injective, Evmos, Canto and ZetaChain native addresses: path m/44'/60'/0'/0/i (the same key as the EVM address), address = bech32(hrp, keccak256(uncompressed pubkey)[12..]), i.e. the EVM address bytes under the chain's hrp. Derive, validate and auto-detect from the hrp; address only. Hrp, path and 18 decimals from TWC adf80f8 `registry.json`. Measured (Linux only): `twc_ethermint_address` in `crates/blocktools/tests/twc_cosmos_addr.rs` derives TWC's `CoinAddressDerivationTests.cpp` address for the 0x46×32 key on all 4, replays the pubkey-to-address vector from `tests/chains/Cosmos/Native{Injective,Evmos,Canto}/TWAnyAddressTests.cpp` and `rust/tw_tests/tests/chains/zetachain/zetachain_address.rs`, and checks `detect` returns exactly that chain. `acct-tx` refuses to sign on these hrps (`cosmos_hrp_without_vector`; their signing uses the ethsecp256k1 pubkey type, not built). Untested: any transaction, balance lookup.
 
 ## Chain quirks and their known-answer vectors (2026-10-25)
 

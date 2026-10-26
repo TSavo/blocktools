@@ -48,7 +48,7 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
             if b.len() == 31 && b[..2] == [0x05, 0x44] && b[22] <= 1 && b[27..] == [0; 4] && (b[22] == 1 || b[23..27] == [0; 4]) { return Ok(AddrKind::Xrp) }
             Err("bad length")
         }
-        Enc::Cosmos { hrp } => chains::cosmos_decode(hrp, addr).map(|_| AddrKind::Cosmos),
+        Enc::Cosmos { hrp, .. } => chains::cosmos_decode(hrp, addr).map(|_| AddrKind::Cosmos),
         Enc::Ada => chains::ada_decode(addr).map(|_| AddrKind::Ada),
         Enc::Ton => chains::ton_decode(addr).map(|_| AddrKind::Ton),
         Enc::Ss58 { prefix } => chains::ss58_decode(prefix, addr).map(|_| AddrKind::Ss58),
