@@ -68,16 +68,33 @@ pub fn confirm(summary: &str) -> bool {
 // freshly spawned pty does not pass. Limits: anyone who can write or delete the pin file (same Unix
 // user) or inject into the pinned terminal itself (TIOCSTI, ptrace, tmux/screen send-keys) defeats it.
 
-/// (session id, controlling tty device number) of this process. Linux only (reads /proc); None elsewhere.
+/// (session id, controlling tty device number) of this process. None without a controlling tty.
+/// Linux: tty_nr from /proc/self/stat. macOS: e_tdev from proc_pidinfo(PROC_PIDTBSDINFO).
+/// Other platforms: None (pin-tty then fails closed with no_controlling_tty_session).
 pub fn session() -> Option<(i64, u64)> {
     // SAFETY: getsid(0) has no memory effects.
     let sid = unsafe { libc::getsid(0) } as i64;
-    let st = std::fs::read_to_string("/proc/self/stat").ok()?;
-    let f: Vec<&str> = st.rsplit_once(')')?.1.split_whitespace().collect();
-    let tty: u64 = f.get(4)?.parse().ok()?; // field 7 tty_nr (fields after comm: state ppid pgrp session tty_nr)
+    let tty = ctty()?;
     if sid <= 0 || tty == 0 { return None }
     Some((sid, tty))
 }
+#[cfg(target_os = "linux")]
+fn ctty() -> Option<u64> {
+    let st = std::fs::read_to_string("/proc/self/stat").ok()?;
+    let f: Vec<&str> = st.rsplit_once(')')?.1.split_whitespace().collect();
+    f.get(4)?.parse().ok() // field 7 tty_nr (fields after comm: state ppid pgrp session tty_nr)
+}
+#[cfg(target_os = "macos")]
+fn ctty() -> Option<u64> {
+    let mut bi: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    let sz = std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
+    // SAFETY: proc_pidinfo writes at most `sz` bytes into `bi`, which is that size.
+    let n = unsafe { libc::proc_pidinfo(libc::getpid(), libc::PROC_PIDTBSDINFO, 0, &mut bi as *mut _ as *mut libc::c_void, sz) };
+    if n != sz || bi.e_tdev == u32::MAX { return None } // NODEV (-1): no controlling terminal
+    Some(bi.e_tdev as u64)
+}
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn ctty() -> Option<u64> { None }
 /// Pin files: the account's home from the password database (not $HOME, which a caller controls)
 /// and, additionally, $BLOCKTOOLS_TTY_PIN. An env var can add a pin but never remove one.
 pub fn pin_paths() -> Vec<std::path::PathBuf> {
