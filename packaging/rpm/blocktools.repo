@@ -1,0 +1,7 @@
+[blocktools]
+name=blocktools (signed, x86_64)
+baseurl=https://tsavo.github.io/blocktools/rpm
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://raw.githubusercontent.com/TSavo/blocktools/main/packaging/rpm/RPM-GPG-KEY-blocktools
