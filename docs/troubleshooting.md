@@ -1,5 +1,7 @@
 # Troubleshooting / FAQ
 
+Every status and failure code, with its cause, what to do and a run example: [REFUSALS.md](REFUSALS.md).
+
 ## `bad_input` / exit 2
 
 The tool could not parse stdin or flags. Check: JSONL shape from the previous stage,
