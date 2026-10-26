@@ -34,9 +34,11 @@ Step 2: keys out, BCC addresses in. All three match the wallet's own address boo
 Step 3: data source. There is no live network to ask, so the source is a file of unspent outputs
 (`/in/u-bcc.json`, one synthetic 0.01 BCC output at the first address). The build step refuses,
 because the row is unverified and BCC's PoS `nTime` layout has never been checked against a real
-BCC transaction:
+BCC transaction. Run directly, `tx-build` exits 2 with
+`"error":"unverified chain parameters: not supported"`; under `sealed-run agent` the error text is
+redacted and only the status reaches the agent:
 
-<!-- e2e: rc=2 ; expect=unverified chain parameters -->
+<!-- e2e: expect="status":"bad_input" ; expect="tool":"tx-build" -->
     ./blocktools run 'tx-build --chain bcc --utxos /in/u-bcc.json --to 8N9YB8om5U9b1PFkG56TUWuLJequvGmBDQ --sweep --fee-rate 5 --time 1792800000'
 
 That refusal is where this example stops. Keys and addresses are recovered offline; building,
