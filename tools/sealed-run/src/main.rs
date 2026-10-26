@@ -9,12 +9,6 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, Command, Stdio};
 
-const ALLOWED: &[&str] = &[
-    "seed-repair", "seed-to-master", "derive", "keystore-open", "read-file", "redact",
-    "dat-read", "electrum-read", "multibit-read", "armory-read",
-    "tx-decode", "tx-build", "tx-verify", "tx-sign", "tx-build-sweep", "key-to-addresses", "classify",
-    "xmr-keys", "zec-sapling", "xrp-tx", "acct-tx", "xpub-addresses",
-];
 
 fn out(status: &str) -> ! { blocktools_io::outln!(r#"{{"tool":"sealed-run","status":"{status}"}}"#); std::process::exit(2) }
 
@@ -26,7 +20,7 @@ pub fn parse(pipeline: &str) -> Result<Vec<Stage>, &'static str> {
     for (i, seg) in pipeline.split('|').enumerate() {
         let toks: Vec<&str> = seg.split_whitespace().collect();
         let (prog, rest) = toks.split_first().ok_or("bad_input")?;
-        if !ALLOWED.contains(prog) { return Err("unsupported"); }
+        if !blocktools_io::sealed_allowed(prog) { return Err("unsupported"); }
         let mut args = Vec::new();
         let mut input = None;
         let mut it = rest.iter();

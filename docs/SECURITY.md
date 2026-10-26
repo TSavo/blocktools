@@ -116,7 +116,7 @@ committed at the repo root are removed going forward and `*.whl` is ignored; the
 
 `scripts/docs-check.sh` (gate and CI) fails if a tool under `tools/` is undocumented, a built tool is called
 "planned", a hand-written test count appears in README/DESIGN/SECURITY, a host-side network tool
-(utxo-fetch, tx-broadcast, xmr-wallet) is in the sealed image or the sealed-run allowlist, or in-tree scrypt
+(rpc, utxo-fetch, tx-broadcast, xmr-wallet) is in crates/io/sealed-tools.txt (the sealed-run allowlist and the image ship list), or in-tree scrypt
 reappears undisclosed. `scripts/e2e-local.sh` is part of the Linux gate; macOS (untested) is run by the macos CI job: `scripts/e2e-only/portable.sh`
 replaces `setsid` (Python `os.setsid` fallback) and `stat -c` (BSD `stat -f`); checks whose fixtures need
 the Python `cryptography` module (dat-read, recover, bitcoinj) print `skip ... pip install cryptography`

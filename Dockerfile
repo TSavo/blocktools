@@ -11,10 +11,10 @@ COPY recipes/fixtures/evm-mainnet recipes/fixtures/evm-mainnet
 # quirks test reads docs/CHAINS.md, rpc deny/summary tests read docs/RPC.md (doc/table drift checks)
 COPY scripts/check-deps.sh scripts/check-deps.sh
 RUN sh scripts/check-deps.sh && cargo test --release --locked -- --skip every_policy_entry_point_uses_shared_verifier && cargo build --release --locked
-# Collect every binary (host-side network tools utxo-fetch, tx-broadcast, xmr-wallet stay out) and refuse to continue unless each one is statically linked.
-RUN mkdir /out && for t in tools/*/; do n=$(basename "$t"); b=target/release/$n; \
-      case "$n" in utxo-fetch|tx-broadcast|rpc|xmr-wallet) continue;; esac; \
-      [ -x "$b" ] && cp "$b" /out/; done && \
+# Ship exactly the sealed-run allowlist (crates/io/sealed-tools.txt) plus sealed-run itself: host-side
+# network tools (crates/io/host-tools.txt) stay out. Refuse to continue unless each one is statically linked.
+RUN mkdir /out && for n in sealed-run $(grep -v '^#' crates/io/sealed-tools.txt); do b=target/release/$n; \
+      [ -x "$b" ] || { echo "MISSING: $b"; exit 1; }; cp "$b" /out/; done && \
     for b in /out/*; do file "$b"; file "$b" | grep -q "static" || { echo "NOT STATIC: $b"; exit 1; }; done
 
 # Runtime: nothing but the static tools. No shell, no busybox, no wget, no libc.

@@ -17,10 +17,11 @@ for t in tools/*/; do n=$(basename "$t")
   if grep -nE "\*\*$n\*\* \(planned" $D; then echo "FAIL $n exists but is called planned"; rc=1; fi  # rule:D-planned
 done
 # 4. host-side network tools are never shipped in the sealed image or allowed by sealed-run
+# (crates/io/sealed-tools.txt is both the sealed-run allowlist and the Dockerfile's ship list)
 for n in utxo-fetch tx-broadcast rpc xmr-wallet; do
-  grep -q "$n" Dockerfile || { echo "FAIL Dockerfile does not exclude $n"; rc=1; }  # rule:D-sealed
-  grep -q "\"$n\"" tools/sealed-run/src/main.rs && { echo "FAIL sealed-run allows $n"; rc=1; }  # rule:D-sealed
+  grep -qx "$n" crates/io/sealed-tools.txt && { echo "FAIL sealed-run allows $n"; rc=1; }  # rule:D-sealed
 done
+grep -q 'crates/io/sealed-tools.txt' Dockerfile || { echo "FAIL Dockerfile does not ship from crates/io/sealed-tools.txt"; rc=1; }  # rule:D-sealed
 # 5. (removed: the scrypt_raw disclosure rule was inert, fn scrypt_raw no longer exists; finding R2-9)
 # 6. man pages are generated from --help + doc headers and must be current (needs release binaries)
 python3 scripts/gen-man.py --check || rc=1  # rule:D-ascii D-stale

@@ -74,7 +74,7 @@ const HELP: &str = " xmr-wallet: host-side driver for a LOCAL monero-wallet-rpc 
  Seed and view key go only into the HTTP body sent to loopback; never to stdout/stderr.
 ";
 fn main() {
-    blocktools_io::help_host(HELP);
+    blocktools_io::help(HELP);
     let a: Vec<String> = std::env::args().skip(1).collect();
     let rpc = loopback(arg(&a, "--rpc").unwrap_or("")).unwrap_or_else(|| die(2, "rpc must be http://127.0.0.1:PORT (loopback only)"));
     let _ = call(&rpc, "get_version", json!({}));

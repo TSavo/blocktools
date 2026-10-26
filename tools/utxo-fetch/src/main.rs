@@ -17,7 +17,7 @@ use std::io::{BufRead, Read};
 
 fn die(e: &str) -> ! { eprintln!("{}", json!({"tool":"utxo-fetch","status":"error","error":e})); std::process::exit(1) }
 fn main() {
-    blocktools_io::help_host("utxo-fetch --chain btc|ltc|doge|eth|xlm|algo|atom|ton [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
+    blocktools_io::help("utxo-fetch --chain btc|ltc|doge|eth|xlm|algo|atom|ton [--url URL] [--no-prev-tx] [ADDR...] -> UTXO lines / account object");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut chain = "btc".to_string(); let mut url = None; let mut prev = true; let mut addrs = Vec::new();
     let mut it = a.into_iter();

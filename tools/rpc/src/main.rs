@@ -304,7 +304,7 @@ fn rest_call(cx: &Cx, path: &str, body: Option<&str>) {
 const SHORTCUTS: &[&str] = &["height", "chainid", "balance", "nonce", "account", "utxos", "tx", "receipt", "fee", "blockhash", "sendraw"];
 fn main() {
     let usage = header();
-    blocktools_io::help_host(&usage);
+    blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
     let mut deny = vec![]; let mut wallet_sign = false; let mut timeout = 30;
     let mut it = std::env::args().skip(1);

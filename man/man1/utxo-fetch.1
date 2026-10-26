@@ -56,7 +56,7 @@ $ utxo\-fetch \-\-chain btc \-\-url http://127.0.0.1:9 bc1qrp33g0q5c5txsp9arysrx
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-This is a host\-side network tool: it cannot run sealed (it is not in the sealed image and sealed\-run refuses it). Run it on the host; feed it public data only, unless the usage below says otherwise.
+Host\-side network tool: it needs the network by design, so it is not in the sealed image and sealed\-run refuses it. Run it on the host and give it public data only (addresses, public keys, signed transactions).
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

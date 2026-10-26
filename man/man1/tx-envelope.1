@@ -43,7 +43,7 @@ $ tx\-envelope \-\-json '{"op":"chain_table"}'
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+It may open hostile wallet files and handle secrets: run it sealed and offline (./blocktools run; sealed\-run allows it).
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

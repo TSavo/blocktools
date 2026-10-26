@@ -1,0 +1,39 @@
+# The sealed-run allowlist: the only tools sealed-run runs, the only tools the sealed image ships
+# (Dockerfile reads this file), and the tools whose --help says "run it sealed" (blocktools-io help()).
+# Every offline tool is here. One name per line. scripts/e2e.d/help-claims.sh checks all three agree.
+seed-repair
+seed-to-master
+derive
+keystore-open
+read-file
+redact
+dat-read
+electrum-read
+multibit-read
+armory-read
+blockchain-read
+bip38-open
+pw-candidates
+tx-decode
+tx-build
+tx-verify
+tx-sign
+tx-envelope
+key-to-addresses
+classify
+chain-table
+xmr-keys
+zec-sapling
+xrp-tx
+acct-tx
+xpub-addresses
+sol-tron-tx
+msg-sign
+msg-verify
+sig-hash
+abi-decode
+abi-encode
+abi-inspect
+bytecode-inspect
+create-address
+typed-data-verify
