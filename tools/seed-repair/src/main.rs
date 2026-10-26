@@ -6,6 +6,8 @@ use std::io::Read;
 
 const MAX_INPUT: u64 = 4096;
 
+fn bad(e: &str) -> ! { blocktools_io::outln!(r#"{{"tool":"seed-repair","status":"bad_input","error":"{e}"}}"#); std::process::exit(2) }
+
 fn main() {
     blocktools_io::help(r#"seed-repair [--max N] [--scheme bip39|electrum|any] < damaged phrase -> {"mnemonic","candidate"}; `?` = unknown word (two `?` budgeted); one word short = missing at any position; pairwise swaps"#);
     let args: Vec<String> = std::env::args().collect();
@@ -14,9 +16,10 @@ fn main() {
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
-            "--max" => { max_out = args.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or(1000); i += 1; }
+            // finding:R1-2: an unknown --scheme (or a non-number --max) is refused, never silently defaulted.
+            "--max" => { max_out = args.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or_else(|| bad("bad_max")); i += 1; }
             "--scheme" => {
-                scheme = args.get(i + 1).and_then(|s| Scheme::parse(s)).unwrap_or(Scheme::Bip39);
+                scheme = args.get(i + 1).and_then(|s| Scheme::parse(s)).unwrap_or_else(|| bad("unknown_scheme"));
                 i += 1;
             }
             _ => { blocktools_io::outln!(r#"{{"tool":"seed-repair","status":"bad_input"}}"#); std::process::exit(2); }

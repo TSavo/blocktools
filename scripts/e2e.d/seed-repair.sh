@@ -21,3 +21,7 @@ grep -q "\"mnemonic\":\"$EL\"" $T/el.out || f el-phrase
 printf 'wild father tree universe among such mobile favorite target dynamic credit identify\n' | $B/seed-repair --scheme electrum --max 50 > $T/el.sw || f el-sw
 grep -q "\"mnemonic\":\"$EL\"" $T/el.sw || f el-sw-phrase
 echo "ok   seed-repair --scheme electrum: Electrum vector passthrough + adjacent swap; bip39 scheme refuses it"
+
+# finding:R1-2: an unknown --scheme is refused (bad_input, exit 2), not silently run as bip39.
+rc=0; printf '%s\n' "$EL" | $B/seed-repair --scheme elektrum > $T/sch.out 2>&1 || rc=$?
+[ $rc = 2 ] && grep -q '"error":"unknown_scheme"' $T/sch.out && echo "ok   seed-repair: unknown --scheme refused (exit 2)" || f "unknown-scheme rc=$rc"
