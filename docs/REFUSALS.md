@@ -289,7 +289,7 @@ msg-verify --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi --s
 
 <!-- run rc=1 expect=cosmos_hrp_without_vector -->
 ```sh
-printf '%064x' 1 | acct-tx keys --chain atom --hrp inj
+printf '%064x' 1 | acct-tx keys --chain atom --hrp canto
 ```
 
 <!-- run rc=1 expect=cosmos_hrp_without_vector -->
