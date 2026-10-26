@@ -266,6 +266,10 @@ console.log('addressToScript case + zec ok');
   assert.equal(d.version, 1); assert.equal(d.config.priority_fee_lamports, '7777'); assert.equal(d.signatures[0].status, 'valid');
   assert.equal(typeof d.instructions[0].data_hex, 'string'); assert.ok(Array.isArray(d.instructions[0].account_indexes));
   const v = JSON.parse(bt.solVerifyTx('810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901', '{}')); assert.equal(v.fully_signed, true);
+  // decodeTx/verifyTx with chain 'sol' used to fall through to the bitcoin parser (bad_transaction).
+  const sraw = '810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901';
+  assert.deepEqual(JSON.parse(bt.decodeTx(sraw, 'sol')), JSON.parse(bt.solDecodeTx(sraw)));
+  assert.throws(() => bt.verifyTx(sraw, 'sol', [], [], undefined, '', false, undefined), /solana_use_solVerifyTx/);
   console.log('sol v1 ok');
 }
 // lift 7: buildEvmTransfer / selectUtxos

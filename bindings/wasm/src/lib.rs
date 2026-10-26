@@ -59,8 +59,11 @@ pub fn explain_plan(args: Vec<String>) -> Result<String, JsError> {
 }
 
 /// Decode a transaction (hex/base64 raw, PSBT, EVM RLP, or a JSON line): JSON array of the tx-decode lines.
+fn is_sol(chain: &str) -> bool { matches!(chain.to_ascii_lowercase().as_str(), "sol" | "solana") }
+
 #[wasm_bindgen(js_name = decodeTx)]
 pub fn decode_tx(input: &str, chain: &str) -> Result<String, JsError> {
+    if is_sol(chain) { return sol_decode_tx(input) } // tx::decode has no Solana path; it used to fall through to the bitcoin parser (bad_transaction)
     let mut v = json!(tx::decode(input, chain).map_err(err)?.json_lines()); twins(&mut v); Ok(v.to_string())
 }
 
@@ -81,6 +84,7 @@ pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx:
 #[wasm_bindgen(js_name = verifyTx)]
 #[allow(clippy::too_many_arguments)]
 pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>) -> Result<String, JsError> {
+    if is_sol(chain) { return Err(err("solana_use_solVerifyTx")) } // different policy shape (owner/lamports/mint/allow_programs)
     let d = tx::decode(input, chain).map_err(err)?;
     let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
     let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false) };
