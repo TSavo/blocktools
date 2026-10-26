@@ -19,6 +19,7 @@ tx-build --chain btc --utxos utxos.jsonl --to "$BTC_TO" --sweep --fee-rate 5 > b
 python3 {root}/scripts/e2e-only/psbt-unsigned.py < btc.psbt > btc-raw.hex
 for k in transfer legacy-no-chain-id approve unknown-call value-and-token; do python3 {gen} $k > evm-$k.hex; done
 printf '%064x\\n' 2 > key2
+cp {root}/recipes/fixtures/sol-tron/tron-transfer.txt tron-transfer.hex
 """
 r = sh(setup)
 if r.returncode: sys.exit(f"FAIL fixture setup: {r.stderr}")

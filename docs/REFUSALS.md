@@ -88,7 +88,7 @@ That is deliberate: scripts cannot sign without a human. Run it in a terminal an
 
 <!-- run rc=1 expect=aborted -->
 ```sh
-tx-sign --tx "$FX/evm-transfer.txt" --chain-id 1 --expect-to "$EVM_TO" --allow-warnings < "$FX/key2"
+tx-sign --tx "$FX/evm-transfer.hex" --chain-id 1 --expect-to "$EVM_TO" --allow-warnings < "$FX/key2"
 ```
 
 ## Failure codes (`tx-verify`, `tx-sign`)
@@ -99,7 +99,7 @@ Pass `--allow-warnings` only once you understand every warning.
 
 <!-- run rc=1 expect=has_warnings,high_fee_pct -->
 ```sh
-tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-transfer.txt"
+tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-transfer.hex"
 ```
 
 ### `fee_over_10pct_of_inputs`
@@ -131,7 +131,7 @@ chain. Rebuild it for the chain you meant.
 
 <!-- run rc=1 expect=chain_id_mismatch -->
 ```sh
-tx-verify --chain-id 8453 --allow-warnings --expect-to "$EVM_TO" < "$FX/evm-transfer.txt"
+tx-verify --chain-id 8453 --allow-warnings --expect-to "$EVM_TO" < "$FX/evm-transfer.hex"
 ```
 
 ### `chain_id_not_pinned`
@@ -139,7 +139,7 @@ An EVM transaction was verified without `--chain-id`. Pass the chain id you inte
 
 <!-- run rc=1 expect=chain_id_not_pinned -->
 ```sh
-tx-verify --allow-warnings --expect-to "$EVM_TO" < "$FX/evm-transfer.txt"
+tx-verify --allow-warnings --expect-to "$EVM_TO" < "$FX/evm-transfer.hex"
 ```
 
 ### `no_chain_id`
@@ -264,5 +264,5 @@ sol-tron-tx decode ff00ff
 
 <!-- run rc=2 expect=tron_verify_not_built -->
 ```sh
-sol-tron-tx verify --expect '{}' < recipes/fixtures/sol-tron/tron-transfer.txt
+sol-tron-tx verify --expect '{}' < "$FX/tron-transfer.hex"
 ```
