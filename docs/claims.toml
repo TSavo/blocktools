@@ -377,3 +377,16 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/cashaddr.rs", "crates/core/src/chains.rs", "crates/core/tests/cashaddr_script.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "cashaddr_script.rs` (2 tests" }]
+
+[[claim]]
+id = "evm-encode-packed"
+statement = "evmAbiEncodePacked / abi::encode_packed reproduce the Solidity ABI spec Non-standard Packed Mode examples and refuse tuples, nested arrays and arrays of dynamic types"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-evm --test kat_packed"
+expect = "test result: ok. 3 passed"
+commit = "c7bebbd"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/evm/src/abi.rs", "crates/evm/tests/kat_packed.rs"]

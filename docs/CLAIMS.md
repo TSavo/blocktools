@@ -26,6 +26,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | twc-cosmos-addresses | security | linux | measured | 24 Cosmos SDK chain rows and 4 Ethermint rows (inj, evmos, canto, zeta) derive Trust Wallet Core's 0x46-key addresses, auto-detect uniquely, and match 23 TWC pubkey-to-address vectors | `cargo test -q --release -p blocktools --test twc_cosmos_addr` | 970d67c | 2026-10-26 |
 | exchange-staking-addresses | security | linux | measured | Firo EXX (Firo wiki published pair) and PIVX EXM / S staking addresses (chainparams versions) validate and auto-detect; no script is built for them | `cargo test -q --release -p blocktools --test exchange_addr` | 970d67c | 2026-10-26 |
 | bch-cashaddr-destinations | security | linux | measured | bch CashAddr (prefixed, bare, upper case) maps to the same output script as its legacy address; bad checksum, mixed case and bchtest are refused | `cargo test -q --release -p blocktools-core --test cashaddr_script` | 970d67c | 2026-10-26 |
+| evm-encode-packed | security | linux | measured | evmAbiEncodePacked / abi::encode_packed reproduce the Solidity ABI spec Non-standard Packed Mode examples and refuse tuples, nested arrays and arrays of dynamic types | `cargo test -q --release -p blocktools-evm --test kat_packed` | c7bebbd | 2026-10-26 |
 
 ## Untested
 
