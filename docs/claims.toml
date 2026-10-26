@@ -59,19 +59,19 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 33.8 MB = 33840640 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 33816184 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
+statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 34.1 MB = 34123264 bytes, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 34098808 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
-expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 33840640 bytes"
-value = "33.8"
+expect = "instrument: docker-save uncompressed layer bytes; image blocktools:local; 34123264 bytes"
+value = "34.1"
 env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
-commit = "9287a3d"
+commit = "fb22091"
 date = "2026-10-25"
 cheap = false
 depends = ["Dockerfile", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
-doc = [{ file = "README.md", text = "33.8 MB" }]
+doc = [{ file = "README.md", text = "34.1 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
@@ -203,7 +203,7 @@ platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "9287a3d"
+commit = "fb22091"
 date = "2026-10-25"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
@@ -230,7 +230,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
-commit = "2aec305"
+commit = "88a5367"
 date = "2026-10-25"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
@@ -246,7 +246,7 @@ command = "cargo test -q -p rpc --lib summary_capture"
 value = "68"
 env = "cargo test on the Linux box (Linux 6.12.94+ x86_64)"
 expect = "test result: ok. 1 passed"
-commit = "2aec305"
+commit = "88a5367"
 date = "2026-10-25"
 cheap = true
 depends = ["tools/rpc/src/lib.rs"]
@@ -260,7 +260,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc"
 expect = "test result: ok. 16 passed"
-commit = "2aec305"
+commit = "88a5367"
 date = "2026-10-25"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
@@ -274,7 +274,7 @@ platform = "linux"
 status = "measured"
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
-commit = "2aec305"
+commit = "88a5367"
 date = "2026-10-25"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
