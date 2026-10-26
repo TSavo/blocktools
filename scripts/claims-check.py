@@ -62,7 +62,7 @@ def main():
             texts.setdefault(f, []).append((t, c))
             if c.get("status") != "measured" and c.get("kind") != "number":
                 for l in lines:
-                    if not any(m in l for m in ("(untested)", "(unmeasured)", "(unmeasurable)")):
+                    if f"({c.get('status')})" not in l:  # the marker must match the registry status
                         bad.append(f"[K-assert] {cid}: {f} states {t!r} as fact but the registry marks it {c.get('status')}")  # rule:K-assert
             if c.get("kind") == "number" and c.get("status") == "untested" and not all("(unmeasured)" in l for l in lines):
                 bad.append(f"[K-label] {cid}: unmeasured number {t!r} in {f} is not labelled (unmeasured)")  # rule:K-label
