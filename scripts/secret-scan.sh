@@ -14,19 +14,19 @@ rc=0
 echo "$hits" | while IFS= read -r h; do
   [ -n "$h" ] || continue
   v=${h##*:}
-  grep -qxF "$v" scripts/public-vectors.txt 2>/dev/null || { echo "UNLISTED secret-shaped string: $h"; exit 1; }
-done || rc=1
-grep -rInE "/Users/|/home/[a-z]+/|@gmail|\.local\b" $(git ls-files -co --exclude-standard) | grep -v "^scripts/secret-scan.sh" && { echo "personal path/email found"; rc=1; }
-# No wallet-like files in the repo (fixtures are generated at test time; see docs/FIXTURES.md).
+  grep -qxF "$v" scripts/public-vectors.txt 2>/dev/null || { echo "UNLISTED secret-shaped string: $h"; exit 1; }  # rule:S-key
+done || rc=1  # rule:S-key
+grep -rInE "/Users/|/home/[a-z]+/|@gmail|\.local\b" $(git ls-files -co --exclude-standard) | grep -v "^scripts/secret-scan.sh" && { echo "personal path/email found"; rc=1; }  # rule:S-path
+# No wallet-like files in the repo (fixtures are generated at test time; see docs/FIXTURES.md).  # rule:S-walletname
 for f in $(git ls-files -co --exclude-standard); do
   case "${f##*/}" in
-    *.dat|*.sqlite|*.sqlite3|*.db|*.wallet|*.key|*.keys|*.aes.json|UTC--*|wallet*|*keystore*.json|*.bdb) echo "wallet-like file name: $f"; rc=1; continue ;;
+    *.dat|*.sqlite|*.sqlite3|*.db|*.wallet|*.key|*.keys|*.aes.json|UTC--*|wallet*|*keystore*.json|*.bdb) echo "wallet-like file name: $f"; rc=1; continue ;;  # rule:S-walletname
   esac
   [ -f "$f" ] || continue
   [ "$(wc -c < "$f")" -ge 16 ] || continue   # too short to carry either magic (od would fail)
-  if [ "$(head -c 15 "$f")" = "SQLite format 3" ]; then echo "SQLite file: $f"; rc=1; fi
+  if [ "$(head -c 15 "$f")" = "SQLite format 3" ]; then echo "SQLite file: $f"; rc=1; fi  # rule:S-sqlite
   m=$(od -An -tx1 -j12 -N4 "$f" | tr -d ' \n')
-  case "$m" in 62310500|00053162) echo "Berkeley DB file: $f"; rc=1 ;; esac
+  case "$m" in 62310500|00053162) echo "Berkeley DB file: $f"; rc=1 ;; esac  # rule:S-bdb
 done
 [ $rc = 0 ] && echo "secret-scan ok"
 exit $rc

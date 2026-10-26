@@ -16,6 +16,7 @@ step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-dep
 step sh scripts/check-deps.sh
 step sh scripts/check-deps-regress.sh
 step sh scripts/hygiene-check.sh
+step sh scripts/gate-negatives.sh
 step sh scripts/docs-check.sh
 step sh scripts/fetch-fixtures.sh
 step bash scripts/e2e-local.sh

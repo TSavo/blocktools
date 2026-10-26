@@ -1,0 +1,73 @@
+#!/bin/sh
+# Negative tests for every gate rule: each `neg` plants one violation in a throwaway worktree
+# of HEAD, runs the gate script, and requires (a) a non-zero exit and (b) the rule's own FAIL
+# message, so a rule that greps for a word instead of testing the property, or that went inert,
+# is caught. hygiene-check.sh requires every `# rule:ID` in a gate script to have a `neg ID` here.
+# Usage: sh scripts/gate-negatives.sh [ID...]   (needs release binaries in target/release)
+set -eu
+if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
+export LC_ALL=C
+cd "$(dirname "$0")/.."
+root=$(pwd); base=$(mktemp -d); wt=$base/wt
+export BIN="$root/target/release" CARGO_TARGET_DIR="$root/target"
+git worktree add -q --detach "$wt" HEAD
+cleanup() { git -C "$root" worktree remove --force "$wt" 2>/dev/null || rm -rf "$wt"; rm -rf "$base"; }  # allow-true: cleanup must not mask the result
+trap cleanup EXIT
+reset() { git -C "$wt" checkout -q -- . && git -C "$wt" reset -q && git -C "$wt" clean -fdqx; }
+rc=0; n=0; want=" ${*:-} "
+# baseline: each gate script passes on the unplanted tree, else every negative would be vacuous
+for s in hygiene-check docs-check prepush-check secret-scan check-deps; do
+  (cd "$wt" && sh "scripts/$s.sh") > "$base/out" 2>&1 || { echo "FAIL gate-negatives: baseline $s fails on clean HEAD"; tail -5 "$base/out"; exit 1; }
+done
+neg() {  # neg ID SCRIPT EXPECTED-SUBSTRING PLANT-SHELL
+  id=$1 s=$2 exp=$3 plant=$4
+  case "$want" in "  ") ;; *" $id "*) ;; *) return 0;; esac
+  n=$((n+1)); reset
+  (cd "$wt" && eval "$plant") || { echo "FAIL neg $id: plant step errored"; rc=1; return 0; }
+  if (cd "$wt" && sh "scripts/$s.sh") > "$base/out" 2>&1; then echo "FAIL neg $id: $s passed with the violation planted"; rc=1
+  elif ! grep -qF -- "$exp" "$base/out"; then echo "FAIL neg $id: $s failed but not with '$exp':"; tail -5 "$base/out"; rc=1
+  else echo "ok   neg $id"; fi
+}
+ADD='git add -f'
+# ---- hygiene-check.sh
+neg H-pin hygiene-check "unpinned actions" 'printf "      - uses: actions/checkout@v4\n" >> .github/workflows/ci.yml'
+neg H-art hygiene-check "tracked build artifacts" 'echo x > junk.zip && $ADD junk.zip'
+neg H-relenv hygiene-check "release publish has no environment" 'grep -v "environment: release" .github/workflows/release.yml > t && mv t .github/workflows/release.yml'
+neg H-true hygiene-check "unjustified || true" 'printf "#!/bin/sh\nset -eu\nfalse || true\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-seteu hygiene-check "zz.sh: no " 'printf "#!/bin/sh\necho hi\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-wc hygiene-check "BSD-unsafe wc" 'printf "#!/bin/sh\nset -eu\n[ \"\$(wc -l < f)\" = 3 ]\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-sed hygiene-check "GNU-only in-place sed" 'printf "#!/bin/sh\nset -eu\nsed -i s/a/b/ f\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-readlink hygiene-check "GNU-only readlink" 'printf "#!/bin/sh\nset -eu\nreadlink -f x\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-stat hygiene-check "GNU-only stat -c" 'printf "#!/bin/sh\nset -eu\nstat -c %%a x\n" > scripts/zz.sh && $ADD scripts/zz.sh'
+neg H-cigate hygiene-check "ci-gate:" 'printf "      - run: cargo test\n" >> .github/workflows/ci.yml'
+neg H-selftest hygiene-check "hygiene self-test" 'sed "s/^WC_PAT=.*/WC_PAT=nevermatches_zz/" scripts/hygiene-check.sh > t && mv t scripts/hygiene-check.sh'
+neg H-neg hygiene-check "has no negative test" 'printf "false # rule:Z-none\n" >> scripts/prepush-check.sh'
+# ---- docs-check.sh
+neg D-tooldoc docs-check "tool zzfake not documented" 'mkdir -p tools/zzfake && echo x > tools/zzfake/f'
+neg D-counts docs-check "hard-coded test counts" 'echo "123 tests pass" >> README.md'
+neg D-planned docs-check "exists but is called planned" 'echo "**tx-sign** (planned)" >> README.md'
+neg D-sealed docs-check "sealed-run allows utxo-fetch" 'echo "// \"utxo-fetch\"" >> tools/sealed-run/src/main.rs'
+neg D-ascii docs-check "non-ASCII in" 'printf "\342\234\205\n" >> man/man1/tx-sign.1'
+neg D-stale docs-check "man/ is stale" 'echo ".\\\" zz" >> man/man1/tx-sign.1'
+neg D-guides docs-check "missing or empty docs/cookbook.md" ': > docs/cookbook.md'
+neg D-sections docs-check "missing .SH EXAMPLES" 'grep -v "^\.SH EXAMPLES$" man/man1/tx-sign.1 > t && mv t man/man1/tx-sign.1'
+neg D-man7 docs-check "man7 missing NAME" 'grep -v "^\.SH NAME$" man/man7/blocktools.7 > t && mv t man/man7/blocktools.7'
+neg D-share docs-check "package-dist missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-dist.sh > t && mv t scripts/package-dist.sh'
+neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-native.sh > t && mv t scripts/package-native.sh'
+# ---- prepush-check.sh
+neg P-untracked prepush-check "untracked files" 'echo x > zz-untracked.txt'
+neg P-unstaged prepush-check "unstaged changes" 'echo x >> README.md'
+neg P-large prepush-check "large file" 'head -c 2200000 /dev/zero | tr "\0" a > big.txt && $ADD big.txt'
+neg P-binary prepush-check "binary file tracked" 'printf "a\0b" > bin.txt && $ADD bin.txt'
+# ---- secret-scan.sh (planted values are random-looking but are NOT keys: built at runtime)
+neg S-key secret-scan "UNLISTED secret-shaped" 'printf "%064d\n" 0 | tr 0 a > zz.txt && $ADD zz.txt'
+neg S-path secret-scan "personal path/email" 'echo "/Us""ers/zz/x" > zz.txt && $ADD zz.txt'
+neg S-walletname secret-scan "wallet-like file name" 'echo x > wallet1.txt && $ADD wallet1.txt'
+neg S-sqlite secret-scan "SQLite file" 'printf "SQLite format 3\0padpadpad" > zz.txt && $ADD zz.txt'
+neg S-bdb secret-scan "Berkeley DB file" 'printf "\0\0\0\0\0\0\0\0\0\0\0\0\142\61\5\0pad" > zz.txt && $ADD zz.txt'
+neg C-allow check-deps "new deps not in" 'tail -n +2 deps/blocktools-core.allow > t && mv t deps/blocktools-core.allow'
+neg C-facade check-deps "default features pull secret/network crates" 'sed "s/^default = \[\]/default = [\"secrets\"]/" crates/blocktools/Cargo.toml > t && mv t crates/blocktools/Cargo.toml'
+# ---- check-deps.sh: planted network crate + stale lock live in check-deps-regress.sh (C-net, C-stale)
+case "$want" in "  "|*" C-net "*|*" C-stale "*) n=$((n+1)); sh scripts/check-deps-regress.sh > "$base/out" 2>&1 && echo "ok   neg C-net C-stale (check-deps-regress.sh)" || { echo "FAIL neg C-net/C-stale"; tail -5 "$base/out"; rc=1; };; esac
+[ $rc = 0 ] && echo "gate-negatives ok ($n planted violations caught)"
+exit $rc

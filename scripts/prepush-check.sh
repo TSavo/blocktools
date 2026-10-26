@@ -9,13 +9,13 @@ export LC_ALL=C
 cd "$(dirname "$0")/.."
 rc=0
 u=$(git ls-files -o --exclude-standard)
-[ -z "$u" ] || { echo "FAIL untracked files (stage by explicit path or .gitignore):"; echo "$u"; rc=1; }
-git diff --quiet || { echo "FAIL unstaged changes to tracked files:"; git diff --name-only; rc=1; }
+[ -z "$u" ] || { echo "FAIL untracked files (stage by explicit path or .gitignore):"; echo "$u"; rc=1; }  # rule:P-untracked
+git diff --quiet || { echo "FAIL unstaged changes to tracked files:"; git diff --name-only; rc=1; }  # rule:P-unstaged
 for f in $(git ls-files); do
   [ -f "$f" ] || continue
   s=$(wc -c < "$f")
-  [ "$s" -le 2097152 ] || { echo "FAIL large file ($s bytes): $f"; rc=1; }
-  [ "$s" -eq 0 ] || grep -qI . "$f" || { echo "FAIL binary file tracked: $f"; rc=1; }
+  [ "$s" -le 2097152 ] || { echo "FAIL large file ($s bytes): $f"; rc=1; }  # rule:P-large
+  [ "$s" -eq 0 ] || grep -qI . "$f" || { echo "FAIL binary file tracked: $f"; rc=1; }  # rule:P-binary
 done
 [ $rc = 0 ] && echo "prepush ok"
 exit $rc

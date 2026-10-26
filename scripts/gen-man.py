@@ -217,9 +217,11 @@ if __name__ == "__main__":
     dest = os.path.join(ROOT, "man")
     if "--check" in sys.argv:
         tmp = tempfile.mkdtemp(); generate(tmp)
+        # lint the committed pages (what ships) as well as fresh output, before the stale diff
+        rc = lint(dest) | lint(tmp)
         r = subprocess.run(["diff", "-r", dest, tmp], capture_output=True, text=True)
         if r.returncode: print("FAIL man/ is stale: run python3 scripts/gen-man.py"); print(r.stdout[:2000]); sys.exit(1)
-        rc = lint(tmp); shutil.rmtree(tmp)
+        shutil.rmtree(tmp)
         if rc: sys.exit(1)
         print("man-check ok"); sys.exit(0)
     generate(dest)
