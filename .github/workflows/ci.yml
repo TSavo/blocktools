@@ -1,20 +1,9 @@
 name: ci
 on: [push, pull_request]
+# Every check lives in scripts/gate.sh (the same script verify-and-push runs locally).
+# Other run: lines may only be environment setup listed in scripts/ci-allowed-setup.txt.
 jobs:
-  native:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
-      - run: sh scripts/check-deps.sh && sh scripts/check-deps-regress.sh
-      - run: sh scripts/hygiene-check.sh
-      - run: sh scripts/prepush-check.sh
-      - run: sh scripts/docs-check.sh
-      - run: RUSTDOCFLAGS='-D warnings' cargo doc -p blocktools --no-deps
-      - run: sh scripts/secret-scan.sh
-      - run: sh scripts/fetch-fixtures.sh
-      - run: sh scripts/e2e-local.sh
-  wasm:
+  gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -22,4 +11,4 @@ jobs:
         with: { node-version: 20 }
       - run: sudo apt-get update && sudo apt-get install -y clang lld
       - run: rustup target add wasm32-unknown-unknown && cargo install --locked wasm-bindgen-cli --version 0.2.100
-      - run: sh scripts/wasm-check.sh
+      - run: sh scripts/gate.sh

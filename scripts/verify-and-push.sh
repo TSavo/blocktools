@@ -8,19 +8,7 @@ if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 [ $# = 1 ] || { echo "usage: $0 MESSAGE" >&2; exit 2; }
 # Must be on main: a detached HEAD would commit locally while `git push origin main` pushes nothing new.
 [ "$(git symbolic-ref -q HEAD)" = refs/heads/main ] || { echo "verify-and-push: not on branch main (detached HEAD?)" >&2; exit 2; }
-sh scripts/prepush-check.sh
-sh scripts/secret-scan.sh
-cargo build -q --release --workspace
-cargo test -q --release --workspace --no-fail-fast
-cargo test -q --release --workspace --all-features --no-fail-fast
-sh scripts/check-deps.sh
-sh scripts/check-deps-regress.sh
-sh scripts/hygiene-check.sh
-sh scripts/docs-check.sh
-bash scripts/e2e-local.sh
-sh scripts/wasm-check.sh
-sh scripts/prepush-check.sh
-sh scripts/secret-scan.sh
+sh scripts/gate.sh
 git commit -qm "$1"
 git push -q origin HEAD:refs/heads/main
 [ "$(git rev-parse HEAD)" = "$(git ls-remote origin refs/heads/main | cut -f1)" ] || { echo "verify-and-push: remote main is not HEAD after push" >&2; exit 1; }

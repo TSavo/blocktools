@@ -42,5 +42,15 @@ bad=$(git grep -nE 'readlink[[:space:]]+-f[[:space:]]' -- scripts recipes ':!scr
 # bare GNU stat format without a BSD fallback on the same line (e2e-only/portable.sh is exempt).
 bad=$(git grep -nE 'stat[[:space:]]+-c' -- scripts recipes ':!scripts/hygiene-check.sh' | grep -vE 'stat -f|allow-bsd:|portable\.sh' || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL GNU-only stat -c (pair with stat -f or # allow-bsd:):"; echo "$bad"; rc=1; }
+# CI and local gate are one script: ci.yml may run only gate.sh + allowlisted setup.
+sh scripts/ci-gate-check.sh || rc=1
+# negative tests: an extra check outside gate.sh, and a workflow that skips gate.sh, must fail
+st=$(mktemp -d)
+cp .github/workflows/ci.yml "$st/extra.yml"; printf '      - run: cargo test --workspace\n' >> "$st/extra.yml"
+grep -v 'scripts/gate.sh' .github/workflows/ci.yml > "$st/nogate.yml"
+for w in extra nogate; do
+  if sh scripts/ci-gate-check.sh "$st/$w.yml" > /dev/null 2>&1; then echo "FAIL hygiene self-test: ci-gate-check accepted planted $w.yml"; rc=1; fi
+done
+rm -rf "$st"
 [ $rc = 0 ] && echo "hygiene ok"
 exit $rc
