@@ -19,3 +19,8 @@ self-made wallet fixtures. They are throwaway files generated from public test
 phrases and passwords and never held value. By decision we do **not** rewrite
 history or force-push; they were removed from the tree in 5061f16 and are now
 generated at test time.
+
+## Parity corpora
+
+The JSON corpora under `crates/blocktools/tests/data/` that come from Node reference scripts in
+`tools/*-parity` and `tools/sol-v1` are described in [PARITY-GENERATORS.md](PARITY-GENERATORS.md).

@@ -6,6 +6,7 @@ Measured results are Linux-only unless labelled.
 
 ## Use it
 - [Getting started](getting-started.md): install, first sealed run.
+- [Parity generators](PARITY-GENERATORS.md): the Node oracles behind the parity test corpora.
 - [Cookbook](cookbook.md): by wallet type and chain. Also see [recipes/README.md](../recipes/README.md), which covers inputs, goals and chains.
 - [Paths](PATHS.md): eight end-to-end routes (RPC in, tools piped, RPC out). Each one is run in the gate against
   saved RPC responses and a local mock chain.
