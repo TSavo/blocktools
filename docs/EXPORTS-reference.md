@@ -297,7 +297,7 @@ Example (executed):
 
 ```js
 bt.chainParams()
-// -> [{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"bc","name":"btc","p2pkh":[0],"p2sh":[5],"slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"sweep_build":true,"ticker":"BTC","title":"Bitcoin","tx_format":"legacy","verified":true,"wif":128},{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"ltc","name":"ltc","p2pkh":[48],"p2sh … [cut: 17380 chars total]
+// -> [{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"bc","name":"btc","p2pkh":[0],"p2sh":[5],"slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"sweep_build":true,"ticker":"BTC","title":"Bitcoin","tx_format":"legacy","verified":true,"wif":128},{"checksum":"sha256d","decimals":8,"fee_warn":{"basis":"default (Bitcoin-tuned)","fee":1000000,"rate":500},"forkid":null,"hrp":"ltc","name":"ltc","p2pkh":[48],"p2sh … [cut: 17685 chars total]
 ```
 
 ## `chainTable`
@@ -314,7 +314,7 @@ Example (executed):
 
 ```js
 bt.chainTable()
-// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 12354 chars total]
+// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 12824 chars total]
 ```
 
 ## `checkTx`
@@ -575,7 +575,7 @@ Example (executed):
 
 ```js
 bt.listChains()
-// -> ["btc","ltc","doge","eth","tron","xrp","atom","algo","dot","ada","ton","xlm","sol","xmr","qtum","ftc","nmc","dash","vtc","dgb","via","mona","rvn","xpm","trc","mec","aur","bch","bsv","btg","ppc","nvc","clam","blk","rdd","pot","qrk","grs","wdc","anc","zec"]
+// -> ["btc","ltc","doge","eth","tron","xrp","atom","algo","dot","ada","ton","xlm","sol","xmr","qtum","ftc","nmc","dash","vtc","dgb","via","mona","rvn","xpm","trc","mec","aur","bch","bsv","btg","ppc","nvc","clam","blk","rdd","pot","qrk","grs","wdc","anc","bcc","zec"]
 ```
 
 ## `polkadotAccountStorageKey`
@@ -943,7 +943,7 @@ Example (executed):
 
 ```js
 bt.unverifiedChains()
-// -> [{"name":"wdc","slip44":null,"sources":[{"api":"cryptoid:https://chainz.cryptoid.info/wdc/api.dws","checked":"2026-10-24 (balance only; unspent needs an API key)","name":"chainz.cryptoid.info","url":"https://chainz.cryptoid.info/wdc/address.dws?{addr}"}],"ticker":"WDC","title":"Worldcoin","verified":false},{"name":"anc","slip44":null,"sources":[],"ticker":"ANC","title":"Anoncoin","verified":false}]
+// -> [{"name":"wdc","slip44":null,"sources":[{"api":"cryptoid:https://chainz.cryptoid.info/wdc/api.dws","checked":"2026-10-24 (balance only; unspent needs an API key)","name":"chainz.cryptoid.info","url":"https://chainz.cryptoid.info/wdc/address.dws?{addr}"}],"ticker":"WDC","title":"Worldcoin","verified":false},{"name":"anc","slip44":null,"sources":[],"ticker":"ANC","title":"Anoncoin","verified":false},{"name":"bcc","slip44":null,"sources":[],"ticker":"BCC","title":"BitConnect","verified":false}]
 ```
 
 ## `validateAddress`
