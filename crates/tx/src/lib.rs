@@ -285,6 +285,13 @@ fn evm_decoded(b: &[u8]) -> Result<Decoded, &'static str> {
 }
 
 fn btc_amt(s: u64) -> String { format!("{}.{:08}", s / 100_000_000, s % 100_000_000) }
+/// Exact gwei with up to 9 decimals (finding 3: integer division showed "0 gwei" below 1 gwei).
+fn gwei_amt(w: u128) -> String {
+    let (i, f) = (w / 1_000_000_000, w % 1_000_000_000);
+    let f = format!("{f:09}"); let f = f.trim_end_matches('0');
+    if f.is_empty() { i.to_string() } else { format!("{i}.{f}") }
+}
+
 fn wei_amt(w: u128) -> String {
     let (i, f) = (w / 1_000_000_000_000_000_000, w % 1_000_000_000_000_000_000);
     let f = format!("{f:018}"); let f = f.trim_end_matches('0');
@@ -365,7 +372,7 @@ impl Decoded {
             let _ = writeln!(s, "value            : {} (native coin, {} wei)", wei_amt(t.value), t.value);
             let _ = writeln!(s, "nonce            : {}", t.nonce);
             let mf = t.max_fee_per_gas.saturating_mul(t.gas as u128);
-            let _ = writeln!(s, "max network fee  : {} (gas {} x {} gwei)", wei_amt(mf), t.gas, t.max_fee_per_gas / 1_000_000_000);
+            let _ = writeln!(s, "max network fee  : {} (gas {} x {} gwei)", wei_amt(mf), t.gas, gwei_amt(t.max_fee_per_gas));
             if let Some(tc) = evm::token_call(&t.data) {
                 let _ = writeln!(s, "TOKEN {:<11}: token contract {} -> {} amount {} (raw units)", tc.method, t.to.map_or(String::new(), |a| addr(&a)), addr(&tc.to), evm::dec(&tc.amount));
             } else if !t.data.is_empty() { let _ = writeln!(s, "contract data    : {} bytes (NOT a recognised token transfer)", t.data.len()); }
