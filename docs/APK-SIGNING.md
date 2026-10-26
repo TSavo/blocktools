@@ -73,7 +73,7 @@ apk update && apk add blocktools
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
 (same SHA-256). Current package: `blocktools-0.1.1_pre20261026-r0`, an untagged pre-release built from
 main `ecf1e55` (apk orders `0.1.1_pre20261026` above `0.1.0` and below `0.1.1`, measured with
-`apk version -t`). Payload: the 41 CLIs as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
+`apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
 How it is built (Battleaxe host only): `PKG_VERSION=... APK_SIGN_HOST=1 scripts/package-native.sh apk`,
