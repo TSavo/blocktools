@@ -167,6 +167,15 @@ fn utxo(c: &str) -> String {
         assert_eq!(p["sweep_build"], c.tx_format().1, "{} vs Chain::tx_format", c.name);
         assert_eq!(p["slip44"], serde_json::json!(c.slip44()), "{} vs Chain::slip44", c.name);
     }
-    assert_eq!(address::params_json().as_array().unwrap().iter().find(|r| r["name"] == "atom").unwrap()["hrp"], "cosmos");
-    assert!(address::params_json().as_array().unwrap().iter().find(|r| r["name"] == "wdc").unwrap()["slip44"].is_null());
+    let atom_t = table.iter().find(|r| r["name"] == "atom").unwrap();
+    let atom_p = params.iter().find(|r| r["name"] == "atom").unwrap();
+    assert_eq!(atom_t["hrp"], "cosmos", "chainTable atom hrp");
+    assert_eq!(atom_p["hrp"], "cosmos", "chainParams atom hrp");
+    for name in ["wdc", "anc"] {
+        let trow = table.iter().find(|r| r["name"] == name).unwrap();
+        let prow = params.iter().find(|r| r["name"] == name).unwrap();
+        assert!(trow["coin_type"].is_null(), "{name} chainTable coin_type must be null (no SLIP-44)");
+        assert!(prow["slip44"].is_null(), "{name} chainParams slip44 must be null (no SLIP-44)");
+        assert_ne!(trow["coin_type"], 0, "{name} must not report coin_type 0");
+    }
 }

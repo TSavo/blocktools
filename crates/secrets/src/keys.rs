@@ -39,6 +39,7 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
         (Enc::Ton, _) => vec![chains::ton_row("", bytes)],
         #[cfg(feature = "sr25519")]
         (Enc::Ss58 { .. }, _) => vec![chains::ss58_row(c, "", bytes)],
+        #[cfg(feature = "ed25519")]
         (Enc::Sol | Enc::Xlm, _) => vec![chains::ed_row(c, "", bytes)],
         #[cfg(not(feature = "ed25519"))]
         (Enc::Sol | Enc::Xlm | Enc::Algo | Enc::Ton, _) => vec![],
