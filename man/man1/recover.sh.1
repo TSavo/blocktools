@@ -25,6 +25,9 @@ typed code. Nothing is signed or sent without it.
 Wallet passwords come from \-\-password\-file (first line), read by the tool, not by bash.
 .IP \(bu 2
 Bitcoin, except an Ethereum keystore, which sweeps ETH (\-\-rpc URL, \-\-chain\-id N).
+.PP
+Run as `sh recover.sh` (the man examples do): dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
+so re\-exec under bash before the first bash\-only line.
 .SH OPTIONS
 .nf
 \-\-chain
