@@ -82,7 +82,7 @@ neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasur
 neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'
 neg F-status docs-check "unknown status" 'sed "s/| R1-2 \\(.*\\) | open |/| R1-2 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
-neg F-rows docs-check "no rows in" 'grep -v "^| R" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-rows docs-check "no rows in" 'grep -Ev "^\| [A-Z][0-9]+-[0-9]+ \|" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-file docs-check "findings: no docs/FINDINGS.md" 'rm docs/FINDINGS.md'
 # ---- prepush-check.sh
 neg P-untracked prepush-check "untracked files" 'echo x > zz-untracked.txt'
