@@ -63,5 +63,6 @@ for id in $(grep -ohE '# rule:[A-Z]-[A-Za-z0-9]+( [A-Z]-[A-Za-z0-9]+)*$' $G | se
   grep -q "^neg $id " scripts/gate-negatives.sh || grep -qF "echo \"ok   neg $id\"" scripts/gate-negatives.sh || grep -qE "neg-exempt:.*rule:$id|rule:$id.*neg-exempt:" $G || \
   case $id in C-net|C-stale) grep -q 'check-deps-regress' scripts/gate-negatives.sh || { echo "FAIL rule $id has no negative test"; rc=1; };; *) echo "FAIL rule $id has no negative test (add neg $id to scripts/gate-negatives.sh)"; rc=1;; esac  # rule:H-neg
 done
+python3 scripts/untracked-ref-check.py || rc=1  # rule:U-untracked (the check itself is in the .py)
 [ $rc = 0 ] && echo "hygiene ok"
 exit $rc

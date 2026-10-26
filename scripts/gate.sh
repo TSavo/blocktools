@@ -20,6 +20,7 @@ stage() {
     step sh scripts/check-deps.sh
     step sh scripts/check-deps-regress.sh
     step sh scripts/hygiene-check.sh
+    step sh scripts/fetch-fixtures.sh  # man examples (docs-check) read fixtures/external: pinned download, never a local-only copy
     step sh scripts/docs-check.sh;;
   test)
     step cargo build -q --locked --release --workspace
@@ -28,6 +29,7 @@ stage() {
     step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-deps;;
   negatives)
     step cargo build -q --locked --release --workspace  # docs-check (gen-man.py) runs target/release/* --help
+    step sh scripts/fetch-fixtures.sh  # gate-negatives' baseline docs-check needs them too
     step sh scripts/gate-negatives.sh;;
   e2e)
     step cargo build -q --locked --release --workspace
