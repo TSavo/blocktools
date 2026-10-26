@@ -22,15 +22,18 @@ The key is trusted only for this one source (`signed-by=`); `apt-key` is not use
 
 ## Which systems
 
-The repository serves `blocktools 0.1.0-1`, built from the v0.1.0 release binaries, which link glibc.
+The repository serves `blocktools 0.1.1-1`, built from the v0.1.1 release tarball's binaries, which link glibc.
 The package declares `Depends: libc6 (>= 2.34)`. Most of its tools need glibc 2.34; `sealed-run`
 needs glibc 2.39. Measured in containers (see Tests):
 
-| image | glibc | apt update/install | `--help` exit 0 |
+| image | glibc | apt update/install | `--help` exit 0 (of every file in /usr/bin from the package) |
 |---|---|---|---|
-| debian:12 (12.15) | 2.36 | ok | 40 of 41 (`sealed-run`: GLIBC_2.39 not found) |
-| ubuntu:22.04 (22.04.5) | 2.35 | ok | 40 of 41 (`sealed-run`: GLIBC_2.39 not found) |
-| ubuntu:24.04 (24.04.5) | 2.39 | ok | 41 of 41 |
+| debian:12 (12.15) | 2.36 | ok | 41 of 44 (`sealed-run`: GLIBC_2.39 not found; `blocktools`, `recover.sh`: see below) |
+| ubuntu:22.04 (22.04.5) | 2.35 | ok | 41 of 44 (same three) |
+| ubuntu:24.04 (24.04.5) | 2.39 | ok | 42 of 44 (`blocktools`, `recover.sh`) |
+
+Measured 2026-10-26 on 0.1.1-1 from the live Pages URL. `blocktools --help` prints its usage header and
+exits 2 (it is the Docker wrapper and has no `--help` mode); `recover.sh --help` also exits non-zero.
 
 Man pages (`man derive`, `man blocktools`) were found on all three.
 
@@ -57,9 +60,8 @@ lays out `pool/main/b/blocktools/` and `dists/stable/main/binary-amd64/Packages(
 `Release.gpg` (detached), and shreds the key directory in a trap. It then checks both signatures with
 `gpgv` against the committed keyring only. The output directory is copied to `apt/` on `gh-pages`.
 
-The published package was made with
-`BINDIR=bin DEB_DEPENDS="libc6 (>= 2.34)" scripts/package-native.sh deb` inside the extracted v0.1.0
-release tarball.
+The published package is made by `scripts/release-repos.sh build` (see [RELEASE-REPOS.md](RELEASE-REPOS.md)):
+`BINDIR=<tarball>/bin DEB_DEPENDS="libc6 (>= 2.34)" scripts/package-native.sh deb` on the v0.1.1 release tarball.
 
 ## Tests
 
@@ -75,12 +77,17 @@ With the real key, served from a local HTTP server, in debian:12, ubuntu:22.04 a
 an edited `InRelease` it fails (`BADSIG`); `apt install blocktools` ok. From the live Pages URL, with the key
 fetched from the raw GitHub URL above into `/etc/apt/keyrings/` (the install steps exactly), in the
 same three images: `apt update` fetched `InRelease` and `Packages` with no warning, `apt install
-blocktools` installed 0.1.0-1, `derive --help`, `chain-table --help` and `man -w blocktools` ok. The
-wrong-key and tamper cases were not repeated against the live URL.
+blocktools` installed 0.1.0-1, `derive --help`, `chain-table --help` and `man -w blocktools` ok.
+
+Repeated for 0.1.1-1 on 2026-10-26 (debian:12 12.15, ubuntu:24.04 24.04.5) from the live URL: without the
+key `apt update` reports `NO_PUBKEY 607A66058B6C256E` and `apt install blocktools` fails; with it,
+0.1.1-1 installs and `tx-decode`, `derive`, `phrase-to-key` run `--help`. Against a local HTTP copy of the
+published `apt/` (debian:12): one byte flipped in the `.deb` gives `Hash Sum mismatch` and nothing is
+installed; an edited `InRelease` gives `BADSIG 607A66058B6C256E`.
 
 ## Limits (not measured or not there)
 
 - amd64 only; no arm64 package. Not tested on a real (non-container) Debian or Ubuntu host.
-- The repository holds 0.1.0 only. Updating it is a manual host step; the release workflow does not
-  build or sign the apt repository.
+- The repository holds the latest release only (0.1.1-1). From the next v* tag on, release.yml's `repos`
+  job rebuilds and re-signs it (see RELEASE-REPOS.md); that job has not yet run on a real tag.
 - The key has no expiry. Rotation means a new keyring file here and a new Vault version.

@@ -71,13 +71,12 @@ apk update && apk add blocktools
 ```
 
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
-(same SHA-256). Current package: `blocktools-0.1.1_pre20261026-r0`, an untagged pre-release built from
-main `ecf1e55` (apk orders `0.1.1_pre20261026` above `0.1.0` and below `0.1.1`, measured with
-`apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
+(same SHA-256). Current package: `blocktools-0.1.1-r0`, built from tag v0.1.1 (it replaced the pre-release
+`0.1.1_pre20261026-r0`, which apk orders below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
-How it is built (Battleaxe host only): `PKG_VERSION=... APK_SIGN_HOST=1 scripts/package-native.sh apk`,
-then `scripts/apk-repo-build.sh OUTDIR signed.apk...`. That script refuses APKs not signed by the repo
+How it is built (Battleaxe host only, by `scripts/release-repos.sh build`, see RELEASE-REPOS.md):
+`scripts/package-native.sh apk`, `scripts/apk-sign-host.sh`, then `scripts/apk-repo-build.sh OUTDIR signed.apk...`. That script refuses APKs not signed by the repo
 key, builds `APKINDEX.tar.gz` with `apk index`, signs it with `abuild-sign` using the Vault key through
 the same tmpfs, read-only-bind, output-suppressed flow as `apk-sign-host.sh`, and checks that Alpine
 trusts it with the repo key and flags it UNTRUSTED without. The published files were scanned for PEM
@@ -90,11 +89,15 @@ Measured 2026-10-26 in fresh `alpine:latest` containers (Alpine 3.24.3, apk-tool
 - local HTTP copy with one byte flipped in the package: `apk add` failed ("file format is invalid or
   inconsistent") and nothing was installed.
 
+Repeated for `0.1.1-r0` on 2026-10-26 (Alpine 3.24.3): without the key `apk add blocktools` failed; with it,
+0.1.1-r0 installed and 42 of 44 files in /usr/bin exited 0 on `--help` (`blocktools`, the Docker wrapper,
+prints usage and exits 2; `recover.sh` exits non-zero); a fetched copy with one byte flipped was refused.
+
 ## Limits (what is not there or not measured)
 
-- The repo holds one x86_64 pre-release package; there is no arm64 build. The release workflow does not
-  build or publish it; updates are a manual host-side rebuild and `gh-pages` push.
-- Signed APKs are not attached to any release yet, and the release workflow does not call the signer.
+- The repo holds one x86_64 package (0.1.1-r0); there is no arm64 build. From the next v* tag on,
+  release.yml's `repos` job rebuilds and re-signs it; that job has not yet run on a real tag.
+- Signed APKs are not attached to the GitHub release (they are only in the Pages repo).
 - Measured: signing and `apk verify` in `alpine:3.20` containers on x86_64. `apk add` from a
   signed index measured in an Alpine 3.24 container (apk-tools v3, v2 package format). Not measured:
   arm64, a bare-metal/VM Alpine host, Alpine releases other than 3.24.3.
