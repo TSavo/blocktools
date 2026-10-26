@@ -29,7 +29,8 @@ for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3
                ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX"), ("zec", "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs"),
                ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"), ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
                ("qtum", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
-               ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5")]:
+               ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5"),
+               ("bcc", "8XFa9Ce4Pf6d3Rvpr3jnp6sm8279Ec1V92")]:  # legacy-bcc.dat key 1 (make-fixtures.py)
     # Each line carries a synthetic prev_tx (legacy inputs must prove their amount; see SECURITY.md).
     if _c == "zec":  # ZIP-243/244 sighash commits to the amount: a lying amount only yields an invalid signature
         w(IN, "u-zec.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":1000000,"address":"' + _a + '"}'); continue
