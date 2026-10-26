@@ -168,7 +168,6 @@ tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-unknown-call.hex"
 
 ### `eth_value_with_token_call`
 A token `transfer` also sends ETH to the token contract. That ETH is almost certainly lost. Rebuild the transaction with value 0.
-See FINDINGS D1-12: this code is missing from the schema vocabulary.
 
 <!-- run rc=1 expect=eth_value_with_token_call -->
 ```sh

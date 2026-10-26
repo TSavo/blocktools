@@ -71,46 +71,46 @@ fn u256_small(b: &[u8; 32]) -> Option<u128> { if b[..16].iter().any(|&x| x != 0)
 
 /// Findings for `d` under the file's rule for `chain` (empty = allowed).
 pub fn check(d: &Decoded, chain: &str, pf: &PolicyFile) -> Vec<String> {
-    let Some((_, r)) = pf.rules.iter().find(|(c, _)| c == chain) else { return vec!["policy:no_rule_for_chain".into()] };
+    let Some((_, r)) = pf.rules.iter().find(|(c, _)| c == chain) else { return vec![crate::code!("policy:no_rule_for_chain").into()] };
     let base = policy::Policy { chain_id: r.chain_id, max_fee: r.max_fee.or(Some(policy::default_max_fee(d))), ..Default::default() };
     let mut f: Vec<String> = Vec::new();
     let mut allowed_call = false;
     if let Some(t) = &d.evm {
-        if r.chain_id.is_none() { f.push("policy:chain_id".into()) }
+        if r.chain_id.is_none() { f.push(crate::code!("policy:chain_id").into()) }
         let tc = crate::evm::token_call(&t.data);
         let to = t.to.map(|a| crate::addr(&a));
         let (dest, amount) = match &tc {
             Some(c) if c.method == "transfer" => {
-                if !to.as_deref().is_some_and(|a| r.allow_tokens.iter().any(|x| same(x, a))) { f.push("policy:allow_tokens".into()) }
+                if !to.as_deref().is_some_and(|a| r.allow_tokens.iter().any(|x| same(x, a))) { f.push(crate::code!("policy:allow_tokens").into()) }
                 (Some(crate::addr(&c.to)), u256_small(&c.amount))
             }
             _ if !t.data.is_empty() => {
                 let sel: Option<[u8; 4]> = t.data.get(..4).and_then(|s| s.try_into().ok());
                 allowed_call = to.as_deref().zip(sel).is_some_and(|(a, s)| r.allow_calls.iter().any(|(x, xs)| same(x, a) && *xs == s));
-                if !allowed_call { f.push("policy:allow_calls".into()) }
+                if !allowed_call { f.push(crate::code!("policy:allow_calls").into()) }
                 (to.clone(), Some(t.value))
             }
             _ => (to.clone(), Some(t.value)),
         };
-        if !allowed_call && !dest.as_deref().is_some_and(|a| r.allow_to.iter().any(|x| same(x, a))) { f.push("policy:allow_to".into()) }
-        if let Some(m) = r.max_value { if amount.is_none_or(|v| v > m) || (tc.is_some() && t.value > m) { f.push("policy:max_value".into()) } }
+        if !allowed_call && !dest.as_deref().is_some_and(|a| r.allow_to.iter().any(|x| same(x, a))) { f.push(crate::code!("policy:allow_to").into()) }
+        if let Some(m) = r.max_value { if amount.is_none_or(|v| v > m) || (tc.is_some() && t.value > m) { f.push(crate::code!("policy:max_value").into()) } }
     } else {
         let mut total: u128 = 0;
         for o in &d.outputs {
             let a = o.address.as_deref();
             if a.is_some_and(|a| r.change.iter().any(|x| same(x, a))) { continue }
-            if !a.is_some_and(|a| r.allow_to.iter().any(|x| same(x, a))) { f.push("policy:allow_to".into()); }
+            if !a.is_some_and(|a| r.allow_to.iter().any(|x| same(x, a))) { f.push(crate::code!("policy:allow_to").into()); }
             total = total.saturating_add(o.amount.unwrap_or(u64::MAX) as u128);
         }
         f.dedup();
-        if let Some(m) = r.max_value { if total > m { f.push("policy:max_value".into()) } }
-        if let Some(m) = r.max_outputs { if d.outputs.len() > m { f.push("policy:max_outputs".into()) } }
+        if let Some(m) = r.max_value { if total > m { f.push(crate::code!("policy:max_value").into()) } }
+        if let Some(m) = r.max_outputs { if d.outputs.len() > m { f.push(crate::code!("policy:max_outputs").into()) } }
     }
     for b in policy::check(d, &base) {
         // A listed (contract, selector) is the explicit allowance for the approve warning it raises.
         if allowed_call && b == "has_warnings" && d.warnings.iter().all(|w| matches!(*w, "unsigned" | "token_approve")) { continue }
         if allowed_call && (b == "unknown_contract_call" || b == "token_call_not_transfer") { continue }
-        let s = match b { "fee_above_cap" => "policy:max_fee", "chain_id_mismatch" | "no_chain_id" => "policy:chain_id", "chain_id_not_pinned" => continue, x => x };
+        let s = match b { "fee_above_cap" => crate::code!("policy:max_fee"), "chain_id_mismatch" | "no_chain_id" => crate::code!("policy:chain_id"), "chain_id_not_pinned" => continue, x => x };
         if !f.iter().any(|y| y == s) { f.push(s.into()) }
     }
     f

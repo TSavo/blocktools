@@ -60,37 +60,37 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
     let cap = effective_max_fee(d, p);
     // Never overridable: the signed bytes do not commit to these amounts, so the fee shown is unproven.
-    if d.unproven_inputs > 0 { f.push("legacy_input_amount_unproven") }
-    if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned") { f.push("has_warnings") }
+    if d.unproven_inputs > 0 { f.push(crate::code!("legacy_input_amount_unproven")) }
+    if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned") { f.push(crate::code!("has_warnings")) }
     if let Some(t) = &d.evm {
         let fee = t.max_fee_per_gas.saturating_mul(t.gas as u128);
-        if fee > cap { f.push("fee_above_cap") }
-        match (p.chain_id, t.chain_id) { (Some(a), Some(b)) if a != b => f.push("chain_id_mismatch"), (Some(_), None) => f.push("no_chain_id"), _ => {} }
-        if t.chain_id.is_none() { f.push("no_replay_protection") }
+        if fee > cap { f.push(crate::code!("fee_above_cap")) }
+        match (p.chain_id, t.chain_id) { (Some(a), Some(b)) if a != b => f.push(crate::code!("chain_id_mismatch")), (Some(_), None) => f.push(crate::code!("no_chain_id")), _ => {} }
+        if t.chain_id.is_none() { f.push(crate::code!("no_replay_protection")) }
         // Machine check, not the human: the caller must say which network it means (e.g. BSC = 56).
-        if p.chain_id.is_none() { f.push("chain_id_not_pinned") }
+        if p.chain_id.is_none() { f.push(crate::code!("chain_id_not_pinned")) }
         let dest = match crate::evm::token_call(&t.data) {
             Some(tc) if tc.method == "transfer" => {
-                if t.value > 0 && !p.allow_value_with_token { f.push("eth_value_with_token_call") }
+                if t.value > 0 && !p.allow_value_with_token { f.push(crate::code!("eth_value_with_token_call")) }
                 Some(crate::addr(&tc.to))
             }
-            Some(_) => { f.push("token_call_not_transfer"); None }
-            None if !t.data.is_empty() => { f.push("unknown_contract_call"); None }
+            Some(_) => { f.push(crate::code!("token_call_not_transfer")); None }
+            None if !t.data.is_empty() => { f.push(crate::code!("unknown_contract_call")); None }
             None => t.to.map(|a| crate::addr(&a)),
         };
         if !p.expect_to.is_empty() {
-            match dest { Some(d) if p.expect_to.iter().any(|e| same(e, &d)) => {}, _ => f.push("destination_not_expected") }
+            match dest { Some(d) if p.expect_to.iter().any(|e| same(e, &d)) => {}, _ => f.push(crate::code!("destination_not_expected")) }
         }
     } else {
-        match d.fee { None => f.push("fee_unknown"), Some(x) if x as u128 > cap => f.push("fee_above_cap"), _ => {} }
+        match d.fee { None => f.push(crate::code!("fee_unknown")), Some(x) if x as u128 > cap => f.push(crate::code!("fee_above_cap")), _ => {} }
         if !p.expect_to.is_empty() {
             for o in &d.outputs {
                 match &o.address {
                     Some(a) if p.expect_to.iter().chain(&p.change).any(|e| same(e, a)) => {}
-                    _ => { f.push("unexpected_output"); break }
+                    _ => { f.push(crate::code!("unexpected_output")); break }
                 }
             }
-            for e in &p.expect_to { if !d.outputs.iter().any(|o| o.address.as_deref().is_some_and(|a| same(e, a))) { f.push("expected_destination_missing"); break } }
+            for e in &p.expect_to { if !d.outputs.iter().any(|o| o.address.as_deref().is_some_and(|a| same(e, a))) { f.push(crate::code!("expected_destination_missing")); break } }
         }
     }
     f

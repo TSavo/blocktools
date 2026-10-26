@@ -2,6 +2,12 @@
 //! Input: hex or base64 raw tx / PSBT, EVM RLP (legacy, EIP-1559), or a JSON line carrying one
 //! of those in "psbt" / "tx" / "unsigned_tx" / "signed_tx". Format is auto-detected.
 //! All parsing is bounded; consensus parsing is rust-bitcoin's.
+/// A failure code literal, checked at compile time against blocktools_schema::TX_FAILURES
+/// (the redact allowlist), so a code that redact would drop cannot be emitted (D1-12).
+#[macro_export]
+macro_rules! code { ($s:literal) => {{ const _: () = assert!($crate::__schema::is_tx_failure($s), concat!("failure code not in blocktools_schema::TX_FAILURES: ", $s)); $s }} }
+#[doc(hidden)]
+pub mod __schema { include!("../../schema/src/tx_failures.rs"); }
 pub mod build;
 pub mod evm;
 pub mod policy;

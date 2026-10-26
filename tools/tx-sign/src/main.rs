@@ -82,7 +82,7 @@ fn main() {
         let mut t = blocktools_tx::pos::PosTx::parse(&chain, &raw).unwrap_or_else(|e| bad(e));
         let unsigned = t.clone();
         let n = blocktools_tx::sign::sign_pos(&mut t, &prev, &keys).unwrap_or_else(|e| bad(e));
-        if n != t.inputs.len() { out("refused", json!({"failures":["input_without_key"],"inputs":t.inputs.len(),"signed_inputs":n})) }
+        if n != t.inputs.len() { out("refused", json!({"failures":[blocktools_tx::code!("input_without_key")],"inputs":t.inputs.len(),"signed_inputs":n})) }
         let mut bare = t.clone(); for i in &mut bare.inputs { i.script_sig.clear() }
         if bare != unsigned { out("error", json!({"error":"signed_tx_differs_from_unsigned"})) }
         let who: Vec<String> = d.inputs.iter().filter_map(|i| i.address.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
@@ -93,7 +93,7 @@ fn main() {
         if !t.sapling.spends.is_empty() || !t.sapling.outputs.is_empty() || !t.orchard.actions.is_empty() || !t.joinsplits.is_empty() { bad("zec: shielded components are not signed here") }
         let unsigned = t.clone();
         let n = blocktools_tx::sign::sign_zcash(&mut t, &prev, &keys).unwrap_or_else(|e| bad(e));
-        if n != t.inputs.len() { out("refused", json!({"failures":["input_without_key"],"inputs":t.inputs.len(),"signed_inputs":n})) }
+        if n != t.inputs.len() { out("refused", json!({"failures":[blocktools_tx::code!("input_without_key")],"inputs":t.inputs.len(),"signed_inputs":n})) }
         let mut bare = t.clone(); for i in &mut bare.inputs { i.script_sig.clear() }
         if bare != unsigned { out("error", json!({"error":"signed_tx_differs_from_unsigned"})) }
         let who: Vec<String> = d.inputs.iter().filter_map(|i| i.address.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
@@ -101,7 +101,7 @@ fn main() {
     } else {
         let mut ps = Psbt::deserialize(&raw).unwrap_or_else(|_| bad("UTXO signing needs a PSBT (from tx-build)"));
         let n = blocktools_tx::sign::sign_psbt_digest(&mut ps, &keys, blocktools_core::chains::chain(&chain).map(blocktools_tx::sign::Digest::for_chain).unwrap_or(blocktools_tx::sign::Digest::Sha256d)).unwrap_or_else(|e| bad(e));
-        if n != ps.inputs.len() { out("refused", json!({"failures":["input_without_key"],"inputs":ps.inputs.len(),"signed_inputs":n})) }
+        if n != ps.inputs.len() { out("refused", json!({"failures":[blocktools_tx::code!("input_without_key")],"inputs":ps.inputs.len(),"signed_inputs":n})) }
         let tx = blocktools_tx::sign::extract(&ps).unwrap_or_else(|e| bad(e));
         let mut bare = tx.clone();
         for i in &mut bare.input { i.script_sig = bitcoin::ScriptBuf::new(); i.witness = bitcoin::Witness::new() }

@@ -29,12 +29,18 @@ for m in re.finditer(r"<!-- run rc=(\d+) expect=([\w,]*) -->\s*```sh\n(.*?)```",
     miss = [e for e in exp if f'"{e}"' not in out]
     if r.returncode != rc or miss:
         bad += 1; print(f"FAIL refusals: `{cmd.strip()}` rc={r.returncode} (want {rc}) missing={miss}\n{out}")
-src = (root / "crates/schema/src/lib.rs").read_text()
+    # D1-12: the same tx-verify refusal must stay visible through the sealed-run boundary (redact).
+    sm = re.fullmatch(r"(tx-verify [^<]*?)\s*<\s*(\S+)\s*", cmd.strip())
+    if sm and rc:
+        r2 = sh(f'sealed-run agent "{sm[1]}" < {sm[2]}', timeout=60); n += 1
+        lost = [e for e in exp if f'"{e}"' not in r2.stdout]
+        if lost: bad += 1; print(f"FAIL refusals (sealed-run): `{cmd.strip()}` lost {lost} at the boundary\n{r2.stdout}")
+src = (root / "crates/schema/src/lib.rs").read_text() + (root / "crates/schema/src/tx_failures.rs").read_text()
 codes = set()
 for name in ("STATUSES", "TX_FAILURES"):
     blk = re.search(name + r"[^=]*=\s*&?\[(.*?)\]", src, re.S); codes |= set(re.findall(r'"(\w+)"', blk[1]))
 for p in (root / "crates").rglob("*.rs"):
-    codes |= set(re.findall(r'f\.push\("(\w+)"\)', p.read_text()))
+    codes |= set(re.findall(r'code!\("(\w+)"\)', p.read_text()))
 heads = set(re.findall(r"^### `(\w+)`", text, re.M))
 for c in sorted(codes - heads): bad += 1; print(f"FAIL refusals: code `{c}` has no section in {sys.argv[1]}")
 print(f"refusals: {n} blocks run, {len(codes)} codes covered, {bad} failures")

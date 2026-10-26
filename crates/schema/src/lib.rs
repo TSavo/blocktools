@@ -8,9 +8,8 @@ pub const STATUSES: &[&str] = &[
     "ok", "checksum_ok", "checksum_fail", "no_candidates", "too_many_candidates",
     "bad_input", "wrong_password", "unsupported", "error", "done", "failed", "refused", "aborted",
 ];
-/// tx-verify / tx-sign policy failures (blocktools_tx::policy).
-pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown", "chain_id_mismatch", "no_chain_id", "no_replay_protection",
-    "token_call_not_transfer", "unknown_contract_call", "destination_not_expected", "unexpected_output", "expected_destination_missing", "input_without_key"];
+// Single source for the failure vocabulary: blocktools_tx include!s the same file (D1-12).
+include!("tx_failures.rs");
 pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
@@ -285,5 +284,18 @@ mod tests {
         assert!(looks_secret("7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d"));
         assert!(looks_secret("x 5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ y"));
         assert!(!looks_secret(r#"{"address":"1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA","status":"ok"}"#));
+    }
+}
+
+#[cfg(test)]
+mod d1_12 {
+    // Every code the verifier may emit (blocktools_tx's code! macro only accepts TX_FAILURES members)
+    // must survive redact; before D1-12 the whole refusal line was dropped.
+    #[test] fn every_tx_failure_survives_redact() {
+        for c in super::TX_FAILURES {
+            let line = serde_json::json!({"tool":"tx-verify","status":"failed","failures":[c]}).to_string();
+            let out = super::redact_line(&line).unwrap_or_else(|| panic!("redact dropped failure {c}"));
+            assert!(out.contains(c), "{c}: {out}");
+        }
     }
 }
