@@ -67,7 +67,7 @@ neg K-unreg docs-check "unregistered claim" 'echo "The cache holds 77 MB." >> do
 # K-agree: README number disagrees with the registry value.
 neg K-agree docs-check "does not carry" 'sed -i "s/^value = \"33.3\"/value = \"31.0\"/" docs/claims.toml'
 # K-assert: a registry-untested claim stated as fact (marker removed from its doc line) must fail.
-neg K-assert docs-check "as fact" 'sed -i "s/(reviewer report, not reproduced by us) (untested)/(verified)/" README.md'
+neg K-assert docs-check "as fact" 'sed -i "s/(reviewer report, not reproduced by us) (untested)/(reviewer report, not reproduced by us) verified/" README.md'
 neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs/SECURITY.md > t && mv t docs/SECURITY.md'
 neg K-fields docs-check "bad status" 'sed "0,/status = \"measured\"/s//status = \"verified\"/" docs/claims.toml > t && mv t docs/claims.toml'
 neg K-stale docs-check "re-measure" 'echo "// x" >> crates/tx/src/policy.rs && git -c user.name=n -c user.email=n@n commit -qam plant'
