@@ -37,8 +37,8 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools-secrets --all-features -- scrypt_bounds hostile_kdf"
 expect = "test result: ok. 2 passed"
-commit = "fbcf2b3"
-date = "2026-10-25"
+commit = "47d247c"
+date = "2026-10-26"
 cheap = false
 depends = ["crates/secrets/src/keystore.rs"]
 doc = [{ file = "DESIGN.md", text = "256 MiB" }, { file = "docs/SECURITY.md", text = "256 MiB" }, { file = "docs/SECURITY.md", text = "8 GiB" }]
