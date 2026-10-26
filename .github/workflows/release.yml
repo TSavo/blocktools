@@ -9,9 +9,12 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: sh scripts/ci-require-tools.sh
       - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
       - run: sh scripts/check-deps.sh
       - run: sh scripts/secret-scan.sh
@@ -42,7 +45,7 @@ jobs:
             dist/SHA256SUMS
   release-env:
     # finding:R2-6: refuse to publish unless the "release" environment has required reviewers.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     permissions:
       contents: read
       actions: read
@@ -56,7 +59,7 @@ jobs:
     # the release-env job checks the rule through the API first.
     needs: [build, release-env]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     environment: release
     permissions:
       contents: write
