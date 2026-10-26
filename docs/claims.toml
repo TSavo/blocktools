@@ -59,11 +59,17 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image size. Never measured: the 33.3 MB once quoted came from image-size.sh's binary-sum fallback (non-root docker inspect failed), and blocktools:size-measure is a COPY-only image, not the sealed Dockerfile build. R2-1 builds and measures it."
+statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 33.2 MB, from docker image inspect (Linux docker on the box)"
 kind = "number"
-platform = "docker"
-status = "untested"
-doc = [{ file = "README.md", text = "size not yet measured" }]
+platform = "linux"
+status = "measured"
+command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh"
+expect = "33.2"
+commit = "26b3373"
+date = "2026-10-25"
+cheap = false
+depends = ["Dockerfile", "scripts/image-size.sh"]
+doc = [{ file = "README.md", text = "33.2 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"

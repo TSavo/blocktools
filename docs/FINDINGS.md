@@ -17,7 +17,7 @@ they can't be forgotten, and the check prints them on every run.
 | R1-6 | recipes.sh errors instead of skipping when python `cryptography` is missing | open | - | - |
 | R1-7 | Image size in docs not tied to a revision label | open | - | - |
 | R1-8 | Mac e2e tx-sign pin-tty step fails (rc=2 near tx-sign.sh:35) | open | - | - |
-| R2-1 | Sealed image build broken (check-deps needs python3 in builder); README size unmeasured | open | - | - |
+| R2-1 | Sealed image build broken (check-deps needs python3 in builder); README size unmeasured | fixed | 26b3373 | scripts/check-deps-regress.sh |
 | R2-2 | CI red: non-ASCII emoji in man pages under groff LC_ALL=C | fixed | a22023f | scripts/gate-negatives.sh |
 | R2-3 | hygiene BSD-skew rules used \s, inert on macOS git grep | fixed | 8160aeb | scripts/hygiene-check.sh |
 | R2-5 | check-deps: pipe masked cargo exit 101 (stale lock) | fixed | bb1ceff | scripts/check-deps-regress.sh |

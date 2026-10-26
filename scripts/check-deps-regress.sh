@@ -1,5 +1,6 @@
 #!/bin/sh
 # finding:R2-5 (docs/FINDINGS.md)
+# finding:R2-1 clean tree must PASS under sh and bash (pipefail): a `| head -1` SIGPIPE (141) broke the image build.
 # Regression for check-deps.sh: it must FAIL (never pass) on
 #   (a) a planted network crate in a no-network crate, and
 #   (b) a stale Cargo.lock (cargo exits 101; a pipe must not mask that),
@@ -20,6 +21,10 @@ expect_fail() {  # $1 label; runs check-deps under sh and bash, both must exit n
     else echo "ok   check-deps fails under $shl with $1"; fi
   done
 }
+for shl in sh bash; do
+  if (cd "$wt" && "$shl" scripts/check-deps.sh > "$wt/../out" 2>&1); then echo "ok   check-deps passes under $shl on a clean tree"
+  else echo "FAIL check-deps failed under $shl on a clean tree"; tail -5 "$wt/../out"; rc=1; fi
+done
 # (a) network crate planted in blocktools-core; minreq is already in the lock, so the lock stays valid offline
 cp "$wt/crates/core/Cargo.toml" "$wt/../core.toml"
 awk '{print} /^\[dependencies\]$/{print "minreq.workspace = true"}' "$wt/../core.toml" > "$wt/crates/core/Cargo.toml"
