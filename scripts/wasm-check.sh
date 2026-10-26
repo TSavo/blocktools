@@ -10,9 +10,19 @@ set -eu
 # pipefail where the shell has it (dash >= 0.5.11, bash); a shell without it just lacks the extra check
 if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 cd "$(dirname "$0")/../bindings/wasm"
-W=target/wasm32-unknown-unknown/release/blocktools_wasm.wasm
-cargo build -q --locked --release --target wasm32-unknown-unknown
 rc=0
+# Reproducible build: scripts/wasm-build.sh builds from a copy at one fixed path (see its header).
+W=$(sh ../../scripts/wasm-build.sh)
+mkdir -p target
+# rule:W-repro: the same sources checked out at another path, built clean, give the same bytes.
+alt=$(mktemp -d "${TMPDIR:-/tmp}/blocktools-alt-checkout.XXXXXX")
+(cd ../.. && git ls-files -z --cached --others --exclude-standard | xargs -0 cp --parents -t "$alt") && (cd "$alt" && git init -q && git add -A)
+h1=$(sha256sum "$W" | cut -d' ' -f1)
+cp "$W" target/blocktools_wasm.wasm; W0=$W; W=$PWD/target/blocktools_wasm.wasm  # the clean rebuild below deletes $W0
+rm -rf "${W0%/wasm32-unknown-unknown/*}"  # whole target dir: a clean build, not cached deps
+W2=$(sh "$alt/scripts/wasm-build.sh"); h2=$(sha256sum "$W2" | cut -d' ' -f1); rm -rf "$alt"
+[ "$h1" = "$h2" ] || { echo "FAIL wasm not reproducible: $h1 (repo) vs $h2 (clean build from a checkout at another path)"; rc=1; }
+echo "wasm sha256 $h1 (clean rebuild from another checkout path matches: $([ "$h1" = "$h2" ] && echo yes || echo no))"
 bad=$(cargo tree -q --locked --target wasm32-unknown-unknown -e normal --prefix none | awk '{print $1}' | sort -u \
   | grep -xE 'blocktools-secrets|blocktools-net|blocktools-tty|blocktools-io|bip39|scrypt|pbkdf2|aes|cbc|ctr|ed25519-dalek|minreq|rustls|ring|tokio|getrandom|rand' || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL wasm dep tree has: $bad"; rc=1; }
