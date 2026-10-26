@@ -68,20 +68,23 @@ stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok
 signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
-0
-Success (JSON lines may still carry status fields such as done / no_candidates).
-.TP
-2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+1
+last status http_error
 .TP
 3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+last status refused
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for rpc in recipes/*.md.
+$ rpc http://127.0.0.1:9 dumpprivkey
+# exit 3, last status: refused
+$ rpc http://127.0.0.1:9 personal_sign
+# exit 3, last status: refused
+$ rpc http://127.0.0.1:9 getblockcount
+# exit 1, last status: http_error
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
