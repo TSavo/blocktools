@@ -42,6 +42,7 @@ neg H-sed hygiene-check "GNU-only in-place sed" 'printf "#!/bin/sh\nset -eu\nsed
 neg H-readlink hygiene-check "GNU-only readlink" 'printf "#!/bin/sh\nset -eu\nreadlink -f x\n" > scripts/zz.sh && $ADD scripts/zz.sh'
 neg H-stat hygiene-check "GNU-only stat -c" 'printf "#!/bin/sh\nset -eu\nstat -c %%a x\n" > scripts/zz.sh && $ADD scripts/zz.sh'
 neg H-cigate hygiene-check "ci-gate:" 'printf "      - run: cargo test\n" >> .github/workflows/ci.yml'
+neg G-stages hygiene-check "stage matrix" 'sed "s/stage: \[lint, test, negatives, e2e\]/stage: [lint, test, e2e]/" .github/workflows/ci.yml > t && mv t .github/workflows/ci.yml'
 neg H-selftest hygiene-check "hygiene self-test" 'sed "s/^WC_PAT=.*/WC_PAT=nevermatches_zz/" scripts/hygiene-check.sh > t && mv t scripts/hygiene-check.sh'
 neg H-neg hygiene-check "has no negative test" 'printf "false # rule:Z-none\n" >> scripts/prepush-check.sh'
 # ---- docs-check.sh

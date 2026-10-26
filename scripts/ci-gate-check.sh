@@ -18,6 +18,13 @@ while IFS= read -r r; do
   grep -vE '^#' "$allow" | grep -qxF -- "$r" || { echo "FAIL ci-gate: $wf runs a command not in gate.sh/allowlist: $r"; rc=1; }
 done < "${TMPDIR:-/tmp}/ci-gate.$$"
 rm -f "${TMPDIR:-/tmp}/ci-gate.$$"
-grep -qE '^[[:space:]]*-?[[:space:]]*run:[[:space:]]*sh scripts/gate.sh$' "$wf" || { echo "FAIL ci-gate: $wf never runs scripts/gate.sh"; rc=1; }
+if grep -qE '^[[:space:]]*-?[[:space:]]*run:[[:space:]]*sh scripts/gate.sh \$\{\{ matrix.stage \}\}$' "$wf"; then
+  # staged: the matrix must list exactly gate.sh's stages, so no stage (check) can be dropped in CI
+  want=$(sh scripts/gate.sh --list | tr ' ' '\n' | sort | tr '\n' ' ')
+  got=$(sed -n 's/^[[:space:]]*stage:[[:space:]]*\[\(.*\)\][[:space:]]*$/\1/p' "$wf" | tr -d ' ' | tr ',' '\n' | sort | tr '\n' ' ')
+  [ "$want" = "$got" ] || { echo "FAIL ci-gate: $wf stage matrix [$got] != gate.sh --list [$want]"; rc=1; }  # rule:G-stages
+elif ! grep -qE '^[[:space:]]*-?[[:space:]]*run:[[:space:]]*sh scripts/gate.sh$' "$wf"; then
+  echo "FAIL ci-gate: $wf never runs scripts/gate.sh"; rc=1
+fi
 [ $rc = 0 ] && echo "ok   ci-gate: $wf runs only gate.sh + $((n-1)) setup steps"
 exit $rc

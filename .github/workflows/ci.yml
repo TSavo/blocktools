@@ -1,15 +1,22 @@
 name: ci
 on: [push, pull_request]
-# Every check lives in scripts/gate.sh (the same script verify-and-push runs locally).
-# Other run: lines may only be environment setup listed in scripts/ci-allowed-setup.txt.
+# Every check lives in scripts/gate.sh (the same script verify-and-push runs locally, all stages).
+# CI runs each stage as a parallel job; ci-gate-check.sh fails unless the matrix equals
+# `sh scripts/gate.sh --list`. Other run: lines may only be setup from scripts/ci-allowed-setup.txt.
 jobs:
   gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        stage: [lint, test, negatives, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }  # findings/claims checks need full history (R2-12)
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20 }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with: { key: "${{ matrix.stage }}", cache-bin: "true" }
       - run: sudo apt-get update && sudo apt-get install -y clang lld
-      - run: rustup target add wasm32-unknown-unknown && cargo install --locked wasm-bindgen-cli --version 0.2.100
-      - run: sh scripts/gate.sh
+      - run: rustup target add wasm32-unknown-unknown && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
+      - run: sh scripts/gate.sh ${{ matrix.stage }}

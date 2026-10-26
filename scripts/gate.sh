@@ -1,26 +1,46 @@
 #!/bin/sh
-# THE gate. CI (.github/workflows/ci.yml) and scripts/verify-and-push.sh both run exactly
-# this script, so they cannot diverge. hygiene-check.sh fails if ci.yml runs any command
-# other than this script or a listed environment-setup step (scripts/ci-allowed-setup.txt).
+# THE gate. CI (.github/workflows/ci.yml) and scripts/verify-and-push.sh both run this script,
+# so they cannot diverge. ci-gate-check.sh fails if ci.yml runs any command other than this
+# script or a listed environment-setup step, or if its stage matrix differs from `--list`.
+#   sh scripts/gate.sh            all stages, in order (local / verify-and-push)
+#   sh scripts/gate.sh STAGE      one stage (CI runs each stage as a parallel job)
+#   sh scripts/gate.sh --list     stage names
 # Expects cargo, node, clang/lld, wasm-bindgen and python3 on PATH.
 set -eu
 if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 cd "$(dirname "$0")/.."
+STAGES="lint test negatives e2e"
 step() { echo "== gate: $*"; "$@" || { echo "gate FAILED at: $*" >&2; exit 1; }; }
-step sh scripts/prepush-check.sh
-step sh scripts/secret-scan.sh
-step cargo build -q --locked --release --workspace
-step cargo test -q --locked --release --workspace --no-fail-fast
-step cargo test -q --locked --release --workspace --all-features --no-fail-fast
-step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-deps
-step sh scripts/check-deps.sh
-step sh scripts/check-deps-regress.sh
-step sh scripts/hygiene-check.sh
-step sh scripts/gate-negatives.sh
-step sh scripts/docs-check.sh
-step sh scripts/fetch-fixtures.sh
-step bash scripts/e2e-local.sh
-step sh scripts/wasm-check.sh
-step sh scripts/prepush-check.sh
-step sh scripts/secret-scan.sh
-echo "gate ok"
+stage() {
+  case "$1" in
+  lint)
+    step sh scripts/prepush-check.sh
+    step sh scripts/secret-scan.sh
+    step sh scripts/check-deps.sh
+    step sh scripts/check-deps-regress.sh
+    step sh scripts/hygiene-check.sh
+    step sh scripts/docs-check.sh;;
+  test)
+    step cargo build -q --locked --release --workspace
+    step cargo test -q --locked --release --workspace --no-fail-fast
+    step cargo test -q --locked --release --workspace --all-features --no-fail-fast
+    step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-deps;;
+  negatives)
+    step sh scripts/gate-negatives.sh;;
+  e2e)
+    step cargo build -q --locked --release --workspace
+    step sh scripts/fetch-fixtures.sh
+    step bash scripts/e2e-local.sh
+    step sh scripts/wasm-check.sh;;
+  *) echo "gate: unknown stage '$1' (stages: $STAGES)" >&2; exit 2;;
+  esac
+  echo "gate stage $1 ok"
+}
+case "${1:-}" in
+--list) echo "$STAGES";;
+"") for s in $STAGES; do stage "$s"; done
+    step sh scripts/prepush-check.sh   # tree still clean after every stage
+    step sh scripts/secret-scan.sh
+    echo "gate ok";;
+*) stage "$1";;
+esac
