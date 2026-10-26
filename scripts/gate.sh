@@ -14,6 +14,7 @@ step() { echo "== gate: $*"; "$@" || { echo "gate FAILED at: $*" >&2; exit 1; };
 stage() {
   case "$1" in
   lint)
+    step cargo build -q --locked --release --workspace  # docs-check (gen-man.py) runs target/release/* --help
     step sh scripts/prepush-check.sh
     step sh scripts/secret-scan.sh
     step sh scripts/check-deps.sh
@@ -26,6 +27,7 @@ stage() {
     step cargo test -q --locked --release --workspace --all-features --no-fail-fast
     step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-deps;;
   negatives)
+    step cargo build -q --locked --release --workspace  # docs-check (gen-man.py) runs target/release/* --help
     step sh scripts/gate-negatives.sh;;
   e2e)
     step cargo build -q --locked --release --workspace
