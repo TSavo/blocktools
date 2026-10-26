@@ -29,7 +29,7 @@ Runner image (per SwapChan's check of Battleaxe): node 24.19.0, bun, Docker, no 
 |---|---|
 | Rust toolchain 1.85.1 (pinned) | job installs via rustup if missing and verifies `rustc --version`; the tool-cache is shared with other runners, so it is not trusted |
 | wasm32-unknown-unknown, wasm-bindgen-cli 0.2.100 | job installs (rustup target add / cargo install) |
-| clang, lld | job installs via `sudo apt-get` if missing (needs sudo on the runner, untested) |
+| clang, lld, python3, cc, git | must be in the runner image; `scripts/ci-require-tools.sh` fails the job listing what is missing (CI never runs apt-get or sudo). Measured: run 40269892206 failed at the old apt-get step on battleaxe-blocktools-1 (no clang/ld.lld, no working sudo) |
 | node 20 | actions/setup-node |
 | python3 + `cryptography` | python3 must be on the image (untested); job pip-installs cryptography (recipes e2e skips without it) |
 | git, curl | must be on the image |
