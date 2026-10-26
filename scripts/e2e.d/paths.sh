@@ -16,14 +16,18 @@ echo 0000000000000000000000000000000000000000000000000000000000000001 > $T/k1
 printf '%064d' 0 | tr 0 1 | sed 's/1/01/g' | cut -c1-64 > $T/k2
 txid() { $B/tx-decode < "$1" | python3 -c 'import json,sys;print([json.loads(l) for l in sys.stdin if "txid" in l][0]["txid"].removeprefix("0x"))'; }
 D=bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3; E=0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
+# WASM=$T/no-wasm: the sweep paths must not need the wasm package (macOS CI never builds it).
+# negative: without the package, bt refuses with a build hint (not a source-time cd failure)
+if (WASM=$T/no-wasm; . $P/_lib.sh; bt chainTable) > $T/nw.out 2>&1; then f "bt without wasm package succeeded"; fi
+grep -q "blocktools_wasm.js missing (build it" $T/nw.out && echo "ok   paths: sweeps run without the wasm package; bt alone refuses with a build hint" || { cat $T/nw.out; f "bt no-wasm message"; }
 # signatures are deterministic (RFC 6979), so a first run tells the mock which txid to answer with
 for pass in 1 2; do mkdir -p $T/u$pass; : > $T/mlog
-  RPC=$MU W=$T/u$pass KEY=$T/k1 sh $P/utxo-sweep.sh btc bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 $D > $T/u.out 2>&1 || [ $pass = 1 ] || { cat $T/u.out; f utxo-sweep; }
-  [ $pass = 1 ] && txid $T/u1/signed.tx > $T/exp
+  WASM=$T/no-wasm RPC=$MU W=$T/u$pass KEY=$T/k1 sh $P/utxo-sweep.sh btc bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 $D > $T/u.out 2>&1 || [ $pass = 1 ] || { cat $T/u.out; f utxo-sweep; }
+  [ $pass = 1 ] && { [ -f $T/u1/signed.tx ] || { cat $T/u.out; f "utxo-sweep pass 1 signed nothing"; }; } && txid $T/u1/signed.tx > $T/exp
 done
 S=$(python3 scripts/e2e-only/psbt-extract.py $T/u2/signed.tx); [ "$(grep "^/tx " $T/mlog)" = "/tx $S" ] && grep -q '"status":"ok"' $T/u2/sent.json && echo "ok   paths utxo-sweep: broadcast body == signed bytes" || { cat $T/mlog; f "utxo-sweep body"; }
 for id in 1 8453; do printf 0x%x $id > $T/exp.chainid; for pass in 1 2; do mkdir -p $T/e$id$pass; : > $T/mlog
-  RPC=$MU W=$T/e$id$pass KEY=$T/k1 sh $P/evm-sweep.sh $id 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf $E > $T/e.out 2>&1 || [ $pass = 1 ] || { cat $T/e.out; f "evm-sweep $id"; }
+  WASM=$T/no-wasm RPC=$MU W=$T/e$id$pass KEY=$T/k1 sh $P/evm-sweep.sh $id 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf $E > $T/e.out 2>&1 || [ $pass = 1 ] || { cat $T/e.out; f "evm-sweep $id"; }
   [ $pass = 1 ] && txid $T/e${id}1/signed.tx > $T/exp
 done
 python3 - $T/mlog $T/e${id}2/signed.tx <<'PY' && echo "ok   paths evm-sweep chain $id: eth_sendRawTransaction param == signed bytes" || f "evm-sweep $id body"
