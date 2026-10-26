@@ -36,7 +36,7 @@ Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 last status valid
 .TP
 2
-last status error
+last status bad_input
 .PP
 Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
@@ -44,7 +44,7 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 $ typed\-data\-verify "$R/recipes/fixtures/evm/eip712\-mail\-signed.json"
 # exit 0, last status: valid
 $ typed\-data\-verify \-\-sig 0x00 "$R/recipes/fixtures/evm/eip712\-mail.json"
-# exit 2, last status: error
+# exit 2, last status: bad_input
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", json!({"tool": "typed-data-verify", "status": "error", "error": e}));
+    eprintln!("{}", json!({"tool": "typed-data-verify", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 

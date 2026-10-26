@@ -5,7 +5,7 @@ through `blocktools_io::exit_code`:
 
 | exit | status |
 |---|---|
-| 0 | `ok`, `done`, `checksum_ok` |
+| 0 | `ok`, `done`, `checksum_ok`, `valid` (a verified signature, typed-data-verify) |
 | 2 | `bad_input`, `unsupported` |
 | 1 | anything else, including `error` and every refusal |
 
