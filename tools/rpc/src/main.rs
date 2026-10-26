@@ -15,11 +15,14 @@
 //!   --policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
 //!   --allow-wallet-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
 //!                         refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+//!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
+//!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
 //!   --timeout SECONDS     per request, 1..300 (default 30)
 //! stdout: the response body (JSON-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo-fetch lines
 //! (tx-build --utxos FILE) and account prints the utxo-fetch eth account object (tx-build --account FILE).
 //! stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT-CODES.md.
-//! Refused by default (deny-list in tools/rpc/src/lib.rs, see docs/RPC.md): methods that export, import or unlock keys, wallet
+//! Fail closed: only methods and REST paths in the per-protocol read allowlist (ALLOW in tools/rpc/src/lib.rs) are sent.
+//! Refused even with --allow-unlisted (deny-list, see docs/RPC.md): methods that export, import or unlock keys, wallet
 //! signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 //! Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
 //! Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
@@ -27,7 +30,7 @@ use rpc::*;
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Read};
 
-struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, chain_id: Option<u64>, chain: String, timeout: u64 }
+struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: u64 }
 
 fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
@@ -54,7 +57,7 @@ fn withhold_secrets(cx: &Cx, v: &Value) { if let Some(w) = response_secret(v, 0)
 
 /// One checked JSON-RPC call; returns `result`.
 fn jr(cx: &Cx, method: &str, params: Value) -> Value {
-    if let Err(r) = check_call(method, &params, &cx.deny, false, false) { refused(cx, r) }
+    if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, method, &params, &cx.deny, false, false) { refused(cx, r) }
     let req = json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string();
     let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
     let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
@@ -68,7 +71,7 @@ fn base(cx: &Cx) -> String {
 }
 /// One checked REST call; returns parsed JSON (or a JSON string for text bodies).
 fn rest(cx: &Cx, path: &str, body: Option<&Value>) -> Value {
-    if let Err(r) = check_call(path, body.unwrap_or(&Value::Null), &cx.deny, false, body.is_some()) { refused(cx, r) }
+    if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, path, body.unwrap_or(&Value::Null), &cx.deny, false, body.is_some()) { refused(cx, r) }
     let url = format!("{}/{}", base(cx), path.trim_start_matches('/'));
     let bs = body.map(|b| b.to_string());
     let (code, b) = http(cx, if bs.is_some() { "POST" } else { "GET" }, &url, bs.as_deref().map(str::as_bytes));
@@ -263,7 +266,7 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
     for c in &calls {
         let m = c["method"].as_str().unwrap_or_else(|| bad(Some(cx), "request without method"));
         let params = c.get("params").cloned().unwrap_or(Value::Null);
-        match check_call(m, &params, &cx.deny, cx.wallet_sign, false) {
+        match check_call_in(cx.proto, cx.allow_unlisted, m, &params, &cx.deny, cx.wallet_sign, false) {
             Err(r) => refused(cx, r),
             Ok(Pass::WalletSign) => {
                 let (summary, cid) = wallet_sign_summary(m, &params).unwrap_or_else(|r| refused(cx, r));
@@ -292,7 +295,7 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
 
 fn rest_call(cx: &Cx, path: &str, body: Option<&str>) {
     let b: Option<Value> = body.map(|s| serde_json::from_str(s).unwrap_or_else(|_| bad(Some(cx), "BODY must be JSON")));
-    if let Err(r) = check_call(path, b.as_ref().unwrap_or(&Value::Null), &cx.deny, false, b.is_some()) { refused(cx, r) }
+    if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, path, b.as_ref().unwrap_or(&Value::Null), &cx.deny, false, b.is_some()) { refused(cx, r) }
     let url = format!("{}/{}", base(cx), path.trim_start_matches('/'));
     let bs = b.map(|v| v.to_string());
     let (code, resp) = http(cx, if bs.is_some() { "POST" } else { "GET" }, &url, bs.as_deref().map(str::as_bytes));
@@ -306,7 +309,7 @@ fn main() {
     let usage = header();
     blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
-    let mut deny = vec![]; let mut wallet_sign = false; let mut timeout = 30;
+    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30;
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         let mut val = |k: &str| it.next().unwrap_or_else(|| bad(None, &format!("{k} needs a value")));
@@ -318,6 +321,7 @@ fn main() {
             "--auth-env" => { let n = val("--auth-env"); auth = Some(std::env::var(&n).unwrap_or_else(|_| bad(None, "--auth-env variable is not set"))) }
             "--policy" => { let f = val("--policy"); deny = parse_policy(&std::fs::read_to_string(&f).unwrap_or_else(|_| bad(None, "cannot read --policy"))).unwrap_or_else(|e| bad(None, &e)) }
             "--allow-wallet-sign" => wallet_sign = true,
+            "--allow-unlisted" => allow_unlisted = true,
             "--timeout" => timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=300).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..300")),
             "--user" | "--password" | "--pass" | "--auth" | "--token" | "--header" | "-H" | "-u" | "--bearer" | "--cookie" =>
                 fail(None, "refused", json!({"code":"credential_on_command_line","detail":"use --auth-file FILE or --auth-env NAME"})),
@@ -336,7 +340,7 @@ fn main() {
     let (headers, secrets) = match &auth { Some(a) => parse_auth(a).unwrap_or_else(|e| bad(None, e)), None => (vec![], vec![]) };
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
-    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, chain_id, chain, timeout };
+    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout };
     if pos.len() > 3 { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {

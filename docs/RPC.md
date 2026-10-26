@@ -218,6 +218,7 @@ The agent must never see keys, seeds or passwords. Every refusal exits 1 (status
 | `wallet_sign_undecodable` | the flagged request cannot be decoded completely into a summary |
 | `wallet_sign_chain_mismatch` | the flagged request's chain id differs from the endpoint's `eth_chainId` (or from `--chain-id`) |
 | `wallet_sign_chain_unknown` | the flagged request has no chain id and none was given with `--chain-id` |
+| `method_not_allowlisted` | the method or REST path is not in the protocol's read allowlist (below) and `--allow-unlisted` was not given |
 | `method_denied_by_policy` | the method is in the `--policy` file's `rpc.deny` list |
 | `request_contains_secret_field` | the params contain a field named privateKey, password, mnemonic, seed, wif, xprv, ... |
 | `broadcast_needs_sendraw` | a raw broadcast (`eth_sendRawTransaction`, `sendrawtransaction`, POST `/tx`, Tron broadcast, ...) outside `sendraw` |
@@ -232,6 +233,27 @@ The agent must never see keys, seeds or passwords. Every refusal exits 1 (status
 Other statuses on stderr: `rpc_error` (the server returned a JSON-RPC error, exit 1), `http_error` (non-2xx, a non-JSON
 reply, a redirect, a timeout or an oversized response, exit 1), `bad_input` (exit 2), and `aborted` (sendraw got no terminal
 or a wrong code, exit 1).
+
+### The read allowlist (fail closed)
+
+`ALLOW` in `tools/rpc/src/lib.rs` is the only allowlist. A call is sent only if its method (JSON-RPC) or path (REST,
+leading `/` and query string ignored, case ignored) is a row for the endpoint's protocol; when the protocol is not
+detected, a row of any protocol counts. `…` marks a prefix row. Anything else is refused with `method_not_allowlisted`
+and nothing is sent, unless `--allow-unlisted` is given. `--allow-unlisted` never opens a deny-list row, a secret-field
+request or a broadcast: broadcasts still go only through `sendraw`. The lib test `allow_table_documented` fails if a row
+is missing below, and the CLI test `unlisted_methods_send_zero_bytes` sends unlisted and made-up wallet-style methods
+(EVM, bitcoind, Solana, Tron, Cosmos, Esplora, and a mixed batch) to a recording mock node and asserts it received
+zero connections.
+
+| protocol | allowed reads |
+|---|---|
+| evm | `eth_blocknumber`, `eth_chainid`, `eth_getbalance`, `eth_gettransactioncount`, `eth_getcode`, `eth_getstorageat`, `eth_call`, `eth_estimategas`, `eth_gasprice`, `eth_maxpriorityfeepergas`, `eth_feehistory`, `eth_blobbaseprice`, `eth_getblockbynumber`, `eth_getblockbyhash`, `eth_getblockreceipts`, `eth_getblocktransactioncountbynumber`, `eth_getblocktransactioncountbyhash`, `eth_gettransactionbyhash`, `eth_gettransactionreceipt`, `eth_gettransactionbyblocknumberandindex`, `eth_gettransactionbyblockhashandindex`, `eth_getlogs`, `eth_getproof`, `eth_syncing`, `eth_protocolversion`, `eth_createaccesslist`, `net_version`, `net_listening`, `net_peercount`, `web3_clientversion`, `web3_sha3` |
+| btc | `getblockchaininfo`, `getblockcount`, `getbestblockhash`, `getblockhash`, `getblock`, `getblockheader`, `getblockstats`, `getchaintips`, `getdifficulty`, `getrawtransaction`, `decoderawtransaction`, `decodescript`, `decodepsbt`, `gettxout`, `gettxoutsetinfo`, `gettxoutproof`, `scantxoutset`, `getmempoolinfo`, `getrawmempool`, `getmempoolentry`, `testmempoolaccept`, `estimatesmartfee`, `getnetworkinfo`, `getconnectioncount`, `getindexinfo`, `validateaddress`, `getdescriptorinfo`, `uptime` |
+| sol | `getaccountinfo`, `getbalance`, `getblock`, `getblockheight`, `getblocktime`, `getepochinfo`, `getfeeformessage`, `getgenesishash`, `gethealth`, `getlatestblockhash`, `getminimumbalanceforrentexemption`, `getmultipleaccounts`, `getprogramaccounts`, `getrecentprioritizationfees`, `getsignaturestatuses`, `getsignaturesforaddress`, `getslot`, `gettokenaccountbalance`, `gettokenaccountsbyowner`, `gettransaction`, `getversion`, `isblockhashvalid`, `simulatetransaction` |
+| tron | `wallet/getnowblock`, `wallet/getblockbynum`, `wallet/getblockbyid`, `wallet/getaccount`, `wallet/getaccountresource`, `wallet/gettransactionbyid`, `wallet/gettransactioninfobyid`, `wallet/triggerconstantcontract`, `wallet/getchainparameters`, `wallet/getnodeinfo`, `wallet/validateaddress`, `walletsolidity/getaccount`, `walletsolidity/gettransactioninfobyid` |
+| cosmos | `cosmos/base/tendermint/v1beta1/`…, `cosmos/bank/v1beta1/`…, `cosmos/auth/v1beta1/accounts/`…, `cosmos/staking/v1beta1/`…, `cosmos/distribution/v1beta1/`…, `cosmos/tx/v1beta1/txs/`…, `cosmos/tx/v1beta1/txs`, `cosmos/tx/v1beta1/simulate`, `cosmos/gov/v1beta1/`…, `cosmos/gov/v1/`… |
+| esplora | `blocks/`…, `block/`…, `block-height/`…, `tx/`…, `address/`…, `scripthash/`…, `fee-estimates`, `mempool`… |
+| blockbook | `api/v2`, `api/v2/tx/`…, `api/v2/tx-specific/`…, `api/v2/address/`…, `api/v2/xpub/`…, `api/v2/utxo/`…, `api/v2/block/`…, `api/v2/block-index/`…, `api/v2/estimatefee/`… |
 
 ### The deny-list (single source of truth)
 

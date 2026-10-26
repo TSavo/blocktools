@@ -53,7 +53,7 @@ fn passthrough_sends_exact_bytes_and_prints_raw_response() {
 #[test]
 fn batch_with_one_error_exits_nonzero() {
     let (url, _) = mock(vec![(200, r#"[{"id":1,"result":"0x1"},{"id":2,"error":{"code":-32601,"message":"nope"}}]"#.into())]);
-    let (c, out, err) = run(&[&url], r#"[{"jsonrpc":"2.0","id":1,"method":"eth_chainId"},{"jsonrpc":"2.0","id":2,"method":"eth_x"}]"#);
+    let (c, out, err) = run(&["--allow-unlisted", &url], r#"[{"jsonrpc":"2.0","id":1,"method":"eth_chainId"},{"jsonrpc":"2.0","id":2,"method":"eth_x"}]"#);
     assert_eq!(c, 1); assert!(out.contains("0x1")); assert!(err.contains("rpc_error") && err.contains("nope"));
 }
 #[test]
@@ -175,7 +175,7 @@ fn redirect_not_followed_and_size_capped() {
 fn response_with_private_key_withheld() {
     // public test vector: WIF of private key 1 (throwaway)
     let (url, _) = mock(vec![(200, r#"{"id":1,"result":{"privkey":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}}"#.into())]);
-    let (c, out, err) = run(&["--protocol", "btc", &url, "getwalletinfo"], ""); assert_eq!(c, 1); assert!(out.is_empty()); assert!(err.contains("response_contains_secret"));
+    let (c, out, err) = run(&["--allow-unlisted", "--protocol", "btc", &url, "getwalletinfo"], ""); assert_eq!(c, 1); assert!(out.is_empty()); assert!(err.contains("response_contains_secret"));
     assert!(!err.contains("KwDiBf89"));
 }
 #[test]
@@ -204,4 +204,46 @@ fn detection_and_chain_id_pin() {
     // shortcut probe: eth_chainId answers -> evm
     let (url, _) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0x10"}"#.into())]);
     let (c, out, err) = run(&[&url, "height"], ""); assert_eq!(c, 0, "{err}"); assert!(out.contains(r#""height":16"#) && out.contains("evm"));
+}
+
+/// Fail closed: every unlisted method (made-up wallet-ish names included) is refused with zero bytes sent.
+#[test]
+fn unlisted_methods_send_zero_bytes() {
+    let cases: &[(&[&str], &str)] = &[
+        (&["--protocol", "evm"], "eth_exportWalletKeys"), (&["--protocol", "evm"], "wallet_getSeed"), (&["--protocol", "evm"], "eth_accounts"),
+        (&["--protocol", "evm"], "debug_traceTransaction"), (&["--protocol", "evm"], "admin_addPeer"), (&["--protocol", "evm"], "miner_setEtherbase"),
+        (&["--protocol", "btc"], "getwalletinfo"), (&["--protocol", "btc"], "listunspent"), (&["--protocol", "btc"], "getnewaddress"),
+        (&["--protocol", "btc"], "dumpallkeysnow"), (&["--protocol", "btc"], "exportseedphrase"), (&["--protocol", "btc"], "stop"),
+        (&["--protocol", "sol"], "getWalletSecret"), (&["--protocol", "sol"], "requestAirdrop"), (&["--protocol", "evm"], "getblockcount"),
+        (&[], "totallyMadeUpKeyDump"), (&[], "xmr_exportspendkey"),
+    ];
+    for (flags, m) in cases {
+        let (url, log) = mock(vec![]);
+        let mut a: Vec<&str> = flags.to_vec(); a.push(&url); a.push(m);
+        let (c, out, err) = run(&a, "");
+        assert_eq!(c, 1, "{m}: {err}"); assert!(out.is_empty(), "{m}");
+        assert!(err.contains("method_not_allowlisted") || err.contains("refused"), "{m}: {err}");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        assert!(log.lock().unwrap().is_empty(), "{m}: bytes were sent");
+    }
+    // REST paths and a batch with one unlisted call: nothing sent
+    for (flags, path, b) in [(&["--protocol", "tron"][..], "/wallet/getprivatekeyfoo", Some("{}")), (&["--protocol", "cosmos"], "/cosmos/keyring/v1/export", None), (&["--protocol", "esplora"], "/admin/dump", None)] {
+        let (url, log) = mock(vec![]);
+        let mut a: Vec<&str> = flags.to_vec(); a.push(&url); a.push(path); if let Some(b) = b { a.push(b) }
+        let (c, _, err) = run(&a, ""); assert_eq!(c, 1, "{path}"); assert!(err.contains("method_not_allowlisted"), "{path}: {err}");
+        std::thread::sleep(std::time::Duration::from_millis(20)); assert!(log.lock().unwrap().is_empty(), "{path}");
+    }
+    let (url, log) = mock(vec![]);
+    let (c, _, err) = run(&["--protocol", "evm", &url], r#"[{"jsonrpc":"2.0","id":1,"method":"eth_chainId"},{"jsonrpc":"2.0","id":2,"method":"eth_coinbase"}]"#);
+    assert_eq!(c, 1); assert!(err.contains("method_not_allowlisted")); std::thread::sleep(std::time::Duration::from_millis(20)); assert!(log.lock().unwrap().is_empty());
+}
+/// The opt-in sends an unlisted read; deny-list rows stay refused with it.
+#[test]
+fn allow_unlisted_opt_in() {
+    let (url, log) = mock(vec![(200, r#"{"jsonrpc":"2.0","id":1,"result":[]}"#.into())]);
+    let (c, _, _) = run(&["--allow-unlisted", "--protocol", "evm", &url, "eth_accounts"], ""); assert_eq!(c, 0); assert_eq!(log.lock().unwrap().len(), 1);
+    let (url, log) = mock(vec![]);
+    let (c, _, err) = run(&["--allow-unlisted", "--protocol", "btc", &url, "dumpprivkey", "[\"x\"]"], ""); assert_eq!(c, 1); assert!(err.contains("method_exports_secrets"));
+    std::thread::sleep(std::time::Duration::from_millis(20)); assert!(log.lock().unwrap().is_empty());
+    let (c, _, err) = run(&["--allow-unlisted", "--protocol", "evm", &url, "eth_sendRawTransaction", "[\"0x00\"]"], ""); assert_eq!(c, 1); assert!(err.contains("broadcast_needs_sendraw"));
 }

@@ -88,6 +88,64 @@ pub const DENY: &[Deny] = &[
     d("keys", true, EXPORTS, "cosmos lcd (legacy)"),
 ];
 
+/// One read-allowlist row: `pat` (lowercased, leading '/' stripped) is a method or REST path a read may use.
+/// `prefix`: matches any method/path starting with it. Fail closed: a call not listed here (and not a
+/// flag-opened wallet-sign row) is refused with `method_not_allowlisted` unless `--allow-unlisted` is given.
+pub struct Allow { pub proto: Proto, pub pat: &'static str, pub prefix: bool }
+const fn a(proto: Proto, pat: &'static str) -> Allow { Allow { proto, pat, prefix: false } }
+const fn ap(proto: Proto, pat: &'static str) -> Allow { Allow { proto, pat, prefix: true } }
+/// THE read allowlist (docs/RPC.md "The read allowlist" is checked against it by `allow_table_documented`).
+pub const ALLOW: &[Allow] = &[
+    // EVM (eth_/net_/web3_ reads)
+    a(Proto::Evm, "eth_blocknumber"), a(Proto::Evm, "eth_chainid"), a(Proto::Evm, "eth_getbalance"), a(Proto::Evm, "eth_gettransactioncount"),
+    a(Proto::Evm, "eth_getcode"), a(Proto::Evm, "eth_getstorageat"), a(Proto::Evm, "eth_call"), a(Proto::Evm, "eth_estimategas"),
+    a(Proto::Evm, "eth_gasprice"), a(Proto::Evm, "eth_maxpriorityfeepergas"), a(Proto::Evm, "eth_feehistory"), a(Proto::Evm, "eth_blobbaseprice"),
+    a(Proto::Evm, "eth_getblockbynumber"), a(Proto::Evm, "eth_getblockbyhash"), a(Proto::Evm, "eth_getblockreceipts"),
+    a(Proto::Evm, "eth_getblocktransactioncountbynumber"), a(Proto::Evm, "eth_getblocktransactioncountbyhash"),
+    a(Proto::Evm, "eth_gettransactionbyhash"), a(Proto::Evm, "eth_gettransactionreceipt"), a(Proto::Evm, "eth_gettransactionbyblocknumberandindex"),
+    a(Proto::Evm, "eth_gettransactionbyblockhashandindex"), a(Proto::Evm, "eth_getlogs"), a(Proto::Evm, "eth_getproof"), a(Proto::Evm, "eth_syncing"),
+    a(Proto::Evm, "eth_protocolversion"), a(Proto::Evm, "eth_createaccesslist"), a(Proto::Evm, "net_version"), a(Proto::Evm, "net_listening"),
+    a(Proto::Evm, "net_peercount"), a(Proto::Evm, "web3_clientversion"), a(Proto::Evm, "web3_sha3"),
+    // Bitcoin Core-style (bitcoind and forks): chain, mempool, utxo and fee reads; no wallet RPCs
+    a(Proto::Btc, "getblockchaininfo"), a(Proto::Btc, "getblockcount"), a(Proto::Btc, "getbestblockhash"), a(Proto::Btc, "getblockhash"),
+    a(Proto::Btc, "getblock"), a(Proto::Btc, "getblockheader"), a(Proto::Btc, "getblockstats"), a(Proto::Btc, "getchaintips"),
+    a(Proto::Btc, "getdifficulty"), a(Proto::Btc, "getrawtransaction"), a(Proto::Btc, "decoderawtransaction"), a(Proto::Btc, "decodescript"),
+    a(Proto::Btc, "decodepsbt"), a(Proto::Btc, "gettxout"), a(Proto::Btc, "gettxoutsetinfo"), a(Proto::Btc, "gettxoutproof"),
+    a(Proto::Btc, "scantxoutset"), a(Proto::Btc, "getmempoolinfo"), a(Proto::Btc, "getrawmempool"), a(Proto::Btc, "getmempoolentry"),
+    a(Proto::Btc, "testmempoolaccept"), a(Proto::Btc, "estimatesmartfee"), a(Proto::Btc, "getnetworkinfo"), a(Proto::Btc, "getconnectioncount"),
+    a(Proto::Btc, "getindexinfo"), a(Proto::Btc, "validateaddress"), a(Proto::Btc, "getdescriptorinfo"), a(Proto::Btc, "uptime"),
+    // Solana
+    a(Proto::Sol, "getaccountinfo"), a(Proto::Sol, "getbalance"), a(Proto::Sol, "getblock"), a(Proto::Sol, "getblockheight"),
+    a(Proto::Sol, "getblocktime"), a(Proto::Sol, "getepochinfo"), a(Proto::Sol, "getfeeformessage"), a(Proto::Sol, "getgenesishash"),
+    a(Proto::Sol, "gethealth"), a(Proto::Sol, "getlatestblockhash"), a(Proto::Sol, "getminimumbalanceforrentexemption"),
+    a(Proto::Sol, "getmultipleaccounts"), a(Proto::Sol, "getprogramaccounts"), a(Proto::Sol, "getrecentprioritizationfees"),
+    a(Proto::Sol, "getsignaturestatuses"), a(Proto::Sol, "getsignaturesforaddress"), a(Proto::Sol, "getslot"),
+    a(Proto::Sol, "gettokenaccountbalance"), a(Proto::Sol, "gettokenaccountsbyowner"), a(Proto::Sol, "gettransaction"),
+    a(Proto::Sol, "getversion"), a(Proto::Sol, "isblockhashvalid"), a(Proto::Sol, "simulatetransaction"),
+    // Tron HTTP API reads
+    a(Proto::Tron, "wallet/getnowblock"), a(Proto::Tron, "wallet/getblockbynum"), a(Proto::Tron, "wallet/getblockbyid"), a(Proto::Tron, "wallet/getaccount"),
+    a(Proto::Tron, "wallet/getaccountresource"), a(Proto::Tron, "wallet/gettransactionbyid"), a(Proto::Tron, "wallet/gettransactioninfobyid"),
+    a(Proto::Tron, "wallet/triggerconstantcontract"), a(Proto::Tron, "wallet/getchainparameters"), a(Proto::Tron, "wallet/getnodeinfo"),
+    a(Proto::Tron, "wallet/validateaddress"), a(Proto::Tron, "walletsolidity/getaccount"), a(Proto::Tron, "walletsolidity/gettransactioninfobyid"),
+    // Cosmos REST / LCD query routes
+    ap(Proto::Cosmos, "cosmos/base/tendermint/v1beta1/"), ap(Proto::Cosmos, "cosmos/bank/v1beta1/"), ap(Proto::Cosmos, "cosmos/auth/v1beta1/accounts/"),
+    ap(Proto::Cosmos, "cosmos/staking/v1beta1/"), ap(Proto::Cosmos, "cosmos/distribution/v1beta1/"), ap(Proto::Cosmos, "cosmos/tx/v1beta1/txs/"),
+    a(Proto::Cosmos, "cosmos/tx/v1beta1/txs"), a(Proto::Cosmos, "cosmos/tx/v1beta1/simulate"), ap(Proto::Cosmos, "cosmos/gov/v1beta1/"), ap(Proto::Cosmos, "cosmos/gov/v1/"),
+    // Esplora
+    ap(Proto::Esplora, "blocks/"), ap(Proto::Esplora, "block/"), ap(Proto::Esplora, "block-height/"), ap(Proto::Esplora, "tx/"),
+    ap(Proto::Esplora, "address/"), ap(Proto::Esplora, "scripthash/"), a(Proto::Esplora, "fee-estimates"), ap(Proto::Esplora, "mempool"),
+    // Blockbook
+    a(Proto::Blockbook, "api/v2"), ap(Proto::Blockbook, "api/v2/tx/"), ap(Proto::Blockbook, "api/v2/tx-specific/"), ap(Proto::Blockbook, "api/v2/address/"),
+    ap(Proto::Blockbook, "api/v2/xpub/"), ap(Proto::Blockbook, "api/v2/utxo/"), ap(Proto::Blockbook, "api/v2/block/"), ap(Proto::Blockbook, "api/v2/block-index/"),
+    ap(Proto::Blockbook, "api/v2/estimatefee/"),
+];
+/// Row that lists this call. `proto` None (not detected): any protocol's row counts. Query strings are ignored (norm).
+pub fn allow_row(proto: Option<Proto>, m: &str) -> Option<&'static Allow> {
+    let n = norm(m);
+    ALLOW.iter().find(|r| proto.map_or(true, |p| p == r.proto) && if r.prefix { n.starts_with(r.pat) } else { n == r.pat })
+}
+pub const NOT_LISTED: &str = "method_not_allowlisted";
+
 /// Request fields whose presence means a secret is being sent (any depth, case-insensitive key match).
 pub const SECRET_FIELDS: &[&str] = &["privatekey", "private_key", "privkey", "privkeys", "passphrase", "password", "mnemonic", "seed", "secret", "secretkey", "secret_key", "wif", "xprv", "spendingkey", "ask", "nsk", "esk"];
 
@@ -120,6 +178,10 @@ pub enum Pass { Plain, WalletSign }
 /// Check one call. `extra` = refusals added by the policy file (exact, or prefix ending in '*').
 /// `rest_post`: method is a REST path sent as POST (esplora POST /tx is a broadcast, GET /tx/ID is a read).
 pub fn check_call(method: &str, params: &Value, extra: &[String], allow_wallet_sign: bool, rest_post: bool) -> Result<Pass, Refusal> {
+    check_call_in(None, true, method, params, extra, allow_wallet_sign, rest_post)
+}
+/// The full check: `proto` the endpoint protocol (None = undetected), `allow_unlisted` the `--allow-unlisted` opt-in.
+pub fn check_call_in(proto: Option<Proto>, allow_unlisted: bool, method: &str, params: &Value, extra: &[String], allow_wallet_sign: bool, rest_post: bool) -> Result<Pass, Refusal> {
     let n = norm(method);
     if n.is_empty() { return Err(refuse("bad_input", "empty method")) }
     for p in extra {
@@ -143,7 +205,12 @@ pub fn check_call(method: &str, params: &Value, extra: &[String], allow_wallet_s
     if sendtx || (BROADCAST_METHODS.contains(&n.as_str()) && (if rest_only { rest_post } else { !method.contains('/') })) {
         return Err(refuse("broadcast_needs_sendraw", format!("{method}: use `rpc URL sendraw` (decodes the tx and asks for a code on the terminal)")))
     }
-    Ok(if deny_row(method).is_some_and(|r| r.flag) { Pass::WalletSign } else { Pass::Plain })
+    if deny_row(method).is_some_and(|r| r.flag) { return Ok(Pass::WalletSign) }
+    if !allow_unlisted && allow_row(proto, method).is_none() {
+        let on = proto.map_or("any protocol".to_string(), |p| p.name().to_string());
+        return Err(refuse(NOT_LISTED, format!("{method}: not in the {on} read allowlist (docs/RPC.md); --allow-unlisted sends it anyway")))
+    }
+    Ok(Pass::Plain)
 }
 
 fn hexq(v: &Value) -> Option<u128> {
@@ -352,5 +419,29 @@ mod doc_tests {
     fn deny_table_documented() {
         let doc = include_str!("../../../docs/RPC.md");
         for d in super::DENY { assert!(doc.contains(&format!("| `{}` |", d.pat)), "docs/RPC.md deny table lacks {}", d.pat); assert!(doc.contains(d.code), "{}", d.code) }
+    }
+}
+#[cfg(test)]
+mod allow_tests {
+    use super::*;
+    #[test]
+    fn allow_table_documented() {
+        let doc = include_str!("../../../docs/RPC.md");
+        for r in ALLOW { let cell = format!("`{}`{}", r.pat, if r.prefix { "…" } else { "" }); assert!(doc.contains(&cell), "docs/RPC.md allowlist lacks {cell}") }
+        assert!(doc.contains(NOT_LISTED));
+    }
+    #[test]
+    fn allowlist_and_denylist_disjoint() {
+        for r in ALLOW { if !r.prefix { assert!(deny_row(r.pat).is_none(), "{} is allowed and denied", r.pat); assert!(!BROADCAST_METHODS.contains(&r.pat) || r.pat.contains('/'), "{}", r.pat) } }
+    }
+    #[test]
+    fn fail_closed_by_protocol() {
+        let c = |p, m: &str| check_call_in(Some(p), false, m, &Value::Null, &[], false, false).err().map(|r| r.code);
+        assert_eq!(c(Proto::Evm, "eth_getBalance"), None);
+        assert_eq!(c(Proto::Evm, "getblockcount"), Some(NOT_LISTED));
+        assert_eq!(c(Proto::Btc, "getwalletinfo"), Some(NOT_LISTED));
+        assert_eq!(c(Proto::Cosmos, "/cosmos/bank/v1beta1/balances/x?y=1"), None);
+        assert_eq!(c(Proto::Esplora, "/tx/ab"), None);
+        assert_eq!(c(Proto::Btc, "dumpprivkey"), Some(EXPORTS));
     }
 }
