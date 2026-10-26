@@ -23,7 +23,7 @@ The key is trusted only for this one source (`signed-by=`); `apt-key` is not use
 ## Which systems
 
 The repository serves `blocktools 0.1.0-1`, built from the v0.1.0 release binaries, which link glibc.
-The package declares `Depends: libc6 (>= 2.34)`. 40 of its 41 tools need glibc 2.34; `sealed-run`
+The package declares `Depends: libc6 (>= 2.34)`. Most of its tools need glibc 2.34; `sealed-run`
 needs glibc 2.39. Measured in containers (see Tests):
 
 | image | glibc | apt update/install | `--help` exit 0 |
@@ -68,7 +68,7 @@ throwaway GPG keys, and checks: the signed repo verifies against its keyring and
 refuses when the AppRole policy does not cover the path, and when the Vault key is not the committed
 one; no PGP private-key block in output; nothing left on `/dev/shm`; and in a `debian:12` container,
 `apt update` + `apt install` succeed with `signed-by`, `apt update` fails with a different key, and
-fails with a tampered `Packages`. Measured on the build host (x86_64) at 9ff933a: all 10 checks ok.
+fails with a tampered `Packages`. Measured on the build host (x86_64) at 9ff933a: every check ok.
 
 With the real key, served from a local HTTP server, in debian:12, ubuntu:22.04 and ubuntu:24.04:
 `apt update` with the right key ok; with a different key it fails (`NO_PUBKEY 607A66058B6C256E`); with
