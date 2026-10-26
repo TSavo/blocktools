@@ -14,8 +14,8 @@ grep -q '"chain_id":"osmosis-1"' "$X/u.json" || { echo "FAIL twc-cosmos chain_id
 python3 scripts/e2e-only/tty-drive.py right "$X/osmo.key" "$X/s.json" "$(cd "$B" && pwd)/acct-tx" sign --chain atom --tx "$X/u.json" --expect-to $OT > "$X/t" 2>&1
 grep -q '"signed":"Co0BCooBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmoKK29zbW8xbWt5Njljbjhla3R3eTA4NDV2ZWM5dXBzZHBoa3R4dDBlbjk3ZjUSK29zbW8xOHMwaGRuc2xsZ2NjbHdldTlheW13NG5na3RyMmswcmt2bjdqbW4aDgoFdW9zbW8SBTk5ODAwEmQKTgpGCh8vY29zbW9zLmNyeXB0by5zZWNwMjU2azEuUHViS2V5EiMKIQLs71zkN6MCxn+VRo3ksx826RH0Z9fmpStBweE+HVY2SRIECgIIARISCgwKBXVvc21vEgMyMDAQwJoMGkAMY//Md5GRUR4lVZhk558hFS3kii9QZYoYKfg4+ac/xgNeyoiEweVDhcmEvlH1orVwjLUOnYs4ly2a/yIurYVj"' "$X/s.json" || { echo "FAIL twc-cosmos signed != TWC tx_bytes"; cat "$X/t"; exit 1; }
 "$B/acct-tx" decode --chain atom < "$X/s.json" | grep -q '"signature_valid":true' || { echo "FAIL twc-cosmos decode"; exit 1; }
-"$B/acct-tx" keys --chain atom --hrp evmos < "$X/osmo.key" | grep -q cosmos_hrp_without_vector || { echo "FAIL twc-cosmos evmos not refused"; exit 1; }
-"$B/acct-tx" build --chain atom --from evmos1mky69cn8ektwy0845vec9upsdphktxt0x0x0x0 --pubkey "$PK" --to $OT --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1 | grep -q cosmos_hrp_without_vector || { echo "FAIL twc-cosmos evmos build not refused"; exit 1; }
+"$B/acct-tx" keys --chain atom --hrp canto < "$X/osmo.key" | grep -q cosmos_hrp_without_vector || { echo "FAIL twc-cosmos canto not refused"; exit 1; }
+"$B/acct-tx" build --chain atom --from canto1mky69cn8ektwy0845vec9upsdphktxt0x0x0x0 --pubkey "$PK" --to $OT --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1 | grep -q cosmos_hrp_without_vector || { echo "FAIL twc-cosmos canto build not refused"; exit 1; }
 CA=$("$B/acct-tx" keys --chain atom < "$X/osmo.key" | sed 's/.*"address":"\([a-z0-9]*\)".*/\1/')
 "$B/acct-tx" build --chain atom --from $OF --pubkey "$PK" --to "$CA" --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1 | grep -q "wrong network" || { echo "FAIL twc-cosmos cross-hrp not refused"; exit 1; }
-echo "ok   twc-cosmos (osmosis vector byte-exact, hrp detect, evmos/cross-hrp refused)"
+echo "ok   twc-cosmos (osmosis vector byte-exact, hrp detect, canto/cross-hrp refused)"
