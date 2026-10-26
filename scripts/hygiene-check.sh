@@ -19,5 +19,19 @@ sw=$(git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'recipes/*.sh' | xargs grep -
 for f in $(git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 'recipes/*.sh'); do
   grep -qE '^set -eu' "$f" || { echo "FAIL $f: no 'set -eu'"; rc=1; }
 done
+
+# Portable shell: reject known GNU/BSD skew that broke Mac e2e.
+# Patterns below intentionally avoid naming the banned tokens in comments/messages so this file is self-clean.
+# wc: string-equality against a decimal (BSD pads with spaces). Prefer arithmetic or -eq/-ge.
+bad=$(git grep -nE '\[\s+"\$\(wc [^]]+\)"\s*=\s*[0-9]+' -- scripts recipes ':!scripts/hygiene-check.sh' || [ $? -eq 1 ])
+[ -z "$bad" ] || { echo "FAIL BSD-unsafe wc string compare (use arithmetic \$((\$(wc …))) or -eq):"; echo "$bad"; rc=1; }
+# in-place sed without backup ext (BSD needs an empty ext arg or a .bak suffix).
+bad=$(git grep -nE '(^|[^[:alnum:]_-])sed[[:space:]]+-i[[:space:]]+[^[:space:]'\''"]' -- scripts recipes ':!scripts/hygiene-check.sh' || [ $? -eq 1 ])
+[ -z "$bad" ] || { echo "FAIL GNU-only in-place sed (use a .bak suffix or a temp file):"; echo "$bad"; rc=1; }
+bad=$(git grep -nE 'readlink[[:space:]]+-f[[:space:]]' -- scripts recipes ':!scripts/hygiene-check.sh' || [ $? -eq 1 ])
+[ -z "$bad" ] || { echo "FAIL GNU-only readlink -f:"; echo "$bad"; rc=1; }
+# bare GNU stat format without a BSD fallback on the same line (e2e-only/portable.sh is exempt).
+bad=$(git grep -nE 'stat[[:space:]]+-c' -- scripts recipes ':!scripts/hygiene-check.sh' | grep -vE 'stat -f|allow-bsd:|portable\.sh' || [ $? -eq 1 ])
+[ -z "$bad" ] || { echo "FAIL GNU-only stat -c (pair with stat -f or # allow-bsd:):"; echo "$bad"; rc=1; }
 [ $rc = 0 ] && echo "hygiene ok"
 exit $rc

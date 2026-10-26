@@ -19,7 +19,7 @@ while p < len(d):
     pub = d[p + 20 + 144:p + 20 + 209]; p += 20 + 237
     print(b58c(b'\0' + hashlib.new('ripemd160', hashlib.sha256(pub).digest()).digest()))
 PY
-[ "$(wc -l < $T/arm.want)" = 100 ] || f "armory want count"
+[ "$(( $(wc -l < $T/arm.want) ))" = 100 ] || f "armory want count"
 { echo btcr-test-password; cat $F/armory-wallet.wallet; } | $B/armory-read | $B/key-to-addresses --chain btc > $T/arm.got 2>/dev/null || f "armory read"
 n=0; while read -r a; do grep -q "\"$a\"" $T/arm.got && n=$((n+1)); done < $T/arm.want
 [ $n = 100 ] || f "armory: $n/100 stored addresses hit"
