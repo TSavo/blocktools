@@ -2,11 +2,11 @@
 //! Balance / sequence / rounds come from the host-side `utxo-fetch --chain xlm|algo ADDR` (this tool has no network).
 //! acct-tx build   --chain xlm  --from G.. --to G.. (--amount STROOPS | --sweep) --fee STROOPS --seq N [--memo-id N|--memo-text T] [--max-time UNIX] [--testnet]
 //! acct-tx build   --chain algo --from A.. --to A.. (--amount MICROALGO | --sweep) --fee MICROALGO --first-round N [--last-round N] [--note T]
-//! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra|cro] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
+//! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra|cro|inj|zeta] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
 //!   --chain atom covers Cosmos SDK MsgSend (SIGN_MODE_DIRECT, secp256k1) on the chains with a Trust Wallet Core vector:
-//!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2, cro=Crypto.org),
+//!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2, cro=Crypto.org, inj=Injective, zeta=ZetaChain; inj/zeta use ethsecp256k1 + keccak256),
 //!   which sets the base denom and default --chain-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
-//!   ethsecp256k1 chains (Injective, Evmos), CosmWasm, IBC and every non-MsgSend message.
+//!   Evmos and Canto (no TWC signer vector), CosmWasm, IBC and every non-MsgSend message.
 //! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
 //!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
 //! acct-tx build   --chain ton  --from UQ.. --to EQ..|UQ.. (--amount NANOTON | --sweep) --seqno N --valid-until UNIX [--comment T]
@@ -82,8 +82,8 @@ fn atom_describe(t: &atom::Send, sig: Option<&[u8; 64]>) -> Value {
     if t.denom != c.3 { w.push("denom_not_chain_base_denom") }
     if t.chain_id != c.2 { w.push("chain_id_not_mainnet: chain_id differs from the detected chain's mainnet") }
     let raw = sig.map(|s| t.tx_raw(s));
-    json!({"chain":"atom","cosmos_chain":c.1,"hrp":c.0,"expected_chain_id":c.2,"type":"MsgSend","from":t.from,"to":t.to,"denom":t.denom,"amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 6),
-        "fee_base":t.fee.to_string(),"fee_str":fmt_units(t.fee, 6),"gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,"memo":t.memo,
+    json!({"chain":"atom","cosmos_chain":c.1,"hrp":c.0,"expected_chain_id":c.2,"type":"MsgSend","from":t.from,"to":t.to,"denom":t.denom,"amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, c.4),
+        "fee_base":t.fee.to_string(),"fee_str":fmt_units(t.fee, c.4),"gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,"memo":t.memo,
         "network":t.chain_id,"signed":sig.is_some(),"signature_valid":sig.map(|s| t.verify(s)),"txid":raw.map(|r| atom::Send::txid(&r)),"warnings":w})
 }
 fn hex32(s: &str) -> Zeroizing<[u8; 32]> {
