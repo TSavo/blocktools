@@ -34,10 +34,11 @@ stage() {
   e2e)
     step cargo build -q --locked --release --workspace
     step sh scripts/fetch-fixtures.sh
-    step bash scripts/e2e-local.sh
+    # wasm-check first: it builds bindings/wasm/pkg, which recipes/paths (e2e.d/paths.sh) call.
     if [ "$(uname -s)" = Darwin ]; then  # Apple clang has no wasm32 target (secp256k1-sys C build)
       echo "skip wasm-check on macOS: wasm is verified by the Linux gate only (untested on macOS)"
-    else step sh scripts/wasm-check.sh; fi;;
+    else step sh scripts/wasm-check.sh; fi
+    step bash scripts/e2e-local.sh;;
   *) echo "gate: unknown stage '$1' (stages: $STAGES)" >&2; exit 2;;
   esac
   echo "gate stage $1 ok"
