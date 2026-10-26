@@ -66,8 +66,13 @@ check as JSON lines; any other line is dropped. The last line is the boundary's 
 
 A BIP39 passphrase is typed with `seed-to-master --passphrase-prompt` (built: it reads `/dev/tty`, not echoed, empty = none; checked on a pty 2026-10-26). It cannot be combined with `--passphrase-file` or a stdin passphrase.
 
+## Electrum 1.x old seed
+`seed-to-master` prints such a seed as `"scheme":"electrum-old"` (hex seed, no xprv); `derive` walks the non-BIP32
+keys `m/{change}/{i}` (change 0 and 1), uncompressed p2pkh, btc only. `--preset electrum-old` names the same plan and
+refuses an xprv line (`unsupported`). See input-electrum.md.
+
 ## Planned (not built yet)
-* `--preset electrum-old`, TON addresses from `derive` (`derive --chain ton` gives `no_candidates`).
+* TON addresses from `derive` (`derive --chain ton` gives `no_candidates`).
 
 
 ## Tested examples

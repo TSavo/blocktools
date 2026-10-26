@@ -56,29 +56,8 @@ pub fn py_to_json(s: &str) -> Option<String> {
     Some(o)
 }
 
-/// Electrum 1.x "old" keys: (WIF uncompressed, P2PKH address) for change 0/1, index 0..count.
-pub fn old_keys(seed_hex: &str, mpk_check: Option<&str>, count: u32) -> Result<Vec<(Zeroizing<String>, String, String)>, &'static str> {
-    use bitcoin::hashes::sha256;
-    use bitcoin::secp256k1::{Scalar, Secp256k1, SecretKey};
-    let seed = seed_hex.as_bytes();
-    let mut x = Zeroizing::new(seed.to_vec());
-    for _ in 0..100_000 { let mut m = Zeroizing::new(x.to_vec()); m.extend_from_slice(seed); *x = sha256::Hash::hash(&m).to_byte_array().to_vec(); }
-    let secp = Secp256k1::new();
-    let master = SecretKey::from_slice(&x).map_err(|_| "bad_seed")?;
-    let mpk = bitcoin::secp256k1::PublicKey::from_secret_key(&secp, &master).serialize_uncompressed();
-    let mpk_hex = blocktools_core::hex_enc(&mpk[1..]);
-    if let Some(m) = mpk_check { if !m.eq_ignore_ascii_case(&mpk_hex) { return Err("wrong_password") } }
-    let mut out = vec![];
-    for ch in 0..2u32 { for n in 0..count {
-        let mut m = format!("{n}:{ch}:").into_bytes(); m.extend_from_slice(&mpk[1..]);
-        let z = Scalar::from_be_bytes(sha256d::Hash::hash(&m).to_byte_array()).map_err(|_| "bad_tweak")?;
-        let k = master.add_tweak(&z).map_err(|_| "bad_tweak")?;
-        let pk = bitcoin::PrivateKey { compressed: false, network: bitcoin::NetworkKind::Main, inner: k };
-        let addr = bitcoin::Address::p2pkh(pk.public_key(&secp), bitcoin::Network::Bitcoin).to_string();
-        out.push((Zeroizing::new(pk.to_wif()), addr, format!("m/{ch}/{n}")));
-    } }
-    Ok(out)
-}
+/// Electrum 1.x "old" keys: see electrum_old (shared with seed-to-master / derive).
+pub use crate::electrum_old::keys as old_keys;
 
 fn dec(key: &[u8; 32], b64: &str) -> Option<Zeroizing<String>> {
     let b = Zeroizing::new(blocktools_core::b64::decode(b64)?);

@@ -1,7 +1,9 @@
 //! seed-to-master: seed phrase (+ optional passphrase) -> BIP32 master key(s).
 //! stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}, or a bare phrase line.
-//! A phrase is tried as BIP39 AND as an Electrum (2.x+) seed; every valid reading is
-//! one output line with its "scheme". If the phrase has extra words (e.g. a note
+//! A phrase is tried as BIP39, as an Electrum (2.x+) seed, and as an old Electrum 1.x seed
+//! (12/24 words from the 1626-word list, or the 32/64-hex seed itself); every valid reading is
+//! one output line with its "scheme". The old scheme has no BIP32 master: its line carries
+//! "scheme":"electrum-old" and the hex "seed", and `derive` turns it into m/{change}/{i} keys. If the phrase has extra words (e.g. a note
 //! line), the trailing 12/13/15/18/21/24 words are tried too (sliding window).
 //! --passphrase-prompt asks the human on /dev/tty with echo off (never argv/env).
 //! --passphrase-file FILE: candidate passphrases, one per line (SwapChan SCAN_JS PASSPHRASES): each
@@ -14,7 +16,7 @@ use blocktools_secrets::seed::{readings, Reading};
 use zeroize::Zeroizing;
 
 fn main() {
-    blocktools_io::help("seed-to-master [--passphrase-prompt | --passphrase-file FILE] < {\"mnemonic\":...} lines -> master keys (BIP39 and Electrum standard/segwit; 2FA and old-Electrum: unsupported, planned)\n  --passphrase-file FILE  one candidate passphrase per line; tried after the empty one; outputs carry passphrase_index");
+    blocktools_io::help("seed-to-master [--passphrase-prompt | --passphrase-file FILE] < {\"mnemonic\":...} lines -> master keys (BIP39, Electrum standard/segwit, old Electrum 1.x 12-word seed as scheme electrum-old; 2FA: unsupported, planned)\n  --passphrase-file FILE  one candidate passphrase per line; tried after the empty one; outputs carry passphrase_index");
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut passphrase = Zeroizing::new(String::new());
     let bad = || -> ! { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input"}}"#); std::process::exit(2) };
@@ -43,7 +45,7 @@ fn main() {
         let line = Zeroizing::new(line);
         let t = line.trim();
         // A bare phrase line (e.g. an Electrum seed file) is read as {"mnemonic": line}.
-        let bare = !t.is_empty() && t.split_whitespace().all(|w| w.chars().all(char::is_alphabetic));
+        let bare = !t.is_empty() && t.split_whitespace().all(|w| w.chars().all(char::is_alphanumeric));
         let Ok(v) = (if bare { Ok(serde_json::json!({"mnemonic": t})) } else { serde_json::from_str::<serde_json::Value>(t) }) else { continue };
         if let Some(p) = v.get("passphrase").and_then(|m| m.as_str()) {
             if file_cands.is_some() { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"bad_input","reason":"passphrase_file_and_stdin_passphrase"}}"#); continue }
@@ -64,6 +66,10 @@ fn main() {
                 n += 1; got += 1;
             }
             // Unsupported readings do not depend on the passphrase: report once.
+            Reading::OldElectrum { seed_hex } => if pi == 0 {
+                blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"ok","candidate":{cand},"scheme":"electrum-old","seed":"{}"}}"#, seed_hex.as_str());
+                n += 1; got += 1;
+            },
             Reading::Unsupported { scheme } => if pi == 0 { blocktools_io::outln!(r#"{{"tool":"seed-to-master","status":"unsupported","candidate":{cand},"scheme":"{scheme}"}}"#) },
         } }
         }

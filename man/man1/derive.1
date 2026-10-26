@@ -40,7 +40,8 @@ Master keys: {"xprv"} lines; SLIP\-132 yprv/zprv/Yprv/Zprv (testnet uprv/vprv/Up
   \-\-help
   Passphrases are never flags: use seed\-to\-master (stdin {"passphrase":...}, \-\-passphrase\-prompt, or
   \-\-passphrase\-file FILE with one candidate per line).
-  TON and electrum\-old derivation are planned (docs/ROADMAP.md).
+  electrum\-old: a seed\-to\-master line with scheme electrum\-old (old 12\-word / hex seed) walks the
+  Electrum 1.x non\-BIP32 keys m/{change}/{i}, uncompressed p2pkh, btc only. TON derivation is planned.
 .fi
 .SH INPUT/OUTPUT
 see \-\-explain), which is then walked for each master key on stdin.

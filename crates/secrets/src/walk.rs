@@ -91,6 +91,29 @@ pub fn walk(o: &Opts, master: &Xpriv, seed: Option<&[u8]>, scheme: &str, tried: 
     Ok(())
 }
 
+/// Electrum 1.x old scheme (seed-to-master "electrum-old"): non-BIP32 keys m/{change}/{i}, uncompressed
+/// p2pkh on btc only (what Electrum 1.x served). Plain `derive` and `--preset electrum-old` walk change
+/// 0 and 1; explicit --change/--index/--count ranges apply. Rows are emitted only when btc is selected.
+pub fn walk_old(o: &Opts, seed_hex: &str, tried: &mut u64, emit: &mut dyn FnMut(&Row, &str) -> bool) -> Result<(), &'static str> {
+    let Some(btc) = o.specs.iter().map(|s| s.chain).chain(o.auto.iter().flat_map(|(cs, _)| cs.iter().copied())).find(|c| c.name == "btc") else { return Ok(()) };
+    let (sk, mpk) = crate::electrum_old::master(seed_hex).map_err(|_| "bad_input")?;
+    let changes = if o.auto.is_some() { plan::preset_ranges("electrum-old").1 } else { o.ranges.change.clone() };
+    let spec = plan::sp(btc, "p2pkh", "m/{change}/{i}", true);
+    let secp = Secp256k1::new();
+    for &ch in &changes {
+        for &i in &indices(o, &spec) {
+            *tried += 1;
+            if *tried > MAX_TRIED { return Err("too_many_candidates") }
+            let Ok(k) = crate::electrum_old::key(&sk, &mpk, ch, i) else { continue };
+            let path = format!("m/{ch}/{i}");
+            for r in chains::secp_rows(btc, &path, &k, true, &secp).into_iter().filter(|r| r.kind == "p2pkh-uncompressed") {
+                if emit(&r, "Electrum 1.x old seed") && o.stop_on_match { return Ok(()) }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Account-level key (dat-read): rows for path/branch/i. Branches default to --change plus 0 and 1.
 pub fn walk_account(o: &Opts, acct: &Xpriv, kind: &'static str, path: &str, branch: Option<u64>, emit: &mut dyn FnMut(&Row, &str) -> bool) {
     let branches: Vec<u32> = match branch { Some(b) if b < 1 << 31 => vec![b as u32], _ => o.ranges.change.clone().into_iter().chain([0, 1]).collect::<std::collections::BTreeSet<_>>().into_iter().collect() };

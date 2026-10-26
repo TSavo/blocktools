@@ -37,3 +37,4 @@ abi-inspect
 bytecode-inspect
 create-address
 typed-data-verify
+phrase-to-key

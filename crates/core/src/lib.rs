@@ -19,6 +19,7 @@ pub mod validate;
 pub mod b64;
 pub mod xpub;
 pub mod classify;
+pub mod electrum_old;
 #[cfg(feature = "secrets")]
 use std::str::FromStr;
 

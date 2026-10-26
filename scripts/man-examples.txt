@@ -20,6 +20,8 @@ derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon aband
 electrum-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 electrum-read | 1 | { echo wrong; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
 key-to-addresses | 0 | printf '%064x\n' 1 | key-to-addresses --chain btc
+phrase-to-key | 0 | echo "correct horse battery staple" | phrase-to-key | key-to-addresses --chain btc
+phrase-to-key | 2 | phrase-to-key --scheme md5 < /dev/null
 keystore-open | 2 | echo pw | keystore-open
 multibit-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/multibit-wallet.key"; } | multibit-read
 pw-candidates | 0 | echo hunter 2 | pw-candidates --max 5
@@ -32,6 +34,7 @@ rpc | 1 | rpc http://127.0.0.1:9 getblockcount
 sealed-run | 2 | sealed-run agent 'rm -rf /'
 seed-repair | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon" | seed-repair --max 2
 seed-to-master | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master
+seed-to-master | 0 | echo "powerful random nobody notice nothing important anyway look away hidden message over" | seed-to-master | derive --chain btc --count 1
 seed-to-master | 0 | printf 'TREZOR\n' > pp.txt; echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master --passphrase-file pp.txt
 seed-to-master | 2 | printf 'TREZOR\n' > pp.txt; seed-to-master --passphrase-file pp.txt --passphrase-prompt < /dev/null
 tx-broadcast | 2 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9

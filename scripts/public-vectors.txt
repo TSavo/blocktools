@@ -961,3 +961,11 @@ eeff357ea5c1a4e7bc11b2b17ff2dc2dcca69750bfef1e1ebcaccf8c8018175bb
 fe157cc8011727936c592f856c9071d39cf4acdadfa6d76435e4619c9dc56f63
 07ca30cd9d1d599342d87514b8585326a28880d62308fe9304007b62db66c09f
 5b6fd6202181557bb2bd1889943e5e8117158f665bfea3d341045603b66c3ebe
+# brainwallet.org "correct horse battery staple" key (xkcd 936; public test vector, drained 2013)
+c4bbcb1fbec99d65bf59d85c8cb62ee2db963f0fe106f483d9afa73bd4e39a8a
+# keybase/warpwallet test/spec.json vectors 1-2 (public test vectors): xor keys and vector 1 WIF
+6f2552e159f2a1e1e26c2262da459818fd56c81c363fcc70b94c423def42e59f
+da009602a5781a8795d55c6e68a4b4d52969a75955ea70255869dd17c3398592
+5JfEekYcaAexqcigtFAy4h2ZAY95vjKCvS1khAkSG8ATo1veQAD
+# electrum_old roundtrip pattern (throwaway, not a key)
+0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

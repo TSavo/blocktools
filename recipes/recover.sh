@@ -40,7 +40,7 @@ say "classified as $class"
 pw_then_file() { head -n1 "$PWF" | tr -d '\n'; echo; cat "$FILE"; }   # password line, then the wallet
 case $class in
   mnemonic)        keys() { "$B/seed-repair" < "$FILE" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
-  electrum_seed)   keys() { "$B/seed-to-master" < "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
+  electrum_seed|electrum_old_seed) keys() { "$B/seed-to-master" < "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   wallet_dat)      keys() { pw_then_file | "$B/dat-read" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   # Electrum 2+: seed -> seed-to-master -> derive. Electrum 1.x: electrum-read emits the keys itself.
   electrum_wallet|electrum_wallet_file_encrypted) keys() { local e; e=$(pw_then_file | "$B/electrum-read" --count "$COUNT")

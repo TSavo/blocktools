@@ -87,7 +87,8 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 |---|---|---|---|
 | `seed-repair` | phrase on stdin | `{status:checksum_ok, candidate, changed_words, mnemonic}` | 1 ✅ |
 `pw-candidates` expands a token list into a bounded set of password guesses (case/swap/digit/typo) for piping into the existing openers; see docs/ROADMAP-PARITY.md.
-| `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
+| `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, scheme, xprv, seed}`; old Electrum 1.x seed: `{scheme:electrum-old, seed}` (no xprv) | ✅ |
+| `phrase-to-key` | stdin phrase lines or `{phrase, salt}` | `{line, scheme, private_key}`: sha256 brainwallet (brainwallet.org, bitaddress.org) and WarpWallet (scrypt+PBKDF2); pipe into `key-to-addresses` | ✅ |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
 | `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ (unmeasured) |
 | `sealed-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
@@ -144,7 +145,7 @@ seed-version check PBKDF2(entropy, "TON seed version", 390)[0]==0, key = PBKDF2(
 seed", 100000)[..32] ed25519. Address = sha256 cell hash of the wallet v4r2 StateInit (code hash
 feb5ff68..., depth 7; data seqno 0, subwallet 698983191, pubkey, empty plugins), base64url with tag
 0x51/0x11 and CRC16-XModem. BIP39-valid phrases are never treated as TON. KAT: tonsdk-generated test phrase.
-Planned: old-Electrum (non-BIP32) derivation. (`seed-to-master --passphrase-prompt` is built: /dev/tty, echo off via blocktools-tty.)
+Old Electrum 1.x seeds (12/24 words from the 1626-word list in `blocktools-core::electrum_old`, or the 32/64-hex seed): `seed-to-master` prints `scheme electrum-old` plus the hex seed, and `derive` walks the non-BIP32 keys (secexp = sha256 stretched 100,000x, key = secexp + sha256d("i:change:" || mpk), uncompressed P2PKH, btc only; `blocktools-secrets::electrum_old`, shared with electrum-read). KAT: Electrum `test_electrum_seed_old`. Brainwallets: `phrase-to-key` (sha256 of the phrase bytes; WarpWallet scrypt N=2^18 r=8 p=1 XOR PBKDF2-HMAC-SHA256 65536, `blocktools-secrets::brain`; KATs: the xkcd phrase, keybase/warpwallet spec.json). (`seed-to-master --passphrase-prompt` is built: /dev/tty, echo off via blocktools-tty.)
 
 ## 5. Passwords and passphrases
 
