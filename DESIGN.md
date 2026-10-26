@@ -391,7 +391,7 @@ newest verified-status section.)
 ### Re-verified (2026-10-24, Battleaxe via the Mac docker context, linux/amd64, 32 CPUs, commit 38b386d)
 
 Measured: `docker --context battleaxe build` of 38b386d succeeds in about 2 min (build stage runs the dependency
-allowlist check and `cargo test`); the runtime image is 40.4 MB (was 18.2 MB before the newer chains were added).
+allowlist check and `cargo test`); the runtime image is 33.3 MB (was 18.2 MB, then 40.4 MB, before later chains/tools; re-measured from sealed musl bins / scratch image).
 Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), through `sealed-run agent`, on the public
 "abandon … about" vector:
 * `zec-sapling --count 2`: 2 rows, first address = local KAT zs188wzu…f0nta; no mnemonic or zxviews in output.

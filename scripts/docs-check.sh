@@ -52,5 +52,12 @@ grep -q '^\.SH NAME$' man/man7/blocktools.7 || { echo "FAIL man7 missing NAME"; 
 # 9. packaging scripts install man pages under share/man
 grep -q 'share/man' scripts/package-dist.sh || { echo "FAIL package-dist missing share/man"; rc=1; }
 grep -q 'share/man' scripts/package-native.sh || { echo "FAIL package-native missing share/man"; rc=1; }
+
+# 10. README sealed-image size claim matches scripts/image-size.sh when measurable
+if sz=$(sh scripts/image-size.sh 2>/dev/null); then
+  claim=$(sed -nE 's/.*Battleaxe \(([0-9.]+) MB;.*/\1/p' README.md | head -1)
+  [ -n "$claim" ] || { echo "FAIL README missing Battleaxe image size claim"; rc=1; }
+  [ "$claim" = "$sz" ] || { echo "FAIL README image size $claim MB != measured $sz MB (run sh scripts/image-size.sh)"; rc=1; }
+fi
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc

@@ -22,7 +22,7 @@ make recover                      # agent-safe: addresses + paths only
 make reveal                       # human at a terminal: shows keys after typed code
 ```
 
-Status: image built and sealed run verified on Battleaxe (18.2 MB; network off, read-only rootfs, no leaks in agent output). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
+Status: image built and sealed run verified on Battleaxe (33.3 MB; network off, read-only rootfs, no leaks in agent output). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
 
 Tools: `seed-repair`, `seed-to-master`, `derive`, `keystore-open`, `redact`, `sealed-run`, `read-file`, `dat-read`.
 
