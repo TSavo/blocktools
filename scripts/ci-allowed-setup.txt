@@ -4,3 +4,5 @@ rustup target add wasm32-unknown-unknown && (wasm-bindgen --version | grep -qx '
 python3 -m pip install --user cryptography
 sh scripts/gate.sh
 sh scripts/gate.sh ${{ matrix.stage }}
+sh scripts/gate.sh e2e
+python3 -m pip install --user --break-system-packages cryptography
