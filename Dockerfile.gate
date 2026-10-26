@@ -2,11 +2,11 @@
 # (that is Dockerfile). Build once, run the gate inside it on any Docker host (we use Battleaxe):
 #   sh scripts/gate-docker.sh [STAGE]        (builds the image if missing, then runs the gate)
 # Toolchain = what ci.yml installs on the runner: rust 1.85.1, wasm32 target, wasm-bindgen-cli 0.2.100,
-# clang + lld, node 20, python3 with cryptography and pyyaml, groff (man lint), git, file.
+# clang + lld, node 20, python3 with cryptography and pyyaml, groff (man lint), jq + openssl (man examples, e2e), git, file.
 FROM rust:1.85.1-slim-bookworm@sha256:9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36
 ENV DEBIAN_FRONTEND=noninteractive LC_ALL=C
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential clang lld git file groff python3 python3-cryptography python3-yaml \
+      build-essential clang lld git file groff jq openssl python3 python3-cryptography python3-yaml \
       ca-certificates curl xz-utils \
     && rm -rf /var/lib/apt/lists/*
 # node 20 (actions/setup-node pins 20 in ci.yml), tarball checksum from nodejs.org SHASUMS256.txt
@@ -20,7 +20,8 @@ RUN rustup target add wasm32-unknown-unknown \
     && cargo install --locked --force wasm-bindgen-cli --version 0.2.100 \
     && rm -rf /usr/local/cargo/registry /usr/local/cargo/git \
     && rustc --version | grep -q '^rustc 1.85.1 ' && wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100'
-# The checkout is bind-mounted at /src (any owner); cargo caches live in named volumes (scripts/gate-docker.sh).
+# The checkout is bind-mounted at /src (any owner; gate-negatives clones it, so git trusts every directory here);
+# cargo caches live in named volumes (scripts/gate-docker.sh).
 ENV CARGO_HOME=/cargo-home RUSTUP_HOME=/usr/local/rustup PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
-RUN mkdir -p /cargo-home /src && git config --system --add safe.directory /src
+RUN mkdir -p /cargo-home /src && git config --system --add safe.directory '*'
 WORKDIR /src
