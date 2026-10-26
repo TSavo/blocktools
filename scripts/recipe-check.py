@@ -70,6 +70,7 @@ w(IN, "keystore.json", re.search(r'const V: &str = r#"(.*?)"#;', open("crates/se
 subprocess.run([sys.executable, "scripts/make-fixtures.py", IN], check=True, stdout=subprocess.DEVNULL)
 shutil.copy(os.path.join(IN, "descriptor-encrypted.sqlite"), os.path.join(IN, "wallet.dat"))
 shutil.copy("crates/tx/tests/vectors/block170.hex", os.path.join(IN, "block170.hex"))
+w(IN, "passphrases.txt", "TREZOR")  # public BIP39 test-vector passphrase
 w(IN, "targets.txt", "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf")
 # Public BIP39 test vector with one word dropped (position 5) and with the last word unknown ("?").
 w(IN, "seed-missing.txt", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -94,9 +95,10 @@ RU = "http://127.0.0.1:" + open(pf).read().strip()
 def sub(s): return s.replace("/in/", IN + "/").replace("/secrets/", SEC + "/")
 ok = skipped = 0; bad = []
 try:
-    for f in sorted(os.listdir("recipes")):
-        if not f.endswith(".md") or f == "README.md": continue
-        lines = open(os.path.join("recipes", f)).read().split("\n"); n_here = 0
+    # recipes/*.md plus the two front-door pages, so their worked examples cannot rot either
+    docs = [os.path.join("recipes", f) for f in sorted(os.listdir("recipes")) if f.endswith(".md") and f != "README.md"]
+    for f in docs + ["README.md", "docs/getting-started.md"]:
+        lines = open(f).read().split("\n"); n_here = 0
         for i, l in enumerate(lines):
             m = re.match(r"\s*<!-- e2e:(.*)-->\s*$", l)
             if not m: continue

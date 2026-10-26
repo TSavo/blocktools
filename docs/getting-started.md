@@ -1,49 +1,110 @@
 # Getting started
 
-**DANGEROUS with real funds.** Read [SECURITY.md](SECURITY.md). Practice on public
-fixtures and mock chains before any mainnet key.
+**DANGEROUS with real funds.** Read [SECURITY.md](SECURITY.md) first. Practise on the public
+fixtures below and on mock chains before you touch a real key.
 
-## Install
+## 1. Install
 
-Pick one:
+Pick one.
 
-1. **From source (dev):** `cargo build --locked --release --workspace`. Binaries land in `target/release/`. Use the wrapper `./blocktools` (Docker sealed image) for secret-touching pipelines.
-2. **Release tarball:** GitHub Actions `release` workflow (tag `v*` publishes; `workflow_dispatch` uploads artifacts only). Unpack; bins under `bin/`, man pages under `share/man/`.
-3. **DEB / RPM / APK (dry-run packaging):** see `scripts/package-dist.sh` and `scripts/package-native.sh`. Install-tested in debian/fedora/alpine containers; man pages under `/usr/share/man`.
-
-Man pages: `man derive`, `man blocktools` (section 7 overview), `man recover.sh`.
-
-## Security model in plain words
-
-- **Secrets stay offline.** Anything that reads a seed, keystore, or wallet file runs inside `./blocktools run` (sealed container, no network, redacted stdout).
-- **Flags are public.** Passwords and mnemonics never go on argv; use stdin JSON or `read-file` with files under `./secrets`.
-- **Humans confirm spend.** `tx-sign` and broadcast ask for a one-time code on a real terminal. Wrong code → nothing signed.
-- **Policy can refuse.** Optional policy files ([POLICY.md](POLICY.md)) cap fees and destinations before signing.
-- **Unverified chains stay unlabeled as supported.** [CHAINS.md](CHAINS.md) lists verified vs unverified rows.
-
-## First recovery (end to end, sample data)
-
-Public fixtures live under the repo's test vectors / `scripts/fetch-fixtures.sh` outputs. Example shape (BIP39 → addresses), sealed:
+**Release tarball (Linux x86-64).** v0.1.0 ships `blocktools-v0.1.0-linux-x86_64.tar.gz` and
+`SHA256SUMS`. Verify before you unpack:
 
 ```sh
-# Put a public test mnemonic in ./in/seed.txt (never a real phrase on a networked machine).
-mkdir -p in
+gh release download v0.1.0 -R TSavo/blocktools
+sha256sum -c SHA256SUMS            # blocktools-v0.1.0-linux-x86_64.tar.gz: OK  -- anything else: stop
+tar xzf blocktools-v0.1.0-linux-x86_64.tar.gz && cd blocktools-v0.1.0-linux-x86_64
+export PATH=$PWD/bin:$PATH MANPATH=$PWD/share/man:
+```
+
+Tools are in `bin/`, manual pages in `share/man/` (`man derive`, `man blocktools`, `man recover.sh`).
+The tarball has no Dockerfile: for the sealed image, use a source checkout (below).
+Measured on Linux 2026-10-26: checksum OK, `man -w blocktools` resolves, and the examples in
+section 3 pass with the release binaries. No macOS asset exists.
+
+**From source.**
+
+```sh
+git clone https://github.com/TSavo/blocktools && cd blocktools
+cargo build --locked --release --workspace     # binaries in target/release/
+./blocktools build                             # sealed Docker image blocktools:local
+```
+
+**DEB / RPM / APK (dry-run packaging only, nothing is published):** `scripts/package-dist.sh` and
+`scripts/package-native.sh`; install-tested in debian/fedora/alpine containers, man pages under
+`/usr/share/man`.
+
+## 2. The security model in plain words
+
+- **Secrets stay offline.** Anything that reads a seed, keystore or wallet file runs inside
+  `./blocktools run` (no network, read-only filesystem, no capabilities, redacted stdout).
+- **Inputs and secrets are separate.** Wallet files go in `./in` (seen as `/in`), passwords in
+  `./secrets` (seen as `/secrets`), one per file, ending in a newline. `read-file PW FILE` joins
+  them on stdin for the reader tool.
+- **Flags are public.** Passwords, passphrases and mnemonics never go on argv.
+- **What you see is redacted.** Key fields print as `[REDACTED]`. Only `./blocktools reveal`, at
+  a real terminal after a typed code, prints keys.
+- **Humans confirm spending.** `tx-sign` and broadcast ask for a one-time code on a terminal;
+  optional [policy files](POLICY.md) cap fees and destinations before signing.
+- **Unverified chains are labelled.** [CHAINS.md](CHAINS.md) lists verified and unverified rows.
+
+## 3. First recovery, on public test data
+
+```sh
+mkdir -p in secrets
 printf '%s\n' 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' > in/seed.txt
-
-./blocktools run 'classify < /in/seed.txt'
-./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain btc --count 1'
 ```
 
-Front door for an unknown file:
+What is it?
 
-```sh
-recipes/recover.sh ./in/seed.txt - --goal addresses
-```
+<!-- e2e: expect="class":"mnemonic" -->
+    ./blocktools run 'classify /in/seed.txt'
 
-Sweep against a **mock** chain is covered by e2e (`scripts/e2e-local.sh`); do not point `--url` at mainnet until you have read SECURITY.md and verified the destination on screen.
+Repair (checksum, typos), turn into a master key, derive the first address of each Bitcoin type:
+
+<!-- e2e: expect=1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA ; expect=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu -->
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain btc --count 1'
+
+Or let the front door choose the pipeline for any file:
+
+<!-- e2e: expect=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu -->
+    recipes/recover.sh /in/seed.txt - --goal addresses
+
+Many chains at once (the SwapChan SCAN_JS wallet table; `--public-only` drops key fields):
+
+<!-- e2e: expect=0x9858EfFD232B4033E47d90003D41EC34EcaEda94 -->
+    ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --preset scan-js --public-only'
+
+Passphrases: put candidates one per line in a file and use `seed-to-master --passphrase-file`
+(the empty passphrase is always tried first), or type one with `seed-to-master --passphrase-prompt`.
+Details and `--public-only`: [recipes/derive.md](../recipes/derive.md).
+
+## 4. Your wallet file
+
+Copy it into `./in/`, its password into `./secrets/NAME.pw`, then follow the recipe for its type.
+The README has a tested one-liner per type; the recipes add variants, statuses and what is untested:
+
+| File | Recipe |
+|------|--------|
+| Bitcoin Core / altcoin `wallet.dat` | [input-wallet-dat.md](../recipes/input-wallet-dat.md) |
+| Ethereum keystore / presale JSON | [input-keystore.md](../recipes/input-keystore.md) |
+| Electrum seed or wallet file | [input-electrum.md](../recipes/input-electrum.md) |
+| MultiBit `.key` / bitcoinj `.wallet` | [input-multibit.md](../recipes/input-multibit.md) |
+| Armory `.wallet` | [input-armory.md](../recipes/input-armory.md) |
+| Seed phrase (BIP39, missing words) | [input-seed-phrase.md](../recipes/input-seed-phrase.md) |
+| Don't know | [input-unknown.md](../recipes/input-unknown.md) |
+
+Statuses you will see: `ok`, `wrong_password`, `unsupported`, `bad_input`, `no_candidates`
+([REFUSALS.md](REFUSALS.md)).
+
+## 5. Before moving funds
+
+Sweeps are exercised end to end only against a **mock** chain (`scripts/e2e-local.sh`). Read
+[goal-sweep.md](../recipes/goal-sweep.md) and SECURITY.md, and check the destination on screen,
+before pointing `--url` at a real network.
 
 ## Next
 
-- Cookbook by wallet / chain: [cookbook.md](cookbook.md) → [recipes/README.md](../recipes/README.md)
+- Cookbook: [cookbook.md](cookbook.md) → [recipes/README.md](../recipes/README.md)
 - Stuck? [troubleshooting.md](troubleshooting.md)
 - Library / wasm: [library-api.md](library-api.md), [../bindings/wasm/README.md](../bindings/wasm/README.md)
