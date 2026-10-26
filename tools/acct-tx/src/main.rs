@@ -5,8 +5,7 @@
 //! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra|cro|inj|zeta|evmos] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
 //!   --chain atom covers Cosmos SDK MsgSend (SIGN_MODE_DIRECT, secp256k1) on the chains with a Trust Wallet Core vector:
 //!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2, cro=Crypto.org, inj=Injective, zeta=ZetaChain, evmos; inj/zeta/evmos use ethsecp256k1 + keccak256),
-//!   plus 20 hrps with TWC-signer-generated vectors (stride axelar cre kujira comdex neutron somm mars umee noble sei celestia core
-//!   quasar persistence akash kava band agoric dydx); the hrp sets the base denom and default --chain-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
+//!   which sets the base denom and default --chain-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
 //!   Canto (TWC signs it as plain Cosmos, not ethsecp256k1), CosmWasm, IBC and every non-MsgSend message.
 //! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
 //!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
