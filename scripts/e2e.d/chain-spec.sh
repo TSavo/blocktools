@@ -62,22 +62,22 @@ A=$(addr < $T/kb.bcc)
 echo $A | $B/classify $S | grep -q '"chain":"bcs"' || f "classify/detect spec chain"
 echo $A | $B/classify | grep -q '"class":"unknown"' || f "classify without spec"
 $MU ftc 1 30000 6pQiLg4eJbM2bP9CZemnccDzwB3kz2Ae1x > $T/u.x
-r=$($B/tx-build $S --chain bcs --utxos $T/u.x --to $A --sweep --fee-rate 5 || true); echo "$r" | grep -q '"error":"spec_unsupported_sign"' || f "bcs build: $r"
+r=$($B/tx-build $S --chain bcs --utxos $T/u.x --to $A --sweep --fee-rate 5 || true); echo "$r" | grep -q '"error":"spec_unsupported_sign"' || f "bcs build: $r"  # allow-true: refusal expected (exit 2); its code is asserted next
 echo "ok   bcs spec == built-in bcc addresses; classify detects; tx-build refuses spec_unsupported_sign"
 # missing fields: refuse only the step that needs them
 D=$($B/key-to-addresses --chain ftc < $T/k2 | addr)
 sed 's/"wif":142,//' $T/ftc.spec > $T/nowif.spec; sed 's/"p2pkh":14,//' $T/ftc.spec > $T/nopkh.spec
 $B/key-to-addresses --chain-spec $T/nowif.spec --chain ftx < $T/k | grep -q '"missing":"spec_missing_wif"' || f "nowif addresses"
 $B/tx-build --chain-spec $T/nowif.spec --chain ftx --utxos $T/u.ftc --to $D --sweep --fee-rate 5 > /dev/null || f "nowif build should pass"
-r=$($B/tx-sign --chain-spec $T/nowif.spec --tx $T/pb.ftc --expect-to $D < $T/k || true); echo "$r" | grep -q '"error":"spec_missing_wif"' || f "nowif sign: $r"
-for t in key-to-addresses derive; do r=$(echo "$M" | $B/$t --chain-spec $T/nopkh.spec --chain ftx || true); echo "$r" | grep -q '"error":"spec_missing_p2pkh"' || f "$t nopkh: $r"; done
+r=$($B/tx-sign --chain-spec $T/nowif.spec --tx $T/pb.ftc --expect-to $D < $T/k || true); echo "$r" | grep -q '"error":"spec_missing_wif"' || f "nowif sign: $r"  # allow-true: refusal expected (exit 2); its code is asserted next
+for t in key-to-addresses derive; do r=$(echo "$M" | $B/$t --chain-spec $T/nopkh.spec --chain ftx || true); echo "$r" | grep -q '"error":"spec_missing_p2pkh"' || f "$t nopkh: $r"; done  # allow-true: refusal expected (exit 2); its code is asserted next
 echo "ok   missing fields: wif -> addresses ok, build ok, sign spec_missing_wif; p2pkh -> spec_missing_p2pkh"
-neg() { echo "$1" > $T/n.spec; r=$($B/key-to-addresses --chain-spec $T/n.spec < $T/k || true); echo "$r" | grep -q "\"error\":\"$2\"" || f "negative $2: $r"; }
+neg() { echo "$1" > $T/n.spec; r=$($B/key-to-addresses --chain-spec $T/n.spec < $T/k || true); echo "$r" | grep -q "\"error\":\"$2\"" || f "negative $2: $r"; }  # allow-true: refusal expected (exit 2); its code is asserted next
 neg '{' spec_malformed
 neg "{$H,\"name\":\"ftc\",\"checksum\":\"sha256d\",\"allow_collision\":true}" spec_name_collision
 neg "{$H,\"name\":\"zzz\",\"p2pkh\":0,\"checksum\":\"sha256d\"}" spec_byte_collision
 neg "{$H,\"name\":\"zzz\",\"checksum\":\"sha256d\",\"title\":\"N1LYBvAjrq6XNUt5Xm3p3iSALhXdYRWE7jTWTWCSix24zWLX171A\"}" spec_contains_secret
 neg "{$H,\"name\":\"zzz\",\"checksum\":\"sha256d\",\"bogus\":1}" spec_unknown_field
 neg "{$H,\"name\":\"zzz\",\"checksum\":\"groestl\"}" spec_unsupported_checksum
-for t in tx-build tx-verify tx-sign tx-decode classify derive chain-table; do r=$($B/$t --chain-spec $T/n.spec < /dev/null || true); echo "$r" | grep -q spec_unsupported_checksum || f "$t ignores bad spec: $r"; done
+for t in tx-build tx-verify tx-sign tx-decode classify derive chain-table; do r=$($B/$t --chain-spec $T/n.spec < /dev/null || true); echo "$r" | grep -q spec_unsupported_checksum || f "$t ignores bad spec: $r"; done  # allow-true: refusal expected (exit 2); its code is asserted next
 echo "ok   negatives: malformed, name/byte collision, secret, unknown field, checksum; every tool refuses a bad spec"
