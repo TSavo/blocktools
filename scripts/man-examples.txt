@@ -45,8 +45,8 @@ tx-verify | 1 | python3 "$R/scripts/e2e-only/evm-fixture.py" approve | tx-verify
 tx-sign | 1 | python3 "$R/scripts/e2e-only/evm-fixture.py" legacy-no-chain-id > t; printf '%064x\n' 2 | tx-sign --tx t --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
 tx-build | 0 | printf '{"address":"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4","amount":50000,"txid":"%s","vout":0}\n' $(printf 'c%.0s' $(seq 64)) > u; tx-build --chain btc --utxos u --to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 --sweep --fee-rate 5
 tx-decode | 0 | python3 "$R/scripts/e2e-only/evm-fixture.py" transfer | tx-decode --text
-recover.sh | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > s; BIN="$BIN" sh "$R/recipes/recover.sh" s bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
-recover.sh | 3 | echo hello world > f; BIN="$BIN" sh "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
+recover.sh | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > s; BIN="$BIN" bash "$R/recipes/recover.sh" s bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
+recover.sh | 3 | echo hello world > f; BIN="$BIN" bash "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
 sig-hash | 0 | sig-hash 'transfer(address,uint256)'
 sig-hash | 2 | sig-hash 'not a signature('
 abi-decode | 0 | jq -r .result.input "$R/recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json" | abi-decode --sig 'transfer(address,uint256)'

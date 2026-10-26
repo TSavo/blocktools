@@ -37,6 +37,7 @@ ADD='git add -f'
 # ---- hygiene-check.sh
 neg H-pin hygiene-check "unpinned actions" 'printf "      - uses: actions/checkout@v4\n" >> .github/workflows/ci.yml'
 neg U-untracked hygiene-check "untracked reference" 'x=local-only; echo "dat-read | 2 | dat-read < \"\$R/fixtures/external/$x.dat\"" >> scripts/man-examples.txt'
+neg B-bash-sh hygiene-check "bash script run via sh" 'echo "recover.sh | 0 | sh \"\$R/recipes/recover.sh\" s - --goal addresses" >> scripts/man-examples.txt'
 neg H-art hygiene-check "tracked build artifacts" 'echo x > junk.zip && $ADD junk.zip'
 neg H-relenv hygiene-check "release publish has no environment" 'grep -v "environment: release" .github/workflows/release.yml > t && mv t .github/workflows/release.yml'
 neg H-true hygiene-check "unjustified || true" 'printf "#!/bin/sh\nset -eu\nfalse || true\n" > scripts/zz.sh && $ADD scripts/zz.sh'

@@ -16,7 +16,7 @@
 #   typed code. Nothing is signed or sent without it.
 # - Wallet passwords come from --password-file (first line), read by the tool, not by bash.
 # - Bitcoin, except an Ethereum keystore, which sweeps ETH (--rpc URL, --chain-id N).
-# Run as `sh recover.sh` (the man examples do): dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
+# Invoked by a POSIX shell instead of bash? dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
 # so re-exec under bash before the first bash-only line.
 if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail

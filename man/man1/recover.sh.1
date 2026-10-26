@@ -26,7 +26,7 @@ Wallet passwords come from \-\-password\-file (first line), read by the tool, no
 .IP \(bu 2
 Bitcoin, except an Ethereum keystore, which sweeps ETH (\-\-rpc URL, \-\-chain\-id N).
 .PP
-Run as `sh recover.sh` (the man examples do): dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
+Invoked by a POSIX shell instead of bash? dash < 0.5.11 (Ubuntu 22.04) has no pipefail and would exit 2,
 so re\-exec under bash before the first bash\-only line.
 .SH OPTIONS
 .nf
@@ -54,9 +54,9 @@ no status field
 Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-$ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > s; BIN="$BIN" sh "$R/recipes/recover.sh" s bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu \-\-goal addresses
+$ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > s; BIN="$BIN" bash "$R/recipes/recover.sh" s bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu \-\-goal addresses
 # exit 0, last status: ok
-$ echo hello world > f; BIN="$BIN" sh "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu \-\-goal addresses
+$ echo hello world > f; BIN="$BIN" bash "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu \-\-goal addresses
 # exit 3, no status field
 .fi
 .SH SECURITY NOTES
