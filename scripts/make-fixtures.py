@@ -72,8 +72,42 @@ def wallet(path, encrypted):
             put(cs(kt) + extra + cs(p), cs(aes_enc(master, sha256d(p)[:16], key.to_bytes(32, "big"))))
     db.commit(); db.execute("VACUUM"); db.close()
 
+def pub_u(k):
+    return ec.derive_private_key(k, ec.SECP256K1()).public_key().public_bytes(
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+def bdb(path, pairs, ps=4096):
+    """Minimal legacy Berkeley DB btree file: meta page 0 (magic 0x053162, page size) and
+    leaf pages (type 5) of key/data items (type 1), as read by crates/secrets/src/dat/bdb.rs."""
+    pages, cur = [], []
+    def flush():
+        pg = bytearray(ps); pg[25] = 5; pg[20:22] = struct.pack("<H", len(cur)); top = ps
+        for n, it in enumerate(cur):
+            top -= 3 + len(it); pg[top:top + 2] = struct.pack("<H", len(it)); pg[top + 2] = 1
+            pg[top + 3:top + 3 + len(it)] = it; pg[26 + 2 * n:28 + 2 * n] = struct.pack("<H", top)
+        pages.append(bytes(pg))
+    for k, v in pairs:
+        if 26 + 2 * (len(cur) + 2) + sum(3 + len(x) for x in cur + [k, v]) > ps: flush(); cur = []
+        cur += [k, v]
+    if cur: flush()
+    meta = bytearray(ps); meta[12:16] = bytes([0x62, 0x31, 0x05, 0]); meta[20:24] = struct.pack("<I", ps)
+    open(path, "wb").write(bytes(meta) + b"".join(pages))
+LEGACY = [int.from_bytes(hashlib.sha256(b"blocktools throwaway legacy key %d" % i).digest(), "big") for i in range(3)]
+def legacy_wallet(path, p2pkh):
+    """Pre-descriptor wallet.dat as Bitcoin 0.8-era forks write it (walletdb.cpp): "key" records
+    (pubkey -> CPrivKey, 279-byte SEC1 DER), "name" address-book records (base58 address -> label),
+    "version". Key 0 is stored uncompressed, keys 1-2 compressed. p2pkh: the coin's address byte."""
+    pairs = [(cs(b"version"), struct.pack("<I", 80000))]
+    for i, k in enumerate(LEGACY):
+        p = pub_u(k) if i == 0 else pub(k)
+        d = der(k); d += bytes(279 - len(d))
+        pairs.append((cs(b"key") + cs(p), b"\xfd" + struct.pack("<H", len(d)) + d))
+        pairs.append((cs(b"name") + cs(b58c(bytes([p2pkh]) + h160(p)).encode()), cs(b"demo %d" % i)))
+    bdb(path, pairs)
+
 if len(sys.argv) != 2: sys.exit("usage: make-fixtures.py <output-dir>  (use a temp dir; never commit the output)")
 out = sys.argv[1]
 wallet(f"{out}/descriptor-plain.sqlite", False)
 wallet(f"{out}/descriptor-encrypted.sqlite", True)
+# legacy BDB wallet.dat, one per coin byte (bitconnectcoin base58.h:279; ftc/ltc chainparams)
+for name, b in (("bcc", 18), ("ftc", 14), ("ltc", 48)): legacy_wallet(f"{out}/legacy-{name}.dat", b)
 print("wrote", out)
