@@ -114,7 +114,7 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address) ", cmd):
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify) ", cmd):
                 # offline, secret-free EVM filters on recorded fixtures: a plain bash pipeline with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", cmd]
             else:

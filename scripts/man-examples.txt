@@ -52,3 +52,5 @@ abi-encode | 0 | abi-encode 'baz(uint32,bool)' 69 true
 abi-encode | 2 | abi-encode 'f(uint8)' 256
 create-address | 0 | create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0 --nonce 1
 create-address | 2 | create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0
+abi-inspect | 0 | abi-inspect "$R/recipes/fixtures/evm/erc20-plus-collision.txt"
+abi-inspect | 2 | echo '[' | abi-inspect

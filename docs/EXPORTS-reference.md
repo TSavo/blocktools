@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 61. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 62. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -573,6 +573,30 @@ Error example (executed):
 ```js
 bt.evmAbiEncode("{\"sig\":\"f(uint8)\",\"args\":[\"256\"]}")
 // throws value_too_large_for_uint8
+```
+
+## `evmAbiInspect`
+
+```ts
+evmAbiInspect(abi_text: string): string
+```
+
+Inspect an ABI (JSON or signature lines): items with selectors/topics, selector collisions, ERC-165/ERC-20 interfaces.
+
+Calls in test.mjs: 2.
+
+Example (executed):
+
+```js
+bt.evmAbiInspect("function supportsInterface(bytes4) view returns (bool)\nfunction transferFrom(address,address,uint256)\nfunction gasprice_bit_ether(int128)")
+// -> {"errors":0,"events":0,"functions":3,"interfaces":[{"complete":true,"interface":"ERC-165","interface_id":"0x01ffc9a7"},{"complete":false,"interface":"ERC-20","interface_id":"0x36372b07","missing":["totalSupply()","balanceOf(address)","transfer(address,uint256)","approve(address,uint256)","allowance(address,address)"]},{"complete":false,"interface":"ERC-721","interface_id":"0x80ac58cd","missing":["balanceOf(address)","ownerOf(uint256)","safeTransferFrom(address,address,uint256,bytes)","safeTransferFrom(address,address,uint256)","approve(address,uint256)","setApprovalForAll(address,bool)","getAp … [cut: 1403 chars total]
+```
+
+Error example (executed):
+
+```js
+bt.evmAbiInspect("[")
+// throws bad_abi_json
 ```
 
 ## `evmCreateAddress`

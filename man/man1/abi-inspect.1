@@ -1,0 +1,50 @@
+.TH ABI\-INSPECT 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+abi\-inspect \- list an ABI's functions, events and errors with selectors/topics, flag selector
+.SH SYNOPSIS
+.nf
+abi\-inspect [FILE]
+FILE (or stdin): ABI JSON (array or {"abi": [...]}, e.g. a compiler artifact) or one signature per line.
+Prints every item's canonical signature with selector/topic, selector_collisions, and interfaces:
+ERC\-165, ERC\-20, ERC\-721 (+Metadata, Enumerable), ERC\-1155 with complete/missing and the interface_id.
+.fi
+.SH DESCRIPTION
+collisions, and report which ERC\-165 / ERC\-20 interfaces it implements (ids recomputed), offline.
+.nf
+.RS 2
+  abi\-inspect token.abi.json
+  abi\-inspect < signatures.txt
+.RE
+.fi
+.SH OPTIONS
+No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  abi\-inspect token.abi.json
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status error
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ abi\-inspect "$R/recipes/fixtures/evm/erc20\-plus\-collision.txt"
+# exit 0, last status: ok
+$ echo '[' | abi\-inspect
+# exit 2, last status: error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

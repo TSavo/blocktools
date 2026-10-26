@@ -6,6 +6,7 @@
 pub mod abi;
 pub mod api;
 pub mod create;
+pub mod inspect;
 pub mod sig;
 pub mod u256;
 

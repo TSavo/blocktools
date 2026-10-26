@@ -21,6 +21,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "abi-inspect"
+version = "0.1.0"
+dependencies = [
+ "blocktools-evm",
+ "blocktools-io",
+ "serde_json",
+]
+
+[[package]]
 name = "acct-tx"
 version = "0.1.0"
 dependencies = [

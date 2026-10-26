@@ -1,0 +1,11 @@
+# ERC-20 (EIP-20 function list) plus one function whose selector collides with transferFrom.
+# Typed by hand from EIP-20; gasprice_bit_ether(int128) is the widely cited 0x23b872dd collision.
+function totalSupply() view returns (uint256)
+function balanceOf(address owner) view returns (uint256)
+function transfer(address to, uint256 value) returns (bool)
+function transferFrom(address from, address to, uint256 value) returns (bool)
+function approve(address spender, uint256 value) returns (bool)
+function allowance(address owner, address spender) view returns (uint256)
+event Transfer(address indexed from, address indexed to, uint256 value)
+event Approval(address indexed owner, address indexed spender, uint256 value)
+function gasprice_bit_ether(int128)

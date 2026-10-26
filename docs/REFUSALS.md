@@ -237,3 +237,8 @@ abi-encode 'f(uint8)' 256
 ```sh
 create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0
 ```
+
+<!-- run rc=2 expect=bad_abi_json -->
+```sh
+echo '[' | abi-inspect
+```

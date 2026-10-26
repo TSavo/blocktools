@@ -383,3 +383,12 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmCreateAddress(JSON.stringify({deployer: z})), /create_needs_nonce_or_salt/);
   console.log('ok evm create address');
 }
+
+{ // evmAbiInspect: ERC-165 id from EIP-165, and the transferFrom / gasprice_bit_ether collision
+  const v = JSON.parse(bt.evmAbiInspect('function supportsInterface(bytes4) view returns (bool)\nfunction transferFrom(address,address,uint256)\nfunction gasprice_bit_ether(int128)'));
+  assert.equal(v.functions, 3);
+  assert.deepEqual(v.interfaces.find((i) => i.interface === 'ERC-165'), {interface: 'ERC-165', complete: true, interface_id: '0x01ffc9a7'});
+  assert.equal(v.selector_collisions[0].selector, '0x23b872dd');
+  assert.throws(() => bt.evmAbiInspect('['), /bad_abi_json/);
+  console.log('ok evm abi inspect');
+}

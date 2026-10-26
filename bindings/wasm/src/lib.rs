@@ -427,3 +427,7 @@ pub fn evm_abi_encode(request_json: &str) -> Result<String, JsError> { Ok(evm_ap
 /// CREATE / CREATE2 contract address. Request JSON {deployer, nonce} or {deployer, salt, init_code_hash | init_code}; a tx (from, nonce) also works.
 #[wasm_bindgen(js_name = evmCreateAddress)]
 pub fn evm_create_address(request_json: &str) -> Result<String, JsError> { Ok(evm_api::create_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
+
+/// Inspect an ABI (JSON or signature lines): items with selectors/topics, selector collisions, ERC-165/ERC-20 interfaces.
+#[wasm_bindgen(js_name = evmAbiInspect)]
+pub fn evm_abi_inspect(abi_text: &str) -> Result<String, JsError> { Ok(blocktools::evm::inspect::inspect(abi_text).map_err(err)?.to_string()) }

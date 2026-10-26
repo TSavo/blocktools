@@ -111,3 +111,17 @@ the `PoolCreated` log of `05d`:
     jq -r '.result.logs[0].data' recipes/fixtures/evm-mainnet/05d-create2-pool-receipt.json | abi-decode --types '(int24,address)' | jq -r '.args[1].value' | tr A-F a-f
 
 Live (UNTESTED here): `curl -s -X POST -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionByHash","params":["0x…"]}' "$RPC" | create-address`
+
+## (h) What an ABI implements, and selector collisions
+
+`recipes/fixtures/evm/erc20-plus-collision.txt` is the EIP-20 function list plus `gasprice_bit_ether(int128)`,
+whose selector is also `0x23b872dd` (`transferFrom`). abi-inspect reports the collision and that ERC-20 is complete:
+
+<!-- e2e: expect="selector":"0x23b872dd" ; rc=0 -->
+    abi-inspect recipes/fixtures/evm/erc20-plus-collision.txt | jq -c .selector_collisions
+
+<!-- e2e: expect="complete":true,"interface":"ERC-20" ; rc=0 -->
+    abi-inspect recipes/fixtures/evm/erc20-plus-collision.txt | jq -c '.interfaces[0]'
+
+A compiler artifact (`{"abi": [...]}`) or a bare ABI array works the same. Live (UNTESTED here): an explorer's
+verified-ABI download, e.g. `curl -s "$EXPLORER_ABI_URL" | jq -r .result | abi-inspect`.
