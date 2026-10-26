@@ -7,6 +7,7 @@ COPY crates crates
 COPY tools tools
 COPY deps deps
 COPY docs/CHAINS.md docs/RPC.md docs/
+COPY recipes/fixtures/evm-mainnet recipes/fixtures/evm-mainnet
 # quirks test reads docs/CHAINS.md, rpc deny/summary tests read docs/RPC.md (doc/table drift checks)
 COPY scripts/check-deps.sh scripts/check-deps.sh
 RUN sh scripts/check-deps.sh && cargo test --release --locked -- --skip every_policy_entry_point_uses_shared_verifier && cargo build --release --locked
