@@ -111,7 +111,7 @@ pub mod address {
 
     /// Base units per coin (PPC and NVC: COIN = 1000000 in their source; QRK 5: only value x 1e5 reproduces mainnet txids; ETH 18, SOL 9, XLM 7 (stroops), TRX/XRP 6).
     pub fn decimals(chain: &str) -> Option<u8> {
-        Some(match chain { "ppc" | "nvc" | "tron" | "xrp" | "atom" | "algo" => 6, "dot" => 10, "ton" => 9, "ada" => 6, "eth" => 18, "sol" => 9, "xlm" => 7, "zec" => 8, "qrk" => 5, c => { chains::chain(c)?; 8 } })
+        Some(match chain { "ppc" | "nvc" | "tron" | "xrp" | "atom" | "algo" | "polyx" => 6, "dot" => 10, "ksm" => 12, "ton" => 9, "ada" => 6, "eth" => 18, "sol" => 9, "xlm" => 7, "zec" => 8, "qrk" => 5, c => { chains::chain(c)?; 8 } })
     }
     /// Unsigned transaction format a row uses, and whether `tx::build_unsigned_sweep` supports it.
     pub fn tx_format(chain: &str) -> (&'static str, bool) {
