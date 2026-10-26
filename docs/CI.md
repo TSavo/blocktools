@@ -137,6 +137,11 @@ The jobs inside a run execute in parallel on different runners.
 
 ## Queue (why push-to-green was 12-25 min)
 
+`on: [push, pull_request]` gave every same-repo branch commit with an open pull request two identical runs
+(push and pull_request, in different concurrency groups, so neither cancelled the other); at 22:30 on
+2026-10-26 eight queued runs sat behind the four runners and seven were such duplicates for already-merged
+branches. Since then ci runs on push only for main; branch commits run once, as pull_request.
+
 Measured on runs 40388233412..40401710490: pushes arrived every 2.4 min (median), the per-ref group kept
 `cancel-in-progress: false`, so every surviving run waited 7-19 min for the previous run to finish and 19 of
 30 runs were cancelled while pending. `cancel-in-progress` is now true: a push to a ref cancels the run of
