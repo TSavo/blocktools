@@ -144,8 +144,7 @@ seed-version check PBKDF2(entropy, "TON seed version", 390)[0]==0, key = PBKDF2(
 seed", 100000)[..32] ed25519. Address = sha256 cell hash of the wallet v4r2 StateInit (code hash
 feb5ff68..., depth 7; data seqno 0, subwallet 698983191, pubkey, empty plugins), base64url with tag
 0x51/0x11 and CRC16-XModem. BIP39-valid phrases are never treated as TON. KAT: tonsdk-generated test phrase.
-Planned: old-Electrum (non-BIP32) derivation, `--passphrase-prompt` in
-seed-to-master (reads /dev/tty; echo cannot be disabled without libc termios, see ROADMAP).
+Planned: old-Electrum (non-BIP32) derivation. (`seed-to-master --passphrase-prompt` is built: /dev/tty, echo off via blocktools-tty.)
 
 ## 5. Passwords and passphrases
 

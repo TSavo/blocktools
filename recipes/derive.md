@@ -50,7 +50,9 @@ eight chains above; with `--chain` it keeps only the rows for those chains.
 Ranges are inclusive: `0..9`, `2-4`, `0,1,5`, `0..2,7`.
 
 ## Planned (not built yet)
-* `--preset electrum-old`, TON addresses, `seed-to-master --passphrase-prompt`.
+* `--preset electrum-old`, TON addresses from `derive` (`derive --chain ton` gives `no_candidates`).
+
+A BIP39 passphrase is typed with `seed-to-master --passphrase-prompt` (built: it reads `/dev/tty`, not echoed, empty = none; checked on a pty 2026-10-26). It cannot be combined with `--passphrase-file` or a stdin passphrase.
 
 ## Tested examples
 
