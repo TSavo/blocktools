@@ -12,3 +12,7 @@ with a gas top-up, decode/verify with the chain id, sign and broadcast behind ty
 Sweep: `recipes/recover.sh in/keystore.json 0xDEST --password-file secrets/keystore.pw --chain-id 1 --url RPC`.
 The e2e test sweeps the keystore vector against a mock RPC. Other EVM chains: pass their `--chain-id` and RPC.
 UNTESTED against live networks other than reads.
+
+## Round trip, run in the gate
+
+`recipes/paths/evm-sweep.sh` goes from a saved real RPC response, through the tools, to a local mock chain. It is run by `scripts/e2e.d/paths.sh` (Linux). See [docs/PATHS.md](../docs/PATHS.md) for what is checked and what is not run against a real network.

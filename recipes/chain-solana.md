@@ -13,3 +13,7 @@ A raw 32-byte key is treated as an ed25519 seed (`key-to-addresses --chain sol`)
 keypair arrays are not parsed yet. The CLI has NO Solana builder or signer (NOT BUILT). The wasm export
 `solBuildTransfer` builds an UNSIGNED SOL/SPL transfer and `solVerifyTx` checks it; see
 [docs/PATHS.md](../docs/PATHS.md) path 6. Signing, broadcast and balance lookup: NOT BUILT.
+
+## Round trip, run in the gate
+
+`recipes/paths/sol-transfer.sh` goes from a saved real RPC response, through the tools, to a local mock chain. It is run by `scripts/e2e.d/paths.sh` (Linux). See [docs/PATHS.md](../docs/PATHS.md) for what is checked and what is not run against a real network.

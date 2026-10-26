@@ -8,3 +8,7 @@ decode, verify, sign behind a typed code, and broadcast behind a second code.
 
 (BIP86 and BIP49 spec vectors.) Full sweep: goal-sweep.md. Default Esplora: blockstream.info; use
 `--url` for your own node's Esplora.
+
+## Round trip, run in the gate
+
+`recipes/paths/utxo-sweep.sh` goes from a saved real RPC response, through the tools, to a local mock chain. It is run by `scripts/e2e.d/paths.sh` (Linux). See [docs/PATHS.md](../docs/PATHS.md) for what is checked and what is not run against a real network.

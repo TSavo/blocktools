@@ -39,3 +39,7 @@ plain `acct-tx keys --chain atom < key.txt` on your own machine. That output is 
 
 <!-- e2e: expect=cosmos1w508d6qejxtdg4y5r3zarvary0c5xw7k6ah60c ; expect="tool":"acct-tx" -->
     ./blocktools run 'acct-tx keys --chain atom < /in/key.hex'
+
+## Round trip, run in the gate
+
+`recipes/paths/cosmos-send.sh` goes from a saved real RPC response, through the tools, to a local mock chain. It is run by `scripts/e2e.d/paths.sh` (Linux). See [docs/PATHS.md](../docs/PATHS.md) for what is checked and what is not run against a real network.

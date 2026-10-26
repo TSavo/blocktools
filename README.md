@@ -30,7 +30,7 @@ Manual pages for every tool, `recover.sh` and the wrapper are in `man/` (`man -l
 They are generated from `--help` and the doc headers by `scripts/gen-man.py`, and CI fails if they are stale.
 Offline policy files for tx-verify and tx-sign are described in [docs/POLICY.md](docs/POLICY.md).
 
-Docs: [getting started](docs/getting-started.md) · [cookbook](docs/cookbook.md) · [troubleshooting](docs/troubleshooting.md) · [library API](docs/library-api.md) · [wasm/TS](bindings/wasm/README.md) · [docs readiness](docs/DOCS-READINESS.md).
+Docs: [index](docs/README.md) · [getting started](docs/getting-started.md) · [cookbook](docs/cookbook.md) · [troubleshooting](docs/troubleshooting.md) · [refusal codes](docs/REFUSALS.md) · [paths](docs/PATHS.md) · [library API](docs/library-api.md) · [wasm/TS](bindings/wasm/README.md) · [docs readiness](docs/DOCS-READINESS.md).
 
 ### Bitcoin Core wallet.dat
 

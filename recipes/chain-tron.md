@@ -12,3 +12,7 @@ The CLI has NO Tron builder (NOT BUILT). The wasm export `tronBuildTransfer` bui
 transfer and `tronDecodeTx` reads it back; see [docs/PATHS.md](../docs/PATHS.md) path 7. Signing,
 verify-with-expectations, broadcast and balance lookup: NOT BUILT. To move funds, a human
 imports the key into TronLink (`./blocktools reveal`).
+
+## Round trip, run in the gate
+
+`recipes/paths/tron-transfer.sh` goes from a saved real RPC response, through the tools, to a local mock chain. It is run by `scripts/e2e.d/paths.sh` (Linux). See [docs/PATHS.md](../docs/PATHS.md) for what is checked and what is not run against a real network.
