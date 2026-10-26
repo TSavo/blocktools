@@ -12,7 +12,7 @@ fn out(status: &str, extra: Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(blocktools_io::exit_code(status))
 }
 fn main() {
-    blocktools_io::help("tx-broadcast --chain btc|ltc|doge|eth [--url URL] < signed tx  (asks for a code on the terminal)");
+    blocktools_io::help_host("tx-broadcast --chain btc|ltc|doge|eth [--url URL] < signed tx  (asks for a code on the terminal)");
     let a: Vec<String> = std::env::args().collect();
     let one = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).last();
     let chain = one("--chain").unwrap_or("btc".into());

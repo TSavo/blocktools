@@ -32,3 +32,11 @@ grep -q '"status":"ok"' $T/o && grep -q eth_sendRawTransaction $T/log && echo "o
   [ $st = 1 ] && grep -q '"status":"refused"' $T/err || f "deny $m"
 done; [ ! -s $T/log ] && echo "ok   rpc refuses key-export / unlock / wallet-sign methods, nothing sent" || f deny
 kill $M 2>/dev/null; wait $M 2>/dev/null || true  # allow-true: wait returns the killed mock's signal status
+# Host-side network tools cannot run sealed: sealed-run refuses them, and their --help must not say otherwise.
+for t in rpc utxo-fetch tx-broadcast xmr-wallet; do
+  o=$("$B/sealed-run" agent "$t --help" </dev/null 2>&1) && { echo "FAIL rpc: sealed-run ran $t"; exit 1; }
+  echo "$o" | grep -q '"status":"unsupported"' || { echo "FAIL rpc: sealed-run $t: $o"; exit 1; }
+  "$B/$t" --help | grep -q "cannot run sealed" || { echo "FAIL rpc: $t --help lacks the host-side banner"; exit 1; }
+  ! "$B/$t" --help | grep -q "only sealed" || { echo "FAIL rpc: $t --help says run it sealed"; exit 1; }
+done
+echo "ok   rpc: host network tools refused by sealed-run; their --help says so"

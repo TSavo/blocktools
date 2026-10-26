@@ -203,7 +203,7 @@ def generate(out):
           ".PP", esc("Run anything that touches secrets inside ./blocktools run (sealed, offline). Policy files: docs/POLICY.md. Supported chains: docs/CHAINS.md. Start here: docs/getting-started.md."),
           ".SH OPTIONS", esc("See blocktools(1) and each tool's man page. The wrapper passes the pipeline to sealed-run; tools parse their own flags."),
           ".SH INPUT/OUTPUT",
-          esc("Pipelines speak JSONL. The sealed boundary redacts secret fields before host-visible stdout. Host-side network tools (utxo-fetch, tx-broadcast, rpc, xmr-wallet) see addresses and signed transactions only."),
+          esc("Pipelines speak JSONL. The sealed boundary redacts secret fields before host-visible stdout. Host-side network tools (utxo-fetch, tx-broadcast, rpc, xmr-wallet) cannot run sealed: sealed-run refuses them. The first three see addresses and signed transactions only; xmr-wallet sends a Monero seed only to a loopback monero-wallet-rpc."),
           ".SH EXIT STATUS",
           ".TP", "0", esc("Success."),
           ".TP", "1", esc("Refused, failed verification, aborted, or (some tools) bad input."),
