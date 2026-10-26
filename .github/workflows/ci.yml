@@ -14,7 +14,8 @@ jobs:
       matrix:
         stage: [lint, test, negatives, e2e]
     # Self-hosted Battleaxe runner by default (docs/CI.md). Fallback to GitHub-hosted: set repo variable
-    # RUNNER_LABELS to '"ubuntu-latest"' (JSON). Self-hosted only while the repo is private (docs/CI.md).
+    # RUNNER_LABELS to '"ubuntu-latest"' (JSON). Repo is public: outside-contributor runs need
+    # maintainer approval and would run on this self-hosted runner (Docker socket); see docs/CI.md.
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

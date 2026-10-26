@@ -19,12 +19,24 @@ Set the repository variable `RUNNER_LABELS` to the JSON string `"ubuntu-latest"`
 (Settings -> Secrets and variables -> Actions -> Variables). Unset it to return to the self-hosted
 runner. If no self-hosted runner is online and the variable is unset, Linux jobs queue until one is.
 
-## Security rule: self-hosted only while the repo is private
+## Security: the repo is public and still uses the self-hosted runner
 
-A public repo lets anyone open a pull request from a fork, and `on: pull_request` would run that
-code on the self-hosted runner (on Battleaxe). So: self-hosted runners are allowed only while
-TSavo/blocktools is private. Before the repo is ever made public, set `RUNNER_LABELS` to
-`"ubuntu-latest"` (or remove the self-hosted default from ci.yml) and remove the runner.
+Current state (checked with the GitHub API on 2026-10-26): TSavo/blocktools is **public**, and the
+Linux jobs still default to the self-hosted Battleaxe runner. The earlier rule ("self-hosted only
+while private") is therefore no longer met. What limits the risk today:
+
+- Actions setting "require approval for all external contributors" is on (API:
+  `approval_policy: all_external_contributors`), so a pull request from an outside contributor
+  runs no workflow until a maintainer approves the run. Approving such a run executes the
+  contributor's code on Battleaxe.
+- Runs from pushes to this repo need write access.
+
+What remains: the runner is persistent (not ephemeral) and mounts the host Docker socket, which is
+root-equivalent on Battleaxe; an approved fork run, or a PR that edits `.github/workflows/`, gets
+that access. Do not approve fork runs without reading the diff (workflows and `scripts/` included).
+Options to remove the exposure: route `pull_request` runs from forks to GitHub-hosted runners
+(`ubuntu-latest`) in ci.yml, or set `RUNNER_LABELS` to `"ubuntu-latest"` and retire the runner.
+Neither is done yet.
 
 ## What the runner must have / what the job installs
 
