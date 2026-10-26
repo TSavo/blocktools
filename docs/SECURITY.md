@@ -107,7 +107,7 @@ dictionary oracle for a low-entropy password. Tests: `rejects_xrp_seed_minikey_s
 ## Repo hygiene (security review 2026-10-25)
 
 GitHub Actions are pinned by commit SHA; release publishing is a separate job in the `release` environment
-(add required reviewers in repo Settings -> Environments for the manual approval to bite). `check-deps.sh`
+(the `release` environment must allow deployments only from `v*` tags; `scripts/release-env-check.sh` refuses to publish otherwise, no manual approval since 2026-10-26). `check-deps.sh`
 runs with `LC_ALL=C` and reads members from `cargo metadata --locked`. The 28 Python wheels (23.8 MB) once (unmeasured)
 committed at the repo root are removed going forward and `*.whl` is ignored; they remain in git history
 (no rewrite). `scripts/hygiene-check.sh` (gate and CI) fails on unpinned actions or tracked build artifacts.

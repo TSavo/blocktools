@@ -9,6 +9,11 @@ Battleaxe too: the v0.1.0 run 40368238848 ran release-env, build and publish on 
 (measured with `gh api .../runs/40368238848/jobs`). Fork pull requests run on GitHub-hosted `ubuntu-latest`
 (next section).
 
+Release gate: the `release` environment has no required reviewer (removed 2026-10-26 on T's word) and
+allows deployments only from tags matching `v*`. `scripts/release-env-check.sh` (run by the release-env job)
+refuses to publish if that policy is absent, uses protected branches, or contains any branch policy or a tag
+pattern not starting with `v`; `scripts/e2e.d/release-env.sh` plants each of those cases with a stub `gh`.
+
 Timings below were measured with one runner; no timing with four runners has been measured yet.
 
 Measured from our own run 40270984219 (c0ece5e) with

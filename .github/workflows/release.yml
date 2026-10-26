@@ -44,7 +44,7 @@ jobs:
             dist/*.tar.gz
             dist/SHA256SUMS
   release-env:
-    # finding:R2-6: refuse to publish unless the "release" environment has required reviewers.
+    # finding:R2-6: refuse to publish unless the "release" environment deploys only from v* tags.
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     permissions:
       contents: read
@@ -54,9 +54,9 @@ jobs:
       - env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
         run: sh scripts/release-env-check.sh "$GH_REPO"
   publish:
-    # Manual approval: the "release" environment must have required reviewers (repo Settings ->
-    # Environments). Without that protection rule GitHub creates it unprotected on first use, so
-    # the release-env job checks the rule through the API first.
+    # No manual approval (T, 2026-10-26). The "release" environment allows deployments only from
+    # tags matching v* (Settings -> Environments -> release -> Deployment branches and tags);
+    # release-env checks that policy through the API first and fails closed.
     needs: [build, release-env]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
