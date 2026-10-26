@@ -29,10 +29,11 @@ longest job 7-12 min, and the `cargo build --release` inside a job 0.5-1.8 min. 
 - The test stage ran `cargo test --workspace` twice (default features, then `--all-features`), building every
   test binary twice. It now runs `-p blocktools` at default features (the configuration bindings/wasm ships)
   and one `--workspace --all-features` pass; features are additive, so the second pass covers every other crate.
-- `scripts/gate.sh` exports `CARGO_PROFILE_RELEASE_LTO=thin` (`GATE_LTO=fat` restores fat LTO): Cargo.toml's
-  `lto = true` relinked 43 binaries and every test binary through a whole-program pass on each change. The
-  Dockerfile and release.yml do not use gate.sh and keep fat LTO; scripts/wasm-build.sh unsets the variable so
-  the wasm bytes never depend on it.
+- Cargo.toml's release profile is now `lto = "thin"` (it was `lto = true`, fat): fat LTO relinked 43 binaries and
+  every test binary through a whole-program pass on each change, in the gate and in every developer's
+  `cargo test --release`. The shipped artifacts keep fat LTO: the Dockerfile sets `CARGO_PROFILE_RELEASE_LTO=fat`
+  for the sealed image and release.yml sets it for the tarball. scripts/wasm-build.sh unsets the variable so the
+  wasm bytes never depend on the caller's environment.
 - `scripts/wasm-check.sh` deleted the default wasm build dir after its first build, and the job cleanup deleted
   it again, so every job's first wasm build was a clean build on top of the clean reproducibility rebuild. Both
   now keep it.
