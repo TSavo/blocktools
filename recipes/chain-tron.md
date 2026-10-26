@@ -8,5 +8,7 @@ Addresses only (`T...`, base58check of 0x41 + keccak address). TronLink paths ar
 <!-- e2e: rc=3 ; expect=TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC ; expect=sweep is not built -->
     recipes/recover.sh /in/key.hex - --chain tron
 
-NOT BUILT: TRX/TRC-20 transaction building and signing, and balance lookup. To move funds, a human
+The CLI has NO Tron builder (NOT BUILT). The wasm export `tronBuildTransfer` builds an UNSIGNED TRX/TRC-20
+transfer and `tronDecodeTx` reads it back; see [docs/PATHS.md](../docs/PATHS.md) path 7. Signing,
+verify-with-expectations, broadcast and balance lookup: NOT BUILT. To move funds, a human
 imports the key into TronLink (`./blocktools reveal`).

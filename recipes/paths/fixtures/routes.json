@@ -1,0 +1,6 @@
+{
+ "POST getLatestBlockhash": "sol-bh.json",
+ "POST /wallet/getblock": "tron-getblock.json",
+ "GET /address/bc1qevel27lv9l8qwrylu0z9rmec9cadujkkpxv2pn/utxo": "btc-esplora-utxo.json",
+ "POST eth_getTransactionByHash": "01a-erc20-transfer-tx.json"
+}

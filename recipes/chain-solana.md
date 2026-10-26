@@ -10,4 +10,6 @@ also tries the other common layouts.
     recipes/recover.sh /in/seed.txt - --chain sol --count 1
 
 A raw 32-byte key is treated as an ed25519 seed (`key-to-addresses --chain sol`). Sollet-style 64-byte
-keypair arrays are not parsed yet. NOT BUILT: SOL/SPL transfers and balance lookup.
+keypair arrays are not parsed yet. The CLI has NO Solana builder or signer (NOT BUILT). The wasm export
+`solBuildTransfer` builds an UNSIGNED SOL/SPL transfer and `solVerifyTx` checks it; see
+[docs/PATHS.md](../docs/PATHS.md) path 6. Signing, broadcast and balance lookup: NOT BUILT.
