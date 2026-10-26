@@ -307,3 +307,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/evm.rs", "crates/tx/tests/twc_evm.rs", "crates/tx/tests/vectors/twc-evm.json"]
 doc = [{ file = "docs/CHAINS.md", text = "7 legacy + 6 EIP-1559" }]
+
+[[claim]]
+id = "twc-message-vectors"
+statement = "Trust Wallet Core message-signer vectors: 4 Ethereum personal_sign and 3 Bitcoin signmessage signatures reproduced byte for byte, 6 Bitcoin verify vectors recovered, TWC negatives refused"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-tx --features secrets --test twc_message"
+expect = "test result: ok. 2 passed"
+commit = "28fa876"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/tx/src/message.rs", "crates/tx/tests/twc_message.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "2 tests" }]
