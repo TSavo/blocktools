@@ -72,6 +72,8 @@ impl Tx {
                 match v { 27 | 28 => base(None, Some((v, r, s))), v if v >= 35 => base(Some((v - 35) / 2), Some((v, r, s))), _ => Err("bad_v") }
             }
             Some(0x01) => Err("eip2930_unsupported"),
+            Some(0x03) => Err("eip4844_unsupported"),
+            Some(0x04) => Err("eip7702_unsupported"),
             _ => Err("not_evm"),
         }
     }

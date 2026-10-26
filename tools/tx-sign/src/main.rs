@@ -6,6 +6,7 @@
 //! bch/bsv/btg PSBTs are signed with the replay-protected fork-id sighash (SIGHASH_ALL|FORKID, BTG fork id 79;
 //! P2PKH/P2PK, plus P2WPKH on btg; every input needs its proving prev_tx), never the BTC sighash.
 //! The transaction (PSBT from tx-build, a pos-ntime or zec JSON line from tx-build, or an unsigned EVM tx) comes from --tx FILE (it is public).
+//! EVM: legacy EIP-155 and EIP-1559 (type 2), byte-exact against Trust Wallet Core's signer vectors; types 1, 3 and 4 are refused.
 //! Keys come ONLY on stdin: one per line, WIF or 64-hex, or JSON lines with wif/private_key/key/secret
 //! (JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
 //! Order: policy checks (destination, fee cap, chain id, no warnings) -> sign in memory -> print the

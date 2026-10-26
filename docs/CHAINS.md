@@ -118,6 +118,14 @@ Measured (Linux only): `forkid_sighash` matches all 495 SIGHASH_FORKID rows of B
 Every non-segwit input needs `prev_tx`: P2PKH on every chain including the fork-id chains BCH/BSV/BTG (their sighash commits the amount, but every check keys on the script type and the fork-id signer requires the proof too), GRS and PoS-nTime. Only zec is exempt (ZIP-243/244 amounts via `zec_prevouts`).
 - 2026-10-25: `buildPsbtWithMemo` defaults to non-RBF (0xffffffff); optional trailing `rbf` arg.
 
+## EVM: Trust Wallet Core signer vectors
+
+`crates/tx/tests/vectors/twc-evm.json` vendors the 13 signed transactions of Trust Wallet Core's `rust/tw_evm/tests/signer.rs` (commit adf80f8, Apache-2.0; public test keys): 7 legacy EIP-155 (native, ERC-20 transfer and approve, ERC-20 transfer as a generic contract call, ERC-721 and ERC-1155 transfer, a contract creation on chain id 1) and 6 EIP-1559 (native on chain id 3, ERC-20 transfer, transfer with an access list, approve, ERC-721, ERC-1155).
+
+Measured (Linux only): every one parses, recovers to the address of its key, round-trips, and re-signs byte for byte from its unsigned form with `evm::Tx::sign` (`crates/tx/tests/twc_evm.rs`, 7 legacy + 6 EIP-1559); a changed nonce stops it recovering to the signer. `scripts/e2e.d/twc-evm.sh` runs the legacy native and the EIP-1559 ERC-20 vectors through the real `tx-sign` CLI (code typed on a pty) and gets Trust Wallet Core's bytes; ERC-1155 `safeTransferFrom` is refused as `unknown_contract_call` and ERC-721 `transferFrom` as `token_call_not_transfer`, before any key is read.
+
+Refused (no vector here): EIP-2930 type 1 (`eip2930_unsupported`), EIP-4844 type 3 (`eip4844_unsupported`), EIP-7702 type 4 (`eip7702_unsupported`), and Trust Wallet Core's ERC-4337 / Barz user operations. Untested: broadcast on any network, NFT-aware decoding (ERC-721/1155 are shown only as raw or `transferFrom` calldata), chain ids outside the vectors.
+
 ## Chain quirks and their known-answer vectors (2026-10-25)
 
 Every way a chain departs from plain Bitcoin is listed here with at least one independent

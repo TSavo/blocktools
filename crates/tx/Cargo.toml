@@ -19,5 +19,9 @@ name = "sign"
 required-features = ["secrets"]
 
 [[test]]
+name = "twc_evm"
+required-features = ["secrets"]
+
+[[test]]
 name = "grs"
 required-features = ["secrets"]
