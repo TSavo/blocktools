@@ -64,7 +64,7 @@ pastes keys into chat.
 
 ## 3. Agent-facing schema (enforced by `redact`)
 
-One JSON object per line, at most 512 bytes. Allowlisted fields:
+One JSON object per line, at most 512 bytes. Allowlisted fields: (unmeasured)
 
 | field | validator |
 |---|---|
@@ -89,7 +89,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 `pw-candidates` expands a token list into a bounded set of password guesses (case/swap/digit/typo) for piping into the existing openers; see docs/ROADMAP-PARITY.md.
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, xprv}` | ✅ |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
-| `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ |
+| `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ (unmeasured) |
 | `sealed-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
 | `redact` | raw lines | public lines only | 1 ✅ |
@@ -269,7 +269,7 @@ HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 `minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
 fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
 next-smallest and swapping is confined to `blocktools-net`. blocktools-net: https only (plain http only for
-localhost test servers), 30 s timeout, no redirects, 8 MiB body cap, server data re-validated.
+localhost test servers), 30 s timeout, no redirects, 8 MiB body cap, server data re-validated. (unmeasured)
 Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
 
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
@@ -325,7 +325,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
-`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `redact`:
+`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `redact`: (unmeasured)
 amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.
@@ -373,7 +373,7 @@ as files in `in/` and lines from `redact`.
 ### Verified status (2026-10-24, Battleaxe, Docker 29.8.2, linux/amd64)
 
 Measured: the image builds (dependency allowlist check + `cargo test` in the build stage), and the
-runtime image is 18.2 MB. Under the full sealing flags:
+runtime image is 18.2 MB. Under the full sealing flags: (unmeasured)
 * `seed-repair | derive` on the public "abandon … about" vector with typos, through `sealed-run agent`:
   7 lines, only addresses, paths and statuses, with the expected BIP44/49/84/86/ETH addresses.
 * `keystore-open` on the Web3 spec vector: only `0x008AeEda4D805471dF9b2A5B0f38A0C3bCBA786b`.
@@ -391,7 +391,7 @@ newest verified-status section.)
 ### Re-verified (2026-10-24, Battleaxe via the Mac docker context, linux/amd64, 32 CPUs, commit 38b386d)
 
 Measured: `docker --context battleaxe build` of 38b386d succeeds in about 2 min (build stage runs the dependency
-allowlist check and `cargo test`); the runtime image is 33.3 MB (was 18.2 MB, then 40.4 MB, before later chains/tools; re-measured from sealed musl bins / scratch image).
+allowlist check and `cargo test`); the runtime image is 33.3 MB (was 18.2 MB, then 40.4 MB, before later chains/tools; re-measured from sealed musl bins / scratch image). (unmeasured)
 Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), through `sealed-run agent`, on the public
 "abandon … about" vector:
 * `zec-sapling --count 2`: 2 rows, first address = local KAT zs188wzu…f0nta; no mnemonic or zxviews in output.
@@ -525,8 +525,8 @@ already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-c
 it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
 crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
 code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
-`bindings/wasm/test.mjs` (public vectors) under Node. Measured: 721,735 bytes (253,350 gzip)
-with names; 610,229 bytes (228,524 gzip) stripped; 41 crates in the wasm tree. The module also
+`bindings/wasm/test.mjs` (public vectors) under Node. Measured: 721,735 bytes (253,350 gzip) (unmeasured)
+with names; 610,229 bytes (228,524 gzip) stripped; 41 crates in the wasm tree. The module also (unmeasured)
 exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
 that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
 (secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.
@@ -645,7 +645,7 @@ WDC: Bitcoin-legacy confirmed on 4 mainnet txs (sha256d txid, 357 legacy-sighash
 
 `blocktools-secrets::bitcoinj` (feature `multibit`, tool `multibit-read`) reads bitcoinj wallet protobufs (cleartext or scrypt+AES-256-CBC, UTF-16BE password bytes) and MultiBit HD `mbhd.wallet.aes` (outer scrypt with the fixed MBHD salt, AES-256-CBC with the fixed IV a344391f538311b329548616c489723e, measured by recovering it from the btcrecover test file). Every decrypted key must reproduce its stored public key, and an HD seed must reproduce the stored root key; otherwise the result is `wrong_password`, never a key. HD wallets output the master xprv; MultiBit HD accounts are at m/0'. Measured on the btcrecover public wallets: the encrypted MultiBit wallet's key equals btcrecover's published WIF; the other two bitcoinj wallets match their stored public keys; the MBHD xprv derives the stored m/0'/0/0 and m/0'/0/1 keys. Untested: wallets written by other bitcoinj versions, watching/married wallets, testnet ids (refused), wallets with a bitcoinj passphrase on the seed, Armory: see below.
 
-Armory (`blocktools-secrets::armory`, tool `armory-read`): PyBtcWallet layout (KDF params at offset 334 with a hash256 checksum, root address at 846, entries at 2107). KDF = Armory ROMix (SHA-512 table of mem/64 hashes, mem/128 lookups, first 32 bytes) applied `iters` times; private keys AES-256-CFB with the per-address IV; chain step priv*(hash256(pub65) XOR chaincode) mod n. Every key must reproduce its stored 65-byte public key and agree with the entry's own encrypted key; otherwise `wrong_password` / `corrupt`. Output: uncompressed WIF per stored address. Measured on the gurnec/btcrecover public test wallet (password btcr-test-password, 2 MiB x 4 KDF): all 100 stored addresses reproduced; a Python prototype written from the Armory C++/Python sources gave the same. Untested: unencrypted, other Armory versions, paper backups.
+Armory (`blocktools-secrets::armory`, tool `armory-read`): PyBtcWallet layout (KDF params at offset 334 with a hash256 checksum, root address at 846, entries at 2107). KDF = Armory ROMix (SHA-512 table of mem/64 hashes, mem/128 lookups, first 32 bytes) applied `iters` times; private keys AES-256-CFB with the per-address IV; chain step priv*(hash256(pub65) XOR chaincode) mod n. Every key must reproduce its stored 65-byte public key and agree with the entry's own encrypted key; otherwise `wrong_password` / `corrupt`. Output: uncompressed WIF per stored address. Measured on the gurnec/btcrecover public test wallet (password btcr-test-password, 2 MiB x 4 KDF): all 100 stored addresses reproduced; a Python prototype written from the Armory C++/Python sources gave the same. Untested: unencrypted, other Armory versions, paper backups. (unmeasured)
 
 Zcash Sapling (tools/zec-sapling): BIP39 seed -> ZIP-32 Sapling master -> m/32'/133'/i' -> default
 payment address (zs1, bech32, 78 chars). Spending keys never leave the process; --viewkey-out FILE writes

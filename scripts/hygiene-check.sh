@@ -54,7 +54,7 @@ done
 rm -rf "$st"
 # Every gate rule (a FAIL line tagged `# rule:ID` in a gate script) needs a planted-violation test
 # (`neg ID` in scripts/gate-negatives.sh) or an explicit `neg-exempt: reason` on its line.
-G="scripts/findings-check.sh scripts/hygiene-check.sh scripts/docs-check.sh scripts/prepush-check.sh scripts/secret-scan.sh scripts/check-deps.sh"
+G="scripts/claims-check.py scripts/findings-check.sh scripts/hygiene-check.sh scripts/docs-check.sh scripts/prepush-check.sh scripts/secret-scan.sh scripts/check-deps.sh"
 for f in $G; do
   u=$(grep -nE 'rc=1|exit 1' "$f" | grep -vE '# rule:|neg-exempt:|^[0-9]+:[[:space:]]*#|\[ \$rc = 0 \]|usage' || [ $? -eq 1 ])
   [ -z "$u" ] || { echo "FAIL gate rule without a # rule: tag in $f:"; echo "$u"; rc=1; }  # rule:H-neg

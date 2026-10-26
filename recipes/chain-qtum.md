@@ -25,7 +25,7 @@ list (`{"txid","vout","amount","address"}` per line), then build, read, and veri
 
 Sign with `tx-sign --chain qtum --max-fee 1000000` (the default cap of 100000 sats is below Qtum's fee floor; the same cap applies to tx-verify and tx-sign; TTY confirmation, as in goal-sweep.md) and broadcast the hex yourself
 (qtum.info, or `sendrawtransaction` in Qtum Core). Qtum's fee floor is high: the fee warning uses a measured
-median of 700 sat/vB. Not covered: contract (OP_CALL/OP_CREATE) outputs, P2PK inputs. No Qtum tx built here
+median of 700 sat/vB. Not covered: contract (OP_CALL/OP_CREATE) outputs, P2PK inputs. No Qtum tx built here (unmeasured)
 has been broadcast.
 
 Qtum wallet.dat (Qtum Core is a Bitcoin Core fork): input-wallet-dat.md, then `key-to-addresses --chain qtum`.

@@ -24,6 +24,6 @@ they can't be forgotten, and the check prints them on every run.
 | R2-6 | release.yml can publish without required reviewers on the release environment | open | - | - |
 | R2-7 | Readers (bip38-open, blockchain-read, pw-candidates, tx-envelope, chain-table) "unsupported" under sealed-run | open | - | - |
 | R2-8 | Doc numbers not tied to a measuring command (claims registry) | open | - | - |
-| R2-9 | Gates grep for words instead of testing the property | fixed | 0aec026 | scripts/gate-negatives.sh |
+| R2-9 | Gates grep for words instead of testing the property | fixed | 76c9850 | scripts/gate-negatives.sh |
 | R2-10 | CI and local verify-and-push ran different step lists | fixed | 94449bd | scripts/ci-gate-check.sh |
 | R2-11 | No macOS CI coverage, so Mac failures surface only in manual reruns | open | - | - |

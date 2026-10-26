@@ -11,10 +11,11 @@ export LC_ALL=C
 cd "$(dirname "$0")/.."
 root=$(pwd); base=$(mktemp -d); wt=$base/wt
 export BIN="$root/target/release" CARGO_TARGET_DIR="$root/target"
-git worktree add -q --detach "$wt" HEAD
+head0=$(git rev-parse HEAD)
+git worktree add -q --detach "$wt" "$head0"
 cleanup() { git -C "$root" worktree remove --force "$wt" 2>/dev/null || rm -rf "$wt"; rm -rf "$base"; }  # allow-true: cleanup must not mask the result
 trap cleanup EXIT
-reset() { git -C "$wt" checkout -q -- . && git -C "$wt" reset -q && git -C "$wt" clean -fdqx; }
+reset() { git -C "$wt" reset -q --hard "$head0" && git -C "$wt" clean -fdqx; }  # --hard to the start commit: undoes plants that commit (K-stale)
 rc=0; n=0; want=" ${*:-} "
 # baseline: each gate script passes on the unplanted tree, else every negative would be vacuous
 for s in hygiene-check docs-check prepush-check secret-scan check-deps; do
@@ -60,6 +61,14 @@ neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|sha
 neg F-guard docs-check "has no guard file" 'sed "s/| R2-5 \\(.*\\) | scripts\\/check-deps-regress.sh |/| R2-5 \\1 | - |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-token docs-check "does not carry finding:R2-5" 'grep -v "finding:R2-5" scripts/check-deps-regress.sh > t && mv t scripts/check-deps-regress.sh'
 neg F-commit docs-check "is not a commit" 'sed "s/| bb1ceff |/| 0000000 |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg K-unreg docs-check "unregistered claim" 'echo "The cache holds 77 MB." >> docs/ROADMAP.md'
+neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs/SECURITY.md > t && mv t docs/SECURITY.md'
+neg K-fields docs-check "bad status" 'sed "0,/status = \"measured\"/s//status = \"verified\"/" docs/claims.toml > t && mv t docs/claims.toml'
+neg K-stale docs-check "re-measure" 'echo "// x" >> crates/tx/src/policy.rs && git -c user.name=n -c user.email=n@n commit -qam plant'
+neg K-run docs-check "expected" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"security\"\nplatform = \"linux\"\nstatus = \"measured\"\ncommand = \"false\"\nexpect = \"ok\"\ncommit = \"%s\"\ndate = \"d\"\ncheap = true\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
+neg K-macos docs-check "without a ci_run" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"platform\"\nplatform = \"macos\"\nstatus = \"measured\"\ncommand = \"true\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
+neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasured)//" DESIGN.md > t && mv t DESIGN.md'
+neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'
 neg F-status docs-check "unknown status" 'sed "s/| R1-2 \\(.*\\) | open |/| R1-2 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
 neg F-rows docs-check "no rows in" 'grep -v "^| R" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'

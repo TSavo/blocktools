@@ -1,0 +1,186 @@
+# Claims registry: the single source for every quantitative/security/platform claim in the docs.
+# Schema and rules: scripts/claims-check.py (docs-check rule 12). Render docs/CLAIMS.md with --render.
+
+[[claim]]
+id = "fee-cap-evm-default"
+statement = "With no --max-fee, every signing route caps EVM total fee at 0.01 ETH-equivalent"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools --test fee_cap_paths"
+expect = "test result: ok"
+commit = "fbcf2b3"
+date = "2026-10-25"
+cheap = false
+depends = ["crates/tx/src/policy.rs"]
+doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = "0.01 ETH" }, { file = "docs/SECURITY.md", text = "0.01 ETH" }]
+
+[[claim]]
+id = "fee-cap-utxo-default"
+statement = "With no --max-fee, every signing route caps UTXO fee at 100,000 base units"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools --test fee_cap_paths"
+expect = "test result: ok"
+commit = "fbcf2b3"
+date = "2026-10-25"
+cheap = false
+depends = ["crates/tx/src/policy.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "100,000 sat" }, { file = "recipes/chain-qtum.md", text = "100000 sats" }]
+
+[[claim]]
+id = "scrypt-bounds"
+statement = "Keystore scrypt is bounded by 128*N*r <= 256 MiB and N*r*p <= 2^24; a hostile 8 GiB request is refused"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools-secrets --all-features -- scrypt_bounds hostile_kdf"
+expect = "test result: ok. 2 passed"
+commit = "fbcf2b3"
+date = "2026-10-25"
+cheap = false
+depends = ["crates/secrets/src/keystore.rs"]
+doc = [{ file = "DESIGN.md", text = "256 MiB" }, { file = "docs/SECURITY.md", text = "256 MiB" }, { file = "docs/SECURITY.md", text = "8 GiB" }]
+
+[[claim]]
+id = "prepush-2mb"
+statement = "prepush-check refuses any tracked file over 2 MB"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "sh scripts/gate-negatives.sh P-large"
+expect = "ok   neg P-large"
+commit = "fbcf2b3"
+date = "2026-10-25"
+cheap = false
+depends = ["scripts/prepush-check.sh"]
+doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
+
+[[claim]]
+id = "image-size-readme"
+statement = "Sealed runtime image is 33.3 MB (docker image inspect of the locally built blocktools image, decimal MB; Linux/Docker only; also enforced by docs-check rule 10 wherever an image exists)"
+kind = "number"
+platform = "docker"
+status = "measured"
+command = "sh scripts/image-size.sh"
+expect = "33.3"
+commit = "fbcf2b3"
+date = "2026-10-25"
+cheap = false
+depends = ["Dockerfile"]
+doc = [{ file = "README.md", text = "33.3 MB;" }]
+
+[[claim]]
+id = "image-sealed-battleaxe"
+statement = "Image built and sealed run verified on Battleaxe (manual run, no recorded command)"
+kind = "platform"
+platform = "docker"
+status = "untested"
+doc = [{ file = "README.md", text = "verified on Battleaxe" }]
+
+[[claim]]
+id = "image-size-history"
+statement = "Historic image sizes in DESIGN (18.2, 40.4, 33.3 MB)"
+kind = "number"
+platform = "docker"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "18.2 MB" }, { file = "DESIGN.md", text = "40.4 MB" }, { file = "DESIGN.md", text = "33.3 MB" }]
+
+[[claim]]
+id = "redact-512"
+statement = "Redacted JSON lines are at most 512 bytes"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "512 bytes" }]
+
+[[claim]]
+id = "read-file-64mib"
+statement = "read-file caps input at 64 MiB"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "64 MiB" }]
+
+[[claim]]
+id = "net-8mib"
+statement = "Network body cap 8 MiB, 30 s timeout"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "8 MiB" }]
+
+[[claim]]
+id = "tx-input-4mib"
+statement = "Transaction input limited to 4 MiB"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "4 MiB" }]
+
+[[claim]]
+id = "wasm-size"
+statement = "wasm module size and crate count"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "721,735 bytes" }, { file = "DESIGN.md", text = "610,229 bytes" }, { file = "DESIGN.md", text = "41 crates" }]
+
+[[claim]]
+id = "armory-2mib"
+statement = "Armory reader limits"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "DESIGN.md", text = "2 MiB" }]
+
+[[claim]]
+id = "wheels-23mb"
+statement = "Historic Python wheels size"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "docs/SECURITY.md", text = "23.8 MB" }]
+
+[[claim]]
+id = "e2e-macos"
+statement = "scripts/e2e-local.sh runs on Linux and macOS (macOS: last manual SwapChan run failed at tx-sign; no CI macOS job yet)"
+kind = "platform"
+platform = "macos"
+status = "untested"
+doc = [{ file = "docs/SECURITY.md", text = "runs on Linux" }]
+
+[[claim]]
+id = "chains-fee-figures"
+statement = "Per-chain fee figures quoted in CHAINS/ROADMAP (from mainnet samples; no re-run command)"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "docs/CHAINS.md", text = "100,312 sat" }, { file = "docs/CHAINS.md", text = "512 sat" }, { file = "docs/CHAINS.md", text = "1004 sat" }, { file = "docs/CHAINS.md", text = "700 sat" }, { file = "docs/CHAINS.md", text = "101 sat" }, { file = "docs/CHAINS.md", text = "60,463 sat" }, { file = "docs/CHAINS.md", text = "1,000 sat" }, { file = "docs/CHAINS.md", text = "2,000 sat" }, { file = "docs/CHAINS.md", text = "2.54 sat" }, { file = "docs/CHAINS.md", text = "102.8 sat" }, { file = "docs/CHAINS.md", text = "2.5 sat" }, { file = "docs/CHAINS.md", text = "100 sat" }, { file = "docs/CHAINS.md", text = "1 sat" }, { file = "docs/CHAINS.md", text = "3.9 sat" }, { file = "docs/CHAINS.md", text = "20.0 sat" }, { file = "docs/CHAINS.md", text = "5.4 sat" }, { file = "docs/CHAINS.md", text = "49.7 sat" }, { file = "docs/ROADMAP.md", text = "100,312 sat" }, { file = "recipes/chain-qtum.md", text = "700 sat" }]
+
+[[claim]]
+id = "parity-1mb"
+statement = "ROADMAP-PARITY size figure"
+kind = "number"
+platform = "linux"
+status = "untested"
+doc = [{ file = "docs/ROADMAP-PARITY.md", text = "1.0 MB" }]
+
+[[claim]]
+id = "format-constants"
+statement = "Protocol/format sizes (hash and key lengths, OP_RETURN limits, dust, checksum bytes)"
+kind = "number"
+platform = "any"
+status = "unmeasurable"
+reason = "facts of external protocols, pinned by the KAT vectors in crates/*/tests rather than measured"
+doc = [{ file = "DESIGN.md", text = "4 bytes" }, { file = "DESIGN.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "16 bytes" }, { file = "EXPORTS.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "0..80 bytes" }, { file = "EXPORTS.md", text = "75 bytes" }, { file = "EXPORTS.md", text = "546 sats" }, { file = "docs/ROADMAP.md", text = "80 bytes" }, { file = "docs/ROADMAP.md", text = "75 bytes" }, { file = "recipes/chain-ton.md", text = "120 bytes" }, { file = "recipes/input-raw-key.md", text = "32 bytes" }]
+
+[[claim]]
+id = "prior-art"
+statement = "Sizes quoted from third-party projects in a research note"
+kind = "number"
+platform = "any"
+status = "unmeasurable"
+reason = "describes other projects' code"
+doc = [{ file = "docs/prior-art-crypto-plugins.md", text = "20 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "33 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "64 bytes" }, { file = "docs/prior-art-crypto-plugins.md", text = "10000 sats" }, { file = "docs/prior-art-crypto-plugins.md", text = "25 bytes" }]

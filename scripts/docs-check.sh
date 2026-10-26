@@ -59,5 +59,6 @@ if sz=$(sh scripts/image-size.sh 2>/dev/null); then
 fi
 # 11. review findings ledger: every fixed finding has a guard test (docs/FINDINGS.md)
 sh scripts/findings-check.sh || rc=1  # rule:F-guard F-token F-commit F-status F-dup F-rows F-file
+python3 scripts/claims-check.py || rc=1  # rule:K-unreg K-gone K-fields K-stale K-run K-macos K-label K-render
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc
