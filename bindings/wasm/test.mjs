@@ -298,3 +298,25 @@ console.log('lift7 ok');
   assert.equal(c.ok, false);
   console.log('ok fee-cap 9.99 ETH refused (verifyTx, checkTxPolicy, checkTx)');
 }
+{ // describeTx + convertAddressFrom (previously uncalled; docs/EXPORTS-reference.md is generated from these calls)
+  const d = bt.describeTx(b170, 'btc');
+  assert.ok(d.includes('OUT #0: 1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3 10.00000000') && d.includes('fee    : UNKNOWN'), d);
+  assert.throws(() => bt.describeTx('zz', 'btc'));
+  const z = bt.convertAddressFrom('btc', '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 'zec');
+  assert.equal(z, 't1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs');
+  assert.equal(bt.base58Decode(z).slice(4, 44), bt.base58Decode('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH').slice(2, 42)); // same hash160
+  assert.throws(() => bt.convertAddressFrom('btc', '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMx', 'zec'));
+  console.log('ok describeTx, convertAddressFrom');
+}
+{ // documented input limits (docs/EXPORTS-reference.md quotes them from the .d.ts doc comments)
+  const TK = 'TokenkegQfeZyiNwAMbNbGKPFXCWuBvf9Ss623VQ5DA';
+  bt.blake2b('', 32, 'a'.repeat(16)); assert.throws(() => bt.blake2b('', 32, 'a'.repeat(17)), /bad_personal/);
+  bt.blake2b('', 64, ''); assert.throws(() => bt.blake2b('', 65, ''), /bad_out_len/); assert.throws(() => bt.blake2b('', 0, ''), /bad_out_len/);
+  assert.throws(() => bt.decodeAccountInfo('00'.repeat(79)), /bad_length/); assert.throws(() => bt.decodeAccountInfo('00'.repeat(81)), /bad_length/);
+  bt.solFindProgramAddress(JSON.stringify(['5eed'.repeat(16)]), TK); assert.throws(() => bt.solFindProgramAddress(JSON.stringify(['aa'.repeat(33)]), TK), /bad_seeds/);
+  bt.solFindProgramAddress(JSON.stringify(Array(15).fill('aa')), TK); assert.throws(() => bt.solFindProgramAddress(JSON.stringify(Array(16).fill('aa')), TK), /bad_seeds/);
+  const U = JSON.stringify({txid: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9', vout: 0, amount: 100000, address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'});
+  const m = n => bt.buildPsbtWithMemo('btc', U, 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', '', '', 5, 'ab'.repeat(n));
+  m(1); m(80); assert.throws(() => m(81), /memo_length/); assert.equal(JSON.parse(m(0)).outputs.length, 1); // empty memo = no OP_RETURN
+  console.log('ok documented input limits (blake2b, decodeAccountInfo, solFindProgramAddress, memo)');
+}

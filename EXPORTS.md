@@ -5,6 +5,9 @@ The rows below are checked by `scripts/wasm-check.sh`. The **exact** export set 
 call accepts a private key, a seed, or a password, and the secret code paths are proven to be
 absent from the binary (by checking the name section). Outputs are JSON strings unless noted.
 
+Every export, with an executed example and its error code, is in the generated
+[docs/EXPORTS-reference.md](docs/EXPORTS-reference.md).
+
 ## Stable API
 
 | JS export | Rust (crate `blocktools`) | returns |
@@ -189,6 +192,29 @@ Native `cdylib`/`staticlib` in `crates/cabi`. Header: `crates/cabi/include/block
 | `bt_free` | `CString::from_raw` | No-op on NULL |
 
 Same public-data rules as wasm: no private keys, no network. CLI twin: `tx-envelope`.
+
+### `blocktools.sign/v1` envelope responses (executed)
+
+Run through both `bt_envelope` (C, Linux `.so`) and `tx-envelope` with the same requests; the
+responses matched. Every response has `envelope`, `status` (`ok` or `error`), `op` and `chain`.
+An ok response adds `result` (and `family`, except for `chain_table`); an error adds `error`.
+`tx-envelope` exits 0 for error responses too, so read `status`, not the exit code.
+
+| Request | Response |
+|---|---|
+| `{"op":"chain_table","chain":"_"}` | ok, `result` is the chain table array |
+| `{"op":"decode","chain":"btc","tx":HEX}` | ok, `result` keys: chain, inputs, locktime, outputs, rbf, role, signed, status, tool, txid, type, vsize, warnings |
+| `{"op":"verify","chain":"btc"\|"eth",...}` | ok, `result` keys: check_these, **findings**, max_fee, ok, summary |
+| `{"op":"check","chain":"btc","tx":HEX}` | ok, `result` keys: fee, inputs, ok, outputs, reasons |
+| `{"op":"decode","chain":"xlm","tx":"00"}` | error `unsupported_family` |
+| `{"op":"nope","chain":"btc"}` | error `unknown_op` |
+| `{"envelope":"other/v1",...}` | error `unsupported_envelope` |
+| `not json` | error `bad_json` |
+| `bt_envelope(NULL)` (C only) | error `null_input` |
+
+Naming difference: envelope `verify` reports refusals in `findings`; wasm `verifyTx` reports the
+same check in `failures`. `bt_free(NULL)` is documented as a no-op in the header but is not exercised.
+`.dylib` (macOS) is untested.
 
 ## Language wrappers (`bindings/`, secrets-off)
 

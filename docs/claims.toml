@@ -13,7 +13,7 @@ commit = "3ec1d1a"
 date = "2026-10-25"
 cheap = false
 depends = ["crates/tx/src/policy.rs"]
-doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = "0.01 ETH" }, { file = "docs/SECURITY.md", text = "0.01 ETH" }]
+doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = "0.01 ETH" }, { file = "docs/SECURITY.md", text = "0.01 ETH" }, { file = "docs/EXPORTS-reference.md", text = "0.01 ETH" }]
 
 [[claim]]
 id = "fee-cap-utxo-default"
@@ -208,3 +208,16 @@ date = "2026-10-25"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
 doc = [{ file = "README.md", text = "checks the sealed run on a real container" }]
+
+[[claim]]
+id = "exports-reference-executed"
+statement = "docs/EXPORTS-reference.md is generated from executed wasm calls; its input limits (blake2b personalization <= 16 bytes, memo 1..80 bytes, AccountInfo 80 bytes, PDA seeds <= 32 bytes) are boundary-tested in test.mjs, and its example outputs (1.0 ETH value, 9.99 ETH fee at 475714 gwei) are the recorded outputs"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "sh scripts/wasm-check.sh"
+expect = "exports-reference ok"
+commit = "a15504d"
+date = "2026-10-25"
+cheap = false
+doc = [{ file = "docs/EXPORTS-reference.md", text = "16 bytes" }, { file = "docs/EXPORTS-reference.md", text = "1..80 bytes" }, { file = "docs/EXPORTS-reference.md", text = "80 bytes hex" }, { file = "docs/EXPORTS-reference.md", text = "32 bytes" }, { file = "docs/EXPORTS-reference.md", text = "1.0 ETH" }, { file = "docs/EXPORTS-reference.md", text = "9.990000000000006 ETH" }, { file = "docs/EXPORTS-reference.md", text = "475714 gwei" }]

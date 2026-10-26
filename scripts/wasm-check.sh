@@ -27,6 +27,7 @@ want="__externref_table_alloc __externref_table_dealloc __wbindgen_export_0 __wb
 [ "$exp" = "$want" ] || { echo "FAIL exports differ:"; echo " got  $exp"; echo " want $want"; rc=1; }
 node test.mjs || rc=1
 node test-web.mjs || rc=1
+node gen-reference.mjs --check || rc=1  # docs/EXPORTS-reference.md is generated from the test.mjs calls
 raw=$(wc -c < "$M"); gz=$(gzip -9c "$M" | wc -c)
 wasm-bindgen "$W" --out-dir target/stripped --target web --remove-name-section --remove-producers-section
 st=$(wc -c < target/stripped/blocktools_wasm_bg.wasm); stgz=$(gzip -9c target/stripped/blocktools_wasm_bg.wasm | wc -c)
