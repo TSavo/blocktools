@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # default-features only: `secrets`, `net` must never be enabled here (scripts/wasm-check.sh)
-blocktools = { path = "../../crates/blocktools", default-features = false }
+blocktools = { version = "0.1.0", path = "../../crates/blocktools", default-features = false }
 wasm-bindgen = { version = "=0.2.100", default-features = false, features = ["std"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
 

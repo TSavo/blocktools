@@ -5,6 +5,6 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools multibit-read. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-io = { path = "../../crates/io" }
-blocktools-secrets = { path = "../../crates/secrets", features = ["multibit"] }
+blocktools-io = { version = "0.1.0", path = "../../crates/io" }
+blocktools-secrets = { version = "0.1.0", path = "../../crates/secrets", features = ["multibit"] }
 zeroize.workspace = true
