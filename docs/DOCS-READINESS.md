@@ -70,4 +70,4 @@ Open gaps (not fixed in this pass):
    needs GNU `sha256sum`, zec-sapling under bash 3.2. Everything in this pass was run on Linux only.
 3. `chainTable` rows carry `buildable`; embedders such as SwapChan must not display it as "supported".
 4. `bt_free(NULL)` and the macOS `.dylib` are not exercised.
-5. Token-2022 mints with extensions are not flagged by `solVerifyTx` yet (see SwapChan's PYUSD report).
+5. Token-2022: `solVerifyTx` warns `token_2022_mint_extensions_unchecked` on every Token-2022 transfer (extensions live in the mint account, not in the tx bytes), decodes TransferCheckedWithFee and reports `token_2022_transfer_fee:<fee>`, warns on plain Transfer and on extra accounts (transfer hook or multisig), and fails any other Token-2022 extension instruction. Measured by the `t22::token_2022_checks` unit test (hand-built txs; no mainnet PYUSD tx checked). Reading the mint account itself is not built.

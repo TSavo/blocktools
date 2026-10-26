@@ -184,6 +184,9 @@ fn decode_ix(t: &SolTx, ix: &Ix) -> Value {
             Some(13) => json!({"kind": "token_approve_checked", "source": a(0), "delegate": a(2)}),
             Some(6) => json!({"kind": "token_set_authority", "account": a(0), "authority_type": d.get(1), "new_authority": if d.get(2) == Some(&1) { d.get(3..35).map(b58enc) } else { None }}),
             Some(9) => json!({"kind": "token_close_account", "account": a(0), "destination": a(1)}),
+            // Token-2022 TransferFeeExtension(26) / TransferCheckedWithFee(1): amount u64, decimals u8, fee u64.
+            Some(26) if p == TOKEN_2022 && d.get(1) == Some(&1) && d.len() == 19 => json!({"kind": "token_transfer_checked_with_fee", "source": a(0), "mint": a(1), "destination": a(2), "authority": a(3), "amount": u64le(d, 2).unwrap().to_string(), "decimals": d[10], "fee": u64le(d, 11).unwrap().to_string()}),
+            Some(&x) if p == TOKEN_2022 && x >= 25 => json!({"kind": "token_2022_extension", "tag": x, "sub": d.get(1)}),
             Some(7) | Some(14) => json!({"kind": "token_mint_to", "mint": a(0)}),
             Some(8) | Some(15) => json!({"kind": "token_burn", "account": a(0)}),
             _ => json!({"kind": "token_other"}),
@@ -230,17 +233,28 @@ pub fn verify_tx(raw: &[u8], expect: &Value) -> Result<Value, &'static str> {
         match k {
             "system_transfer" => { lam += ix["lamports"].as_str().unwrap().parse::<u128>().unwrap();
                 if let Some(to) = s("to") { if ix["to"] == to.as_str() { seen_to = true } else { fail.push(format!("unexpected_recipient:{}", ix["to"].as_str().unwrap())) } } }
-            "token_transfer" | "token_transfer_checked" => { tok += ix["amount"].as_str().unwrap().parse::<u128>().unwrap();
-                if let Some(m) = s("mint") { if k == "token_transfer_checked" && ix["mint"] != m.as_str() { fail.push("wrong_mint".into()) } if k == "token_transfer" { warn.push("token_transfer_unchecked_mint".into()) } }
+            "token_transfer" | "token_transfer_checked" | "token_transfer_checked_with_fee" => { tok += ix["amount"].as_str().unwrap().parse::<u128>().unwrap();
+                let checked = k != "token_transfer";
+                // Token-2022: mint extensions (transfer fee, transfer hook, permanent delegate, confidential,
+                // non-transferable, pausable) live in the mint account, not in these bytes, so they cannot be
+                // ruled out here; say so. A plain Transfer(3) fails on fee / hook mints.
+                if ix["program"] == TOKEN_2022 {
+                    warn.push("token_2022_mint_extensions_unchecked".into());
+                    if !checked { warn.push("token_2022_unchecked_transfer".into()) }
+                    if k == "token_transfer_checked_with_fee" { warn.push(format!("token_2022_transfer_fee:{}", ix["fee"].as_str().unwrap())) }
+                    if checked && ix["account_indexes"].as_array().map_or(0, |a| a.len()) > 4 { warn.push("token_2022_extra_accounts:transfer_hook_or_multisig".into()) }
+                }
+                if let Some(m) = s("mint") { if checked && ix["mint"] != m.as_str() { fail.push("wrong_mint".into()) } if !checked { warn.push("token_transfer_unchecked_mint".into()) } }
                 // `to` may be the destination token account itself or its owner wallet (then the destination
                 // must be that wallet's associated token account for this mint and token program).
                 if let Some(to) = s("to") {
                     let ata = || -> Option<String> { let (o, m, p) = (pubkey(&to).ok()?, pubkey(ix["mint"].as_str()?).ok()?, pubkey(ix["program"].as_str()?).ok()?); Some(b58enc(&associated_token_address(&o, &m, &p).ok()?.0)) };
-                    if ix["destination"] == to.as_str() || (k == "token_transfer_checked" && ata().as_deref() == ix["destination"].as_str()) { seen_to = true }
+                    if ix["destination"] == to.as_str() || (checked && ata().as_deref() == ix["destination"].as_str()) { seen_to = true }
                     else { fail.push(format!("unexpected_token_destination:{}", ix["destination"].as_str().unwrap())) } } }
             "compute_unit_limit" | "compute_unit_price" | "memo" | "ata_create" | "system_advance_nonce" => {}
             "token_approve" | "token_approve_checked" => fail.push("token_approve".into()),
             "token_set_authority" => fail.push("token_set_authority".into()),
+            "token_2022_extension" => fail.push(format!("token_2022_extension_instruction:{}", ix["tag"])),
             "token_close_account" => { if let Some(o) = s("owner") { if ix["destination"] != o.as_str() { fail.push("close_account_to_other".into()) } } else { warn.push("close_account".into()) } }
             "system_assign" | "system_authorize_nonce" => fail.push(k.to_string()),
             _ => { let p = ix["program"].as_str().unwrap(); if !allow.iter().any(|a| a == p) { fail.push(format!("unknown_program:{p}")) } }
@@ -417,4 +431,45 @@ pub fn plan_from_json(v: &Value) -> Result<SolPlan, &'static str> {
     let priority = match v["priority"].as_array() { Some(p) if p.len() == 2 => Some((n(&p[0])?,
         p[1].as_u64().filter(|l| *l <= u32::MAX as u64).ok_or("bad_number")? as u32)), None => None, _ => return Err("bad_priority") };
     Ok(SolPlan { from: pk(&v["from"])?, to: pk(&v["to"])?, blockhash: pk(&v["blockhash"])?, amount, priority })
+}
+
+#[cfg(test)]
+mod t22 {
+    use super::*;
+    /// Legacy tx: owner signs, src/dest writable, mint + Token-2022 readonly; one Token-2022 ix with `data`.
+    fn t22_tx(data: &[u8], extra: bool) -> Vec<u8> {
+        let k = |n: u8| [n; 32];
+        let prog = pubkey(TOKEN_2022).unwrap();
+        let mut keys = vec![k(1), k(2), k(3), k(4), prog];
+        if extra { keys.insert(4, k(5)) }
+        let pi = keys.len() as u8 - 1;
+        let mut m = vec![1u8, 0, if extra { 3 } else { 2 }, keys.len() as u8];
+        for x in &keys { m.extend_from_slice(x) }
+        m.extend_from_slice(&[7u8; 32]);
+        let mut accts = vec![1u8, 3, 2, 0]; if extra { accts.push(4) }
+        m.extend_from_slice(&[1, pi, accts.len() as u8]); m.extend_from_slice(&accts); m.push(data.len() as u8); m.extend_from_slice(data);
+        let mut tx = vec![1u8]; tx.extend_from_slice(&[0u8; 64]); tx.extend_from_slice(&m); tx
+    }
+    #[test] fn token_2022_checks() {
+        let w = |v: &Value| v["warnings"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect::<Vec<_>>();
+        // TransferChecked(12): amount 1000, decimals 6.
+        let mut tc = vec![12u8]; tc.extend_from_slice(&1000u64.to_le_bytes()); tc.push(6);
+        let r = verify_tx(&t22_tx(&tc, false), &json!({"amount": "1000"})).unwrap();
+        assert!(r["ok"] == json!(true) && w(&r).contains(&"token_2022_mint_extensions_unchecked".to_string()), "{r}");
+        // Extra account on a checked transfer: transfer hook or multisig, flagged.
+        let r = verify_tx(&t22_tx(&tc, true), &json!({})).unwrap();
+        assert!(w(&r).iter().any(|x| x.starts_with("token_2022_extra_accounts")), "{r}");
+        // TransferCheckedWithFee (26, 1): amount 1000, decimals 6, fee 7: counted, fee reported.
+        let mut tf = vec![26u8, 1]; tf.extend_from_slice(&1000u64.to_le_bytes()); tf.push(6); tf.extend_from_slice(&7u64.to_le_bytes());
+        let d = decode_tx(&t22_tx(&tf, false)).unwrap();
+        assert_eq!(d["instructions"][0]["kind"], "token_transfer_checked_with_fee");
+        let r = verify_tx(&t22_tx(&tf, false), &json!({"amount": "1000"})).unwrap();
+        assert!(r["ok"] == json!(true) && w(&r).contains(&"token_2022_transfer_fee:7".to_string()), "{r}");
+        // Plain Transfer(3) on Token-2022: warned.
+        let mut tp = vec![3u8]; tp.extend_from_slice(&5u64.to_le_bytes());
+        assert!(w(&verify_tx(&t22_tx(&tp, false), &json!({})).unwrap()).contains(&"token_2022_unchecked_transfer".to_string()));
+        // Any other extension instruction (e.g. 27 DefaultAccountState) fails the check.
+        let r = verify_tx(&t22_tx(&[27, 1, 2], false), &json!({})).unwrap();
+        assert!(r["ok"] == json!(false) && r["failures"][0] == "token_2022_extension_instruction:27", "{r}");
+    }
 }
