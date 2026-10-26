@@ -288,6 +288,7 @@ mod tests {
 }
 
 #[cfg(test)]
+// finding:D1-12 guard: every tx-verify/tx-sign failure code survives redact.
 mod d1_12 {
     // Every code the verifier may emit (blocktools_tx's code! macro only accepts TX_FAILURES members)
     // must survive redact; before D1-12 the whole refusal line was dropped.

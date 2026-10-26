@@ -29,6 +29,7 @@ python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --cha
 grep -q server_id_differs $T/o && echo "ok   tx-broadcast flags server id mismatch" || f mism
 # D1-11: the account was fetched from a chain-1 node; building for chain 8453 with it must refuse (rc 2).
 if $B/tx-build --chain eth --chain-id 8453 --account $T/acct --to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --sweep > $T/e8453; then f d1-11; fi
+# finding:D1-11 guard: tx-build refuses a chain-1 account for --chain-id 8453.
 grep -q account_chain_id_mismatch $T/e8453 && echo "ok   tx-build refuses an account fetched from another chain id (D1-11)" || f d1-11b
 $B/tx-build --chain eth --chain-id 1 --account $T/acct --to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --sweep > $T/e
 python3 scripts/e2e-only/tty-drive.py right $T/k $T/es $PWD/$B/tx-sign --tx $T/e --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF >/dev/null

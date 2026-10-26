@@ -114,7 +114,7 @@ def run_cases(cases):
             shutil.rmtree(d)
             st = re.findall(r'"status":"([a-z_]+)"', p.stdout + p.stderr)
             if str(p.returncode) != want: bad.append(f"FAIL man example ({t}) exit {p.returncode}, file says {want}: {cmd}")
-            # rule:X-exit (D1-14, docs/EXIT-CODES.md): the exit code follows the last status field.
+            # rule:X-exit finding:D1-14 (D1-14, docs/EXIT-CODES.md): the exit code follows the last status field.
             last = st[-1] if st else None
             need = EXIT_RULE.get(last) if last else (0 if p.returncode == 0 else None)
             if not t.endswith(".sh") and (need is None or p.returncode != need):  # recipes have their own codes (EXIT-CODES.md)

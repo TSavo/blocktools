@@ -4,6 +4,11 @@ Linux gate jobs (`lint`, `test`, `negatives`, `e2e`) run on the self-hosted Batt
 (`battleaxe-blocktools-1`, labels `self-hosted, Linux, X64, blocktools, battleaxe`). The `macos` job
 stays on GitHub-hosted `macos-latest`. The release workflow stays GitHub-hosted.
 
+Measured from our own run 40270984219 (c0ece5e) with
+`gh api repos/TSavo/blocktools/actions/runs/40270984219/jobs`: all four Linux jobs succeeded on
+runner `battleaxe-blocktools-1` (test 4m27s, lint 1m17s, negatives 3m53s, e2e 1m33s; about 11m18s from first
+start to last finish). The `macos` job failed after 2 s ("recent account payments have failed").
+
 ## Fallback to GitHub-hosted (manual override only)
 
 Self-hosted is the default because GitHub-hosted Linux jobs currently do not start: run 40265106260
