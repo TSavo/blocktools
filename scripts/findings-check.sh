@@ -5,6 +5,9 @@ set -eu
 if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 export LC_ALL=C
 cd "$(dirname "$0")/.."
+# A shallow clone (CI checkout default fetch-depth 1) has no history, so every fixed-in check would
+# misreport. Refuse up front with the real cause.
+[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" != true ] || { echo "FAIL findings: shallow clone, commit history unavailable (use actions/checkout fetch-depth: 0 or git fetch --unshallow)"; exit 1; }  # rule:F-shallow
 F=${1:-docs/FINDINGS.md}
 [ -f "$F" ] || { echo "FAIL findings: no $F"; exit 1; }  # rule:F-file
 rc=0; nf=0; no=0

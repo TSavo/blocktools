@@ -27,3 +27,4 @@ they can't be forgotten, and the check prints them on every run.
 | R2-9 | Gates grep for words instead of testing the property | fixed | 76c9850 | scripts/gate-negatives.sh |
 | R2-10 | CI and local verify-and-push ran different step lists | fixed | 94449bd | scripts/ci-gate-check.sh |
 | R2-11 | No macOS CI coverage, so Mac failures surface only in manual reruns | open | - | - |
+| R2-12 | CI checkout was shallow (fetch-depth 1), so findings-check misreported real commits as missing | open | - | scripts/gate-negatives.sh |

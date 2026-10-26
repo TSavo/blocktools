@@ -31,6 +31,9 @@ VALID_PLAT = {"linux", "macos", "docker", "any"}
 def git(*a):
     return subprocess.run(["git", *a], capture_output=True, text=True)
 
+SHALLOW = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
+
+
 def main():
     render = "--render" in sys.argv; run_all = "--run-all" in sys.argv
     reg = tomllib.load(open(REG, "rb"))["claim"]
@@ -58,7 +61,9 @@ def main():
             for k in ("command", "expect", "commit", "date"):
                 if not c.get(k): bad.append(f"[K-fields] {cid}: measured but no {k}")  # rule:K-fields
             com = c.get("commit", "")
-            if com and git("merge-base", "--is-ancestor", com, "HEAD").returncode:
+            if com and SHALLOW:
+                bad.append(f"[K-fields] {cid}: shallow clone, cannot check commit {com} (use fetch-depth: 0)")  # rule:K-fields
+            elif com and git("merge-base", "--is-ancestor", com, "HEAD").returncode:
                 bad.append(f"[K-fields] {cid}: commit {com} is not in HEAD's history")  # rule:K-fields
             elif com and c.get("depends"):
                 if git("diff", "--quiet", com, "HEAD", "--", *c["depends"]).returncode:

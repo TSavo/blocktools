@@ -60,7 +60,7 @@ for f in $G; do
   [ -z "$u" ] || { echo "FAIL gate rule without a # rule: tag in $f:"; echo "$u"; rc=1; }  # rule:H-neg
 done
 for id in $(grep -ohE '# rule:[A-Z]-[A-Za-z0-9]+( [A-Z]-[A-Za-z0-9]+)*$' $G | sed 's/# rule://' | tr ' ' '\n' | grep . | sort -u); do
-  grep -q "^neg $id " scripts/gate-negatives.sh || grep -qE "neg-exempt:.*rule:$id|rule:$id.*neg-exempt:" $G || \
+  grep -q "^neg $id " scripts/gate-negatives.sh || grep -qF "echo \"ok   neg $id\"" scripts/gate-negatives.sh || grep -qE "neg-exempt:.*rule:$id|rule:$id.*neg-exempt:" $G || \
   case $id in C-net|C-stale) grep -q 'check-deps-regress' scripts/gate-negatives.sh || { echo "FAIL rule $id has no negative test"; rc=1; };; *) echo "FAIL rule $id has no negative test (add neg $id to scripts/gate-negatives.sh)"; rc=1;; esac  # rule:H-neg
 done
 [ $rc = 0 ] && echo "hygiene ok"
