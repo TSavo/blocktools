@@ -18,6 +18,11 @@ Exit status 1 when:
   * a measured number claim lacks `value`/`env`, or a doc line for it doesn't carry
     `value` (registry and README disagree on the number)                            [K-agree]
   * docs/CLAIMS.md's generated Measured/Untested sections are out of date.            [K-render]
+  * a measured claim's `commit` has no completed successful `ci` run on main, neither at that
+    commit nor at a descendant whose `depends` are unchanged since it (GitHub API; fails closed
+    in GitHub Actions, skipped with a notice elsewhere when the API is unreachable)    [K-ci]
+  * a measured claim's `expect` names a commit that is not its `commit`, or a number
+    (4+ digits) the statement does not carry                                         [K-agree]
 Usage: claims-check.py [--render] [--run-all]
 """
 import os, re, subprocess, sys, tomllib, json, shutil
@@ -39,10 +44,48 @@ def git(*a):
 SHALLOW = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
 
 
+REPO = os.environ.get("GITHUB_REPOSITORY", "TSavo/blocktools")
+
+def green_shas():
+    """Head SHAs of completed successful runs of workflow ci.yml on main, or None if the API is unreachable.
+    Cached in $CLAIMS_GREEN_CACHE when set (gate-negatives runs docs-check many times)."""
+    cache = os.environ.get("CLAIMS_GREEN_CACHE")
+    if cache and os.path.exists(cache): return json.load(open(cache))
+    import urllib.request
+    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if not tok and shutil.which("gh"):
+        r = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
+        tok = r.stdout.strip() if r.returncode == 0 else None
+    out = []
+    try:
+        for page in range(1, 6):
+            req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/actions/workflows/ci.yml/runs?branch=main&status=success&event=push&per_page=100&page={page}",
+                                         headers={"Accept": "application/vnd.github+json", **({"Authorization": f"Bearer {tok}"} if tok else {})})
+            runs = json.load(urllib.request.urlopen(req, timeout=30))["workflow_runs"]
+            out += [r["head_sha"] for r in runs if r.get("conclusion") == "success" and r.get("status") == "completed"]
+            if len(runs) < 100: break
+    except Exception as e:
+        print(f"claims: GitHub API unreachable ({type(e).__name__})", file=sys.stderr); return None
+    if cache: json.dump(out, open(cache, "w"))
+    return out
+
+def ci_covered(com, depends, greens):
+    full = git("rev-parse", "--verify", "-q", com + "^{commit}").stdout.strip()
+    if not full: return False
+    if full in greens: return True
+    for g in greens:
+        if git("cat-file", "-e", g + "^{commit}").returncode or git("merge-base", "--is-ancestor", full, g).returncode: continue
+        # descendant run covers the claim only if nothing the claim depends on changed in between
+        if depends and not git("diff", "--quiet", full, g, "--", *depends).returncode: return True
+    return False
+
 def main():
     render = "--render" in sys.argv; run_all = "--run-all" in sys.argv
     reg = tomllib.load(open(REG, "rb"))["claim"]
     bad = []
+    global GREENS
+    GREENS = green_shas() if any(c.get("status") == "measured" for c in reg) else []
+    if GREENS is None and os.environ.get("GITHUB_ACTIONS") != "true": print("claims: K-ci skipped: GitHub API unreachable (CI fails closed)", file=sys.stderr)
     ids = [c.get("id") for c in reg]
     for d in sorted({i for i in ids if ids.count(i) > 1}): bad.append(f"duplicate claim id {d}")
     texts = {}
@@ -86,6 +129,19 @@ def main():
             elif com and c.get("depends"):
                 if git("diff", "--quiet", com, "HEAD", "--", *c["depends"]).returncode:
                     bad.append(f"[K-stale] {cid}: {', '.join(c['depends'])} changed since {com}; re-measure")  # rule:K-stale
+            if com and not SHALLOW:
+                if GREENS is None:
+                    if os.environ.get("GITHUB_ACTIONS") == "true": bad.append(f"[K-ci] {cid}: GitHub API unreachable, cannot verify commit {com} has a green ci run (fail closed)")  # rule:K-ci
+                elif not ci_covered(com, c.get("depends", []), GREENS):
+                    bad.append(f"[K-ci] {cid}: commit {com} has no successful ci run on main (at it, or at a descendant with its depends unchanged); stamp claims only at a green commit")  # rule:K-ci
+            exp = str(c.get("expect", ""))
+            for m in re.finditer(r"\bcommit ([0-9a-f]{7,40})\b", exp):
+                if not (com and (m.group(1).startswith(com) or com.startswith(m.group(1)))):
+                    bad.append(f"[K-agree] {cid}: expect names commit {m.group(1)[:12]} but the claim is stamped {com}")  # rule:K-agree
+            if c.get("kind") == "number":
+                for m in re.finditer(r"(?<![0-9a-f.])\d{4,}(?![0-9a-f])", re.sub(r"\bcommit [0-9a-f]+", "", exp)):
+                    if m.group(0) not in c.get("statement", ""):
+                        bad.append(f"[K-agree] {cid}: expect carries {m.group(0)} but the statement does not")  # rule:K-agree
             if c.get("platform") == "macos":
                 run = c.get("ci_run")
                 if not run: bad.append(f"[K-macos] {cid}: macos claim measured without a ci_run of the macos job")  # rule:K-macos

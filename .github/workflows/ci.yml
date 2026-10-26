@@ -9,6 +9,7 @@ on:
 # Read-only token for every job (fork PRs never get secrets or a write token).
 permissions:
   contents: read
+  actions: read  # claims-check K-ci reads this repo's completed ci runs
 # One run per ref, newest wins: a push cancels the run of the previous commit on that ref (docs/CI.md, 'Queue').
 # Measured before this: pushes every 2.4 min, each run waiting 7-19 min for the previous one to finish.
 concurrency:
@@ -54,6 +55,7 @@ jobs:
       - run: (rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown) && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
       - run: python3 -c 'import cryptography, yaml' 2>/dev/null || python3 -m pip install --user --break-system-packages cryptography pyyaml
       - run: sh scripts/gate.sh ${{ matrix.stage }}
+        env: { GH_TOKEN: "${{ github.token }}" }  # read-only (permissions above); claims-check K-ci
       - if: always()
         run: git worktree prune && git clean -ffdxq -e target && for d in "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*; do [ "$d" = "${TMPDIR:-/tmp}/blocktools-wasm-build" ] || rm -rf "$d"; done
 

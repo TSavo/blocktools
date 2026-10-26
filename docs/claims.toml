@@ -59,15 +59,15 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.1 MB = 46134784 bytes, measured on the image built from 727537d. Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon). On the same image, docker image inspect .Size is 77726450 bytes (store-dependent, reference only). Earlier measurements: 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store); the step to 38 binaries is phrase-to-key (PR 1). Compare sizes only with the same instrument and store."
+statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.1 MB = 46138880 bytes, measured on the image built from 1f35e54 (a commit with a green ci run). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 77731427 bytes (store-dependent, reference only). Earlier measurements: the same 46138880 bytes at 30489d3; 46134784 bytes at 727537d (cancelled ci run; Dockerfile and image scripts unchanged since, so the 4096-byte difference is build-to-build variation, not explained); 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store); the step to 38 binaries is phrase-to-key (PR 1). Compare sizes only with the same instrument and store."
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh --build"
-expect = "image blocktools:local; commit 30489d309aafd7db0d108c69473480e3edba81d2; 46138880 bytes"
+expect = "image blocktools:local; commit 1f35e54afe10ca3864cb2a149790f8bbc423915f; 46138880 bytes"
 value = "46.1"
 env = "docker 29.8.2, driver overlayfs (driver-type io.containerd.snapshotter.v1), Linux (Battleaxe, WSL2 6.6.87.2)"
-commit = "727537d"
+commit = "1f35e54"
 date = "2026-10-26"
 cheap = false
 depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]

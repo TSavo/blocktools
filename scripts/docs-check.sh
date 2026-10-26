@@ -55,6 +55,6 @@ grep -q 'share/man' scripts/package-native.sh || { echo "FAIL package-native mis
 # 10. (removed: image size is a claims.toml entry; scripts/image-size.sh refuses non-image measurements)
 # 11. review findings ledger: every fixed finding has a guard test (docs/FINDINGS.md)
 sh scripts/findings-check.sh || rc=1  # rule:F-guard F-token F-commit F-status F-dup F-rows F-file
-python3 scripts/claims-check.py || rc=1  # rule:K-unreg K-gone K-fields K-stale K-run K-macos K-label K-render
+python3 scripts/claims-check.py || rc=1  # rule:K-unreg K-gone K-fields K-stale K-run K-macos K-label K-render K-ci K-agree
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc
