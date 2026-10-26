@@ -2,9 +2,9 @@
 //! Balance / sequence / rounds come from the host-side `utxo-fetch --chain xlm|algo ADDR` (this tool has no network).
 //! acct-tx build   --chain xlm  --from G.. --to G.. (--amount STROOPS | --sweep) --fee STROOPS --seq N [--memo-id N|--memo-text T] [--max-time UNIX] [--testnet]
 //! acct-tx build   --chain algo --from A.. --to A.. (--amount MICROALGO | --sweep) --fee MICROALGO --first-round N [--last-round N] [--note T]
-//! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
+//! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra|cro] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
 //!   --chain atom covers Cosmos SDK MsgSend (SIGN_MODE_DIRECT, secp256k1) on the chains with a Trust Wallet Core vector:
-//!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2),
+//!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2, cro=Crypto.org),
 //!   which sets the base denom and default --chain-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
 //!   ethsecp256k1 chains (Injective, Evmos), CosmWasm, IBC and every non-MsgSend message.
 //! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM

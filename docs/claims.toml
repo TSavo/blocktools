@@ -324,14 +324,28 @@ doc = [{ file = "docs/CHAINS.md", text = "2 tests" }]
 
 [[claim]]
 id = "twc-cosmos-vectors"
-statement = "Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused"
+statement = "Trust Wallet Core Cosmos SDK MsgSend vectors (Cosmos Hub, Osmosis, Juno, Stargaze, Secret, Terra 2, Crypto.org) decoded, verified and re-signed byte for byte; TWC IBC, MsgVote and CosmWasm vectors refused"
 kind = "security"
 platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools-acct --test twc_cosmos"
-expect = "test result: ok. 7 passed"
-commit = "3ed2edf"
+expect = "test result: ok. 8 passed"
+commit = "5d9f83c"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/acct/src/atom.rs", "crates/acct/tests/twc_cosmos.rs"]
-doc = [{ file = "docs/CHAINS.md", text = "7 tests" }]
+doc = [{ file = "docs/CHAINS.md", text = "8 tests" }]
+
+[[claim]]
+id = "twc-cosmos-addresses"
+statement = "24 Cosmos SDK chain rows derive Trust Wallet Core's 0x46-key addresses, auto-detect uniquely, and match 19 TWC pubkey-to-address vectors"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools --test twc_cosmos_addr"
+expect = "test result: ok. 3 passed"
+commit = "7f9e8a8"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/core/src/chains.rs", "crates/blocktools/tests/twc_cosmos_addr.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "(3 tests)" }]

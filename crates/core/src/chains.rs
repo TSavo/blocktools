@@ -72,6 +72,11 @@ pub struct Chain {
     pub source: &'static str,
     pub sources: &'static [Source],
 }
+/// Cosmos SDK row: path m/44'/coin'/0'/0/i, Hub address form with this hrp. Signing is not implied (acct-tx lists its own vectors).
+const fn cos(name: &'static str, ticker: &'static str, title: &'static str, coin: u32, hrp: &'static str) -> Chain {
+    Chain { name, ticker, title, coin, enc: Enc::Cosmos { hrp }, default_count: 10, sign: Sign::Unknown, verified: true,
+            source: "Trust Wallet Core adf80f8 registry.json (hrp, coin type); address KAT tests/common/CoinAddressDerivationTests.cpp", sources: &[] }
+}
 const fn u(name: &'static str, ticker: &'static str, title: &'static str, coin: u32, p2pkh: u8, p2sh: u8, wif: u8, hrp: Option<&'static str>,
            sign: Sign, verified: bool, source: &'static str, sources: &'static [Source]) -> Chain {
     Chain { name, ticker, title, coin, enc: Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot: false }, default_count: 10, sign, verified, source, sources }
@@ -100,6 +105,32 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
+    // ---- Cosmos SDK, Hub address form (secp256k1, bech32 hash160). Params and KAT: Trust Wallet Core adf80f8
+    //      registry.json + tests/common/CoinAddressDerivationTests.cpp (crates/blocktools/tests/twc_cosmos_addr.rs). ----
+    cos("strd", "STRD", "Stride", 118, "stride"),
+    cos("axl", "AXL", "Axelar", 118, "axelar"),
+    cos("cre", "CRE", "Crescent", 118, "cre"),
+    cos("kuji", "KUJI", "Kujira", 118, "kujira"),
+    cos("cmdx", "CMDX", "Comdex", 118, "comdex"),
+    cos("ntrn", "NTRN", "Neutron", 118, "neutron"),
+    cos("somm", "SOMM", "Sommelier", 118, "somm"),
+    cos("fet", "FET", "Fetch.ai", 118, "fetch"),
+    cos("mars", "MARS", "Mars Hub", 118, "mars"),
+    cos("umee", "UMEE", "Umee", 118, "umee"),
+    cos("noble", "USDC", "Noble", 118, "noble"),
+    cos("sei", "SEI", "Sei (Cosmos address)", 118, "sei"),
+    cos("tia", "TIA", "Celestia", 118, "celestia"),
+    cos("coreum", "CORE", "Coreum", 990, "core"),
+    cos("qsr", "QSR", "Quasar", 118, "quasar"),
+    cos("xprt", "XPRT", "Persistence", 118, "persistence"),
+    cos("akt", "AKT", "Akash", 118, "akash"),
+    cos("kava", "KAVA", "Kava (Cosmos address)", 459, "kava"),
+    cos("blz", "BLZ", "Bluzelle", 483, "bluzelle"),
+    cos("band", "BAND", "BandChain", 494, "band"),
+    cos("cro", "CRO", "Crypto.org (Cronos POS)", 394, "cro"),
+    cos("bld", "BLD", "Agoric", 564, "agoric"),
+    cos("dydx", "DYDX", "dYdX Chain", 118, "dydx"),
+    cos("rune", "RUNE", "THORChain", 931, "thor"),
     // ---- Bitcoin-family long tail. Bytes are decimal as written in each coin's source. ----
     u("qtum", "QTUM", "Qtum", 2301, 58, 50, 128, Some("qc"), Standard, true, "qtumproject/qtum src/kernel/chainparams.cpp", &[bb("qtum.info", "https://qtum.info/address/{addr}", "qtuminfo:https://qtum.info/api")]),
     u("ftc", "FTC", "Feathercoin", 8, 14, 5, 142, Some("fc"), Standard, true, "FeatherCoin/Feathercoin src/chainparams.cpp", &[]),
@@ -818,6 +849,7 @@ mod kat_long_tail {
         }
         for c in CHAINS { if let Enc::Utxo { hrp: Some(h), .. } = c.enc { assert!(blocktools_schema::HRPS.contains(&h), "schema HRPS missing {h}") } }
         for c in CHAINS { assert!(blocktools_schema::CHAINS.contains(&c.name), "schema CHAINS missing {}", c.name) }
+        for c in CHAINS { if let Enc::Cosmos { hrp } = c.enc { assert!(blocktools_schema::COSMOS_HRPS.contains(&hrp) && blocktools_schema::HRPS.contains(&hrp), "schema COSMOS_HRPS missing {hrp}") } }
         // every UTXO row in the table has a vector (grs: Groestl checksum, covered by grs_kats /
         // grs_wif_and_bip32_kats below from groestlcoinjs-lib and Electrum-GRS)
         for c in CHAINS.iter().filter(|c| matches!(c.enc, Enc::Utxo { .. }) && c.name != "grs") { assert!(V.iter().any(|v| v.0 == c.name), "{} has no KAT", c.name) }

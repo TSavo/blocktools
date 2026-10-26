@@ -10,10 +10,11 @@ pub struct Send { pub from: String, pub to: String, pub denom: String, pub amoun
 
 /// Cosmos SDK chains with a Trust Wallet Core MsgSend SIGN_MODE_DIRECT vector (crates/acct/tests/twc_cosmos.rs):
 /// (bech32 hrp, name, mainnet chain_id, base denom). The chain is detected from the address hrp.
-/// Chains with ethsecp256k1 keys (Injective, Evmos) or amino-JSON signing (Crypto.org vectors) are not listed: refused.
+/// Chains with ethsecp256k1 keys (Injective, Evmos) are not listed; Crypto.org is listed for its protobuf vector only (its amino-JSON vectors are not ported): refused.
 pub const CHAINS: &[(&str, &str, &str, &str)] = &[
     ("cosmos", "cosmoshub", "cosmoshub-4", "uatom"), ("osmo", "osmosis", "osmosis-1", "uosmo"), ("juno", "juno", "juno-1", "ujuno"),
-    ("stars", "stargaze", "stargaze-1", "ustars"), ("secret", "secret", "secret-4", "uscrt"), ("terra", "terra2", "phoenix-1", "uluna")];
+    ("stars", "stargaze", "stargaze-1", "ustars"), ("secret", "secret", "secret-4", "uscrt"), ("terra", "terra2", "phoenix-1", "uluna"),
+    ("cro", "cryptoorg", "crypto-org-chain-mainnet-1", "basecro")];
 /// (hrp, name, mainnet chain_id, denom) for an address, or None for an hrp without a vector.
 pub fn chain_of(addr: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {
     let hrp = addr.rsplit_once('1')?.0; CHAINS.iter().find(|c| c.0 == hrp).copied()
@@ -93,7 +94,7 @@ impl Send {
         let t = Send { from: s(pb::one(&m, 1).ok_or("no from")?)?, to: s(pb::one(&m, 2).ok_or("no to")?)?, denom, amount,
             memo: pb::one(&bf, 2).map(s).transpose()?.unwrap_or_default(), pubkey, sequence: pb::num(&si, 3), fee: fee_amt, gas: pb::num(&fee, 2), chain_id, account_number };
         if t.body() != body || t.auth_info() != auth { return Err("unsupported fields present (timeout, granter, extension options, ...)".into()) }
-        let c = chain_of(&t.from).ok_or("cosmos_hrp_without_vector: only cosmos/osmo/juno/stars/secret/terra are proven")?;
+        let c = chain_of(&t.from).ok_or("cosmos_hrp_without_vector: only cosmos/osmo/juno/stars/secret/terra/cro are proven")?;
         if chain_of(&t.to).map(|x| x.0) != Some(c.0) { return Err("to address hrp differs from from address hrp".into()) }
         if address_hrp(c.0, &t.pubkey) != t.from { return Err("from address does not match signer pubkey".into()) }
         Ok(t)

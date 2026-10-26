@@ -44,6 +44,30 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | qrk | QRK | 82 | 3a | 09 | — | 186 | sha256d | 5 | — | legacy | yes | cryptoid chainz.cryptoid.info |
 | zec | ZEC | 133 | 1cb8 | 1cbd | — | 128 | sha256d | 8 | — | zcash-v5 | yes (transparent P2PKH) | none |
 | grs | GRS | 17 | 24 | 05 | grs | 128 | groestl512d | 8 | — | legacy-sha256 | yes | none listed |
+| strd | STRD | 118 | — | — | stride | — | — | 6 | — | account | no | none |
+| axl | AXL | 118 | — | — | axelar | — | — | 6 | — | account | no | none |
+| cre | CRE | 118 | — | — | cre | — | — | 6 | — | account | no | none |
+| kuji | KUJI | 118 | — | — | kujira | — | — | 6 | — | account | no | none |
+| cmdx | CMDX | 118 | — | — | comdex | — | — | 6 | — | account | no | none |
+| ntrn | NTRN | 118 | — | — | neutron | — | — | 6 | — | account | no | none |
+| somm | SOMM | 118 | — | — | somm | — | — | 6 | — | account | no | none |
+| fet | FET | 118 | — | — | fetch | — | — | 6 | — | account | no | none |
+| mars | MARS | 118 | — | — | mars | — | — | 6 | — | account | no | none |
+| umee | UMEE | 118 | — | — | umee | — | — | 6 | — | account | no | none |
+| noble | USDC | 118 | — | — | noble | — | — | 6 | — | account | no | none |
+| sei | SEI | 118 | — | — | sei | — | — | 6 | — | account | no | none |
+| tia | TIA | 118 | — | — | celestia | — | — | 6 | — | account | no | none |
+| coreum | CORE | 990 | — | — | core | — | — | 6 | — | account | no | none |
+| qsr | QSR | 118 | — | — | quasar | — | — | 6 | — | account | no | none |
+| xprt | XPRT | 118 | — | — | persistence | — | — | 6 | — | account | no | none |
+| akt | AKT | 118 | — | — | akash | — | — | 6 | — | account | no | none |
+| kava | KAVA | 459 | — | — | kava | — | — | 6 | — | account | no | none |
+| blz | BLZ | 483 | — | — | bluzelle | — | — | 6 | — | account | no | none |
+| band | BAND | 494 | — | — | band | — | — | 6 | — | account | no | none |
+| cro | CRO | 394 | — | — | cro | — | — | 8 | — | account | no | none |
+| bld | BLD | 564 | — | — | agoric | — | — | 6 | — | account | no | none |
+| dydx | DYDX | 118 | — | — | dydx | — | — | 18 | — | account | no | none |
+| rune | RUNE | 931 | — | — | thor | — | — | 8 | — | account | no | none |
 
 ### Fee-warning limits (verify-tx / wasm `verifyTx`, `chainParams().fee_warn`)
 
@@ -149,10 +173,15 @@ Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_me
 | stars | Stargaze | stargaze-1 | ustars | `Stargaze/TWAnySignerTests.cpp` Sign |
 | secret | Secret | secret-4 | uscrt | `Secret/SignerTests.cpp` Sign |
 | terra | Terra 2 | phoenix-1 | uluna | `TerraV2/SignerTests.cpp` SignSendTx |
+| cro | Crypto.org | crypto-org-chain-mainnet-1 | basecro | `CryptoOrg/TWAnySignerTests.cpp` SignTx_Proto_BCB213 |
 
-Measured (Linux only): `crates/acct/tests/twc_cosmos.rs` (7 tests). For each chain it decodes TWC's `tx_bytes`, verifies the signature, checks the detected chain, re-signs with TWC's public test key and requires the TxRaw to match byte for byte. The seventh test feeds TWC's IBC transfer, MsgVote, Terra CosmWasm and Stargaze CW721 vectors to the decoder and requires each to be refused. `scripts/e2e.d/twc-cosmos.sh` rebuilds the Osmosis vector from its inputs with the real CLI (`keys --hrp osmo`, `build`, `sign` with the code typed on a pty) and gets TWC's tx_bytes exactly, then checks the refusals below.
+Measured (Linux only): `crates/acct/tests/twc_cosmos.rs` (8 tests). For each chain it decodes TWC's `tx_bytes`, verifies the signature, checks the detected chain, re-signs with TWC's public test key and requires the TxRaw to match byte for byte. One test feeds TWC's IBC transfer, MsgVote, Terra CosmWasm and Stargaze CW721 vectors to the decoder and requires each to be refused. `scripts/e2e.d/twc-cosmos.sh` rebuilds the Osmosis vector from its inputs with the real CLI (`keys --hrp osmo`, `build`, `sign` with the code typed on a pty) and gets TWC's tx_bytes exactly, then checks the refusals below.
 
-Refused: any other hrp (`cosmos_hrp_without_vector`), which includes ethsecp256k1 chains (Injective, Evmos; their keys hash differently and TWC signs them with a different pubkey type); a `--to` on another hrp (`wrong network`); every message other than MsgSend (IBC, staking, governance, CosmWasm, NFTs); amino-JSON signing (TWC's Crypto.org and `SignTxJson` vectors are amino and are not ported); fee and amount in different denoms. Untested: TWC's `SignDirect_0a90010a` vector (a pre-built body passed through; its auth info carries no pubkey, which the decoder refuses), broadcast, multi-coin amounts, Terra Classic (same `terra` hrp; columbus-5 gets the chain-id warning but has no vector here), and chains TWC has but blocktools does not list (Akash, Kava, Kujira, Sei and the rest).
+Refused: any other hrp (`cosmos_hrp_without_vector`), which includes ethsecp256k1 chains (Injective, Evmos; their keys hash differently and TWC signs them with a different pubkey type); a `--to` on another hrp (`wrong network`); every message other than MsgSend (IBC, staking, governance, CosmWasm, NFTs); amino-JSON signing (TWC's Crypto.org amino and `SignTxJson` vectors are not ported); fee and amount in different denoms. Untested: TWC's `SignDirect_0a90010a` vector (a pre-built body passed through; its auth info carries no pubkey, which the decoder refuses), broadcast, multi-coin amounts, Terra Classic (same `terra` hrp; columbus-5 gets the chain-id warning but has no vector here), and signing on the 23 address-only Cosmos rows below.
+
+### Cosmos SDK address rows (TWC address vectors, no signing)
+
+strd, axl, cre, kuji, cmdx, ntrn, somm, fet, mars, umee, noble, sei, tia, coreum, qsr, xprt, akt, kava, blz, band, bld, dydx and rune (THORChain), plus cro: derive (m/44'/coin'/0'/0/i), validate and auto-detect from the bech32 hrp. Hrp and coin type from TWC adf80f8 `registry.json`. Measured (Linux only): `crates/blocktools/tests/twc_cosmos_addr.rs` (3 tests) derives TWC's `tests/common/CoinAddressDerivationTests.cpp` address for the public 0x46×32 dummy key on all 24, checks the coin type and decimals and that `detect` returns exactly that chain, and replays 19 pubkey-to-address vectors from `tests/chains/Cosmos/<Chain>/TWAnyAddressTests.cpp`. `acct-tx` refuses to sign on these hrps (`cosmos_hrp_without_vector`) except cro, because TWC has no MsgSend vector for them. Untested: balance lookup, any transaction on these chains, the ethsecp256k1 chains (Injective, Evmos, Canto, Zeta).
 
 ## Chain quirks and their known-answer vectors (2026-10-25)
 

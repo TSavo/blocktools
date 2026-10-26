@@ -14,7 +14,7 @@ pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "de
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "bcc", "grs", "pivx", "sys", "firo", "ksm", "polyx"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "bcc", "grs", "pivx", "sys", "firo", "ksm", "polyx", "strd", "axl", "cre", "kuji", "cmdx", "ntrn", "somm", "fet", "mars", "umee", "noble", "sei", "tia", "coreum", "qsr", "xprt", "akt", "kava", "blz", "band", "cro", "bld", "dydx", "rune"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -34,11 +34,13 @@ fn is_b58(c: char) -> bool { B58.contains(c) }
 
 /// Address shapes: base58 (btc/ltc/doge/tron/xrp 25-35 chars; sol 32-44 is only accepted with
 /// "chain":"sol", see redact_line), bech32 bc1/ltc1, 0x+40 hex.
+/// Cosmos SDK account hrps (20-byte bech32 accounts: 39 chars after the hrp).
+pub const COSMOS_HRPS: &[&str] = &["cosmos", "stride", "axelar", "cre", "kujira", "comdex", "neutron", "somm", "fetch", "mars", "umee", "noble", "sei", "celestia", "core", "quasar", "persistence", "akash", "kava", "bluzelle", "band", "cro", "agoric", "dydx", "thor"];
 /// Segwit hrps of the chain table (blocktools-core chains.rs; a core test checks they match).
-pub const HRPS: &[&str] = &["cosmos", "bc", "ltc", "qc", "fc", "nc", "vtc", "dgb", "via", "mona", "mec", "btg", "pc", "rdd", "grs", "sys"];
+pub const HRPS: &[&str] = &["cosmos", "bc", "ltc", "qc", "fc", "nc", "vtc", "dgb", "via", "mona", "mec", "btg", "pc", "rdd", "grs", "sys", "stride", "axelar", "cre", "kujira", "comdex", "neutron", "somm", "fetch", "mars", "umee", "noble", "sei", "celestia", "core", "quasar", "persistence", "akash", "kava", "bluzelle", "band", "cro", "agoric", "dydx", "thor"];
 fn is_bech(s: &str) -> bool {
     HRPS.iter().any(|h| s.len() > h.len() + 1 && s.starts_with(h) && s.as_bytes()[h.len()] == b'1'
-        && (if *h == "cosmos" { 39..=39 } else { 40..=60 }).contains(&(s.len() - h.len())) && all_in(&s[h.len() + 1..], BECH))
+        && (if COSMOS_HRPS.contains(h) { 39..=39 } else { 40..=60 }).contains(&(s.len() - h.len())) && all_in(&s[h.len() + 1..], BECH))
 }
 /// Monero standard address: 95 base58 chars, mainnet prefix 4 (stagenet/testnet 5/9). It is public.
 pub fn is_xmr_address(s: &str) -> bool { s.len() == 95 && s.starts_with(['4', '5', '9']) && all_in(s, B58) }
