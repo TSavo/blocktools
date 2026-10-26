@@ -24,7 +24,11 @@ UTXO chains \-> {"psbt": base64}; EVM \-> {"unsigned_tx": hex}. Pipe the result 
 (utxo\-fetch writes it); flags override it. ERC\-20 sends need native gas at the old address:
 build the gas top\-up first with \-\-topup GAS_UNITS from a funded address.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+\-\-chain
+\-\-help
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 .nf
 .RS 2
@@ -33,21 +37,21 @@ See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
 .fi
 \-\-account FILE is one JSON object with any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
-Success (JSON lines may still carry status fields such as done / no_candidates).
+last status ok
 .TP
 2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+last status bad_input
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for tx\-build in recipes/*.md.
-the builder (acct\-tx, xrp\-tx, or tx\-build from a UTXO list) and the recipe.
+$ tx\-build \-\-chain eth
+# exit 2, last status: bad_input
+$ printf '{"address":"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4","amount":50000,"txid":"%s","vout":0}\en' $(printf 'c%.0s' $(seq 64)) > u; tx\-build \-\-chain btc \-\-utxos u \-\-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 \-\-sweep \-\-fee\-rate 5
+# exit 0, last status: ok
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

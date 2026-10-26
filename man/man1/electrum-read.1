@@ -12,28 +12,28 @@ Electrum 1.x files: the keys themselves ({"wif","address","path"}, uncompressed 
 per branch, default 20), checked against the file's master_public_key.
 Thin wrapper around blocktools_secrets::electrum.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
 .SH INPUT/OUTPUT
 electrum\-read: Electrum wallet file (JSON, optionally field\-encrypted, or BIE1 whole\-file encrypted) \-> its seed phrase
 ({"mnemonic"}) and/or master key ({"xprv"}). Output CONTAINS SECRETS. Pipe to seed\-to\-master
 (mnemonic) or derive (xprv). stdin: line 1 = wallet password (empty if none), rest = wallet file.
 Thin wrapper around blocktools_secrets::electrum.
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
-Success (JSON lines may still carry status fields such as done / no_candidates).
+last status ok
 .TP
-2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+1
+last status wrong_password
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for electrum\-read in recipes/*.md.
-| electrum_wallet | electrum\-read (\-> seed\-to\-master \-> derive) | input\-electrum.md |
+$ { echo btcr\-test\-password; cat "$R/fixtures/external/electrum28\-wallet"; } | electrum\-read
+# exit 0, last status: ok
+$ { echo wrong; cat "$R/fixtures/external/electrum28\-wallet"; } | electrum\-read
+# exit 1, last status: wrong_password
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

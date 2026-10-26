@@ -15,7 +15,11 @@ its summary on the terminal and types a code. Irreversible.
 UTXO chains: POST {esplora}/tx; EVM: eth_sendRawTransaction. The id the server returns must
 equal the id computed locally, or status is "error". Defaults as utxo\-fetch.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+\-\-chain
+\-\-url
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 .nf
 .RS 2
@@ -23,20 +27,16 @@ See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
 .RE
 .fi
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
-0
-Success (JSON lines may still carry status fields such as done / no_candidates).
-.TP
-2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+1
+last status bad_input
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for tx\-broadcast in recipes/*.md.
+$ echo '{"psbt":"cHNidP8="}' | tx\-broadcast \-\-chain btc \-\-url http://127.0.0.1:9
+# exit 1, last status: bad_input
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

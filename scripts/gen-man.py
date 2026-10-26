@@ -85,34 +85,50 @@ def io_blurb(name, doc):
         ]
     return lines[:12]
 
-def examples_for(name):
-    """Point at recipes; recover a concrete one-liner from recipes if present."""
-    out = [f"See recipes/ for end-to-end flows. Search for {name} in recipes/*.md."]
-    # recover.sh / blocktools specials
-    if name == "recover.sh":
-        out.append("recover.sh /path/to/wallet.dat bc1q... --goal addresses --password-file /secrets/pw")
-    if name == "blocktools":
-        out.append("./blocktools run 'classify < /in/seed.txt'")
-        out.append("./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain btc --count 1'")
-    # first recipe line that mentions the tool as a command word
-    try:
-        for root, _, files in os.walk(os.path.join(ROOT, "recipes")):
-            for f in sorted(files):
-                if not f.endswith(".md"): continue
-                text = open(os.path.join(root, f)).read()
-                for line in text.splitlines():
-                    s = line.strip()
-                    if s.startswith(name + " ") or f" {name} " in s or s.startswith(f"./{name}"):
-                        # strip markdown fences/backticks lightly
-                        s = s.strip("`")
-                        if len(s) < 160:
-                            out.append(s)
-                            return out
-    except OSError:
-        pass
+CASES = os.path.join(ROOT, "scripts/man-examples.txt")
+
+def load_cases():
+    cases = {}
+    for l in open(CASES):
+        if not l.strip() or l.startswith("#"): continue
+        t, rc, cmd = (x.strip() for x in l.split("|", 2))
+        cases.setdefault(t, []).append((rc, cmd))
+    return cases
+
+def run_cases(cases):
+    """Run every example (cwd = temp dir, PATH has BIN, no controlling terminal, stdin /dev/null).
+    Returns {tool: [(cmd, rc, last_status)]}; any exit code that differs from the file is fatal."""
+    env = dict(os.environ, PATH=os.path.abspath(BIN) + os.pathsep + os.environ["PATH"], R=ROOT, BIN=os.path.abspath(BIN), LC_ALL="C")
+    out, bad = {}, []
+    for t, cs in cases.items():
+        for want, cmd in cs:
+            if want == "-": out.setdefault(t, []).append((cmd, None, None)); continue
+            d = tempfile.mkdtemp()
+            p = subprocess.run(["sh", "-c", cmd], cwd=d, env=env, capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, start_new_session=True, timeout=60)
+            shutil.rmtree(d)
+            st = re.findall(r'"status":"([a-z_]+)"', p.stdout + p.stderr)
+            if str(p.returncode) != want: bad.append(f"FAIL man example ({t}) exit {p.returncode}, file says {want}: {cmd}")
+            out.setdefault(t, []).append((cmd, p.returncode, st[-1] if st else None))
+    if bad: print("\n".join(bad)); sys.exit(1)
     return out
 
-def page(name, sec, short, synopsis, options, desc, warn, io_lines, examples):
+def examples_for(name, ran):
+    r = []
+    for cmd, rc, st in ran.get(name, []):
+        r.append("$ " + cmd)
+        r.append("# not run by the man check (needs the sealed container or a real wallet)" if rc is None else
+                 f"# exit {rc}" + (f", last status: {st}" if st else ", no status field"))
+    return r
+
+def exit_lines(name, ran):
+    seen = sorted({(rc, st or "-") for _, rc, st in ran.get(name, []) if rc is not None})
+    r = [esc("Measured on Linux by the EXAMPLES below (scripts/gen-man.py runs them):")]
+    for rc, st in seen: r += [".TP", str(rc), esc("last status " + st if st != "-" else "no status field")]
+    r += [".PP", esc("Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.")]
+    return r
+
+def page(name, sec, short, synopsis, options, desc, warn, io_lines, examples, exits):
     r = [f'.TH {esc(name.upper())} {sec} {DATE} "blocktools {version()}" "blocktools manual"',
          ".SH NAME", esc(f"{name} - {short}"),
          ".SH SYNOPSIS", ".nf"] + [esc(s) for s in synopsis] + [".fi"]
@@ -120,13 +136,11 @@ def page(name, sec, short, synopsis, options, desc, warn, io_lines, examples):
     if options:
         r += [".SH OPTIONS", ".nf"] + [esc(o) for o in options] + [".fi"]
     else:
-        r += [".SH OPTIONS", esc("See SYNOPSIS; this tool has no separate long-option list beyond --help.")]
+        flags = sorted(set(re.findall(r"(?<![\w-])(--?[a-z][a-z0-9-]*)", " ".join(synopsis))))
+        r += [".SH OPTIONS"] + ([".nf"] + [esc(f) for f in flags] + [".fi", esc("Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from --help).")]
+                                if flags else [esc("No flags. Input is read from stdin or the arguments shown in SYNOPSIS.")])
     r += [".SH INPUT/OUTPUT"] + para(io_lines)
-    r += [".SH EXIT STATUS",
-          ".TP", "0", esc("Success (JSON lines may still carry status fields such as done / no_candidates)."),
-          ".TP", "2", esc("Bad input, unsupported shape, or tool-reported failure (JSON status is the detail)."),
-          ".TP", "3", esc("Refused on purpose (watch-only, policy deny, human abort, missing confirmation)."),
-          ".PP", esc("Other nonzero codes are tool-specific; always read the last JSON status line.")]
+    r += [".SH EXIT STATUS"] + exits
     r += [".SH EXAMPLES", ".nf"] + [esc(e) for e in examples] + [".fi"]
     sec_notes = warn[:] if warn else [
         "DANGEROUS: audit before use with real funds. See docs/SECURITY.md.",
@@ -144,6 +158,9 @@ def help_of(t):
     return [], [l for l in txt if l]
 
 def generate(out):
+    ran = run_cases(load_cases())
+    missing = [t for t in tools() + ["recover.sh", "blocktools"] if t not in ran]
+    if missing: sys.exit(f"FAIL scripts/man-examples.txt has no example for: {' '.join(missing)}")
     os.makedirs(os.path.join(out, "man1"), exist_ok=True); os.makedirs(os.path.join(out, "man7"), exist_ok=True)
     idx = []
     for t in tools():
@@ -156,14 +173,14 @@ def generate(out):
         short = short.rstrip(".") or t
         idx.append((t, short))
         open(os.path.join(out, "man1", t + ".1"), "w").write(
-            page(t, 1, short, syn, opts, doc[1:] if doc else [], warn, io_blurb(t, doc), examples_for(t)))
+            page(t, 1, short, syn, opts, doc[1:] if doc else [], warn, io_blurb(t, doc), examples_for(t, ran), exit_lines(t, ran)))
     for path, name, short in [("recipes/recover.sh", "recover.sh", "unknown wallet file to sweep, with human confirmation at each step"),
                               ("blocktools", "blocktools", "host wrapper that runs a pipeline in the sealed container")]:
         doc = header(os.path.join(ROOT, path), "#")
         use = [l.strip() for l in doc if l.strip().startswith(("recover.sh ", "./blocktools "))]
         idx.append((name, short))
         open(os.path.join(out, "man1", name + ".1"), "w").write(
-            page(name, 1, short, use or [name], [], [l for l in doc if l.strip() not in use], [], io_blurb(name, doc), examples_for(name)))
+            page(name, 1, short, use or [name], [], [l for l in doc if l.strip() not in use], [], io_blurb(name, doc), examples_for(name, ran), exit_lines(name, ran)))
     ov = [f'.TH BLOCKTOOLS 7 {DATE} "blocktools {version()}" "blocktools manual"',
           ".SH NAME", esc("blocktools - offline wallet recovery, inspection and signing tools"),
           ".SH SYNOPSIS", ".nf",
@@ -178,9 +195,10 @@ def generate(out):
           ".SH INPUT/OUTPUT",
           esc("Pipelines speak JSONL. The sealed boundary redacts secret fields before host-visible stdout. Host-side network tools (utxo-fetch, tx-broadcast, xmr-wallet) see addresses and signed transactions only."),
           ".SH EXIT STATUS",
-          ".TP", "0", esc("Pipeline finished."),
-          ".TP", "2", esc("Tool or boundary error."),
-          ".TP", "3", esc("Refused (watch-only, policy, human abort)."),
+          ".TP", "0", esc("Success."),
+          ".TP", "1", esc("Refused, failed verification, aborted, or (some tools) bad input."),
+          ".TP", "2", esc("Bad input or unsupported (most tools)."),
+          ".PP", esc("Measured on Linux; per-tool codes are in each page. See docs/REFUSALS.md."),
           ".SH EXAMPLES", ".nf",
           esc("./blocktools run 'classify < /in/seed.txt'"),
           esc("recipes/recover.sh /in/seed.txt bc1q... --goal addresses"),
@@ -213,16 +231,34 @@ def lint(d):
             if msg.strip(): print(f"FAIL mandoc {p}: {msg[:300]}"); bad = 1
     return bad
 
+BOILER = [r"See SYNOPSIS; this tool has no separate long-option list", r"See recipes/ for end-to-end flows",
+          r"Other nonzero codes are tool-specific", r"One JSON object per line on stdin and/or stdout \(JSONL\)\."]
+REQUIRED = ["NAME", "SYNOPSIS", "DESCRIPTION", "OPTIONS", "INPUT/OUTPUT", "EXIT STATUS", "EXAMPLES", "SECURITY NOTES", "SEE ALSO"]
+
+def strict(d):
+    """Every man1 page has every required section, and none is only generator boilerplate."""
+    bad = 0
+    for f in sorted(os.listdir(os.path.join(d, "man1"))):
+        secs, cur = {}, None
+        for l in open(os.path.join(d, "man1", f)):
+            if l.startswith(".SH "): cur = l[4:].strip().strip('"'); secs[cur] = []; continue
+            t = (re.sub(r"^\.\S+ ?", "", l) if l.startswith(".") else l).replace("\\-", "-").replace("\\&", "").strip()
+            if cur and t and not re.fullmatch(r"\d", t) and not any(re.search(b, t) for b in BOILER): secs[cur].append(t)
+        for s in REQUIRED:
+            if len(" ".join(secs.get(s, []))) < 15: print(f"FAIL man stub: {f} section {s} is missing or boilerplate"); bad = 1
+    return bad
+
 if __name__ == "__main__":
     dest = os.path.join(ROOT, "man")
     if "--check" in sys.argv:
         tmp = tempfile.mkdtemp(); generate(tmp)
         # lint the committed pages (what ships) as well as fresh output, before the stale diff
-        rc = lint(dest) | lint(tmp)
+        rc = lint(dest) | lint(tmp) | strict(dest)
         r = subprocess.run(["diff", "-r", dest, tmp], capture_output=True, text=True)
         if r.returncode: print("FAIL man/ is stale: run python3 scripts/gen-man.py"); print(r.stdout[:2000]); sys.exit(1)
         shutil.rmtree(tmp)
         if rc: sys.exit(1)
-        print("man-check ok"); sys.exit(0)
+        n = len(os.listdir(os.path.join(dest, "man1")))
+        print(f"man-check ok: {n} man1 pages, every section filled, every example run"); sys.exit(0)
     generate(dest)
     print(f"wrote man pages for {len(tools())} tools + recover.sh + blocktools + blocktools(7)")

@@ -1,0 +1,48 @@
+# man page EXAMPLES: tool | expected exit | command. scripts/gen-man.py runs every line (cwd = a temp dir,
+# PATH has the release binaries, $R = repo root) and fails if the exit code differs. Pages show the
+# command, its measured exit code and the last status field, never the output (it may hold test keys).
+# Inputs are public test vectors only: BIP-39 "abandon x11 about", private key 1, btcrecover's public
+# fixture wallets (password btcr-test-password). No network: URLs point at 127.0.0.1:9 (closed).
+acct-tx | 0 | printf '%064x' 1 | acct-tx keys --chain atom
+acct-tx | 1 | acct-tx build --chain xlm
+armory-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read
+armory-read | 1 | { echo wrong; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read
+bip38-open | 2 | echo 6Pnot-a-key | bip38-open
+blockchain-read | 1 | echo '' | blockchain-read
+chain-table | 0 | chain-table btc
+classify | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | classify
+dat-read | 2 | dat-read < "$R/fixtures/external/bitcoincore-0.21.1-wallet.dat"
+derive | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master | derive --chain btc --count 1
+electrum-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
+electrum-read | 1 | { echo wrong; cat "$R/fixtures/external/electrum28-wallet"; } | electrum-read
+key-to-addresses | 0 | printf '%064x\n' 1 | key-to-addresses --chain btc
+keystore-open | 1 | echo pw | keystore-open
+multibit-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/multibit-wallet.key"; } | multibit-read
+pw-candidates | 0 | echo hunter 2 | pw-candidates --max 5
+read-file | 0 | read-file "$R/README.md"
+read-file | 1 | read-file /nonexistent
+redact | 0 | echo '{"tool":"x","status":"ok","wif":"KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"}' | redact
+sealed-run | 2 | sealed-run agent 'rm -rf /'
+seed-repair | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon" | seed-repair --max 2
+seed-to-master | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master
+tx-broadcast | 1 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9
+tx-build | 2 | tx-build --chain eth
+tx-decode | 2 | echo zz | tx-decode
+tx-envelope | 0 | tx-envelope --json '{"op":"chain_table"}'
+tx-sign | 2 | echo x > t; tx-sign --tx t --expect-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 < /dev/null
+tx-verify | 2 | echo zz | tx-verify
+utxo-fetch | 1 | utxo-fetch --chain btc --url http://127.0.0.1:9 bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
+xmr-keys | 1 | echo not a seed | xmr-keys
+xmr-wallet | 2 | xmr-wallet scan
+xpub-addresses | 0 | echo xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj | xpub-addresses --count 1
+xrp-tx | 1 | echo zz | xrp-tx decode
+zec-sapling | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | zec-sapling --count 1
+blocktools | - | ./blocktools run 'seed-repair < /in/seed.txt | seed-to-master | derive --chain btc --count 1'
+tx-verify | 1 | python3 "$R/scripts/e2e-only/evm-fixture.py" approve | tx-verify --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
+tx-sign | 1 | python3 "$R/scripts/e2e-only/evm-fixture.py" legacy-no-chain-id > t; printf '%064x\n' 2 | tx-sign --tx t --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
+tx-build | 0 | printf '{"address":"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4","amount":50000,"txid":"%s","vout":0}\n' $(printf 'c%.0s' $(seq 64)) > u; tx-build --chain btc --utxos u --to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 --sweep --fee-rate 5
+tx-decode | 0 | python3 "$R/scripts/e2e-only/evm-fixture.py" transfer | tx-decode --text
+recover.sh | 0 | echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > s; BIN="$BIN" sh "$R/recipes/recover.sh" s bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
+recover.sh | 3 | echo hello world > f; BIN="$BIN" sh "$R/recipes/recover.sh" f bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu --goal addresses
+sig-hash | 0 | sig-hash 'transfer(address,uint256)'
+sig-hash | 2 | sig-hash 'not a signature('

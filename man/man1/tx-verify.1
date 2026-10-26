@@ -16,24 +16,35 @@ tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chai
 EVM default fee cap: 0.01 ETH (same as tx\-sign); UTXO: no cap unless \-\-max\-fee.
 Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+\-\-allow\-value\-with\-token
+\-\-allow\-warnings
+\-\-chain
+\-\-chain\-id
+\-\-change
+\-\-expect\-to
+\-\-max\-fee
+\-\-policy
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 tx\-verify: check a transaction (stdin; any format tx\-decode reads) against what you expect.
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
-0
-Success (JSON lines may still carry status fields such as done / no_candidates).
+1
+last status failed
 .TP
 2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+last status bad_input
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for tx\-verify in recipes/*.md.
+$ echo zz | tx\-verify
+# exit 2, last status: bad_input
+$ python3 "$R/scripts/e2e\-only/evm\-fixture.py" approve | tx\-verify \-\-chain\-id 1 \-\-expect\-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
+# exit 1, last status: failed
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

@@ -26,21 +26,16 @@ The destination tag matters: exchanges credit deposits by tag, and a payment wit
 .SH INPUT/OUTPUT
 xrp\-tx decode < HEX                               \-> decoded JSON
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
-0
-Success (JSON lines may still carry status fields such as done / no_candidates).
-.TP
-2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+1
+last status error
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for xrp\-tx in recipes/*.md.
-| xrp_seed | xrp\-tx keys, exit 3 \-> xrp\-tx build/sign | xrp.md |
+$ echo zz | xrp\-tx decode
+# exit 1, last status: error
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

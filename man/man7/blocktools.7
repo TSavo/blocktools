@@ -18,13 +18,15 @@ Pipelines speak JSONL. The sealed boundary redacts secret fields before host\-vi
 .SH EXIT STATUS
 .TP
 0
-Pipeline finished.
+Success.
+.TP
+1
+Refused, failed verification, aborted, or (some tools) bad input.
 .TP
 2
-Tool or boundary error.
-.TP
-3
-Refused (watch\-only, policy, human abort).
+Bad input or unsupported (most tools).
+.PP
+Measured on Linux; per\-tool codes are in each page. See docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
 \&./blocktools run 'classify < /in/seed.txt'

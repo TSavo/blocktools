@@ -11,27 +11,32 @@ tx\-decode [\-\-chain btc|ltc|doge] [\-\-text] < transaction \-> JSON lines (or 
 Offline, no keys. Flags: \-\-chain btc|ltc|doge (address encoding for UTXO txs), \-\-text,
 \-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex, hash\-checked against TXID).
 .SH OPTIONS
-See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.nf
+\-\-chain
+\-\-nvc\-json
+\-\-text
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 tx\-decode: one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
 "psbt"/"tx"/"unsigned_tx"/"signed_tx") \-> public JSON lines, or \-\-text for a human summary.
 \-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex, hash\-checked against TXID).
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
-Success (JSON lines may still carry status fields such as done / no_candidates).
+no status field
 .TP
 2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+last status bad_input
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for tx\-decode in recipes/*.md.
-\&./blocktools run 'tx\-build \-\-chain blk \-\-utxos /in/u\-blk.json \-\-to B54SJjUL2xndPGcjV4uiQFxogc5b3eMhts \-\-sweep \-\-fee\-rate 5 | tx\-decode \-\-chain blk'
+$ echo zz | tx\-decode
+# exit 2, last status: bad_input
+$ python3 "$R/scripts/e2e\-only/evm\-fixture.py" transfer | tx\-decode \-\-text
+# exit 0, no status field
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

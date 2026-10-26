@@ -30,21 +30,16 @@ The spending key is never output.
 \-\-viewkey\-out writes the accounts' extended full viewing keys (bech32 "zxviews", secret:
 The spending key is never output.
 .SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
-Success (JSON lines may still carry status fields such as done / no_candidates).
-.TP
-2
-Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
-.TP
-3
-Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+last status ok
 .PP
-Other nonzero codes are tool\-specific; always read the last JSON status line.
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
 .SH EXAMPLES
 .nf
-See recipes/ for end\-to\-end flows. Search for zec\-sapling in recipes/*.md.
-\&./blocktools run zec\-sapling \-\-count 1 \-\-viewkey\-out /out/zec.view < /in/mnemonic.txt
+$ echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | zec\-sapling \-\-count 1
+# exit 0, last status: ok
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
