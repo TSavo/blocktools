@@ -16,7 +16,7 @@ pub fn op_return(memo: &[u8]) -> Result<Vec<u8>, &'static str> {
 pub fn build(chain: &str, utxos_jsonl: &str, to: &str, send: Option<u64>, change: Option<&str>, fee_rate: u64, memo: &[u8]) -> Result<Value, String> {
     build_with(chain, utxos_jsonl, to, send, change, fee_rate, memo, false)
 }
-/// As [`build`]; `rbf` true signals BIP-125 replaceability (nSequence 0xfffffffd on every input).
+/// As [`build()`]; `rbf` true signals BIP-125 replaceability (nSequence 0xfffffffd on every input).
 #[allow(clippy::too_many_arguments)]
 pub fn build_with(chain: &str, utxos_jsonl: &str, to: &str, send: Option<u64>, change: Option<&str>, fee_rate: u64, memo: &[u8], rbf: bool) -> Result<Value, String> {
     let c = chains::supported(chain).ok_or("unknown_or_unverified_chain")?;

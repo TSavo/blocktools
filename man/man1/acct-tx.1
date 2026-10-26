@@ -48,5 +48,40 @@ acct\-tx sign    \-\-chain C \-\-tx FILE \-\-expect\-to ADDR [\-\-testnet] < sec
          algo = amount 0 + close\-to (sends everything and closes the account; fails while ASAs are opted in).
 .RE
 .fi
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+                (ADA\-only legacy outputs, change back to \-\-from; hex CBOR like cardano\-cli; UTXOs carrying native assets must not be used)
+.RE
+.fi
+acct\-tx decode  \-\-chain C [\-\-testnet] < unsigned\-or\-signed (JSON from build/sign, or bare base64)
+acct\-tx sign    \-\-chain C \-\-tx FILE \-\-expect\-to ADDR [\-\-testnet] < secret   (xlm: S... ; algo: 25 words or base64 seed||pub)
+.nf
+.RS 2
+  (dot: 0x\-hex mini\-secret as printed by recover, or the 12/24\-word mnemonic; ada: 128\-hex extended payment key kL||kR as printed by recover; ton: 24 TON words or 64\-hex ed25519 seed; signed JSON carries "pubkey" so decode can verify; atom: hex private key; signed JSON carries "signed" = TxRaw plus the "unsigned" SignDoc so decode can verify)
+.RE
+.fi
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for acct\-tx in recipes/*.md.
+| ton_mnemonic, algo_mnemonic, xlm_seed | address, exit 3 \-> acct\-tx build/sign | chain\-ton/algorand/stellar.md |
+.fi
+.SH SECURITY NOTES
+DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
+Run secret\-touching tools only inside ./blocktools run (sealed, offline).
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

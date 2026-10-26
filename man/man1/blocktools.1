@@ -11,5 +11,32 @@ blocktools \- host wrapper that runs a pipeline in the sealed container
 Thin host\-side wrapper. Runs a blocktools pipeline in a sealed container.
 Inputs: $BLOCKTOOLS_IN (default ./in) mounted read\-only at /in.
 Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read\-only at /secrets.
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+Inputs: $BLOCKTOOLS_IN (default ./in) mounted read\-only at /in.
+Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read\-only at /secrets.
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for blocktools in recipes/*.md.
+\&./blocktools run 'classify < /in/seed.txt'
+\&./blocktools run 'seed\-repair < /in/seed.txt | seed\-to\-master | derive \-\-chain btc \-\-count 1'
+\&./blocktools run 'classify /in/algo\-mnemonic.txt'
+.fi
+.SH SECURITY NOTES
+DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
+Run secret\-touching tools only inside ./blocktools run (sealed, offline).
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

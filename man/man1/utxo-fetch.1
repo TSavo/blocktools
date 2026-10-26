@@ -23,13 +23,40 @@ utxo\-fetch \-\-chain btc|ltc|doge|eth|xlm|algo|atom|ton [\-\-url URL] [\-\-no\-
 Only ADDRESSES go in (bare, or JSON lines with an "address" field, e.g. redact output).
 Server data is untrusted: txids are re\-checked here, prev_tx is re\-hashed by tx\-build.
 A summary goes to stderr. Defaults: btc blockstream.info, ltc litecoinspace.org, eth publicnode.
-.SH WARNING
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  utxo\-fetch \-\-chain btc|ltc|doge [\-\-url ESPLORA_BASE] [\-\-no\-prev\-tx] [ADDR...]  (or addresses on stdin)
+      prev_tx is fetched for every legacy (non\-witness\-program, incl. P2SH) input; tx\-build refuses such inputs without it
+      stdout: UTXO JSON lines {"txid","vout","amount","address"[,"prev_tx"]}  (tx\-build \-\-utxos FILE)
+      stdout: one account object {"nonce","balance","max_fee_per_gas","max_priority_fee_per_gas","chain_id"}
+      stdout: one account object (xlm: balance_str, next_seq, subentry_count; algo: amount, min_balance, assets, last_round, min_fee) for acct\-tx build
+.RE
+.fi
+Only ADDRESSES go in (bare, or JSON lines with an "address" field, e.g. redact output).
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for utxo\-fetch in recipes/*.md.
+| Cosmos Hub | ✅ | ✅ utxo\-fetch (host\-side, manual) | ✅ MsgSend (acct\-tx, TTY confirm) | [chain\-cosmos.md](chain\-cosmos.md) |
+.fi
+.SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
-.br
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-.br
 It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
-.br
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

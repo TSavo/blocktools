@@ -26,5 +26,31 @@ if grep -qiE 'never hand-roll' $D && grep -q 'fn scrypt_raw' crates/secrets/src/
   echo "FAIL in-tree scrypt_raw not disclosed in SECURITY.md"; rc=1; fi
 # 6. man pages are generated from --help + doc headers and must be current (needs release binaries)
 python3 scripts/gen-man.py --check || rc=1
+
+# 7. first-class docs guides exist and are non-empty
+for f in docs/DOCS-READINESS.md docs/getting-started.md docs/cookbook.md docs/troubleshooting.md docs/library-api.md bindings/wasm/README.md; do
+  [ -s "$f" ] || { echo "FAIL missing or empty $f"; rc=1; }
+done
+# 8. every man1 page has the required section headers (names may contain spaces)
+while IFS= read -r s; do
+  [ -n "$s" ] || continue
+  for m in man/man1/*.1; do
+    grep -q "^\.SH $s$" "$m" || { echo "FAIL $m missing .SH $s"; rc=1; }
+  done
+done <<'SECTIONS'
+NAME
+SYNOPSIS
+DESCRIPTION
+OPTIONS
+INPUT/OUTPUT
+EXIT STATUS
+EXAMPLES
+SECURITY NOTES
+SEE ALSO
+SECTIONS
+grep -q '^\.SH NAME$' man/man7/blocktools.7 || { echo "FAIL man7 missing NAME"; rc=1; }
+# 9. packaging scripts install man pages under share/man
+grep -q 'share/man' scripts/package-dist.sh || { echo "FAIL package-dist missing share/man"; rc=1; }
+grep -q 'share/man' scripts/package-native.sh || { echo "FAIL package-native missing share/man"; rc=1; }
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc

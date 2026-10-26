@@ -15,5 +15,29 @@ xrp\-tx build  \-\-account r.. \-\-to r..|X.. (\-\-amount DROPS | \-\-sweep \-\-
 xrp\-tx decode < HEX                               \-> decoded JSON
 xrp\-tx sign   \-\-tx FILE \-\-expect\-to r..|X..  < family\-seed \-> {"status":"ok","tx_blob","hash"} after a typed code on /dev/tty
 The destination tag matters: exchanges credit deposits by tag, and a payment without it is usually lost to you.
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+xrp\-tx decode < HEX                               \-> decoded JSON
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for xrp\-tx in recipes/*.md.
+| xrp_seed | xrp\-tx keys, exit 3 \-> xrp\-tx build/sign | xrp.md |
+.fi
+.SH SECURITY NOTES
+DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
+Run secret\-touching tools only inside ./blocktools run (sealed, offline).
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -12,13 +12,33 @@ one output line with its "scheme". If the phrase has extra words (e.g. a note
 line), the trailing 12/13/15/18/21/24 words are tried too (sliding window).
 \-\-passphrase\-prompt asks the human on /dev/tty with echo off (never argv/env).
 Output CONTAINS SECRETS ("xprv", "seed"). One job: phrase \-> master key.
-.SH WARNING
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+stdin JSON lines: optional {"passphrase":"..."} then {"mnemonic":"...","candidate":N}, or a bare phrase line.
+one output line with its "scheme". If the phrase has extra words (e.g. a note
+Output CONTAINS SECRETS ("xprv", "seed"). One job: phrase \-> master key.
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for seed\-to\-master in recipes/*.md.
+| mnemonic, electrum_seed | seed\-repair / seed\-to\-master \-> derive \-\-chain C | input\-seed\-phrase.md, input\-electrum.md |
+.fi
+.SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
-.br
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-.br
 It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
-.br
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -21,7 +21,7 @@ pub const MULTISEND_CALL_ONLY: [&str; 2] = ["0x40a2accbd92bca938b02010e17a5b8929
 const MAX_MULTICALL_DEPTH: u32 = 32;
 
 /// recover.ts STANDARD_RECOVERY: signature, argument indexes that must equal the owner
-/// (-1 = args[0].recipient, -2 = args[0].withdrawer). Order matters: the first entry whose selector decodes wins.
+/// (-1 = args\[0\].recipient, -2 = args\[0\].withdrawer). Order matters: the first entry whose selector decodes wins.
 pub const STANDARD_RECOVERY: &[(&str, &[i32])] = &[
     ("withdraw()", &[]),
     ("exit()", &[]),

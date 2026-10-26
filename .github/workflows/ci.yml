@@ -10,6 +10,7 @@ jobs:
       - run: sh scripts/hygiene-check.sh
       - run: sh scripts/prepush-check.sh
       - run: sh scripts/docs-check.sh
+      - run: RUSTDOCFLAGS='-D warnings' cargo doc -p blocktools --no-deps
       - run: sh scripts/secret-scan.sh
       - run: sh scripts/fetch-fixtures.sh
       - run: sh scripts/e2e-local.sh

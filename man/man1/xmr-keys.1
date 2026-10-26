@@ -10,5 +10,30 @@ stdout: one JSON line of PUBLIC data (address, public spend/view keys).
 \-\-scan\-out writes a monero\-wallet\-rpc `generate_from_keys` request for a VIEW\-ONLY wallet
 (address + private view key, no spend key) to FILE, created new with mode 0600. The view key
 is secret (it reveals incoming funds), so it never goes to stdout or stderr.
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+stdout: one JSON line of PUBLIC data (address, public spend/view keys).
+is secret (it reveals incoming funds), so it never goes to stdout or stderr.
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for xmr\-keys in recipes/*.md.
+| monero_seed | xmr\-keys address, exit 3 \-> xmr\-wallet (host) | monero.md |
+.fi
+.SH SECURITY NOTES
+DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
+Run secret\-touching tools only inside ./blocktools run (sealed, offline).
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

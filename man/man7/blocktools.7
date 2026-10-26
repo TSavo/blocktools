@@ -1,10 +1,37 @@
 .TH BLOCKTOOLS 7 2026-10-25 "blocktools 0.1.0" "blocktools manual"
 .SH NAME
 blocktools \- offline wallet recovery, inspection and signing tools
+.SH SYNOPSIS
+.nf
+\&./blocktools run '<pipeline>'
+\&./blocktools reveal '<pipeline>'
+recipes/recover.sh FILE DEST [options]
+.fi
 .SH DESCRIPTION
 Small tools joined by JSON lines on stdin and stdout. Readers turn wallet files into keys, derive and key\-to\-addresses turn keys into addresses, tx\-build/tx\-verify/tx\-sign/tx\-broadcast move funds. Every signature and broadcast waits for a code typed on the terminal.
 .PP
-Run anything that touches secrets inside ./blocktools run (sealed, offline). Policy files: docs/POLICY.md. Supported chains: docs/CHAINS.md.
+Run anything that touches secrets inside ./blocktools run (sealed, offline). Policy files: docs/POLICY.md. Supported chains: docs/CHAINS.md. Start here: docs/getting\-started.md.
+.SH OPTIONS
+See blocktools(1) and each tool's man page. The wrapper passes the pipeline to sealed\-run; tools parse their own flags.
+.SH INPUT/OUTPUT
+Pipelines speak JSONL. The sealed boundary redacts secret fields before host\-visible stdout. Host\-side network tools (utxo\-fetch, tx\-broadcast, xmr\-wallet) see addresses and signed transactions only.
+.SH EXIT STATUS
+.TP
+0
+Pipeline finished.
+.TP
+2
+Tool or boundary error.
+.TP
+3
+Refused (watch\-only, policy, human abort).
+.SH EXAMPLES
+.nf
+\&./blocktools run 'classify < /in/seed.txt'
+recipes/recover.sh /in/seed.txt bc1q... \-\-goal addresses
+.fi
+.SH SECURITY NOTES
+DANGEROUS with real funds. Audit the code. Prefer sealed offline runs. See docs/SECURITY.md.
 .SH TOOLS
 .TP
 \fBacct\-tx\fR(1)
@@ -103,4 +130,4 @@ unknown wallet file to sweep, with human confirmation at each step
 \fBblocktools\fR(1)
 host wrapper that runs a pipeline in the sealed container
 .SH SEE ALSO
-README.md, DESIGN.md, EXPORTS.md, docs/SECURITY.md, docs/ROADMAP\-PARITY.md
+README.md, DESIGN.md, EXPORTS.md, docs/SECURITY.md, docs/getting\-started.md, docs/troubleshooting.md, recipes/README.md

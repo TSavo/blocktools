@@ -25,5 +25,31 @@ typed code. Nothing is signed or sent without it.
 Wallet passwords come from \-\-password\-file (first line), read by the tool, not by bash.
 .IP \(bu 2
 Bitcoin, except an Ethereum keystore, which sweeps ETH (\-\-rpc URL, \-\-chain\-id N).
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+.IP \(bu 2
+Secrets never touch the disk or this script's variables: keys() re\-runs the reader
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for recover.sh in recipes/*.md.
+recover.sh /path/to/wallet.dat bc1q... \-\-goal addresses \-\-password\-file /secrets/pw
+Sweep is automated for btc/ltc/doge/eth. For any other `\-\-chain`, recover.sh prints the addresses, exits 3 and names
+.fi
+.SH SECURITY NOTES
+DANGEROUS: audit before use with real funds. See docs/SECURITY.md.
+Run secret\-touching tools only inside ./blocktools run (sealed, offline).
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -28,9 +28,9 @@ jobs:
           cp -r recipes "dist/$name/"
           mkdir -p "dist/$name/share/man/man1" "dist/$name/share/man/man7" "dist/$name/man"
           cp man/man1/*.1 "dist/$name/share/man/man1/"
-          cp man/man7/*.7 "dist/$name/share/man/man7/" 2>/dev/null || true
+          cp man/man7/*.7 "dist/$name/share/man/man7/"
           cp -r man/man1 "dist/$name/man/"
-          cp -r man/man7 "dist/$name/man/" 2>/dev/null || true
+          cp -r man/man7 "dist/$name/man/"
           tar -C dist -czf "dist/$name.tar.gz" "$name"
           (cd dist && sha256sum "$name.tar.gz" > SHA256SUMS && cat SHA256SUMS)
           ls "dist/$name/bin" | wc -l

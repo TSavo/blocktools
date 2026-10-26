@@ -20,13 +20,32 @@ Order: policy checks (destination, fee cap, chain id, no warnings) \-> sign in m
 tx\-decode summary on the terminal \-> human types the code \-> re\-decode + re\-check \-> print
 {"signed_tx": hex[, "psbt": finalized base64]}. Without a terminal, or with the wrong code, nothing is printed except "aborted".
 Default fee cap: 100000 sats (UTXO) / 0.01 ETH (EVM); raise it with \-\-max\-fee.
-.SH WARNING
+.SH OPTIONS
+See SYNOPSIS; this tool has no separate long\-option list beyond \-\-help.
+.SH INPUT/OUTPUT
+The transaction (PSBT from tx\-build, a pos\-ntime or zec JSON line from tx\-build, or an unsigned EVM tx) comes from \-\-tx FILE (it is public).
+Keys come ONLY on stdin: one per line, WIF or 64\-hex, or JSON lines with wif/private_key/key/secret
+(JSON lines without any of those fields, e.g. a reader's "done" line, are skipped).
+.SH EXIT STATUS
+.TP
+0
+Success (JSON lines may still carry status fields such as done / no_candidates).
+.TP
+2
+Bad input, unsupported shape, or tool\-reported failure (JSON status is the detail).
+.TP
+3
+Refused on purpose (watch\-only, policy deny, human abort, missing confirmation).
+.PP
+Other nonzero codes are tool\-specific; always read the last JSON status line.
+.SH EXAMPLES
+.nf
+See recipes/ for end\-to\-end flows. Search for tx\-sign in recipes/*.md.
+.fi
+.SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
-.br
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-.br
 It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
-.br
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
-blocktools(7), docs/SECURITY.md, recipes/README.md
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
