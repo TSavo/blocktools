@@ -21,7 +21,7 @@ they can't be forgotten, and the check prints them on every run.
 | R2-2 | CI red: non-ASCII emoji in man pages under groff LC_ALL=C | fixed | a22023f | scripts/gate-negatives.sh |
 | R2-3 | hygiene BSD-skew rules used \s, inert on macOS git grep | fixed | 8160aeb | scripts/hygiene-check.sh |
 | R2-5 | check-deps: pipe masked cargo exit 101 (stale lock) | fixed | bb1ceff | scripts/check-deps-regress.sh |
-| R2-6 | release.yml can publish from a non-tag ref (was: without required reviewers; since 2026-10-26 the gate is a v*-tag-only deployment policy, no reviewer) | fixed | 28343ac, v0.1.1 prep | scripts/release-env-check.sh |
+| R2-6 | release.yml can publish from a non-tag ref (was: without required reviewers; since 2026-10-26 the gate is a v*-tag-only deployment policy, no reviewer) | fixed | 1c4511f | scripts/release-env-check.sh |
 | R2-7 | Readers (bip38-open, blockchain-read, pw-candidates, tx-envelope, chain-table) "unsupported" under sealed-run | open | - | - |
 | R2-8 | Doc numbers not tied to a measuring command (claims registry) | fixed | 997c606 | scripts/gate-negatives.sh |
 | R2-9 | Gates grep for words instead of testing the property | fixed | 76c9850 | scripts/gate-negatives.sh |
