@@ -1,5 +1,7 @@
 name: ci
 on: [push, pull_request]
+# One run at a time: the self-hosted runner is persistent and shares Battleaxe's Docker daemon (docs/CI.md).
+concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: false }
 # Every check lives in scripts/gate.sh (the same script verify-and-push runs locally, all stages).
 # CI runs each stage as a parallel job; ci-gate-check.sh fails unless the matrix equals
 # `sh scripts/gate.sh --list`. Other run: lines may only be setup from scripts/ci-allowed-setup.txt.
@@ -9,7 +11,9 @@ jobs:
       fail-fast: false
       matrix:
         stage: [lint, test, negatives, e2e]
-    runs-on: ubuntu-latest
+    # Self-hosted Battleaxe runner by default (docs/CI.md). Fallback to GitHub-hosted: set repo variable
+    # RUNNER_LABELS to '"ubuntu-latest"' (JSON). Self-hosted only while the repo is private (docs/CI.md).
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }  # findings/claims checks need full history (R2-12)
@@ -17,9 +21,14 @@ jobs:
         with: { node-version: 20 }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { key: "${{ matrix.stage }}", cache-bin: "true" }
-      - run: sudo apt-get update && sudo apt-get install -y clang lld
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: (command -v clang && command -v ld.lld) >/dev/null || (sudo apt-get update && sudo apt-get install -y clang lld)
       - run: rustup target add wasm32-unknown-unknown && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
+      - run: python3 -m pip install --user --break-system-packages cryptography
       - run: sh scripts/gate.sh ${{ matrix.stage }}
+      - if: always()
+        run: git worktree prune && git clean -ffdxq -e target && rm -rf "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*
 
   # macOS e2e on a GitHub-hosted runner. claims-check K-macos only accepts a macos claim as measured when
   # this job ("macos") succeeded at the claim's commit. continue-on-error: the known Mac pin-tty failure is
