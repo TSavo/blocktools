@@ -3,10 +3,11 @@ on: [push, pull_request]
 # Read-only token for every job (fork PRs never get secrets or a write token).
 permissions:
   contents: read
-# One run at a time per ref: the self-hosted runners are persistent and share Battleaxe's Docker daemon (docs/CI.md).
+# One run per ref, newest wins: a push cancels the run of the previous commit on that ref (docs/CI.md, 'Queue').
+# Measured before this: pushes every 2.4 min, each run waiting 7-19 min for the previous one to finish.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 # Every check lives in scripts/gate.sh (the same script verify-and-push runs locally, all stages).
 # CI runs each stage as a parallel job; ci-gate-check.sh fails unless the matrix equals
 # `sh scripts/gate.sh --list`. Other run: lines may only be setup from scripts/ci-allowed-setup.txt.
@@ -24,7 +25,16 @@ jobs:
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && '"ubuntu-latest"' || vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with: { fetch-depth: 0 }  # findings/claims checks need full history (R2-12)
+        # fetch-depth 0: findings/claims checks need full history (R2-12). clean false: the default
+        # `git clean -ffdx` deleted target/ at the start of every job on the persistent runners, so each
+        # job rebuilt the workspace (rust-cache used to put it back from GitHub's cache). The cleanup step
+        # at the end of the job removes everything untracked except target/.
+        with: { fetch-depth: 0, clean: false }
+      # One target/ per ref, shared by the four runner containers through the tool-cache volume: the four
+      # jobs of a run compile a commit once (cargo's build-directory lock makes the other three wait for
+      # the artifacts), and the next commit on the ref builds incrementally. Per ref, because one run per
+      # ref (concurrency above) means no two commits ever build into the same dir at once. docs/CI.md 'Queue'.
+      - run: d="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}/blocktools-target/$(printf '%s' "$GITHUB_REF" | tr -c 'A-Za-z0-9._-' _)" && mkdir -p "$d" && { [ -L target ] || rm -rf target; } && ln -sfn "$d" target
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20 }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
