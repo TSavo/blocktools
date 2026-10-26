@@ -76,7 +76,7 @@ pub fn serialize_nvc_tx_from_json(json: &str, expected_txid: &str) -> Result<Str
 pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx::decode(input, chain).map_err(err)?.text()) }
 
 /// tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the
-/// tx-sign default: 0.01 ETH-equivalent for EVM, 100000 sats for UTXO). `allow_value_with_token` (default false) accepts ETH value
+/// tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value
 /// alongside ERC-20 transfer calldata.
 #[wasm_bindgen(js_name = verifyTx)]
 #[allow(clippy::too_many_arguments)]
@@ -85,7 +85,7 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
     let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
     let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false) };
     let v = blocktools::tx::policy::verify(&d, &p);
-    Ok(json!({"ok": v.findings.is_empty(), "failures": v.findings, "warnings": d.warnings, "check_these": v.check_these}).to_string())
+    Ok(json!({"ok": v.findings.is_empty(), "failures": v.findings, "warnings": d.warnings, "check_these": v.check_these, "fee_cap": v.fee_cap.json()}).to_string())
 }
 
 /// Check a tx against an offline policy file (docs/POLICY.md). Deny by default; the rule for `chain`

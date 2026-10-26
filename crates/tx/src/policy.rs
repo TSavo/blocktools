@@ -2,7 +2,8 @@
 use crate::Decoded;
 
 /// Default fee caps applied by tx-sign unless the human passes a larger --max-fee.
-pub const DEFAULT_MAX_FEE_SATS: u128 = 100_000; // 0.001 BTC/LTC; 1000 DOGE-sats is tiny, pass --max-fee for DOGE
+/// UTXO floor: the default cap is never below this (0.001 BTC). Per-chain cap: see `default_fee_cap`.
+pub const DEFAULT_MAX_FEE_SATS: u128 = 100_000;
 pub const DEFAULT_MAX_FEE_WEI: u128 = 10_000_000_000_000_000; // 0.01 ETH-equivalent
 
 #[derive(Default, Debug, Clone)]
@@ -22,17 +23,38 @@ pub struct Policy {
 
 fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
 
+/// The fee cap a verdict used, and where it came from ("explicit" = the human's max_fee).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FeeCap { pub chain: String, pub cap: u128, pub source: &'static str }
+
+/// Default cap when no max_fee is given. EVM: 0.01 ETH-equivalent. UTXO: per chain, from the one
+/// fee table (`chains::fee_warn(chain)`, CHAINS.md "Fee-warning limits"): the chain's rate limit
+/// (20 x measured median, base units per vbyte) x the tx's vsize, never below DEFAULT_MAX_FEE_SATS.
+/// BTC (rate 500): a ~200 vB tx is capped at 100,000 sats; DOGE (1,200,000/B) at ~0.002 DOGE x vB.
+pub fn default_fee_cap(d: &Decoded) -> FeeCap {
+    if d.evm.is_some() { return FeeCap { chain: d.chain.clone(), cap: DEFAULT_MAX_FEE_WEI, source: "default_evm" } }
+    let fw = blocktools_core::chains::fee_warn(&d.chain);
+    let by_rate = (fw.rate as u128).saturating_mul(d.vsize.unwrap_or(0) as u128);
+    if by_rate > DEFAULT_MAX_FEE_SATS { FeeCap { chain: d.chain.clone(), cap: by_rate, source: "chain_rate_x_vsize" } }
+    else { FeeCap { chain: d.chain.clone(), cap: DEFAULT_MAX_FEE_SATS, source: "floor" } }
+}
 /// Fee cap tx-sign uses when `--max-fee` is not given; tx-verify and wasm verifyTx apply it to EVM too.
-pub fn default_max_fee(d: &Decoded) -> u128 { if d.evm.is_some() { DEFAULT_MAX_FEE_WEI } else { DEFAULT_MAX_FEE_SATS } }
+pub fn default_max_fee(d: &Decoded) -> u128 { default_fee_cap(d).cap }
+/// The cap `check` applies: the caller's explicit cap, else the per-chain default. Never "no cap".
+pub fn fee_cap(d: &Decoded, p: &Policy) -> FeeCap {
+    match p.max_fee { Some(c) => FeeCap { chain: d.chain.clone(), cap: c, source: "explicit" }, None => default_fee_cap(d) }
+}
 
 /// The one verifier every route to a signature goes through (tx-verify, tx-sign, tx-envelope /
 /// blocktools.sign/v1, C ABI, wasm verifyTx/checkTx/checkTxPolicy). `findings` empty means ok;
 /// `check_these` is the plain summary with the boxed CHECK THESE block the human must read.
-pub struct Verdict { pub findings: Vec<&'static str>, pub check_these: String }
-pub fn verify(d: &Decoded, p: &Policy) -> Verdict { Verdict { findings: check(d, p), check_these: d.text() } }
+pub struct Verdict { pub findings: Vec<&'static str>, pub check_these: String, pub fee_cap: FeeCap }
+pub fn verify(d: &Decoded, p: &Policy) -> Verdict { Verdict { findings: check(d, p), check_these: d.text(), fee_cap: fee_cap(d, p) } }
 
 /// Effective fee cap: the caller's explicit cap, else the default for this tx's family. Never "no cap".
-pub fn effective_max_fee(d: &Decoded, p: &Policy) -> u128 { p.max_fee.unwrap_or_else(|| default_max_fee(d)) }
+pub fn effective_max_fee(d: &Decoded, p: &Policy) -> u128 { fee_cap(d, p).cap }
+
+impl FeeCap { pub fn json(&self) -> serde_json::Value { serde_json::json!({"chain": self.chain, "cap": self.cap.to_string(), "source": self.source}) } }
 
 pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();

@@ -31,7 +31,7 @@ fn main() {
         for x in blocktools_tx::policy_file::check(&d, &one("--chain").unwrap_or(chain.clone()), &pf) { if !f.contains(&x) { f.push(x) } }
         o["policy_sha256"] = json!(pf.sha256);
     }
-    o["status"] = json!(if f.is_empty() {"ok"} else {"failed"}); o["failures"] = json!(f); o["warnings"] = json!(d.warnings);
+    o["status"] = json!(if f.is_empty() {"ok"} else {"failed"}); o["failures"] = json!(f); o["warnings"] = json!(d.warnings); o["fee_cap"] = blocktools_tx::policy::fee_cap(&d, &p).json();
     blocktools_io::outln!("{o}");
     if !f.is_empty() { std::process::exit(1) }
 }

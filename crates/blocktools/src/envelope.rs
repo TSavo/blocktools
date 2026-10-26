@@ -107,6 +107,7 @@ fn verify_utxo_evm(chain: &str, tx: &str, v: &Value) -> Result<Value, String> {
         "findings": v.findings,
         "max_fee": blocktools_tx::policy::effective_max_fee(&d, &p).to_string(),
         "check_these": v.check_these,
+        "fee_cap": v.fee_cap.json(),
         "summary": d.json_lines().into_iter().next().unwrap_or_else(|| json!({})),
     }))
 }

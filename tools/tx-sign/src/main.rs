@@ -8,7 +8,7 @@
 //! Order: policy checks (destination, fee cap, chain id, no warnings) -> sign in memory -> print the
 //! tx-decode summary on the terminal -> human types the code -> re-decode + re-check -> print
 //! {"signed_tx": hex[, "psbt": finalized base64]}. Without a terminal, or with the wrong code, nothing is printed except "aborted".
-//! Default fee cap: 100000 sats (UTXO) / 0.01 ETH (EVM); raise it with --max-fee.
+//! Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with --max-fee.
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::Secp256k1;
 use blocktools_tx::policy::{check, Policy};
