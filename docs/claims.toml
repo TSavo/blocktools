@@ -254,13 +254,13 @@ doc = [{ file = "docs/RPC.md", text = "68 bytes" }]
 
 [[claim]]
 id = "rpc-deny-list"
-statement = "Secret export/import/unlock and wallet-signing methods exit 3 with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box)"
+statement = "Secret export/import/unlock and wallet-signing methods exit 3 with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box); fail closed: methods and paths outside the per-protocol read allowlist are refused with zero connections to a recording mock (17 unlisted methods, 3 REST paths, a mixed batch)"
 kind = "security"
 platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc"
-expect = "test result: ok. 16 passed"
-commit = "fa66829"
+expect = "test result: ok. 18 passed"
+commit = "25183ef"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
