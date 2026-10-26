@@ -5,6 +5,7 @@
 set -eu
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd); cd "$root"
 D=${DOCKER:-docker}; export DOCKER="$D"
+ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 CLIS=$(sed -n 's/^CLIS="\(.*\)"/\1/p' scripts/package-native.sh)
 nman=$(ls man/man1/*.1 | wc -l); nman=$((nman))
 check='set -eu; fail=0
@@ -18,9 +19,9 @@ exit $fail'
 for k in ${*:-deb rpm apk}; do
   sh scripts/package-native.sh $k >/dev/null
   case $k in
-  deb) f=/tmp/blocktools_0.1.0-1_amd64.deb img=debian:bookworm-slim inst="rm -f /etc/dpkg/dpkg.cfg.d/docker; dpkg -i /p/pkg.$k >/dev/null";;
-  rpm) f=/tmp/blocktools-0.1.0-1.x86_64.rpm img=fedora:40 inst="sed -i.bak /tsflags=nodocs/d /etc/dnf/dnf.conf; rpm -i /p/pkg.$k";;
-  apk) f=/tmp/blocktools-0.1.0-r0.apk img=alpine:3.20 inst="apk add -q --allow-untrusted /p/pkg.$k";;
+  deb) f=/tmp/blocktools_${ver}-1_amd64.deb img=debian:bookworm-slim inst="rm -f /etc/dpkg/dpkg.cfg.d/docker; dpkg -i /p/pkg.$k >/dev/null";;
+  rpm) f=/tmp/blocktools-${ver}-1.x86_64.rpm img=fedora:40 inst="sed -i.bak /tsflags=nodocs/d /etc/dnf/dnf.conf; rpm -i /p/pkg.$k";;
+  apk) f=/tmp/blocktools-${ver}-r0.apk img=alpine:3.20 inst="apk add -q --allow-untrusted /p/pkg.$k";;
   esac
   mkdir -p /tmp/pt; rm -f /tmp/pt/pkg.*; cp "$f" /tmp/pt/pkg.$k
   $D run --rm -e CLIS="$CLIS" -e NMAN="$nman" -v /tmp/pt:/p:ro $img sh -c "$inst && $check" \

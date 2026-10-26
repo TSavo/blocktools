@@ -18,6 +18,7 @@ jobs:
       - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
       - run: sh scripts/check-deps.sh
       - run: sh scripts/secret-scan.sh
+      - run: if [ "${GITHUB_REF_TYPE}" = tag ]; then sh scripts/version-check.sh "$GITHUB_REF_NAME"; else sh scripts/version-check.sh; fi
       - name: package
         run: |
           set -eu
