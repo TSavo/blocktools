@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools library. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-monero = { version = "0.1.0", path = "../monero", default-features = false }
+blocktools-monero = { version = "0.1.1", path = "../monero", default-features = false }
 bitcoin.workspace = true
 sha3.workspace = true
 groestl.workspace = true
@@ -31,4 +31,4 @@ ton = ["dep:bip39", "dep:pbkdf2", "dep:sha2"]
 sr25519 = ["dep:schnorrkel", "dep:bip39", "dep:pbkdf2", "dep:sha2"]
 
 [dev-dependencies]
-blocktools-schema = { version = "0.1.0", path = "../schema" }
+blocktools-schema = { version = "0.1.1", path = "../schema" }

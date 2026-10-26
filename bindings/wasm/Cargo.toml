@@ -4,7 +4,7 @@
 
 [package]
 name = "blocktools-wasm"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "blocktools public API (validate, xpub watch-only, path plans, tx decode/verify/build) for JavaScript/TypeScript. Takes no private keys."
@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # default-features only: `secrets`, `net` must never be enabled here (scripts/wasm-check.sh)
-blocktools = { version = "0.1.0", path = "../../crates/blocktools", default-features = false }
+blocktools = { version = "0.1.1", path = "../../crates/blocktools", default-features = false }
 wasm-bindgen = { version = "=0.2.100", default-features = false, features = ["std"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
 
