@@ -28,6 +28,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | bch-cashaddr-destinations | security | linux | measured | bch CashAddr (prefixed, bare, upper case) maps to the same output script as its legacy address; bad checksum, mixed case and bchtest are refused | `cargo test -q --release -p blocktools-core --test cashaddr_script` | ff5b7f5 | 2026-10-26 |
 | evm-encode-packed | security | linux | measured | evmAbiEncodePacked / abi::encode_packed reproduce the Solidity ABI spec Non-standard Packed Mode examples and refuse tuples, nested arrays and arrays of dynamic types | `cargo test -q --release -p blocktools-evm --test kat_packed` | c7bebbd | 2026-10-26 |
 | twc-ed25519-aptos-sui-near | security | linux | measured | aptos, sui, near, xtz and egld rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey/DeriveMultiversX HD keys at the registry paths, and accept/refuse TWC's Aptos, Sui, Tezos and MultiversX address lists | `cargo test -q --release -p blocktools --features secrets,ed25519 --test twc_ed25519` | ff5b7f5 | 2026-10-26 |
+| tarball-glibc-floor | platform | linux | measured | The v0.1.0 linux-x86_64 tarball (SHA256SUMS ok) has 41 binaries in bin/; per binary, the newest GLIBC_ symbol version (objdump -T | grep -o GLIBC_ | sort -uV | tail -1) is GLIBC_2.34 for 40 tools and GLIBC_2.39 for sealed-run. Re-measured from the downloaded binaries, not from text. Not run on an older glibc | `sh scripts/tarball-glibc.sh v0.1.0` | 1f1fa71 | 2026-10-26 |
 
 ## Untested
 

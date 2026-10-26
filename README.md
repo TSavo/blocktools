@@ -37,9 +37,10 @@ man blocktools
 The tarball holds `bin/` (the tools), `share/man/` and `man/` (manual pages), `recipes/`,
 `DESIGN.md`, `EXPORTS.md`, `LICENSE` and the `blocktools` wrapper. The binaries are **not**
 static: they are dynamically linked against glibc (`ldd bin/derive` lists `libc.so.6` and
-`libgcc_s.so.1`), and the newest symbol version any of them needs is GLIBC_2.39
-(`objdump -T bin/* | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1`), so they need glibc 2.39 or
-newer. Only the sealed Docker image is built from static musl binaries.
+`libgcc_s.so.1`). The tarball is Linux x86_64 and glibc-linked: 40 of its 41 tools need glibc 2.34
+or newer, and `sealed-run` needs glibc 2.39 or newer. Measured per binary as the newest GLIBC_ symbol
+version: `for b in bin/*; do echo "$(objdump -T $b | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1) $b"; done`
+(40 lines GLIBC_2.34, one GLIBC_2.39 for `bin/sealed-run`). Only the sealed Docker image is built from static musl binaries.
 Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run.
 
 **Sealed mode from a tarball.** The tarball has no Dockerfile or sources, so its `./blocktools
@@ -64,8 +65,8 @@ empty (`"count":0`). Fixed on main after v0.1.0: redact now passes those lines t
 
 Measured 2026-10-26 on Linux with the v0.1.0 `bin/`: download, `sha256sum -c` OK, the `ldd`
 and `objdump` results above, the `--address-list` count 0 and the `jq` workaround (4 btc lines),
-and every wallet example below through `sealed-run agent`. Not measured: running on a glibc older
-than 2.39 (expected to fail to load), macOS.
+and every wallet example below through `sealed-run agent`. Not measured: actually running on glibc 2.34-2.38 (only
+the symbol versions were read; `sealed-run` is expected to fail to load there) or older, macOS.
 
 ### From source
 

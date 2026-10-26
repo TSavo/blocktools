@@ -405,3 +405,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/core/src/validate.rs", "crates/blocktools/tests/twc_ed25519.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "twc_ed25519.rs` (5 tests)" }]
+
+[[claim]]
+id = "tarball-glibc-floor"
+statement = "The v0.1.0 linux-x86_64 tarball (SHA256SUMS ok) has 41 binaries in bin/; per binary, the newest GLIBC_ symbol version (objdump -T | grep -o GLIBC_ | sort -uV | tail -1) is GLIBC_2.34 for 40 tools and GLIBC_2.39 for sealed-run. Re-measured from the downloaded binaries, not from text. Not run on an older glibc"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "sh scripts/tarball-glibc.sh v0.1.0"
+expect = "41 binaries; 40 need GLIBC_2.34; others: sealed-run=GLIBC_2.39"
+commit = "1f1fa71"
+date = "2026-10-26"
+cheap = false
+depends = []
+doc = [{ file = "README.md", text = "41 tools" }, { file = "docs/getting-started.md", text = "41 tools" }, { file = "docs/troubleshooting.md", text = "41 tools" }]
