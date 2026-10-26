@@ -9,7 +9,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools --test fee_cap_paths"
 expect = "test result: ok"
-commit = "f713333"
+commit = "621a839"
 date = "2026-10-25"
 cheap = false
 depends = ["crates/tx/src/policy.rs"]
@@ -23,7 +23,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools-tx --test fee_cap_chains"
 expect = "test result: ok. 4 passed"
-commit = "f713333"
+commit = "621a839"
 date = "2026-10-25"
 cheap = false
 depends = ["crates/tx/src/policy.rs", "crates/core/src/chains.rs", "crates/tx/tests/fee_cap_chains.rs", "crates/tx/tests/data/feeprobe-corpus.jsonl"]
@@ -59,19 +59,19 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 37.0 MB = 37005824 bytes at the labelled commit, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 36977488 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
+statement = "Sealed runtime image (Dockerfile build, blocktools:local) is 38.8 MB = 38811136 bytes at the labelled commit, instrument: docker save uncompressed layer bytes (store-independent by construction; verified on overlay2 only). Environment: docker 26.1.5+dfsg1, storage driver overlay2 (extfs), Linux box. docker image inspect .Size on the same image: 38782360 bytes (store-dependent; the reviewer's containerd-store daemon reported 56.2 MB, reviewer report, not reproduced by us)"
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh --build"
-expect = "image blocktools:local; commit e281d4ac0d171732e09091bc3e26731ae8beeed4; 37005824 bytes"
-value = "37.0"
+expect = "image blocktools:local; commit d5b12f5deb36ff09e76faecc6e1e7f61b335ea94; 38811136 bytes"
+value = "38.8"
 env = "docker 26.1.5+dfsg1, driver overlay2 (Backing Filesystem extfs), Linux box"
-commit = "e281d4a"
+commit = "d5b12f5"
 date = "2026-10-26"
 cheap = false
 depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
-doc = [{ file = "README.md", text = "37.0 MB" }]
+doc = [{ file = "README.md", text = "38.8 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
@@ -203,7 +203,7 @@ platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "e281d4a"
+commit = "d5b12f5"
 date = "2026-10-26"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
@@ -230,7 +230,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
-commit = "90f20e7"
+commit = "ac39be3"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
@@ -260,7 +260,7 @@ platform = "linux"
 status = "measured"
 command = "cargo test -q -p rpc"
 expect = "test result: ok. 16 passed"
-commit = "90f20e7"
+commit = "ac39be3"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
@@ -268,13 +268,13 @@ doc = [{ file = "docs/RPC.md", text = "Safety: what is refused" }]
 
 [[claim]]
 id = "rpc-publicnode-read-linux"
-statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at 90f20e7); no broadcast was made"
+statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at ac39be3); no broadcast was made"
 kind = "platform"
 platform = "linux"
 status = "measured"
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
-commit = "90f20e7"
+commit = "ac39be3"
 date = "2026-10-26"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
