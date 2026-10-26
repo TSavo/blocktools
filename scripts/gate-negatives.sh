@@ -66,6 +66,7 @@ neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs
 neg K-fields docs-check "bad status" 'sed "0,/status = \"measured\"/s//status = \"verified\"/" docs/claims.toml > t && mv t docs/claims.toml'
 neg K-stale docs-check "re-measure" 'echo "// x" >> crates/tx/src/policy.rs && git -c user.name=n -c user.email=n@n commit -qam plant'
 neg K-run docs-check "expected" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"security\"\nplatform = \"linux\"\nstatus = \"measured\"\ncommand = \"false\"\nexpect = \"ok\"\ncommit = \"%s\"\ndate = \"d\"\ncheap = true\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
+neg K-fallback docs-check "measured via a fallback path" 'mkdir -p target/x86_64-unknown-linux-musl/release && printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"number\"\nplatform = \"docker\"\nstatus = \"measured\"\ncommand = \"sh scripts/image-size.sh --binary-sum\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ncheap = true\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-macos docs-check "without a ci_run" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"platform\"\nplatform = \"macos\"\nstatus = \"measured\"\ncommand = \"true\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasured)//" DESIGN.md > t && mv t DESIGN.md'
 neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'

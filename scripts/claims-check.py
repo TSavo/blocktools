@@ -11,7 +11,8 @@ Exit status 1 when:
   * a measured macos claim has no `ci_run`, or that run's macos job did not succeed
     at the claim's commit (checked with gh; fails closed if gh is unavailable);      [K-macos]
   * a number claim that is not measured is not labelled "(unmeasured)" on its doc line,
-    or an unmeasurable claim has no reason;                                          [K-label]
+    or an unmeasurable claim has no reason;
+  * a re-run measured claim's command reports FALLBACK (measured something else);   [K-fallback]                                          [K-label]
   * docs/CLAIMS.md's generated Measured/Untested sections are out of date.            [K-render]
 Usage: claims-check.py [--render] [--run-all]
 """
@@ -81,7 +82,9 @@ def main():
                     if not ok: bad.append(f"[K-macos] {cid}: ci_run {run} has no successful macos job at {com}")  # rule:K-macos
             if c.get("command") and (c.get("cheap") or run_all):
                 r = subprocess.run(c["command"], shell=True, capture_output=True, text=True)
-                if r.returncode or c.get("expect", "\0") not in r.stdout:
+                if "FALLBACK" in r.stdout + r.stderr:
+                    bad.append(f"[K-fallback] {cid}: `{c['command']}` measured via a fallback path, not the property")  # rule:K-fallback
+                elif r.returncode or c.get("expect", "\0") not in r.stdout:
                     bad.append(f"[K-run] {cid}: `{c['command']}` rc={r.returncode}, expected {c.get('expect')!r} in output: {(r.stdout + r.stderr)[-300:]!r}")  # rule:K-run
     for f in DOCS:
         if not os.path.exists(f): continue

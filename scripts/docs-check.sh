@@ -51,12 +51,7 @@ grep -q '^\.SH NAME$' man/man7/blocktools.7 || { echo "FAIL man7 missing NAME"; 
 grep -q 'share/man' scripts/package-dist.sh || { echo "FAIL package-dist missing share/man"; rc=1; }  # rule:D-share
 grep -q 'share/man' scripts/package-native.sh || { echo "FAIL package-native missing share/man"; rc=1; }  # rule:D-share2
 
-# 10. README sealed-image size claim matches scripts/image-size.sh when measurable
-if sz=$(sh scripts/image-size.sh 2>/dev/null); then
-  claim=$(sed -nE 's/.*Battleaxe \(([0-9.]+) MB;.*/\1/p' README.md | head -1)
-  [ -n "$claim" ] || { echo "FAIL README missing Battleaxe image size claim"; rc=1; }  # rule:D-imgsize neg-exempt: needs a built sealed image; rewritten by the sealed-image item (R2-1)
-  [ "$claim" = "$sz" ] || { echo "FAIL README image size $claim MB != measured $sz MB (run sh scripts/image-size.sh)"; rc=1; }  # rule:D-imgsize neg-exempt: needs a built sealed image; rewritten by the sealed-image item (R2-1)
-fi
+# 10. (removed: image size is a claims.toml entry; scripts/image-size.sh refuses non-image measurements)
 # 11. review findings ledger: every fixed finding has a guard test (docs/FINDINGS.md)
 sh scripts/findings-check.sh || rc=1  # rule:F-guard F-token F-commit F-status F-dup F-rows F-file
 python3 scripts/claims-check.py || rc=1  # rule:K-unreg K-gone K-fields K-stale K-run K-macos K-label K-render
