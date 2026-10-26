@@ -10,3 +10,4 @@ python3 -m pip install --user --break-system-packages cryptography
 rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
 rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
 git worktree prune && git clean -ffdxq -e target && rm -rf "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*
+python3 -m pip install --user --break-system-packages cryptography pyyaml

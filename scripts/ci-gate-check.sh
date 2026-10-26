@@ -8,6 +8,13 @@ cd "$(dirname "$0")/.."
 wf=${1:-.github/workflows/ci.yml}
 allow=scripts/ci-allowed-setup.txt
 [ -f "$wf" ] || { echo "FAIL ci-gate: no $wf"; exit 1; }
+# Every workflow must parse as YAML (a flow mapping holding ${{ }} once killed CI at the workflow level).
+for y in .github/workflows/*.yml; do
+  python3 -c 'import sys, yaml; d = yaml.safe_load(open(sys.argv[1])); assert isinstance(d, dict) and "jobs" in d, "no jobs"' "$y" 2>"${TMPDIR:-/tmp}/ci-yaml.$$" \
+    || { echo "FAIL ci-gate: $y is not valid workflow YAML: $(tail -n 2 "${TMPDIR:-/tmp}/ci-yaml.$$" | tr '\n' ' ')"; rm -f "${TMPDIR:-/tmp}/ci-yaml.$$"; exit 1; }  # rule:G-yaml
+  if command -v actionlint >/dev/null 2>&1; then actionlint "$y" || { echo "FAIL ci-gate: actionlint $y"; exit 1; }; fi
+done
+rm -f "${TMPDIR:-/tmp}/ci-yaml.$$"
 rc=0; n=0
 runs=$(sed -n 's/^[[:space:]]*-\{0,1\}[[:space:]]*run:[[:space:]]*//p' "$wf")
 [ -n "$runs" ] || { echo "FAIL ci-gate: $wf has no run: steps"; exit 1; }
