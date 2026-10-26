@@ -9,7 +9,7 @@
 //!   tx-build --chain eth --chain-id N [--account FILE] [--nonce N] [--gas N] --max-fee-per-gas WEI
 //!            [--priority-fee WEI | --legacy] --to ADDR (--send WEI | --sweep [--balance WEI] | --topup GAS_UNITS
 //!            | --token CONTRACT --token-amount UNITS)
-//! --account FILE is one JSON object with any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
+//! --account FILE is one JSON object with chain_id (required, must equal --chain-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 //! (utxo-fetch writes it); flags override it. ERC-20 sends need native gas at the old address:
 //! build the gas top-up first with --topup GAS_UNITS from a funded address.
 use blocktools_tx::build;
@@ -84,6 +84,10 @@ fn evm_build(a: &A) {
         num(a.get(flag), "number").or_else(|| match &acct[key] { Value::String(s) => Some(s.parse().unwrap_or_else(|_| fail("bad account file"))), Value::Number(n) => n.as_u64().map(Into::into), _ => None })
     };
     let chain_id = num(a.get("--chain-id"), "--chain-id").unwrap_or_else(|| fail("--chain-id required")) as u64;
+    // D1-11: nonce/balance/gas price fetched from one chain must not build a tx for another.
+    if !acct.is_null() {
+        match acct["chain_id"].as_u64() { Some(c) if c == chain_id => {}, Some(_) => fail("account_chain_id_mismatch"), None => fail("account_chain_id_missing") }
+    }
     let nonce = pick("--nonce", "nonce").unwrap_or_else(|| fail("--nonce or account nonce required")) as u64;
     let max_fee = pick("--max-fee-per-gas", "max_fee_per_gas").unwrap_or_else(|| fail("--max-fee-per-gas required"));
     let legacy = a.has("--legacy");

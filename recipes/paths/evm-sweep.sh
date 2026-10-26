@@ -7,7 +7,7 @@ ID=$1 FROM=$2 TO=$3
 stage "1 fetch: nonce, balance, chain id and gas price of $FROM from $RPC"
 $B/utxo-fetch --chain eth --url "$RPC" "$FROM" > $W/account.json
 cat $W/account.json
-stage "2 build: unsigned sweep to $TO on chain id $ID (check that account.json chain_id matches: tx-build does not compare them, FINDINGS D1-11)"
+stage "2 build: unsigned sweep to $TO on chain id $ID (tx-build refuses if account.json chain_id differs: account_chain_id_mismatch, D1-11)"
 $B/tx-build --chain eth --chain-id $ID --account $W/account.json --to "$TO" --sweep > $W/unsigned.tx
 stage "3 verify: chain id, destination, fee cap"
 $B/tx-verify --chain-id $ID --expect-to "$TO" < $W/unsigned.tx
