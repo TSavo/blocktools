@@ -19,8 +19,9 @@ jobs:
           cd "${RUNNER_TEMP}/wallet-core" && git fetch -q --depth 1 https://github.com/trustwallet/wallet-core adf80f8bac989e18a4ef1922e2b9eaeb4bf804a9 && git checkout -q FETCH_HEAD
           test "$(git rev-parse HEAD)" = adf80f8bac989e18a4ef1922e2b9eaeb4bf804a9
           cp "${GITHUB_WORKSPACE}/tools/twc-vectors/gen_ethermint.rs" rust/tw_tests/tests/bt_gen_ethermint.rs
+          cp "${GITHUB_WORKSPACE}/tools/twc-vectors/gen_cosmos23.rs" rust/tw_tests/tests/bt_gen_cosmos23.rs
           rustup toolchain install 1.89.0 --profile minimal  # wallet-core adf80f8 needs >= 1.87 (unsigned_is_multiple_of)
-          cd rust && cargo +1.89.0 test -q -p tw_tests --test bt_gen_ethermint -- --nocapture 2>&1 | tee "${RUNNER_TEMP}/twc-vectors.txt"
+          cd rust && cargo +1.89.0 test -q -p tw_tests --test bt_gen_ethermint --test bt_gen_cosmos23 -- --nocapture 2>&1 | tee "${RUNNER_TEMP}/twc-vectors.txt"
           grep -E '^BT(VEC|ADDR) ' "${RUNNER_TEMP}/twc-vectors.txt" > "${RUNNER_TEMP}/twc-vectors-only.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with: { name: twc-vectors, path: "${{ runner.temp }}/twc-vectors-only.txt" }
