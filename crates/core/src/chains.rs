@@ -63,7 +63,7 @@ pub struct Source { pub name: &'static str, pub url: &'static str, pub api: &'st
 pub struct Chain {
     pub name: &'static str, pub ticker: &'static str, pub title: &'static str,
     /// SLIP-44 coin type (BIP44 path). Use `slip44()` for JSON: None when no registry entry
-    /// (wdc/anc keep a placeholder 0 here only so path templates still compile; they are unverified).
+    /// (wdc/anc/bcc keep a placeholder 0 here only so path templates still compile; they are unverified).
     pub coin: u32, pub enc: Enc, pub default_count: u32, pub sign: Sign,
     /// true = every parameter checked against the coin's own source (chainparams/base58.h) and
     /// SLIP-44, and an independent known-answer test passes. false rows are never "supported".
@@ -127,6 +127,7 @@ pub const CHAINS: &[Chain] = &[
     // No SLIP-44 coin type registered: address encoding is from source, derivation path is not.
     u("wdc", "WDC", "Worldcoin", 0, 73, 5, 201, None, Standard, false, "worldcoinproject/worldcoin-v0.8 src/base58.h; no SLIP-44 entry; tx format Bitcoin-legacy confirmed on 4 mainnet txs (tx/tests/wdc.rs)", &[cz("https://chainz.cryptoid.info/wdc/address.dws?{addr}", "cryptoid:https://chainz.cryptoid.info/wdc/api.dws")]),
     u("anc", "ANC", "Anoncoin", 0, 23, 15, 151, None, Standard, false, "Anoncoin/anoncoin src/chainparams.cpp; no SLIP-44 entry", &[]),
+    u("bcc", "BCC", "BitConnect", 0, 18, 85, 146, None, PosTime, false, "bitconnectcoin/bitconnectcoin@3ab3d19 src/base58.h:279-280 (PUBKEY_ADDRESS 18, SCRIPT_ADDRESS 85), :408 (WIF = 128 + PUBKEY_ADDRESS = 146); tx nTime src/main.h:443; no SLIP-44 entry (268 BCC is BCChain)", &[]),
 ];
 /// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
 /// this crate does not have.
@@ -139,7 +140,7 @@ impl Chain {
     pub fn ck(&self) -> Ck { if self.name == "grs" { Ck::Groestl } else { Ck::Sha256d } }
     /// SLIP-44 coin type for exports. `None` when the registry has no entry (not the same as BTC's 0).
     pub fn slip44(&self) -> Option<u32> {
-        match self.name { "wdc" | "anc" => None, _ => Some(self.coin) }
+        match self.name { "wdc" | "anc" | "bcc" => None, _ => Some(self.coin) }
     }
     /// PoS nTime layouts that `build_unsigned_sweep` / `pos::layout` cover (measured).
     const POS_SWEEP: &'static [&'static str] = &["ppc", "nvc", "clam", "rdd"];
@@ -781,6 +782,7 @@ mod kat_long_tail {
         ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59", "UWrHM22KZbQaFFTss6R75NbbHpNLGqSDHAsF5VScL1BPP51rGEYX"),
         ("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV", "WjYjvSRpBu9ds1fQAELW1z1u2LP7o7W7ioDCUJe2hBV4c2yyqEp3"),
         ("anc", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3", "PLZDLNQqSDLm98zzWSbrDHHYacLW4Bwmai4gVbKJ9FoUXV7pNBkk"),
+        ("bcc", "8Rm8H7Fo9KCXs7hYfL74Z7K9TC5XnPGnWq", "Nbf4UZcLZSm5GYw9k4dPEQp7LSLEt6b8mVx2hKapgs2v7q8URJUQ"),
     ];
     #[test] fn every_utxo_row_matches_independent_vector() {
         let s = Secp256k1::new(); let mut b = [0u8; 32]; b[31] = 1; let k = SecretKey::from_slice(&b).unwrap();

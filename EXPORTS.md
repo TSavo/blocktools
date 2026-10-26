@@ -177,6 +177,7 @@ Outside the chain table: `zec` (2-byte prefixes), handled by the blocktools-tx z
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | wdc | WDC | — (null) | 49 | 05 | — | 201 | sha256d | 8 | — | legacy | no | cryptoid chainz.cryptoid.info |
 | anc | ANC | — (null) | 17 | 0f | — | 151 | sha256d | 8 | — | legacy | no | none |
+| bcc | BCC | — (null) | 12 | 55 | — | 146 | sha256d | 8 | — | pos-ntime | no | none |
 
 - Monero scan/sweep is host-only (`tools/xmr-wallet`, CLI JSON lines kinds `scan`, `received`, `sweep-plan`, `sweep-relayed`); not exported to wasm.
 

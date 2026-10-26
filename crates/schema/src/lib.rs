@@ -15,7 +15,7 @@ pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "de
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "grs"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "bcc", "grs"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.

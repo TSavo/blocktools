@@ -33,6 +33,7 @@ const KAT: &[(&str, &str)] = &[
     ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
     ("wdc", "WZMJS5eeCEgiqxNK1QRbE1HR4wFQwmCjJV"),
     ("anc", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
+    ("bcc", "8Rm8H7Fo9KCXs7hYfL74Z7K9TC5XnPGnWq"),
 ];
 const ZEC_T1: &str = "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs";
 const ZEC_T3: &str = "t3VEtV2oBtHxjq7wKHJb3PHsqXHvMRgUmVw";
@@ -171,7 +172,7 @@ fn utxo(c: &str) -> String {
     let atom_p = params.iter().find(|r| r["name"] == "atom").unwrap();
     assert_eq!(atom_t["hrp"], "cosmos", "chainTable atom hrp");
     assert_eq!(atom_p["hrp"], "cosmos", "chainParams atom hrp");
-    for name in ["wdc", "anc"] {
+    for name in ["wdc", "anc", "bcc"] {
         let trow = table.iter().find(|r| r["name"] == name).unwrap();
         let prow = params.iter().find(|r| r["name"] == name).unwrap();
         assert!(trow["coin_type"].is_null(), "{name} chainTable coin_type must be null (no SLIP-44)");
