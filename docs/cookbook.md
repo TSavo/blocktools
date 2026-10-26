@@ -51,3 +51,4 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | `eth_getCode` → proxy / delegation / EOF, compiler version, size limit, selector candidates | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (i), `bytecode-inspect` |
 | `eth_signTypedData_v4` request or signed typed data → digest, recovered signer, verdict | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (j), `typed-data-verify` |
 | Solana or Tron transfer: build unsigned from a plan, decode, verify (chain auto-detected, `--chain` overrides) | `sol-tron-tx` |
+| Prove control of an address: sign a text message (Bitcoin `signmessage` P2PKH, Ethereum `personal_sign`), or verify one (chain detected from the address) | `msg-sign`, `msg-verify` |

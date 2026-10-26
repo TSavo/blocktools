@@ -1,0 +1,64 @@
+.TH MSG\-VERIFY 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+msg\-verify \- check a message signature against an address. No keys are read
+.SH SYNOPSIS
+.nf
+msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc]
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc]
+.RE
+.fi
+The chain is detected from the address: 0x + 40 hex is Ethereum, a base58 P2PKH address starting
+with 1 is Bitcoin (\-\-chain, if given, must agree). Ethereum: EIP\-191 personal_sign, SIG is 65 bytes hex
+(0x optional) with v = 27/28, 0/1 (Immutable X style) or 35 + 2*chain_id + rec (EIP\-155 style).
+Bitcoin: Bitcoin Core signmessage, SIG is base64 (header 27\-34, compressed or uncompressed key).
+\-\-message\-file uses the file's exact bytes (no newline trimming); \-\-hex reads the message as hex bytes.
+Refused: segwit/taproot addresses and BIP137 segwit headers (35\-42), BIP322, other chains' message
+prefixes (ltc, doge, ...), EIP\-712 (use typed\-data\-verify).
+Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"[,"v"]}; exit 0 only on ok.
+Vectors: Trust Wallet Core EthMessageSigner (legacy, legacy_hex, eip155, immutable_x) and
+BitcoinMessageSigner (6 verify vectors, messageToHash, negatives), crates/tx/tests/twc_message.rs.
+.SH OPTIONS
+.nf
+\-\-address
+\-\-chain
+\-\-hex
+\-\-message
+\-\-message\-file
+\-\-sig
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"[,"v"]}; exit 0 only on ok.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+1
+last status signer_mismatch
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ msg\-verify \-\-address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X \-\-message "test signature" \-\-sig ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=
+# exit 0, last status: ok
+$ msg\-verify \-\-address 1HZwkjkeaoZfTSaJxDw6aKkxp45agDiEzN \-\-message "test signature" \-\-sig ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=
+# exit 1, last status: signer_mismatch
+$ msg\-verify \-\-address bc1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8 \-\-message hi \-\-sig AA==
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

@@ -1,0 +1,11 @@
+[package]
+name = "msg-verify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools msg-verify: verify an Ethereum personal_sign (EIP-191) or Bitcoin signmessage signature, chain detected from the address. No keys. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+blocktools-tx = { version = "0.1.0", path = "../../crates/tx" }
+blocktools-io = { version = "0.1.0", path = "../../crates/io" }
+blocktools-core = { version = "0.1.0", path = "../../crates/core" }
+serde_json.workspace = true

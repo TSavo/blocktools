@@ -266,3 +266,23 @@ sol-tron-tx decode ff00ff
 ```sh
 sol-tron-tx verify --expect '{"to":"TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"}' < "$FX/tron-transfer.hex"
 ```
+
+<!-- run rc=1 expect=blind_hash_message -->
+```sh
+printf '%064x\n' 1 | msg-sign --address 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH --message 0xc0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
+```
+
+<!-- run rc=1 expect=address_not_p2pkh -->
+```sh
+printf '%064x\n' 1 | msg-sign --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi
+```
+
+<!-- run rc=1 expect=address_does_not_match_key -->
+```sh
+printf '%064x\n' 1 | msg-sign --address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X --message hi
+```
+
+<!-- run rc=2 expect=address_not_p2pkh -->
+```sh
+msg-verify --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi --sig AA==
+```

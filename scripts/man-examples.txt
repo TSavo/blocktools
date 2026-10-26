@@ -66,3 +66,8 @@ sol-tron-tx | 0 | sol-tron-tx decode < "$R/recipes/fixtures/sol-tron/tron-transf
 sol-tron-tx | 0 | sol-tron-tx verify --expect '{"lamports":"1000"}' < "$R/recipes/fixtures/sol-tron/sol-transfer.txt"
 sol-tron-tx | 2 | sol-tron-tx decode ff00ff
 sol-tron-tx | 0 | sol-tron-tx verify --expect '{"to":"TT8jJMVHtAjgGFrc463ZwZQnMXEr519q3u","amount":"100000000000"}' < "$R/recipes/fixtures/sol-tron/tron-mainnet-trc20.txt"
+msg-verify | 0 | msg-verify --address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X --message "test signature" --sig ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=
+msg-verify | 1 | msg-verify --address 1HZwkjkeaoZfTSaJxDw6aKkxp45agDiEzN --message "test signature" --sig ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=
+msg-verify | 2 | msg-verify --address bc1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8 --message hi --sig AA==
+msg-sign | 1 | printf '%064x\n' 1 | msg-sign --address 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH --message 0xc0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
+msg-sign | 1 | printf '%064x\n' 1 | msg-sign --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi

@@ -126,6 +126,17 @@ Measured (Linux only): every one parses, recovers to the address of its key, rou
 
 Refused (no vector here): EIP-2930 type 1 (`eip2930_unsupported`), EIP-4844 type 3 (`eip4844_unsupported`), EIP-7702 type 4 (`eip7702_unsupported`), and Trust Wallet Core's ERC-4337 / Barz user operations. Untested: broadcast on any network, NFT-aware decoding (ERC-721/1155 are shown only as raw or `transferFrom` calldata), chain ids outside the vectors.
 
+## Message signing: Trust Wallet Core message-signer vectors
+
+`msg-sign` and `msg-verify` port Trust Wallet Core's `EthMessageSigner` (`rust/tw_evm/tests/message_signer.rs`) and `BitcoinMessageSigner` (`tests/chains/Bitcoin/MessageSignerTests.cpp`), commit adf80f8, public test keys. Code: `crates/tx/src/message.rs`. The chain is detected from the address: `0x` + 40 hex is Ethereum, a base58 P2PKH address starting with `1` is Bitcoin; `--chain` must agree.
+
+- Ethereum: EIP-191 `personal_sign`, keccak256("\x19Ethereum Signed Message:\n" + decimal length + message). The signature is r||s||v, with v = 27/28 (`legacy`, the default), 0/1 (`raw`, Immutable X) or 35 + 2N + rec (`eip155:N`).
+- Bitcoin: Bitcoin Core `signmessage`, sha256d(varstr("Bitcoin Signed Message:\n") + varstr(message)), base64 of header||r||s with header 27 + rec (+4 for a compressed key). msg-sign picks compressed or uncompressed from whichever P2PKH address the key matches.
+
+Measured (Linux only): `crates/tx/tests/twc_message.rs` (2 tests). It signs TWC's 4 Ethereum vectors byte for byte (legacy "Foo", legacy_hex as bytes, eip155 chain 0, Immutable X) and recovers each to its key's address. It signs TWC's 3 Bitcoin vectors byte for byte (compressed "test signature" and "another text", uncompressed "test signature"), recovers all 6 of TWC's Bitcoin verify vectors (one of them, 1B8Qea.., is high-s and is accepted on verify as Bitcoin Core does), matches both `messageToHash` values, and covers TWC's negatives: wrong address, signature too short, segwit address. `scripts/e2e.d/twc-message.sh` runs the real CLIs (code typed on a pty), gets TWC's signatures for 2 Bitcoin and 3 Ethereum cases, and checks every refusal below plus the wrong-code abort; a mismatched verify exits 1 with `signer_mismatch`.
+
+Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_message`; TWC signs its legacy_hex vector this way, and msg-verify checks it with `--hex`, but blocktools will not sign a hash it cannot show); hex or typed-data input (`only_text_messages_signed`); a message that decodes as a transaction or PSBT (`message_looks_like_transaction`); non-UTF-8, empty or oversized messages; segwit and taproot addresses (`address_not_p2pkh`; BIP137 segwit headers 35-42 and BIP322 are unsupported); other chains' message prefixes (`message_prefix_unproven_for_chain`, e.g. ltc, doge); EIP-712 (blocktools only verifies it, with `typed-data-verify`). A key that does not match `--address` gives `address_does_not_match_key`. Untested: testnet addresses, wallets other than TWC (no vectors from MetaMask, Electrum or Bitcoin Core were run here), and long messages (the multi-byte varint length prefix has no vector).
+
 ## Chain quirks and their known-answer vectors (2026-10-25)
 
 Every way a chain departs from plain Bitcoin is listed here with at least one independent

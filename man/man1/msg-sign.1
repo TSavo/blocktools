@@ -1,0 +1,58 @@
+.TH MSG\-SIGN 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+msg\-sign \- sign ONE text message after a human reads it and types a code on /dev/tty
+.SH SYNOPSIS
+.nf
+msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc] [\-\-v legacy|raw|eip155:N] < keys   (asks for a code on the terminal)
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc] [\-\-v legacy|raw|eip155:N]  < keys
+.RE
+.fi
+The chain is detected from \-\-address (0x + 40 hex: Ethereum EIP\-191 personal_sign; base58 P2PKH
+starting with 1: Bitcoin Core signmessage); \-\-chain, if given, must agree. The key whose address is
+\-\-address is used (Bitcoin: compressed or uncompressed P2PKH, whichever matches); no match is refused.
+Ethereum \-\-v: legacy (27/28, default), raw (0/1, Immutable X style) or eip155:N (35 + 2N + rec).
+Refused before keys are read: a message that is a bare 32\-byte hash (64 hex chars) \-\- blind hash
+signing; a message that decodes as a transaction or PSBT; non\-UTF\-8 bytes; empty or > 64 KiB
+messages; segwit/taproot addresses (BIP137/BIP322 unsupported); other chains' message prefixes;
+EIP\-712 typed data (not signed by blocktools; typed\-data\-verify only verifies).
+Keys come ONLY on stdin (WIF or 64\-hex, or JSON lines with wif/private_key/key/secret).
+Order: refusals \-> read keys \-> sign in memory \-> verify the signature recovers \-\-address \->
+show the message (escaped) on the terminal \-> code typed \-> {"signature": ...}. Without a terminal,
+or with the wrong code, nothing but "aborted" is printed.
+Vectors: Trust Wallet Core EthMessageSigner and BitcoinMessageSigner, byte\-exact (crates/tx/tests/twc_message.rs).
+.SH OPTIONS
+.nf
+\-\-address
+\-\-chain
+\-\-message
+\-\-message\-file
+\-\-v
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+Keys come ONLY on stdin (WIF or 64\-hex, or JSON lines with wif/private_key/key/secret).
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+1
+last status refused
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ printf '%064x\en' 1 | msg\-sign \-\-address 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH \-\-message 0xc0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
+# exit 1, last status: refused
+$ printf '%064x\en' 1 | msg\-sign \-\-address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 \-\-message hi
+# exit 1, last status: refused
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
