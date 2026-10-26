@@ -24,6 +24,15 @@ echo "ok  raw control: tools print keys ($(grep -c wif "$T/raw.jsonl") wif lines
 echo "$SEED" | boundary seed 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu' 'seed-repair | seed-to-master | derive --count 2'
 # 3. half pipe (stops at master key) - boundary must drop the xprv line
 echo "$SEED" | boundary half '"tool":"seed-to-master"' 'seed-repair | seed-to-master'
+# 3b. public address list (derive --address-list: label<TAB>path<TAB>address) passes the boundary
+#     unchanged; the same pipe without --address-list still has its key fields redacted.
+echo "$SEED" | "$B/sealed-run" agent 'seed-repair | seed-to-master | derive --count 2 --chain btc --address-list' > "$T/al.txt"
+echo "$SEED" | "$B/seed-repair" | "$B/seed-to-master" | "$B/derive" --count 2 --chain btc --address-list 2>/dev/null > "$T/al-raw.txt"
+[ -s "$T/al-raw.txt" ] && grep -vF '"tool":"redact"' "$T/al.txt" | cmp -s - "$T/al-raw.txt" && ! grep -Eq "$LEAK" "$T/al.txt" \
+  && grep -q "$(printf "\tm/84'/0'/0'/0/0\tbc1q")" "$T/al.txt" \
+  && echo "ok  address-list: $(wc -l < "$T/al-raw.txt") lines through sealed-run unchanged, no secrets" || { echo "FAIL address-list boundary"; cat "$T/al.txt"; exit 1; }
+echo "$SEED" | "$B/sealed-run" agent 'seed-repair | seed-to-master | derive --count 2 --chain btc' | grep -q '"wif":"\[REDACTED\]"' \
+  && echo "ok  address-list: key lines still redacted" || { echo "FAIL key redaction"; exit 1; }
 # 4. boundary refuses non-allowlisted programs / shell syntax
 "$B/sealed-run" agent 'sh -c id' | grep -q unsupported && echo "ok  sealed-run refuses sh"
 "$B/sealed-run" agent 'derive ; id' | grep -q bad_input && echo "ok  sealed-run refuses shell syntax"

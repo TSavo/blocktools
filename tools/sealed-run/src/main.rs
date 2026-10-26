@@ -92,7 +92,7 @@ fn main() {
                 let mut buf = Vec::new();
                 let n = (&mut r).take(65536).read_until(b'\n', &mut buf).unwrap_or(0);
                 if n == 0 { break; }
-                match std::str::from_utf8(&buf).ok().and_then(|s| blocktools_schema::redact_line(s.trim_end())) {
+                match std::str::from_utf8(&buf).ok().and_then(|s| blocktools_schema::redact_output_line(s)) {
                     Some(l) => { kept += 1; let _ = writeln!(o, "{l}"); }
                     None => dropped += 1,
                 }

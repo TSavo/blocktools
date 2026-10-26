@@ -42,6 +42,15 @@ names, paths and order, 20 addresses each, over eth, tron, sol, btc, ltc, doge, 
 The empty passphrase is tried first, then each non-empty line; rows from line N get
 `[passphrase #N]` after the path, as SCAN_JS prints them. Without `--chain` the preset uses all
 eight chains above; with `--chain` it keeps only the rows for those chains.
+
+Through the sealed boundary this works as is, so `addresses.txt` can be written on the host:
+
+    ./blocktools run 'seed-to-master < /in/seed.txt | derive --preset scan-js --address-list' > addresses.txt
+
+The boundary passes a non-JSON line only if it is exactly `label<TAB>path<TAB>address` with a short
+label, a BIP32 path (optionally `[passphrase #N]`) and an address, and it passes the same leak
+check as JSON lines; any other line is dropped. The last line is the boundary's own
+`{"tool":"redact",...}` count; strip it with `grep -v '"tool":"redact"'`.
 | Solana only | `--curve ed25519 --chain sol` |
 | Keep scanning while hits continue | `--match targets.txt --gap-limit 20` |
 | Stop at first known address | `--match targets.txt --stop-on-match` |

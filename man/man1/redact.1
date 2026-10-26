@@ -3,12 +3,15 @@
 redact \- stdin raw JSON lines (may contain secrets) \-> stdout public lines
 .SH SYNOPSIS
 .nf
-redact: JSON lines in \-> schema\-checked, secrets replaced by [REDACTED], leak\-checked lines out
+redact: JSON lines in \-> schema\-checked, secrets replaced by [REDACTED], leak\-checked lines out; also passes public derive \-\-address\-list lines (label<TAB>path<TAB>address) that pass the same leak check
 .fi
 .SH DESCRIPTION
 This is the only process whose stdout is connected to the agent.
 .SH OPTIONS
-No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
+.nf
+\-\-address\-list
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 redact: stdin raw JSON lines (may contain secrets) \-> stdout public lines.
 This is the only process whose stdout is connected to the agent.

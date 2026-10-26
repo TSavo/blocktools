@@ -161,6 +161,33 @@ pub fn looks_secret(text: &str) -> bool {
 }
 
 /// Turn one raw tool output line (may contain secrets) into a public line, or None.
+/// Public address-list line from `derive --address-list`: `label<TAB>path[ [passphrase #N]]<TAB>address`.
+/// Passed through unchanged only when every field has its narrow shape: label 1..=64 chars of
+/// [A-Za-z0-9 ()./_+-], at most 6 words, no token over 19 chars; path is a BIP32 path; address is an
+/// address (a 32-byte base58 value, the Solana seed shape, only on a "Solana" label); and the whole
+/// line passes looks_secret. Anything else returns None (the line is dropped).
+pub fn address_list_line(raw: &str) -> Option<String> {
+    let f: Vec<&str> = raw.split('\t').collect();
+    let [label, path, addr] = f[..] else { return None };
+    if label.is_empty() || label.len() > 64 || !label.chars().all(|c| c.is_ascii_alphanumeric() || " ()./_+-".contains(c)) { return None; }
+    if label.split_whitespace().count() > 6 || label.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t.len() > 19) { return None; }
+    let p = match path.split_once(" [passphrase #") {
+        Some((p, n)) => { let n = n.strip_suffix(']')?; if n.is_empty() || n.len() > 5 || !n.bytes().all(|b| b.is_ascii_digit()) { return None; } p }
+        None => path,
+    };
+    if !is_path(p) || !is_address(addr) { return None; }
+    if (32..=44).contains(&addr.len()) && all_in(addr, B58) && b58_len(addr) == Some(32) && !label.contains("Solana") { return None; }
+    // Leak check on label+path, and on the address unless it is a whole bech32 or 0x token (a bech32
+    // address can contain an 's'+base58 run that the XRP-seed rule would flag).
+    if looks_secret(&raw[..label.len() + 1 + path.len()]) { return None; }
+    if !(is_bech(addr) || addr.starts_with("0x")) && looks_secret(addr) { return None; }
+    Some(raw.to_string())
+}
+/// One raw output line -> public line: JSON lines via redact_line, anything else via address_list_line.
+pub fn redact_output_line(raw: &str) -> Option<String> {
+    let t = raw.trim_end_matches(['\n', '\r']);
+    if t.starts_with('{') { redact_line(t.trim_end()) } else { address_list_line(t) }
+}
 pub fn redact_line(raw: &str) -> Option<String> {
     let v: Value = serde_json::from_str(raw).ok()?;
     let obj = v.as_object()?;
@@ -303,6 +330,33 @@ mod d1_12 {
             let line = serde_json::json!({"tool":"tx-verify","status":"failed","failures":[c]}).to_string();
             let out = super::redact_line(&line).unwrap_or_else(|| panic!("redact dropped failure {c}"));
             assert!(out.contains(c), "{c}: {out}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod address_list_tests {
+    use super::address_list_line as a;
+    #[test] fn public_lines_pass() {
+        for l in ["MetaMask/Trezor/Trust/Exodus/Rabby EVM\tm/44'/60'/0'/0/0\t0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+                  "BTG (G...)\tm/44'/156'/0'/0/19\tGQJkUbRZqCnvvqpL5nLdxxVSEVbqsndAta",
+                  "BTC legacy (1...)\tm/44'/0'/0'/0/0 [passphrase #1]\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+                  "BTC native SegWit (bc1q...) Exodus/Trezor/Ledger\tm/84'/0'/0'/0/17\tbc1qrz46a4gt0sghvvyt4gy5kp2rswmhtufv6sdq9v"] {
+            assert_eq!(a(l).as_deref(), Some(l), "{l}");
+        }
+    }
+    #[test] fn key_material_dropped() {
+        // public test vectors only (BIP39 "abandon ... about" and its well-known keys)
+        for l in ["BTC legacy (1...)\tm/44'/0'/0'/0/0\tL4p2b9VAf8k5aUahF1JCJUzZkgNEAqLfq8DDdQiyAprQAKSbu8hf",
+                  "BTC legacy (1...)\tm/44'/0'/0'/0/0\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA\tL4p2b9VAf8k5aUahF1JCJUzZkgNEAqLfq8DDdQiyAprQAKSbu8hf",
+                  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\tm/0\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+                  "a22ddec5c567b4488bb00f69b6146c50da2ee883e2c096db098726394d585730\tm/0\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+                  "BTC\txprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+                  "EVM\tm/44'/60'/0'/0/0\t1ab42cc412b618bdea3a599e3c9bae199ebf030895b039e9db1e30dafb12b727",
+                  "BTC native SegWit\tm/84'/0'/0'/0/0\t4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+                  "XRP\tm/0\tsnoPBrXtMeMyMHUVTgbuqAfg1SUTb",
+                  "BTC\tm/0 [passphrase #TREZOR]\t1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"] {
+            assert_eq!(a(l), None, "{l}");
         }
     }
 }

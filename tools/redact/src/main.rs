@@ -2,7 +2,7 @@
 //! This is the only process whose stdout is connected to the agent.
 use std::io::{self, BufRead, Read, Write};
 fn main() {
-    blocktools_io::help("redact: JSON lines in -> schema-checked, secrets replaced by [REDACTED], leak-checked lines out");
+    blocktools_io::help("redact: JSON lines in -> schema-checked, secrets replaced by [REDACTED], leak-checked lines out; also passes public derive --address-list lines (label<TAB>path<TAB>address) that pass the same leak check");
     let stdin = io::stdin();
     let mut out = io::stdout().lock();
     let (mut kept, mut dropped) = (0u64, 0u64);
@@ -15,7 +15,7 @@ fn main() {
         if buf.last() != Some(&b'\n') && n == 65536 { // overlong: skip rest of line
             dropped += 1; let mut sink = Vec::new(); let _ = r.read_until(b'\n', &mut sink); continue;
         }
-        match std::str::from_utf8(&buf).ok().and_then(|s| blocktools_schema::redact_line(s.trim_end())) {
+        match std::str::from_utf8(&buf).ok().and_then(|s| blocktools_schema::redact_output_line(s)) {
             Some(l) => { kept += 1; let _ = writeln!(out, "{l}"); }
             None => dropped += 1,
         }
