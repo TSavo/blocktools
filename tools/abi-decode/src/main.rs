@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use std::io::Read;
 
 fn die(e: &str) -> ! {
-    eprintln!("{}", json!({"tool": "abi-decode", "status": "error", "error": e}));
+    eprintln!("{}", json!({"tool": "abi-decode", "status": "bad_input", "error": e}));
     std::process::exit(2)
 }
 
@@ -21,7 +21,7 @@ fn main() {
   --abi FILE       ABI JSON file (array or {\"abi\": [...]}) or one signature per line
   --types (T,..)   decode raw data as a type list, no selector (returndata, constructor args)
   --output         decode returndata with the first signature's returns (...) list
-Prints status no_match with the selector/topic when nothing matches; malformed data is an error (exit 2).");
+Prints status no_match with the selector/topic when nothing matches; malformed data is bad_input (exit 2).");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut sigs: Vec<blocktools_evm::sig::Sig> = vec![];
     let (mut types, mut output, mut input) = (None, false, None);
@@ -63,7 +63,7 @@ Prints status no_match with the selector/topic when nothing matches; malformed d
     for it in items {
         match api::decode_with(&it, &sigs, types.as_deref(), output) {
             Ok(v) => outln!("{v}"),
-            Err(e) => { rc = 2; outln!("{}", json!({"status": "error", "error": e})); }
+            Err(e) => { rc = 2; outln!("{}", json!({"status": "bad_input", "error": e})); }
         }
     }
     std::process::exit(rc);
