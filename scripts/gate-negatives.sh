@@ -83,7 +83,7 @@ neg K-fallback docs-check "measured via a fallback path" 'mkdir -p target/x86_64
 neg K-macos docs-check "without a ci_run" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"platform\"\nplatform = \"macos\"\nstatus = \"measured\"\ncommand = \"true\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasured)//" DESIGN.md > t && mv t DESIGN.md'
 neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'
-neg F-status docs-check "unknown status" 'sed "s/| R1-2 \\(.*\\) | open |/| R1-2 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
+neg F-status docs-check "unknown status" 'sed "s/| R1-5 \\(.*\\) | open |/| R1-5 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
 neg F-rows docs-check "no rows in" 'grep -Ev "^\| [A-Z][0-9]+-[0-9]+ \|" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-file docs-check "findings: no docs/FINDINGS.md" 'rm docs/FINDINGS.md'

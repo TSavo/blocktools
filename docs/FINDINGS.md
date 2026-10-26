@@ -10,9 +10,9 @@ they can't be forgotten, and the check prints them on every run.
 | id | finding | status | fixed in | guard |
 |----|---------|--------|----------|-------|
 | R1-1 | Envelope/C ABI/wasm paths had no default fee cap (could sign a 9.99 ETH fee) | fixed | 4949027 | crates/blocktools/tests/fee_cap_paths.rs |
-| R1-2 | seed-repair accepts an unknown --scheme silently | open | - | - |
-| R1-3 | classify CLASSES list misses bip38 and blockchain_wallet; no test ties it to emitted kinds | open | - | - |
-| R1-4 | sha-1 crate (deprecated name) instead of sha1 | open | - | - |
+| R1-2 | seed-repair accepts an unknown --scheme silently | fixed | 6f84c43 | scripts/e2e.d/seed-repair.sh |
+| R1-3 | classify CLASSES list misses bip38 and blockchain_wallet; no test ties it to emitted kinds | fixed | 657b4b2 | crates/core/src/classify.rs |
+| R1-4 | sha-1 crate (deprecated name) instead of sha1 | fixed | 9712e88 | scripts/check-deps.sh |
 | R1-5 | println! in tool bins (10 tools); no hygiene rule against it | open | - | - |
 | R1-6 | recipes.sh errors instead of skipping when python `cryptography` is missing | open | - | - |
 | R1-7 | Image size in docs not tied to a revision label | open | - | - |
@@ -21,7 +21,7 @@ they can't be forgotten, and the check prints them on every run.
 | R2-2 | CI red: non-ASCII emoji in man pages under groff LC_ALL=C | fixed | a22023f | scripts/gate-negatives.sh |
 | R2-3 | hygiene BSD-skew rules used \s, inert on macOS git grep | fixed | 8160aeb | scripts/hygiene-check.sh |
 | R2-5 | check-deps: pipe masked cargo exit 101 (stale lock) | fixed | bb1ceff | scripts/check-deps-regress.sh |
-| R2-6 | release.yml can publish without required reviewers on the release environment | open | - | - |
+| R2-6 | release.yml can publish without required reviewers on the release environment | fixed | 28343ac | scripts/release-env-check.sh |
 | R2-7 | Readers (bip38-open, blockchain-read, pw-candidates, tx-envelope, chain-table) "unsupported" under sealed-run | open | - | - |
 | R2-8 | Doc numbers not tied to a measuring command (claims registry) | fixed | 997c606 | scripts/gate-negatives.sh |
 | R2-9 | Gates grep for words instead of testing the property | fixed | 76c9850 | scripts/gate-negatives.sh |
