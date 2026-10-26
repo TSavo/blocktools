@@ -43,9 +43,10 @@ fn fail(s: &str) -> ! { outln!(r#"{{"tool":"derive","status":"{s}"}}"#); std::pr
 
 fn main() {
     blocktools_io::help(HELP);
-    let a: Vec<String> = std::env::args().skip(1).collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("derive").into_iter().skip(1).collect();
     if a.iter().any(|x| x == "--list-presets") { for (n, d) in plan::PRESETS { outln!(r#"{{"tool":"derive","status":"ok","preset":"{n}","description":"{d}"}}"#) } return }
     let o: Opts = plan::from_args(&a).unwrap_or_else(|e| fail(e));
+    for sp in &o.specs { blocktools_core::chain_spec::require_or_exit("derive", sp.chain.name, "p2pkh") }
     let match_set: Option<HashSet<String>> = o.match_file.as_ref().map(|f| {
         let mut b = String::new();
         std::fs::File::open(f).and_then(|h| h.take(16 << 20).read_to_string(&mut b)).unwrap_or_else(|_| fail("bad_input"));

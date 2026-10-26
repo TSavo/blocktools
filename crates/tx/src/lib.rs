@@ -297,6 +297,7 @@ impl Decoded {
         let mut s = json!({"tool":"tx-decode","status":"ok","role":"summary","chain":self.chain,"type":self.ty,"signed":self.signed,
             "inputs":self.inputs.len(),"outputs":self.outputs.len(),"warnings":self.warnings});
         let o = s.as_object_mut().unwrap();
+        if chains::chain_spec_banner(&self.chain).is_some() { o.insert("chain_spec".into(), json!("unverified chain spec")); }
         if let Some(t) = &self.txid { o.insert("txid".into(), json!(t)); }
         if let Some(f) = self.fee { o.insert("fee".into(), json!(f)); }
         if let Some(v) = self.vsize { o.insert("vsize".into(), json!(v)); if let Some(f) = self.fee { o.insert("fee_rate".into(), json!(f / v.max(1))); } }
@@ -337,6 +338,9 @@ impl Decoded {
         let mut s = String::new();
         use std::fmt::Write;
         let _ = writeln!(s, "=== TRANSACTION ({} {}, {}) ===", self.chain, self.ty, if self.signed { "SIGNED" } else { "unsigned" });
+        // Chain spec (docs/CHAIN-SPEC.md): second line of every plain summary, so tx-decode,
+        // tx-verify --text and the tx-sign confirmation all carry it.
+        if let Some(b) = chains::chain_spec_banner(&self.chain) { let _ = writeln!(s, "{b}"); }
         if let Some(t) = &self.evm {
             // Critical lines first, boxed and upper-case, so they cannot be missed.
             let sym = evm::native_symbol(t.chain_id);

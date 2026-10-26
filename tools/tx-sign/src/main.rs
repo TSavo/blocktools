@@ -22,13 +22,14 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
 }
 fn main() {
     blocktools_io::help("tx-sign --tx FILE --expect-to ADDR [...] [--max-fee N] [--policy FILE] < keys   (asks for a code on the terminal)");
-    let a: Vec<String> = std::env::args().collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
     let mut txt = String::new();
     std::fs::File::open(one("--tx").unwrap_or_else(|| bad("--tx FILE required"))).and_then(|f| f.take(blocktools_tx::MAX_INPUT as u64).read_to_string(&mut txt)).unwrap_or_else(|_| bad("cannot read --tx file"));
     let chain = blocktools_tx::resolve_chain(&txt, one("--chain")).unwrap_or_else(|e| bad(e));
+    blocktools_core::chain_spec::tx_ready(&chain, true).unwrap_or_else(|e| bad(e)); // spec chain: spec_missing_wif etc.
     let d = blocktools_tx::decode(&txt, &chain).unwrap_or_else(|e| bad(e));
     if d.signed { bad("already_signed") }
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),

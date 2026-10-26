@@ -7,7 +7,7 @@ use serde_json::json;
 use std::io::BufRead;
 fn main() {
     blocktools_io::help("xpub-addresses [--chain btc] [--kind p2wpkh,..] [--change 0,1] [--count 20] < xpub -> address lines");
-    let a: Vec<String> = std::env::args().skip(1).collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("xpub-addresses").into_iter().skip(1).collect();
     let arg = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1)).cloned();
     let fail = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"xpub-addresses","status":"error","error":e})); std::process::exit(2) };
     let chain = chains::chain(&arg("--chain").unwrap_or_else(|| "btc".into())).unwrap_or_else(|| fail("unknown chain"));

@@ -30,7 +30,7 @@ fn file(p: &str, max: u64) -> String {
 }
 fn main() {
     blocktools_io::help("tx-build --chain btc|ltc|doge|eth ... (see --help in source docs / recipes) -> unsigned PSBT or EVM tx");
-    let a = A(std::env::args().collect());
+    let a = A(blocktools_core::chain_spec::args_or_exit("tx-build"));
     let chain = a.get("--chain").unwrap_or("btc");
     if chain == "eth" { return evm_build(&a) }
     if chain == "zec" { // transparent-only v5 sweep, P2PKH inputs, ZIP-244 (branch id is consensus-critical)
@@ -46,7 +46,10 @@ fn main() {
     let c = blocktools_core::chains::chain(chain).filter(|c| matches!(c.enc, blocktools_core::chains::Enc::Utxo { .. })).unwrap_or_else(|| fail("unknown chain"));
     // Only verified rows with Bitcoin-standard signing are built; fork-id (BCH/BSV/BTG), PoS
     // tx-time (PPC/NVC/CLAM/BLK/RDD/POT) and unknown formats are refused, not guessed.
-    if !c.verified { fail("unverified chain parameters: not supported") }
+    let spec = blocktools_core::chain_spec::is_spec(chain);
+    if !c.verified && !spec { fail("unverified chain parameters: not supported") }
+    // Chain spec: only sign "standard", 8 decimals, p2pkh known; else a stable spec_* code.
+    blocktools_core::chain_spec::tx_ready(chain, false).unwrap_or_else(|e| fail(e));
     let pos = blocktools_tx::pos::layout(chain).is_some();
     if !c.sign.buildable() && !pos { fail("unsupported signing scheme for this chain (fork-id / unknown / PoS tx time without a verified layout)") }
     let utxos = build::parse_utxos(c, &file(a.get("--utxos").unwrap_or_else(|| fail("--utxos FILE required")), 16 << 20)).unwrap_or_else(|e| fail(&e));
@@ -66,7 +69,9 @@ fn main() {
         fee_rate: num(a.get("--fee-rate"), "--fee-rate").unwrap_or_else(|| fail("--fee-rate required")) as u64, rbf: a.has("--rbf"),
         dust: num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64, op_return: None, locktime: num(a.get("--locktime"), "--locktime").unwrap_or(0) as u32 };
     let p = build::build_btc(c, utxos, &plan).unwrap_or_else(|e| fail(&e));
-    blocktools_io::outln!("{}", json!({"tool":"tx-build","status":"ok","chain":chain,"type":"psbt","psbt":blocktools_core::b64::encode(&p.serialize())}));
+    let mut o = json!({"tool":"tx-build","status":"ok","chain":chain,"type":"psbt","psbt":blocktools_core::b64::encode(&p.serialize())});
+    if spec { o["chain_spec"] = json!("unverified chain spec"); o["chain_spec_sha256"] = json!(blocktools_core::chain_spec::get().map(|s| s.sha256.clone())) }
+    blocktools_io::outln!("{o}");
 }
 fn eaddr(s: &str) -> [u8; 20] {
     blocktools_core::validate::validate("eth", s).unwrap_or_else(|_| fail("bad address"));

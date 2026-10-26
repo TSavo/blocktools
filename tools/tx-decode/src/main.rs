@@ -5,7 +5,7 @@
 use std::io::Read;
 fn main() {
     blocktools_io::help("tx-decode [--chain btc|ltc|doge] [--text] < transaction -> JSON lines (or plain summary)\n       tx-decode --nvc-json TXID < api.novaco.in gettransaction JSON -> raw tx hex (fails unless the hash is TXID)");
-    let a: Vec<String> = std::env::args().collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-decode");
     let chain = a.iter().position(|x| x == "--chain").and_then(|i| a.get(i + 1)).map_or("btc", |s| s.as_str());
     let text = a.iter().any(|x| x == "--text");
     let mut s = String::new();

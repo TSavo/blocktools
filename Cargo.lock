@@ -1693,6 +1693,7 @@ dependencies = [
 name = "tx-decode"
 version = "0.1.0"
 dependencies = [
+ "blocktools-core",
  "blocktools-io",
  "blocktools-tx",
  "serde_json",
@@ -1724,6 +1725,7 @@ dependencies = [
 name = "tx-verify"
 version = "0.1.0"
 dependencies = [
+ "blocktools-core",
  "blocktools-io",
  "blocktools-tx",
  "serde_json",

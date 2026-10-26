@@ -5,9 +5,9 @@
 fn main() {
     blocktools_io::help("chain-table [--array | NAME]: the chain registry as JSON (public data, no keys)");
     use blocktools_core::chains;
-    let a: Vec<String> = std::env::args().skip(1).collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("chain-table").into_iter().skip(1).collect();
     match a.first().map(String::as_str) {
-        None => for c in chains::CHAINS { blocktools_io::outln!("{}", chains::chain_json(c)) },
+        None => for c in chains::CHAINS.iter().chain(blocktools_core::chain_spec::chain()) { blocktools_io::outln!("{}", chains::chain_json(c)) },
         Some("--array") => blocktools_io::outln!("{}", chains::table_json()),
         Some(n) => match chains::chain(n) { Some(c) => blocktools_io::outln!("{}", chains::chain_json(c)), None => { eprintln!("chain-table: unknown chain {n}"); std::process::exit(2) } },
     }

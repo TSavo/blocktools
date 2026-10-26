@@ -12,14 +12,15 @@ use zeroize::Zeroizing;
 
 fn main() {
     blocktools_io::help(r#"key-to-addresses [--chain LIST] < raw 32-byte key (hex, WIF, base58, base64, {"key":...}) -> addresses on every chain"#);
-    let a: Vec<String> = std::env::args().collect();
-    let mut sel: Vec<&'static Chain> = chains::CHAINS.iter().filter(|c| c.verified).collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("key-to-addresses");
+    let mut sel: Vec<&'static Chain> = chains::detectable().collect();
     let mut zec = false; // t1 only, on request (not in the chains table)
     match a.get(1).map(String::as_str) {
         None => {}
         Some("--chain") if a.len() == 3 => { zec = a[2].split(',').any(|c| c == "zec"); sel = a[2].split(',').filter_map(chains::chain).collect() }
         _ => { outln!(r#"{{"tool":"key-to-addresses","status":"bad_input"}}"#); std::process::exit(2) }
     }
+    for c in &sel { blocktools_core::chain_spec::require_or_exit("key-to-addresses", c.name, "p2pkh") }
     let (mut n, mut lineno) = (0u64, 0u64);
     for line in std::io::stdin().lock().take(16 << 20).lines().map_while(Result::ok) {
         lineno += 1;

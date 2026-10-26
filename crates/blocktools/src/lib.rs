@@ -39,7 +39,7 @@ pub mod address {
     pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
         if chain == "zec" { return zec(addr).map(|(k, _)| k) }
         let c = chains::chain(chain).ok_or("unknown_chain")?;
-        if !c.verified { return Err("unverified_chain") }
+        if !c.verified && !chains::chain_spec_loaded(c.name) { return Err("unverified_chain") }
         blocktools_core::validate::validate(chain, addr)
     }
     fn zec(addr: &str) -> Result<(AddrKind, [u8; 20]), &'static str> {
@@ -54,7 +54,7 @@ pub mod address {
     /// collisions (DGB/DOGE 30, VIA/VTC 71, LTC p2sh 50 = MONA p2pkh 50, BTC/BCH/BSV/TRC 0, ...)
     /// return ALL matching chains; the caller must not pick one silently.
     pub fn detect(addr: &str) -> Vec<(&'static str, AddrKind)> {
-        let mut v: Vec<(&'static str, AddrKind)> = chains::CHAINS.iter().filter(|c| c.verified)
+        let mut v: Vec<(&'static str, AddrKind)> = chains::detectable()
             .filter_map(|c| blocktools_core::validate::validate(c.name, addr).ok().map(|k| (c.name, k))).collect();
         if let Ok((k, _)) = zec(addr) { v.push(("zec", k)) }
         v

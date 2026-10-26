@@ -6,5 +6,6 @@ license.workspace = true
 description = "blocktools tx-decode: show what a transaction does. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
 blocktools-tx = { version = "0.1.0", path = "../../crates/tx" }
+blocktools-core = { version = "0.1.0", path = "../../crates/core" }
 blocktools-io = { version = "0.1.0", path = "../../crates/io" }
 serde_json.workspace = true

@@ -9,7 +9,7 @@ use serde_json::json;
 use std::io::Read;
 fn main() {
     blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)] [--max-fee N] [--allow-warnings] [--allow-value-with-token] [--policy FILE] < tx");
-    let a: Vec<String> = std::env::args().collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-verify");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
@@ -31,6 +31,7 @@ fn main() {
         for x in blocktools_tx::policy_file::check(&d, &one("--chain").unwrap_or(chain.clone()), &pf) { if !f.contains(&x) { f.push(x) } }
         o["policy_sha256"] = json!(pf.sha256);
     }
+    if let Some(s) = blocktools_core::chain_spec::get().filter(|s| s.name == chain) { o["chain_spec"] = json!("unverified chain spec"); o["chain_spec_sha256"] = json!(s.sha256) }
     o["status"] = json!(if f.is_empty() {"ok"} else {"failed"}); o["failures"] = json!(f); o["warnings"] = json!(d.warnings); o["fee_cap"] = blocktools_tx::policy::fee_cap(&d, &p).json();
     blocktools_io::outln!("{o}");
     if !f.is_empty() { std::process::exit(1) }

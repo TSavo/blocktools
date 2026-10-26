@@ -9,7 +9,7 @@ use std::io::Read;
 
 fn main() {
     blocktools_io::help("classify [FILE] (or stdin) -> {\"class\",\"line\",\"fp\"} per item; no secret is ever echoed");
-    let a: Vec<String> = std::env::args().skip(1).collect();
+    let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("classify").into_iter().skip(1).collect();
     let mut buf = Vec::new();
     let r = match a.as_slice() {
         [] => std::io::stdin().take(16 << 20).read_to_end(&mut buf),
