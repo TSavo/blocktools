@@ -231,7 +231,9 @@ means the chain is signed by its own tool, e.g. acct-tx / xrp-tx), `buildable` (
 
 Rows `pivx`, `sys`, `firo` carry each coin's own chainparams prefixes (PIVX 30/13/WIF 212; Syscoin 63/5/WIF 128, bech32 hrp `sys`; Firo 82/7/WIF 210). Signing is `Unknown`: `build`/`sign` refuse them; no transaction has been tested on any of these chains.
 
-Measured (Linux only): `scripts/e2e.d/twc-utxo.sh` gives Trust Wallet Core's published addresses (tests/chains, commit adf80f8) for Syscoin p2pkh and p2wpkh and Firo p2pkh from TWC's public test keys; the KAT table covers all three. Untested: PIVX against an outside vector from a private key (TWC only has a pubkey/mnemonic case), Firo EXX addresses (unsupported), Syscoin's other address types.
+Measured (Linux only): `scripts/e2e.d/twc-utxo.sh` gives Trust Wallet Core's published addresses (tests/chains, commit adf80f8) for Syscoin p2pkh and p2wpkh and Firo p2pkh from TWC's public test keys; the KAT table covers all three. Untested: PIVX against an outside vector from a private key (TWC only has a pubkey/mnemonic case), Syscoin's other address types.
+
+Exchange and staking addresses (validate and detect only; no output script is built, so `tx-build`/`verify-tx` cannot pay them): Firo `EXX...` (version 01 b9 bb), PIVX `EXM...` (01 b9 a2) and PIVX cold-staking `S...` (version 63), from each coin's `src/chainparams.cpp`. A PIVX `S...` address is also a valid Syscoin p2pkh (both use version 63), so `detect` lists both. Measured (Linux only): `crates/blocktools/tests/exchange_addr.rs` (3 tests) accepts the Firo wiki's published transparent/EXX pair ("Information for Exchanges", same key), rejects a one-character change and Firo testnet `EXT`, and accepts PIVX EXM/S addresses built from that hash160 by an independent hashlib base58check. Untested: the PIVX addresses against an address PIVX itself published (none found), sending to any of these address types.
 
 ## Kusama and Polymesh (SS58 prefixes 2 and 12, address only)
 

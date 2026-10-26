@@ -176,7 +176,7 @@ pub const CHAINS: &[Chain] = &[
     // Trust Wallet Core UTXO forks, address + WIF only (sign: Unknown = no tx build/sign claim).
     u("pivx", "PIVX", "PIVX", 119, 30, 13, 212, None, Unknown, true, "PIVX-Project/PIVX src/chainparams.cpp; Trust Wallet Core registry + tests/chains/Pivx", &[]),
     u("sys", "SYS", "Syscoin", 57, 63, 5, 128, Some("sys"), Unknown, true, "syscoin/syscoin src/kernel/chainparams.cpp (hrp sys); Trust Wallet Core tests/chains/Syscoin", &[]),
-    u("firo", "FIRO", "Firo", 136, 82, 7, 210, None, Unknown, true, "firoorg/firo src/chainparams.cpp; Trust Wallet Core tests/chains/Firo (EXX exchange addresses: unsupported)", &[]),
+    u("firo", "FIRO", "Firo", 136, 82, 7, 210, None, Unknown, true, "firoorg/firo src/chainparams.cpp; Trust Wallet Core tests/chains/Firo (EXX exchange addresses: validate/detect only)", &[]),
 ];
 /// Not in the table, on purpose: Zcash (2-byte versions, ZIP-243/244 sighash) needs encoders
 /// this crate does not have.

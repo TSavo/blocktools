@@ -349,3 +349,17 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/blocktools/tests/twc_cosmos_addr.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "(4 tests)" }]
+
+[[claim]]
+id = "exchange-staking-addresses"
+statement = "Firo EXX (Firo wiki published pair) and PIVX EXM / S staking addresses (chainparams versions) validate and auto-detect; no script is built for them"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "cargo test -q --release -p blocktools --test exchange_addr"
+expect = "test result: ok. 3 passed"
+commit = "HEAD"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/core/src/validate.rs", "crates/blocktools/tests/exchange_addr.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "exchange_addr.rs` (3 tests)" }]

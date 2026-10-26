@@ -14,7 +14,22 @@ pub fn is_xrp_seed(s: &str) -> bool {
     s.starts_with('s') && xrp_decode_check(s).map_or(false, |b| (b.len() == 17 && b[0] == 0x21) || (b.len() == 19 && b[..3] == [0x01, 0xe1, 0x4b]))
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Cosmos, Algo, Ss58, Ton, Ada, Xmr }
+pub enum AddrKind { P2pkh, P2sh, SegwitV0, Taproot, SegwitOther, Eth, Tron, Xrp, Sol, Xlm, Cosmos, Algo, Ss58, Ton, Ada, Xmr,
+    /// Firo EXX / PIVX EXM exchange address (3-byte version + hash160). Validate/detect only: no script is built for it.
+    Exchange,
+    /// PIVX cold-staking staker address (version 63, `S...`). Validate/detect only.
+    Staking }
+
+/// Extra base58check versions beyond p2pkh/p2sh, from each chain's src/chainparams.cpp (mainnet):
+/// firo EXCHANGE_PUBKEY_ADDRESS {0x01,0xb9,0xbb}; pivx EXCHANGE_ADDRESS {0x01,0xb9,0xa2}, STAKING_ADDRESS 63.
+fn extra_version(chain: &str, b: &[u8]) -> Option<AddrKind> {
+    match (chain, b.len()) {
+        ("firo", 23) if b[..3] == [0x01, 0xb9, 0xbb] => Some(AddrKind::Exchange),
+        ("pivx", 23) if b[..3] == [0x01, 0xb9, 0xa2] => Some(AddrKind::Exchange),
+        ("pivx", 21) if b[0] == 63 => Some(AddrKind::Staking),
+        _ => None,
+    }
+}
 
 /// Validate `addr` for `chain`. Errors are short static strings.
 pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
@@ -36,6 +51,7 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
             let no_pkh = crate::chain_spec::missing(c.name, "p2pkh");
             let no_sh = crate::chain_spec::missing(c.name, "p2sh");
             if b.len() == 21 && no_pkh.is_some() && no_sh.is_some() { return Err("spec_missing_p2pkh") }
+            if let Some(k) = extra_version(c.name, &b) { return Ok(k) }
             match (b.len(), b[0]) { (21, v) if v == p2pkh && no_pkh.is_none() => Ok(AddrKind::P2pkh), (21, v) if v == p2sh && no_sh.is_none() => Ok(AddrKind::P2sh), (21, _) => Err("wrong network"), _ => Err("bad length") }
         }
         Enc::Eth => eth(addr).map(|_| AddrKind::Eth),
