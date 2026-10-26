@@ -6,7 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: cargo build --locked --release --workspace && cargo test --locked --release --workspace
-      - run: sh scripts/check-deps.sh
+      - run: sh scripts/check-deps.sh && sh scripts/check-deps-regress.sh
       - run: sh scripts/hygiene-check.sh
       - run: sh scripts/prepush-check.sh
       - run: sh scripts/docs-check.sh

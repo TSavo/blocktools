@@ -14,6 +14,7 @@ cargo build -q --release --workspace
 cargo test -q --release --workspace --no-fail-fast
 cargo test -q --release --workspace --all-features --no-fail-fast
 sh scripts/check-deps.sh
+sh scripts/check-deps-regress.sh
 sh scripts/hygiene-check.sh
 sh scripts/docs-check.sh
 bash scripts/e2e-local.sh
