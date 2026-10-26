@@ -108,20 +108,9 @@ pub fn check_tx_policy(input: &str, chain: &str, policy_json: &str) -> Result<St
 /// Returns hex. Takes no keys; sign elsewhere.
 #[wasm_bindgen(js_name = solBuildTransfer)]
 pub fn sol_build_transfer(plan: &str) -> Result<String, JsError> {
-    use blocktools::sol::{self, SolAmount, SolPlan};
+    use blocktools::sol;
     let v: serde_json::Value = serde_json::from_str(plan).map_err(|_| JsError::new("bad_plan_json"))?;
-    let pk = |x: &serde_json::Value| x.as_str().ok_or("bad_address").and_then(|s| sol::pubkey(s).map_err(|_| "bad_address"));
-    let n = |x: &serde_json::Value| x.as_str().and_then(|s| s.parse::<u64>().ok()).ok_or("bad_number");
-    let amount = if !v["lamports"].is_null() { SolAmount::Send(n(&v["lamports"]).map_err(err)?) }
-        else if !v["sweep_balance"].is_null() { SolAmount::Sweep { balance: n(&v["sweep_balance"]).map_err(err)? } }
-        else if v["token"].is_object() { let t = &v["token"]; SolAmount::Token { mint: pk(&t["mint"]).map_err(err)?, amount: n(&t["amount"]).map_err(err)?,
-            decimals: t["decimals"].as_u64().filter(|d| *d <= 255).ok_or_else(|| JsError::new("bad_number"))? as u8,
-            token_program: pk(&t["token_program"]).map_err(err)?, create_ata: t["create_ata"].as_bool().unwrap_or(false) } }
-        else { return Err(JsError::new("missing_amount")) };
-    let priority = match v["priority"].as_array() { Some(p) if p.len() == 2 => Some((n(&p[0]).map_err(err)?,
-        p[1].as_u64().filter(|l| *l <= u32::MAX as u64).ok_or_else(|| JsError::new("bad_number"))? as u32)), None => None, _ => return Err(JsError::new("bad_priority")) };
-    let p = SolPlan { from: pk(&v["from"]).map_err(err)?, to: pk(&v["to"]).map_err(err)?, blockhash: pk(&v["blockhash"]).map_err(err)?, amount, priority };
-    Ok(blocktools::hex_enc(sol::build_transfer(&p).map_err(err)?))
+    Ok(blocktools::hex_enc(sol::build_transfer(&sol::plan_from_json(&v).map_err(err)?).map_err(err)?))
 }
 
 /// Build unsigned Tron `raw_data` (hex; txid = sha256 of it). `plan` JSON: {from, to, ref_block_bytes(hex2),
@@ -129,20 +118,9 @@ pub fn sol_build_transfer(plan: &str) -> Result<String, JsError> {
 /// sweep:{balance_sun:"N", reserve_sun:"N"} | trc20:{contract, amount:"N", fee_limit_sun:"N"}. No keys.
 #[wasm_bindgen(js_name = tronBuildTransfer)]
 pub fn tron_build_transfer(plan: &str) -> Result<String, JsError> {
-    use blocktools::tron::{self, TronAmount, TronPlan};
+    use blocktools::tron;
     let v: serde_json::Value = serde_json::from_str(plan).map_err(|_| JsError::new("bad_plan_json"))?;
-    let a = |x: &serde_json::Value| tron::parse_address(x.as_str().unwrap_or("")).map_err(err);
-    let n = |x: &serde_json::Value| x.as_str().and_then(|s| s.parse::<u64>().ok()).or(x.as_u64()).ok_or_else(|| JsError::new("bad_number"));
-    let hx = |x: &serde_json::Value, l: usize| blocktools::hex_dec(x.as_str().unwrap_or("")).filter(|b| b.len() == l).ok_or_else(|| JsError::new("bad_ref_block"));
-    let amount = if !v["amount_sun"].is_null() { TronAmount::Send(n(&v["amount_sun"])?) }
-        else if v["sweep"].is_object() { TronAmount::Sweep { balance: n(&v["sweep"]["balance_sun"])?, reserve_sun: n(&v["sweep"]["reserve_sun"])? } }
-        else if v["trc20"].is_object() { let t = &v["trc20"]; TronAmount::Trc20 { contract: a(&t["contract"])?,
-            amount: t["amount"].as_str().and_then(|s| s.parse().ok()).ok_or_else(|| JsError::new("bad_number"))?, fee_limit_sun: n(&t["fee_limit_sun"])? } }
-        else { return Err(JsError::new("missing_amount")) };
-    let p = TronPlan { from: a(&v["from"])?, to: a(&v["to"])?, ref_block_bytes: hx(&v["ref_block_bytes"], 2)?.try_into().unwrap(),
-        ref_block_hash: hx(&v["ref_block_hash"], 8)?.try_into().unwrap(), expiration_ms: n(&v["expiration_ms"])?, timestamp_ms: n(&v["timestamp_ms"])?,
-        memo: v["memo"].as_str().map(|m| m.as_bytes().to_vec()), amount };
-    Ok(blocktools::hex_enc(tron::build_transfer(&p).map_err(err)?))
+    Ok(blocktools::hex_enc(tron::build_transfer(&tron::plan_from_json(&v).map_err(err)?).map_err(err)?))
 }
 
 // ---- Stable API (EXPORTS.md). Everything below refuses unverified chains. ----

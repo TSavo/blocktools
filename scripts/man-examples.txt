@@ -61,3 +61,7 @@ bytecode-inspect | 0 | bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebe
 bytecode-inspect | 2 | bytecode-inspect 0x1
 typed-data-verify | 0 | typed-data-verify "$R/recipes/fixtures/evm/eip712-mail-signed.json"
 typed-data-verify | 2 | typed-data-verify --sig 0x00 "$R/recipes/fixtures/evm/eip712-mail.json"
+sol-tron-tx | 0 | sol-tron-tx build --plan "$R/recipes/fixtures/sol-tron/sol-plan.json"
+sol-tron-tx | 0 | sol-tron-tx decode < "$R/recipes/fixtures/sol-tron/tron-transfer.txt"
+sol-tron-tx | 0 | sol-tron-tx verify --expect '{"lamports":"1000"}' < "$R/recipes/fixtures/sol-tron/sol-transfer.txt"
+sol-tron-tx | 2 | sol-tron-tx decode ff00ff

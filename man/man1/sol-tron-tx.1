@@ -1,0 +1,60 @@
+.TH SOL\-TRON\-TX 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+sol\-tron\-tx \- build unsigned, decode and verify Solana and Tron transfers. The chain is detected
+.SH SYNOPSIS
+.nf
+sol\-tron\-tx decode|verify|build [\-\-chain sol|tron] [\-\-expect JSON] [\-\-plan FILE] [HEX_OR_BASE64]
+  decode           decode a transaction (hex or base64, argument or stdin): Solana wire tx (legacy/v0) or Tron raw_data / Transaction
+  verify \-\-expect  check a Solana tx against {owner?, to?, lamports?, mint?, amount?, allow_programs?}; Tron verify is not built (unsupported)
+  build \-\-plan F   unsigned transfer from a plan file (solBuildTransfer / tronBuildTransfer JSON, EXPORTS.md); prints hex
+Takes no keys and signs nothing.
+.fi
+.SH DESCRIPTION
+from the input (transaction bytes, or the plan's `from` address); `\-\-chain sol|tron` overrides.
+Public data only: takes no keys and signs nothing.
+.nf
+.RS 2
+  sol\-tron\-tx decode < tx.hex
+  sol\-tron\-tx verify \-\-expect '{"to":"...","lamports":"1000"}' < tx.hex
+  sol\-tron\-tx build \-\-plan plan.json
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-chain sol|tron skip auto\-detect. Without it, bytes that parse as both chains, or neither, are refused (bad_input).
+.fi
+.SH INPUT/OUTPUT
+from the input (transaction bytes, or the plan's `from` address); `\-\-chain sol|tron` overrides.
+.nf
+.RS 2
+  sol\-tron\-tx build \-\-plan plan.json
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ sol\-tron\-tx build \-\-plan "$R/recipes/fixtures/sol\-tron/sol\-plan.json"
+# exit 0, last status: ok
+$ sol\-tron\-tx decode < "$R/recipes/fixtures/sol\-tron/tron\-transfer.txt"
+# exit 0, last status: ok
+$ sol\-tron\-tx verify \-\-expect '{"lamports":"1000"}' < "$R/recipes/fixtures/sol\-tron/sol\-transfer.txt"
+# exit 0, last status: ok
+$ sol\-tron\-tx decode ff00ff
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

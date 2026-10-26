@@ -402,3 +402,19 @@ pub fn build_transfer(p: &SolPlan) -> Result<Vec<u8>, &'static str> {
     let mut out = vec![1]; out.extend([0u8; 64]); out.extend(m);
     Ok(out)
 }
+
+/// Parse a transfer plan (the `solBuildTransfer` JSON) into a [`SolPlan`]. Shared by wasm and the
+/// `sol-tron-tx` CLI so both accept exactly the same plans.
+pub fn plan_from_json(v: &Value) -> Result<SolPlan, &'static str> {
+    let pk = |x: &Value| x.as_str().ok_or("bad_address").and_then(|s| pubkey(s).map_err(|_| "bad_address"));
+    let n = |x: &Value| x.as_str().and_then(|s| s.parse::<u64>().ok()).ok_or("bad_number");
+    let amount = if !v["lamports"].is_null() { SolAmount::Send(n(&v["lamports"])?) }
+        else if !v["sweep_balance"].is_null() { SolAmount::Sweep { balance: n(&v["sweep_balance"])? } }
+        else if v["token"].is_object() { let t = &v["token"]; SolAmount::Token { mint: pk(&t["mint"])?, amount: n(&t["amount"])?,
+            decimals: t["decimals"].as_u64().filter(|d| *d <= 255).ok_or("bad_number")? as u8,
+            token_program: pk(&t["token_program"])?, create_ata: t["create_ata"].as_bool().unwrap_or(false) } }
+        else { return Err("missing_amount") };
+    let priority = match v["priority"].as_array() { Some(p) if p.len() == 2 => Some((n(&p[0])?,
+        p[1].as_u64().filter(|l| *l <= u32::MAX as u64).ok_or("bad_number")? as u32)), None => None, _ => return Err("bad_priority") };
+    Ok(SolPlan { from: pk(&v["from"])?, to: pk(&v["to"])?, blockhash: pk(&v["blockhash"])?, amount, priority })
+}

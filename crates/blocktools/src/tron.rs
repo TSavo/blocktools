@@ -177,3 +177,19 @@ mod t {
         assert_eq!(&data[36..67], &[0u8; 31]); assert_eq!(data[67], 5);
     }
 }
+
+/// Parse a transfer plan (the `tronBuildTransfer` JSON) into a [`TronPlan`]. Shared by wasm and the
+/// `sol-tron-tx` CLI.
+pub fn plan_from_json(v: &Value) -> Result<TronPlan, &'static str> {
+    let a = |x: &Value| parse_address(x.as_str().unwrap_or(""));
+    let n = |x: &Value| x.as_str().and_then(|s| s.parse::<u64>().ok()).or(x.as_u64()).ok_or("bad_number");
+    let hx = |x: &Value, l: usize| crate::hex_dec(x.as_str().unwrap_or("")).filter(|b| b.len() == l).ok_or("bad_ref_block");
+    let amount = if !v["amount_sun"].is_null() { TronAmount::Send(n(&v["amount_sun"])?) }
+        else if v["sweep"].is_object() { TronAmount::Sweep { balance: n(&v["sweep"]["balance_sun"])?, reserve_sun: n(&v["sweep"]["reserve_sun"])? } }
+        else if v["trc20"].is_object() { let t = &v["trc20"]; TronAmount::Trc20 { contract: a(&t["contract"])?,
+            amount: t["amount"].as_str().and_then(|s| s.parse().ok()).ok_or("bad_number")?, fee_limit_sun: n(&t["fee_limit_sun"])? } }
+        else { return Err("missing_amount") };
+    Ok(TronPlan { from: a(&v["from"])?, to: a(&v["to"])?, ref_block_bytes: hx(&v["ref_block_bytes"], 2)?.try_into().unwrap(),
+        ref_block_hash: hx(&v["ref_block_hash"], 8)?.try_into().unwrap(), expiration_ms: n(&v["expiration_ms"])?, timestamp_ms: n(&v["timestamp_ms"])?,
+        memo: v["memo"].as_str().map(|m| m.as_bytes().to_vec()), amount })
+}

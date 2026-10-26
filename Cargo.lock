@@ -1647,6 +1647,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sol-tron-tx"
+version = "0.1.0"
+dependencies = [
+ "blocktools",
+ "blocktools-io",
+ "serde_json",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

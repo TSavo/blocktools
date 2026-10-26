@@ -10,7 +10,7 @@ root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 ver=0.1.0
 kind=${1:?kind: deb|rpm|apk}
-CLIS="acct-tx armory-read bip38-open blockchain-read chain-table classify dat-read derive electrum-read key-to-addresses keystore-open multibit-read pw-candidates read-file redact rpc sealed-run seed-repair seed-to-master tx-broadcast tx-build tx-decode tx-envelope tx-sign tx-verify utxo-fetch xmr-keys xmr-wallet xpub-addresses xrp-tx zec-sapling sig-hash abi-decode abi-encode create-address abi-inspect bytecode-inspect typed-data-verify"
+CLIS="acct-tx armory-read bip38-open blockchain-read chain-table classify dat-read derive electrum-read key-to-addresses keystore-open multibit-read pw-candidates read-file redact rpc sealed-run seed-repair seed-to-master tx-broadcast tx-build tx-decode tx-envelope tx-sign tx-verify utxo-fetch xmr-keys xmr-wallet xpub-addresses xrp-tx zec-sapling sig-hash abi-decode abi-encode create-address abi-inspect bytecode-inspect typed-data-verify sol-tron-tx"
 
 stage() {
   dest=$1; bindir=$2

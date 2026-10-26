@@ -234,5 +234,6 @@ pub mod sol;
 pub mod cashaddr;
 pub mod psbtmemo;
 pub mod tron;
+pub mod soltron;
 pub mod verifier;
 pub mod build;
