@@ -13,6 +13,8 @@ Exit status 1 when:
   * a number claim that is not measured is not labelled "(unmeasured)" on its doc line,
     or an unmeasurable claim has no reason;
   * a re-run measured claim's command reports FALLBACK (measured something else);   [K-fallback]                                          [K-label]
+  * a claim the registry does not mark measured is stated as fact: each doc line carrying its text
+    must also carry "(untested)", "(unmeasured)" or "(unmeasurable)"                  [K-assert]
   * docs/CLAIMS.md's generated Measured/Untested sections are out of date.            [K-render]
 Usage: claims-check.py [--render] [--run-all]
 """
@@ -56,6 +58,10 @@ def main():
                 bad.append(f"[K-label] {cid}: unmeasurable claim needs a reason")  # rule:K-label
             if not lines: bad.append(f"[K-gone] {cid}: text {t!r} not found in {f}"); continue  # rule:K-gone
             texts.setdefault(f, []).append((t, c))
+            if c.get("status") != "measured" and c.get("kind") != "number":
+                for l in lines:
+                    if not any(m in l for m in ("(untested)", "(unmeasured)", "(unmeasurable)")):
+                        bad.append(f"[K-assert] {cid}: {f} states {t!r} as fact but the registry marks it {c.get('status')}")  # rule:K-assert
             if c.get("kind") == "number" and c.get("status") == "untested" and not all("(unmeasured)" in l for l in lines):
                 bad.append(f"[K-label] {cid}: unmeasured number {t!r} in {f} is not labelled (unmeasured)")  # rule:K-label
         if c.get("status") == "measured":

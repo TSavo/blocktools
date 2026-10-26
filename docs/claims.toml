@@ -73,11 +73,11 @@ doc = [{ file = "README.md", text = "33.2 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
-statement = "Image built and sealed run verified on Battleaxe (manual run, no recorded command)"
+statement = "Sealed run on Battleaxe (manual run, never recorded)"
 kind = "platform"
 platform = "docker"
 status = "untested"
-doc = [{ file = "README.md", text = "verified on Battleaxe" }]
+doc = [{ file = "README.md", text = "Battleaxe sealed run" }]
 
 [[claim]]
 id = "image-size-history"
@@ -149,7 +149,7 @@ statement = "scripts/e2e-local.sh runs on Linux and macOS (macOS: last manual Sw
 kind = "platform"
 platform = "macos"
 status = "untested"
-doc = [{ file = "docs/SECURITY.md", text = "runs on Linux" }]
+doc = [{ file = "docs/SECURITY.md", text = "macOS (untested)" }]
 
 [[claim]]
 id = "chains-fee-figures"

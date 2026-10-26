@@ -18,7 +18,7 @@ and on a macOS claim marked measured without a successful macOS CI job.
 
 | id | kind | platform | status | statement | command | commit | date |
 |---|---|---|---|---|---|---|---|
-| image-sealed-battleaxe | platform | docker | untested | Image built and sealed run verified on Battleaxe (manual run, no recorded command) | `-` | - | - |
+| image-sealed-battleaxe | platform | docker | untested | Sealed run on Battleaxe (manual run, never recorded) | `-` | - | - |
 | image-size-history | number | docker | untested | Historic image sizes in DESIGN (18.2, 40.4, 33.3 MB) | `-` | - | - |
 | redact-512 | number | linux | untested | Redacted JSON lines are at most 512 bytes | `-` | - | - |
 | read-file-64mib | number | linux | untested | read-file caps input at 64 MiB | `-` | - | - |
