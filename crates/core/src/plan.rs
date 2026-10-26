@@ -11,7 +11,7 @@ pub struct Spec { pub chain: &'static Chain, pub coin: u32, pub kind: &'static s
 #[derive(Clone, Debug)]
 pub struct Ranges { pub account: Vec<u32>, pub change: Vec<u32>, pub index: Vec<u32> }
 
-pub const ADDRESS_TYPES: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near"];
+pub const ADDRESS_TYPES: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld"];
 /// Name, description. TON / electrum-old are listed in docs/ROADMAP.md (planned).
 pub const PRESETS: &[(&str, &str)] = &[
     ("common", "standard wallet paths per chain: BIP44/49/84/86 by script type, EVM/Tron/XRP m/44'/c'/0'/0/i, Solana m/44'/501'/i'/0'"),
@@ -35,7 +35,7 @@ pub fn kinds_of(c: &Chain) -> Vec<&'static str> {
     }
 }
 pub fn std_template(c: &Chain) -> &'static str {
-    if c.enc == Enc::Sol { "m/44'/{coin}'/{i}'/{change}'" } else if matches!(c.enc, Enc::Ed(crate::chains::EdAddr::Aptos | crate::chains::EdAddr::Sui)) { "m/44'/{coin}'/{i}'/0'/0'" } else if matches!(c.enc, Enc::Xlm | Enc::Ed(_)) { "m/44'/{coin}'/{i}'" } else { "m/{purpose}'/{coin}'/{account}'/{change}/{i}" }
+    if c.enc == Enc::Sol { "m/44'/{coin}'/{i}'/{change}'" } else if matches!(c.enc, Enc::Ed(crate::chains::EdAddr::Aptos | crate::chains::EdAddr::Sui)) { "m/44'/{coin}'/{i}'/0'/0'" } else if c.enc == Enc::Ed(crate::chains::EdAddr::Tezos) { "m/44'/{coin}'/{i}'/0'" } else if c.enc == Enc::Ed(crate::chains::EdAddr::Mvx) { "m/44'/{coin}'/0'/0'/{i}'" } else if matches!(c.enc, Enc::Xlm | Enc::Ed(_)) { "m/44'/{coin}'/{i}'" } else { "m/{purpose}'/{coin}'/{account}'/{change}/{i}" }
 }
 pub fn sp(c: &'static Chain, kind: &'static str, t: &str, unc: bool) -> Spec { Spec { chain: c, coin: c.coin, kind, template: t.into(), uncompressed: unc, label: "" } }
 fn spl(c: &'static Chain, kind: &'static str, t: &str, label: &'static str) -> Spec { Spec { label, ..sp(c, kind, t, false) } }

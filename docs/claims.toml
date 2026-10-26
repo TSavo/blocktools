@@ -394,14 +394,14 @@ depends = ["crates/evm/src/abi.rs", "crates/evm/tests/kat_packed.rs"]
 
 [[claim]]
 id = "twc-ed25519-aptos-sui-near"
-statement = "aptos, sui and near rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey HD keys at the registry paths, and accept/refuse TWC's Aptos and Sui address lists"
+statement = "aptos, sui, near, xtz and egld rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey/DeriveMultiversX HD keys at the registry paths, and accept/refuse TWC's Aptos, Sui, Tezos and MultiversX address lists"
 kind = "security"
 platform = "linux"
 status = "measured"
 command = "cargo test -q --release -p blocktools --features secrets,ed25519 --test twc_ed25519"
-expect = "test result: ok. 4 passed"
+expect = "test result: ok. 5 passed"
 commit = "9e2fb0c"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/core/src/validate.rs", "crates/blocktools/tests/twc_ed25519.rs"]
-doc = [{ file = "docs/CHAINS.md", text = "twc_ed25519.rs` (4 tests)" }]
+doc = [{ file = "docs/CHAINS.md", text = "twc_ed25519.rs` (5 tests)" }]

@@ -84,6 +84,8 @@ pub fn validate(chain: &str, addr: &str) -> Result<AddrKind, &'static str> {
                 // 0x + 64 hex, or the one-digit special addresses 0x0..0xf (TWC AptosAddress tests).
                 EdAddr::Aptos => { let h = addr.strip_prefix("0x").ok_or("missing 0x")?; if (h.len() == 64 || h.len() == 1) && lower_hex(h) { Ok(AddrKind::Ed) } else { Err("bad length") } }
                 EdAddr::Sui => { let h = addr.strip_prefix("0x").unwrap_or(addr); if h.len() == 64 && lower_hex(h) { Ok(AddrKind::Ed) } else { Err("bad length") } }
+                EdAddr::Tezos => { let b = base58::decode_check(addr).map_err(|_| "bad base58check")?; if b.len() == 23 && matches!(b[..3], [6, 161, 159] | [6, 161, 161] | [6, 161, 164] | [2, 90, 121]) { Ok(AddrKind::Ed) } else { Err("not a tz1/tz2/tz3/KT1 address") } }
+                EdAddr::Mvx => { let (h, d) = bitcoin::bech32::decode(addr).map_err(|_| "bad bech32")?; if h.as_str() == "erd" && d.len() == 32 && bitcoin::bech32::encode::<bitcoin::bech32::Bech32>(h, &d).ok().as_deref() == Some(&addr.to_ascii_lowercase()) { Ok(AddrKind::Ed) } else { Err("not an erd1 address") } }
                 EdAddr::Near => if addr.len() == 64 && addr.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) { Ok(AddrKind::Ed) } else { Err("implicit account (64 lowercase hex) only") },
             }
         }

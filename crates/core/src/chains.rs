@@ -23,6 +23,10 @@ pub enum EdAddr {
     Sui,
     /// NEAR implicit account: lowercase hex(pub).
     Near,
+    /// Tezos tz1: base58check(06 a1 9f || blake2b-160(pub)).
+    Tezos,
+    /// MultiversX: bech32("erd", pub).
+    Mvx,
 }
 /// Address of an `Enc::Ed` chain from an ed25519 public key.
 pub fn ed_address(a: EdAddr, pubk: &[u8; 32]) -> String {
@@ -31,6 +35,8 @@ pub fn ed_address(a: EdAddr, pubk: &[u8; 32]) -> String {
         EdAddr::Aptos => { let mut h = Sha3_256::new(); h.update(pubk); h.update([0u8]); format!("0x{}", crate::hex_enc(h.finalize())) }
         EdAddr::Sui => { let mut d = vec![0u8]; d.extend_from_slice(pubk); format!("0x{}", crate::hex_enc(crate::blake2b::blake2b(32, &[0; 16], &d))) }
         EdAddr::Near => crate::hex_enc(pubk),
+        EdAddr::Tezos => { let mut d = vec![6u8, 161, 159]; d.extend(crate::blake2b::blake2b(20, &[0; 16], pubk)); bitcoin::base58::encode_check(&d) }
+        EdAddr::Mvx => bech32::encode::<bech32::Bech32>(Hrp::parse("erd").expect("static hrp"), pubk).expect("32 bytes"),
     }
 }
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -134,6 +140,8 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "aptos", ticker: "APT", title: "Aptos", coin: 637, enc: Enc::Ed(EdAddr::Aptos), default_count: 5, sign: Unknown, verified: true, source: "aptos-core AuthenticationKey: sha3-256(pub || 0x00), SLIP-0010 m/44'/637'/i'/0'/0'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
     Chain { name: "sui", ticker: "SUI", title: "Sui", coin: 784, enc: Enc::Ed(EdAddr::Sui), default_count: 5, sign: Unknown, verified: true, source: "Sui docs: blake2b-256(0x00 || pub), SLIP-0010 m/44'/784'/i'/0'/0'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
     Chain { name: "near", ticker: "NEAR", title: "NEAR", coin: 397, enc: Enc::Ed(EdAddr::Near), default_count: 5, sign: Unknown, verified: true, source: "NEAR implicit account = hex(pub), SLIP-0010 m/44'/397'/i'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
+    Chain { name: "xtz", ticker: "XTZ", title: "Tezos", coin: 1729, enc: Enc::Ed(EdAddr::Tezos), default_count: 5, sign: Unknown, verified: true, source: "Tezos tz1 = base58check(06a19f || blake2b-160(pub)), SLIP-0010 m/44'/1729'/i'/0'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
+    Chain { name: "egld", ticker: "EGLD", title: "MultiversX", coin: 508, enc: Enc::Ed(EdAddr::Mvx), default_count: 5, sign: Unknown, verified: true, source: "MultiversX bech32(erd, pub), SLIP-0010 m/44'/508'/0'/0'/i'; KAT Trust Wallet Core adf80f8 tests (crates/blocktools/tests/twc_ed25519.rs)", sources: &[] },
     Chain { name: "sol", ticker: "SOL", title: "Solana", coin: 501, enc: Enc::Sol, default_count: 10, sign: Unknown, verified: true, source: "SLIP-0010 ed25519, m/44'/501'/i'/0'", sources: &[] },
     Chain { name: "xmr", ticker: "XMR", title: "Monero", coin: 128, enc: Enc::Xmr, default_count: 1, sign: Unknown, verified: true, source: "monero-project/monero src/cryptonote_config.h (netbytes 18/24/53), KAT monero-python test_seed.py", sources: &[] },
     // ---- Cosmos SDK, Hub address form (secp256k1, bech32 hash160). Params and KAT: Trust Wallet Core adf80f8
@@ -1006,7 +1014,7 @@ pub fn chain_json(c: &Chain) -> String {
         Enc::Utxo { p2pkh, p2sh, hrp, wif, taproot } => ("utxo", format!(",\"p2pkh\":{p2pkh},\"p2sh\":{p2sh},\"wif\":{wif},\"hrp\":{},\"taproot\":{taproot}", hrp.map_or("null".into(), js))),
         Enc::Cosmos { hrp, .. } => ("cosmos", format!(",\"hrp\":{}", js(hrp))),
         Enc::Ss58 { prefix } => ("ss58", format!(",\"ss58_prefix\":{prefix}")),
-        e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", Enc::Ed(EdAddr::Aptos) => "aptos", Enc::Ed(EdAddr::Sui) => "sui", Enc::Ed(EdAddr::Near) => "near", _ => "xmr" }, String::new()),
+        e => (match e { Enc::Eth => "eth", Enc::Tron => "tron", Enc::Xrp => "xrp", Enc::Sol => "sol", Enc::Algo => "algo", Enc::Xlm => "xlm", Enc::Ada => "ada", Enc::Ton => "ton", Enc::Ed(EdAddr::Aptos) => "aptos", Enc::Ed(EdAddr::Sui) => "sui", Enc::Ed(EdAddr::Near) => "near", Enc::Ed(EdAddr::Tezos) => "xtz", Enc::Ed(EdAddr::Mvx) => "egld", _ => "xmr" }, String::new()),
     };
     let sign = match c.sign { Sign::Standard => "standard".to_string(), Sign::ForkId(f) => format!("forkid:{f}"), Sign::PosTime => "pos_time".into(), Sign::Unknown => if matches!(c.enc, Enc::Utxo { .. }) { "none".into() } else { "account_family".into() }, Sign::Sha256Single => "sha256_single".into() };
 

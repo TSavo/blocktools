@@ -22,6 +22,8 @@ Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `sc
 | aptos | APT | 637 | — | — | — | — | — | 8 | — | account | no | none |
 | sui | SUI | 784 | — | — | — | — | — | 9 | — | account | no | none |
 | near | NEAR | 397 | — | — | — | — | — | 24 | — | account | no | none |
+| xtz | XTZ | 1729 | — | — | — | — | — | 6 | — | account | no | none |
+| egld | EGLD | 508 | — | — | — | — | — | 18 | — | account | no | none |
 | qtum | QTUM | 2301 | 3a | 32 | qc | 128 | sha256d | 8 | — | legacy | yes | qtuminfo qtum.info |
 | ftc | FTC | 8 | 0e | 05 | fc | 142 | sha256d | 8 | — | legacy | yes | none |
 | nmc | NMC | 7 | 34 | 0d | nc | 180 | sha256d | 8 | — | legacy | yes | none |
@@ -245,8 +247,8 @@ Rows `ksm` (SLIP-44 434) and `polyx` (595) use the same substrate key as `dot` (
 
 Measured (Linux only): `crates/secrets/tests/dot.rs` encodes TWC's published Kusama and Polymesh public keys to TWC's addresses (tests/chains/Kusama, Polymesh, commit adf80f8) and validates them; `scripts/e2e.d/twc-substrate.sh` checks the CLI rows (its expected Kusama address was computed independently in Python from subkey's published key), and that redact drops a Kusama address on a line labeled another chain. Untested: Polkadot.js/Talisman wallets on these prefixes, balances (no RPC row).
 
-## Aptos, Sui, NEAR (ed25519 SLIP-0010, address only, 2026-10-26)
+## Aptos, Sui, NEAR, Tezos, MultiversX (ed25519 SLIP-0010, address only, 2026-10-26)
 
-Rows `aptos` (SLIP-44 637, `m/44'/637'/i'/0'/0'`, address `0x`+sha3-256(pub‖0x00)), `sui` (784, `m/44'/784'/i'/0'/0'`, `0x`+blake2b-256(0x00‖pub)) and `near` (397, `m/44'/397'/i'`, implicit account = hex(pub)). The secret is the 32-byte ed25519 seed as hex. Signing is `Unknown`; no transaction is built or signed. A 64-hex address is shape-ambiguous, so detect lists every chain it fits (`0x`+64 hex: aptos and sui; bare 64 hex: sui and near).
+Rows `aptos` (SLIP-44 637, `m/44'/637'/i'/0'/0'`, address `0x`+sha3-256(pub‖0x00)), `sui` (784, `m/44'/784'/i'/0'/0'`, `0x`+blake2b-256(0x00‖pub)) `near` (397, `m/44'/397'/i'`, implicit account = hex(pub)), `xtz` (1729, `m/44'/1729'/i'/0'`, tz1 = base58check(06a19f‖blake2b-160(pub)); tz2/tz3/KT1 validate) and `egld` (508, `m/44'/508'/0'/0'/i'`, bech32 `erd`). The secret is the 32-byte ed25519 seed as hex. Signing is `Unknown`; no transaction is built or signed. A 64-hex address is shape-ambiguous, so detect lists every chain it fits (`0x`+64 hex: aptos and sui; bare 64 hex: sui and near).
 
-Measured (Linux only): `crates/blocktools/tests/twc_ed25519.rs` (4 tests) replays Trust Wallet Core adf80f8 public vectors: CoinAddressDerivationTests.cpp dummy key 0x46×32 → TWC's Aptos/Sui/NEAR addresses; Aptos AddressTests.cpp private/public key → address and its valid/invalid lists; Sui sui_address.rs valid/invalid lists; HDWalletTests.cpp AptosKey and NearKey (public test phrases) → TWC's private keys and NEAR address at the registry paths. Untested: NEAR named accounts (`alice.near`, refused), Aptos multi-ed25519 and Sui secp256k1/secp256r1 schemes, any wallet app other than TWC, balances (no RPC row).
+Measured (Linux only): `crates/blocktools/tests/twc_ed25519.rs` (5 tests) replays Trust Wallet Core adf80f8 public vectors: CoinAddressDerivationTests.cpp dummy key 0x46×32 → TWC's Aptos/Sui/NEAR/Tezos/MultiversX addresses; Tezos and MultiversX AddressTests.cpp key → address and valid/invalid lists; TWHDWalletTests.cpp DeriveTezos public key and DeriveMultiversX key and address at the registry paths; Aptos AddressTests.cpp private/public key → address and its valid/invalid lists; Sui sui_address.rs valid/invalid lists; HDWalletTests.cpp AptosKey and NearKey (public test phrases) → TWC's private keys and NEAR address at the registry paths. Untested: NEAR named accounts (`alice.near`, refused), Tezos tz2/tz3 key derivation (secp256k1/P-256; validate only), Aptos multi-ed25519 and Sui secp256k1/secp256r1 schemes, any wallet app other than TWC, balances (no RPC row).

@@ -2,7 +2,9 @@
 //! DERIVE = tests/common/CoinAddressDerivationTests.cpp `Coin.DeriveAddress` (public dummy key 0x46 x 32);
 //! HD = tests/common/HDWallet/HDWalletTests.cpp AptosKey / NearKey (public test mnemonics);
 //! Aptos AddressTests.cpp, Sui rust/tw_tests/tests/chains/sui/sui_address.rs (validation).
-//! Registry paths: registry.json (aptos m/44'/637'/0'/0'/0', sui m/44'/784'/0'/0'/0', near m/44'/397'/0').
+//! Tezos AddressTests.cpp, MultiversX AddressTests.cpp + TestAccounts.h, interface/TWHDWalletTests.cpp DeriveTezos /
+//! DeriveMultiversX (public seedHex of the TWC test phrase with passphrase TREZOR).
+//! Registry paths: xtz m/44'/1729'/0'/0', egld m/44'/508'/0'/0'/0', registry.json (aptos m/44'/637'/0'/0'/0', sui m/44'/784'/0'/0'/0', near m/44'/397'/0').
 use blocktools::chains::{self, EdAddr};
 use blocktools::secrets::seed::{readings, Reading};
 fn hx(s: &str) -> [u8; 32] { let v: Vec<u8> = (0..32).map(|i| u8::from_str_radix(&s[2*i..2*i+2], 16).unwrap()).collect(); v.try_into().unwrap() }
@@ -13,7 +15,9 @@ fn detect(a: &str) -> Vec<&'static str> { blocktools::address::detect(a).into_it
     let k = [0x46u8; 32];
     for (n, want) in [("aptos", "0xce2fd04ac9efa74f17595e5785e847a2399d7e637f5e8179244f76191f653276"),
                       ("sui", "0x870deb25d5c0a4d7250d52d5cd58dacca2d51eb2a120a979b13384cd52e21e1b"),
-                      ("near", "ee93a4f66f8d16b819bb9beb9ffccdfcdc1412e87fee6a324c2a99a1e0e67148")] {
+                      ("near", "ee93a4f66f8d16b819bb9beb9ffccdfcdc1412e87fee6a324c2a99a1e0e67148"),
+                      ("xtz", "tz1gcEWswVU6dxfNQWbhTgaZrUrNUFwrsT4z"),
+                      ("egld", "erd1a6f6fan035ttsxdmn04ellxdlnwpgyhg0lhx5vjv92v6rc8xw9yq83344f")] {
         let r = row(n, "", &k);
         assert_eq!(r.address, want, "{n}");
         assert_eq!(r.kind, n);
@@ -57,3 +61,27 @@ fn blocktools_hex(b: &[u8]) -> String { b.iter().map(|x| format!("{x:02x}")).col
     assert!(!ok("near", "alice.near"), "named accounts not supported");
 }
 fn blocktools_core_validate(c: &chains::Chain, a: &str) -> bool { blocktools::validate::validate(c.name, a).is_ok() }
+#[test] fn tezos_multiversx() {
+    // Tezos PublicKeyInit (TWC passes the key with a 01 tag byte; the 32-byte key follows it).
+    assert_eq!(chains::ed_address(EdAddr::Tezos, &hx("fe157cc8011727936c592f856c9071d39cf4acdadfa6d76435e4619c9dc56f63")), "tz1cG2jx3W4bZFeVGBjsTxUAG8tdpTXtE8PT");
+    // MultiversX TestAccounts.h alice / bob.
+    assert_eq!(chains::ed_address(EdAddr::Mvx, &hx("0139472eff6886771a982f3083da5d421f24c29181e63888228dc81ca60d69e1")), "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th");
+    assert_eq!(chains::ed_address(EdAddr::Mvx, &hx("8049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f8")), "erd1spyavw0956vq68xj8y4tenjpq2wd5a9p2c6j8gsz7ztyrnpxrruqzu66jx");
+    assert_eq!(row("egld", "", &hx("413f42575f7f26fad3317a778771212fdb80245850981e48b58a4f25e344e8f9")).address, "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th");
+    // TWHDWalletTests seedHex (public): DeriveTezos public key, DeriveMultiversX key + address.
+    let sh = "7ae6f661157bda6492f6162701e570097fc726b6235011ea5ad09bf04986731ed4d92bc43cbdee047b60ea0dd1b1fa4274377c9bf5bd14ab1982c272d8076f29";
+    let s: Vec<u8> = (0..64).map(|i| u8::from_str_radix(&sh[2*i..2*i+2], 16).unwrap()).collect();
+    let k = chains::slip10_ed25519(&s, &[44, 1729, 0, 0]);
+    let want_tz = chains::ed_address(EdAddr::Tezos, &hx("c834147f97bcf95bf01f234455646a197f70b25e93089591ffde8122370ad371"));
+    assert_eq!(row("xtz", "m/44'/1729'/0'/0'", &k).address, want_tz);
+    let k = chains::slip10_ed25519(&s, &[44, 508, 0, 0, 0]);
+    assert_eq!(blocktools_hex(&k), "0eb593141de897d60a0883320793eb49e63d556ccdf783a87ec014f150d50453");
+    assert_eq!(row("egld", "m/44'/508'/0'/0'/0'", &k).address, "erd1a6l7q9cfvrgr80xuzm37tapdr4zm3mwrtl6vt8f45df45x7eadfs8ds5vv");
+    let ok = |n: &str, a: &str| blocktools::validate::validate(n, a).is_ok();
+    for a in ["tz1Yju7jmmsaUiG9qQLoYv35v5pHgnWoLWbt", "tz2PdGc7U5tiyqPgTSgqCDct94qd6ovQwP6u", "tz3VEZ4k6a4Wx42iyev6i2aVAptTRLEAivNN", "KT1XnTn74bUtxHfDtBmm2bGZAQfhPbvKWR8o", "tz1d1qQL3mYVuiH4JPFvuikEpFwaDm85oabM"] { assert!(ok("xtz", a), "xtz {a}") }
+    for a in ["NmH7tmeJUmHcncBDvpr7aJNEBk7rp5zYsB1qt", "tz1eZwq8b5cvE2bPKokatLkVMzkxz24z3AAAA", "1tzeZwq8b5cvE2bPKokatLkVMzkxz24zAAAAA", "tz1Yju7jmmsaUiG9qQLoYv35v5pHgnWoLWbt\0"] { assert!(!ok("xtz", a), "xtz {a}") }
+    for a in ["", "foo", "10z9xdugayn528ksaesdwlhf006fw5sg2qmmm0h52fvxczwgesyvq5pwemr", "xerd10z9xdugayn528ksaesdwlhf006fw5sg2qmmm0h52fvxczwgesyvq5pwemr",
+              "foo10z9xdugayn528ksaesdwlhf006fw5sg2qmmm0h52fvxczwgesyvq5pwemr", "0139472eff6886771a982f3083da5d421f24c29181e63888228dc81ca60d69e1"] { assert!(!ok("egld", a), "egld {a}") }
+    assert_eq!(detect("tz1gcEWswVU6dxfNQWbhTgaZrUrNUFwrsT4z"), vec!["xtz"]);
+    assert_eq!(detect("erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th"), vec!["egld"]);
+}
