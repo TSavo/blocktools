@@ -56,12 +56,12 @@ $DOCKER run --rm -v "$tmp:/k:ro" -v "$out/$ARCH:/r" alpine:3.20 sh -euc "
 cleanup
 [ -s "$out/$ARCH/APKINDEX.tar.gz" ] || { echo "apk-repo: index not built" >&2; exit 1; }
 # Check: an Alpine container trusting ONLY the repo key accepts the index; one with no key rejects it.
-$DOCKER run --rm --network none -v "$out:/repo:ro" -v "$PUB:/$KEY_NAME.pub:ro" alpine:3.20 sh -euc "
-  rm -f /etc/apk/keys/*; cp /$KEY_NAME.pub /etc/apk/keys/
-  echo /repo > /etc/apk/repositories
+$DOCKER run --rm -v "$out:/repo:ro" -v "$PUB:/$KEY_NAME.pub:ro" alpine:3.20 sh -euc "
+  cp /$KEY_NAME.pub /etc/apk/keys/
+  echo /repo >> /etc/apk/repositories  # keep Alpine main/community for dependencies (bash)
   if apk update 2>&1 | grep -q UNTRUSTED; then echo 'apk-repo: index UNTRUSTED with repo key' >&2; exit 1; fi
   apk add -q --simulate blocktools >/dev/null 2>&1 || { echo 'apk-repo: blocktools not installable with repo key' >&2; exit 1; }
-  rm -f /etc/apk/keys/*
+  rm -f /etc/apk/keys/blocktools*
   apk update 2>&1 | grep -q UNTRUSTED || { echo 'apk-repo: index not flagged UNTRUSTED with NO key' >&2; exit 1; }
   if apk add -q --simulate blocktools >/dev/null 2>&1; then echo 'apk-repo: blocktools installable with NO key' >&2; exit 1; fi"
 echo "apk-repo: $out/$ARCH: $# apk(s), APKINDEX.tar.gz signed with $KEY_NAME and checked"
