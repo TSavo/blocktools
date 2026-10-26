@@ -24,7 +24,7 @@ members=$(python3 -c 'import json,sys,os; d=json.load(sys.stdin); r=d["workspace
 rc=0
 for m in $members; do
   [ -n "$m" ] || continue
-  p=$(sed -n 's/^name = "\(.*\)"/\1/p' "$m/Cargo.toml" | head -1); f="deps/$p.allow"
+  p=$(awk -F'"' '/^name = "/{print $2; exit}' "$m/Cargo.toml"); f="deps/$p.allow"  # no sed|head: SIGPIPE (141) under pipefail when a manifest has several name= lines
   [ -f "$f" ] || { echo "FAIL $p: no $f"; rc=1; continue; }  # rule:C-allow
   tree "$p" > "$tmp/t" || { rc=1; continue; }  # rule:C-stale
   new=$(comm -23 "$tmp/t" "$f")
@@ -33,7 +33,7 @@ for m in $members; do
 done
 # network crates may only appear in the host-side tools
 for m in $members; do
-  p=$(sed -n 's/^name = "\(.*\)"/\1/p' "$m/Cargo.toml" | head -1)
+  p=$(awk -F'"' '/^name = "/{print $2; exit}' "$m/Cargo.toml")
   case "$p" in blocktools-net|utxo-fetch|tx-broadcast) continue;; esac
   tree "$p" > "$tmp/t" || { rc=1; continue; }  # rule:C-stale
   if grep -qxE 'minreq|rustls|ring|webpki-roots|blocktools-net' "$tmp/t"; then echo "FAIL $p: pulls a network crate"; rc=1; fi  # rule:C-net
