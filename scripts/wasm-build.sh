@@ -41,7 +41,7 @@ sed -e '/^\[workspace\]$/d' -e '/^\[profile\.release\]/,/^$/d' "$src/bindings/wa
 python3 "$src/scripts/wasm-lock-merge.py" "$src/Cargo.lock" "$src/bindings/wasm/Cargo.lock" > "$B/lock"
 put "$B/root.toml" "$B/src/Cargo.toml"; put "$B/wasm.toml" "$B/src/bindings/wasm/Cargo.toml"; put "$B/lock" "$B/src/Cargo.lock"
 cd "$B/src"
-unset CARGO_TARGET_DIR CARGO_BUILD_TARGET_DIR
+unset CARGO_TARGET_DIR CARGO_BUILD_TARGET_DIR CARGO_PROFILE_RELEASE_LTO  # LTO comes from bindings/wasm/Cargo.toml, never the gate (scripts/gate.sh)
 cargo metadata -q --format-version 1 >/dev/null  # prunes the merged lock to what is used
 # The wasm crate's resolved tree (versions + features) must equal what its own committed lock gives.
 tree() { p=$1; shift; cargo tree -q --locked --target wasm32-unknown-unknown -e normal,build,features --prefix none "$@" \

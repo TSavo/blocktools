@@ -16,6 +16,30 @@ pattern not starting with `v`; `scripts/e2e.d/release-env.sh` plants each of tho
 
 Timings below were measured with one runner; no timing with four runners has been measured yet.
 
+## Per-job overhead removed on 2026-10-26 (unmeasured until the next runs)
+
+Measured on runs 40388233412..40401710490 (four runners): push to green 12-25 min, of which 7-19 min was
+waiting for the previous run (`concurrency` serializes runs per ref and pushes arrived every 2.4 min), the
+longest job 7-12 min, and the `cargo build --release` inside a job 0.5-1.8 min. The rest of a job was overhead:
+
+- `Swatinem/rust-cache` save (Post step) 1.1-2.7 min per Linux job, for a target/ that the cleanup step already
+  keeps on disk. It now runs on GitHub-hosted runners only (`if: runner.environment == 'github-hosted'`).
+- `cargo install wasm-bindgen-cli` compiled from source on every job (0.4-1.4 min): the version check is
+  now the gate, see the table above.
+- The test stage ran `cargo test --workspace` twice (default features, then `--all-features`), building every
+  test binary twice. It now runs `-p blocktools` at default features (the configuration bindings/wasm ships)
+  and one `--workspace --all-features` pass; features are additive, so the second pass covers every other crate.
+- `scripts/gate.sh` exports `CARGO_PROFILE_RELEASE_LTO=thin` (`GATE_LTO=fat` restores fat LTO): Cargo.toml's
+  `lto = true` relinked 43 binaries and every test binary through a whole-program pass on each change. The
+  Dockerfile and release.yml do not use gate.sh and keep fat LTO; scripts/wasm-build.sh unsets the variable so
+  the wasm bytes never depend on it.
+- `scripts/wasm-check.sh` deleted the default wasm build dir after its first build, and the job cleanup deleted
+  it again, so every job's first wasm build was a clean build on top of the clean reproducibility rebuild. Both
+  now keep it.
+
+Still open: the four jobs of a run each do their own `cargo build --release --workspace` on a different runner
+(four compiles of one commit, in parallel on one CPU); and the per-ref queue. The second is the larger cost.
+
 Measured from our own run 40270984219 (c0ece5e) with
 `gh api repos/TSavo/blocktools/actions/runs/40270984219/jobs`: all four Linux jobs succeeded on
 runner `battleaxe-blocktools-1` (test 4m27s, lint 1m17s, negatives 3m53s, e2e 1m33s; about 11m18s from first
@@ -73,10 +97,10 @@ Runner image (per SwapChan's check of Battleaxe): node 24.19.0, bun, Docker, no 
 | Need | Source |
 |---|---|
 | Rust toolchain 1.85.1 (pinned) | job installs via rustup if missing and verifies `rustc --version`; the tool-cache is shared with other runners, so it is not trusted |
-| wasm32-unknown-unknown, wasm-bindgen-cli 0.2.100 | job installs (rustup target add / cargo install) |
+| wasm32-unknown-unknown, wasm-bindgen-cli 0.2.100 | job installs only what is missing: `rustup target list --installed` (no network) gates `rustup target add`, and `wasm-bindgen --version` gates `cargo install`. Before 2026-10-26 the install ran on every job: the logs of run 40401710490 show `Installing wasm-bindgen-cli v0.2.100` compiling from source in both the test and the e2e job (0.4-1.4 min each) |
 | clang, lld, python3, cc, git | must be in the runner image; `scripts/ci-require-tools.sh` fails the job listing what is missing (CI never runs apt-get or sudo). Measured: run 40269892206 failed at the old apt-get step on battleaxe-blocktools-1 (no clang/ld.lld, no working sudo) |
 | node 20 | actions/setup-node |
-| python3 + `cryptography` | python3 must be on the image (untested); job pip-installs cryptography (recipes e2e skips without it) |
+| python3 + `cryptography`, `pyyaml` | python3 must be on the image (untested); the job pip-installs them only when `import cryptography, yaml` fails (recipes e2e skips without cryptography) |
 | git, curl | must be on the image |
 | shellcheck, groff, pnpm | not used by the gate |
 | Docker | not used by `scripts/gate.sh`; needed only for the manual sealed-image claims (`scripts/image-size.sh`, `scripts/sealed-check.sh`) if they are ever run in CI |
@@ -86,7 +110,9 @@ Runner image (per SwapChan's check of Battleaxe): node 24.19.0, bun, Docker, no 
 The four runners are not ephemeral, and each mounts the host Docker socket (root-equivalent on Battleaxe).
 They share the tool-cache volume, so the four jobs of one run can now execute in parallel on different
 runners and use that cache at the same time. Each Linux job ends with an `if: always()` cleanup: git worktree
-prune, git clean except target/, and removal of `$TMPDIR/blocktools-*` and `$TMPDIR/ci-gate.*`. The cleanup
+prune, git clean except target/, and removal of `$TMPDIR/blocktools-*` and `$TMPDIR/ci-gate.*`, sparing
+`$TMPDIR/blocktools-wasm-build` (scripts/wasm-build.sh's build dir) so the next job's first wasm build is incremental;
+wasm-check's reproducibility rebuild still runs in a fresh build dir. The cleanup
 touches only that runner's checkout, so it is safe with parallel jobs as long as each runner container has
 its own `/tmp`. That is the case unless the compose file mounts a shared `/tmp`; we have not verified it.
 `scripts/gate.sh` creates no Docker images or containers. Workflow-level `concurrency` (`ci-<ref>`, no

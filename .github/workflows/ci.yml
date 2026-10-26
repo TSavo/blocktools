@@ -28,15 +28,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20 }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        # GitHub-hosted runners only: the Battleaxe runners keep target/ between jobs (cleanup spares it), and
+        # rust-cache's save step alone cost 1.1-2.7 min per Linux job (runs 40388233412..40401710490).
+        if: runner.environment == 'github-hosted'
         with: { key: "${{ matrix.stage }}", cache-bin: "true" }
       - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
       - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
       - run: sh scripts/ci-require-tools.sh
-      - run: rustup target add wasm32-unknown-unknown && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
-      - run: python3 -m pip install --user --break-system-packages cryptography pyyaml
+      - run: (rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown) && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
+      - run: python3 -c 'import cryptography, yaml' 2>/dev/null || python3 -m pip install --user --break-system-packages cryptography pyyaml
       - run: sh scripts/gate.sh ${{ matrix.stage }}
       - if: always()
-        run: git worktree prune && git clean -ffdxq -e target && rm -rf "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*
+        run: git worktree prune && git clean -ffdxq -e target && for d in "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*; do [ "$d" = "${TMPDIR:-/tmp}/blocktools-wasm-build" ] || rm -rf "$d"; done
 
   # macOS e2e on a GitHub-hosted runner. claims-check K-macos only accepts a macos claim as measured when
   # this job ("macos") succeeded at the claim's commit. continue-on-error: the known Mac pin-tty failure is
@@ -52,6 +55,6 @@ jobs:
         with:
           key: macos
           cache-bin: true
-      - run: rustup target add wasm32-unknown-unknown && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
-      - run: python3 -m pip install --user --break-system-packages cryptography
+      - run: (rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown) && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
+      - run: python3 -c 'import cryptography' 2>/dev/null || python3 -m pip install --user --break-system-packages cryptography
       - run: sh scripts/gate.sh e2e

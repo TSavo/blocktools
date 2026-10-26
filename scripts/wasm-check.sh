@@ -19,8 +19,8 @@ mkdir -p target
 alt=$(mktemp -d "${TMPDIR:-/tmp}/blocktools-alt-checkout.XXXXXX")
 (cd ../.. && git ls-files -z --cached --others --exclude-standard | xargs -0 cp --parents -t "$alt") && (cd "$alt" && git init -q && git add -A)
 h1=$(sha256sum "$W" | cut -d' ' -f1)
-cp "$W" target/blocktools_wasm.wasm; W0=$W; W=$PWD/target/blocktools_wasm.wasm  # the clean rebuild below deletes $W0
-rm -rf "${W0%/wasm32-unknown-unknown/*}"  # whole target dir: a clean build, not cached deps
+cp "$W" target/blocktools_wasm.wasm; W=$PWD/target/blocktools_wasm.wasm
+# The clean rebuild below runs in a fresh build dir ($b2), so the default build dir is kept: its next build is incremental.
 b2=$(mktemp -d "${TMPDIR:-/tmp}/blocktools-wasm-alt-build-dir.XXXXXXXX")
 W2=$(BLOCKTOOLS_WASM_BUILD_DIR="$b2" sh "$alt/scripts/wasm-build.sh"); h2=$(sha256sum "$W2" | cut -d' ' -f1); rm -rf "$alt" "$b2" "$b2.lock"
 [ "${BLOCKTOOLS_WASM_BUILD_DIR:-/tmp/blocktools-wasm-build}" != "$b2" ] || { echo "FAIL repro builds share a build dir"; rc=1; }

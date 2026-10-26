@@ -9,6 +9,11 @@
 set -eu
 if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 cd "$(dirname "$0")/.."
+# Thin LTO for everything the gate builds natively: the shipped binaries (Dockerfile, release.yml) keep
+# Cargo.toml's fat LTO; the gate only needs working binaries, and fat LTO relinks 43 binaries and every
+# test binary through a whole-program pass on each change. scripts/wasm-build.sh unsets this (wasm bytes
+# must not depend on the gate). GATE_LTO=fat restores the old behaviour.
+export CARGO_PROFILE_RELEASE_LTO=${GATE_LTO:-thin}
 STAGES="lint test negatives e2e"
 step() { echo "== gate: $*"; "$@" || { echo "gate FAILED at: $*" >&2; exit 1; }; }
 stage() {
@@ -25,7 +30,9 @@ stage() {
     step sh scripts/docs-check.sh;;
   test)
     step cargo build -q --locked --release --workspace
-    step cargo test -q --locked --release --workspace --no-fail-fast
+    # The facade at its default features (what bindings/wasm ships) reuses the build above; one all-features
+    # pass covers every other crate (features are additive). Two full --workspace passes built everything twice.
+    step cargo test -q --locked --release -p blocktools --no-fail-fast
     step cargo test -q --locked --release --workspace --all-features --no-fail-fast
     step env RUSTDOCFLAGS='-D warnings' cargo doc -q --locked -p blocktools --no-deps;;
   negatives)
