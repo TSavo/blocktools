@@ -137,6 +137,23 @@ Measured (Linux only): `crates/tx/tests/twc_message.rs` (2 tests). It signs TWC'
 
 Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_message`; TWC signs its legacy_hex vector this way, and msg-verify checks it with `--hex`, but blocktools will not sign a hash it cannot show); hex or typed-data input (`only_text_messages_signed`); a message that decodes as a transaction or PSBT (`message_looks_like_transaction`); non-UTF-8, empty or oversized messages; segwit and taproot addresses (`address_not_p2pkh`; BIP137 segwit headers 35-42 and BIP322 are unsupported); other chains' message prefixes (`message_prefix_unproven_for_chain`, e.g. ltc, doge); EIP-712 (blocktools only verifies it, with `typed-data-verify`). A key that does not match `--address` gives `address_does_not_match_key`. Untested: testnet addresses, wallets other than TWC (no vectors from MetaMask, Electrum or Bitcoin Core were run here), and long messages (the multi-byte varint length prefix has no vector).
 
+## Cosmos SDK: Trust Wallet Core MsgSend vectors
+
+`acct-tx --chain atom` builds, signs and decodes Cosmos SDK `MsgSend` (`/cosmos.bank.v1beta1.MsgSend`, SIGN_MODE_DIRECT, secp256k1 pubkey). Code: `crates/acct/src/atom.rs`. The chain is detected from the bech32 hrp of `--from` (and of the TxRaw on decode); `--to` must use the same hrp. The hrp picks the base denom and the default `--chain-id`; a different chain id or denom is a warning, not an error, so testnets still decode.
+
+| hrp | chain | default chain id | denom | TWC vector (adf80f8) |
+|---|---|---|---|---|
+| cosmos | Cosmos Hub | cosmoshub-4 | uatom | `tests/chains/Cosmos/SignerTests.cpp` SignTxProtobuf (gaia-13003) |
+| osmo | Osmosis | osmosis-1 | uosmo | `Osmosis/SignerTests.cpp` SignTransfer_81B4 |
+| juno | Juno | juno-1 | ujuno | `Juno/TWAnySignerTests.cpp` Sign |
+| stars | Stargaze | stargaze-1 | ustars | `Stargaze/TWAnySignerTests.cpp` Sign |
+| secret | Secret | secret-4 | uscrt | `Secret/SignerTests.cpp` Sign |
+| terra | Terra 2 | phoenix-1 | uluna | `TerraV2/SignerTests.cpp` SignSendTx |
+
+Measured (Linux only): `crates/acct/tests/twc_cosmos.rs` (7 tests). For each chain it decodes TWC's `tx_bytes`, verifies the signature, checks the detected chain, re-signs with TWC's public test key and requires the TxRaw to match byte for byte. The seventh test feeds TWC's IBC transfer, MsgVote, Terra CosmWasm and Stargaze CW721 vectors to the decoder and requires each to be refused. `scripts/e2e.d/twc-cosmos.sh` rebuilds the Osmosis vector from its inputs with the real CLI (`keys --hrp osmo`, `build`, `sign` with the code typed on a pty) and gets TWC's tx_bytes exactly, then checks the refusals below.
+
+Refused: any other hrp (`cosmos_hrp_without_vector`), which includes ethsecp256k1 chains (Injective, Evmos; their keys hash differently and TWC signs them with a different pubkey type); a `--to` on another hrp (`wrong network`); every message other than MsgSend (IBC, staking, governance, CosmWasm, NFTs); amino-JSON signing (TWC's Crypto.org and `SignTxJson` vectors are amino and are not ported); fee and amount in different denoms. Untested: TWC's `SignDirect_0a90010a` vector (a pre-built body passed through; its auth info carries no pubkey, which the decoder refuses), broadcast, multi-coin amounts, Terra Classic (same `terra` hrp; columbus-5 gets the chain-id warning but has no vector here), and chains TWC has but blocktools does not list (Akash, Kava, Kujira, Sei and the rest).
+
 ## Chain quirks and their known-answer vectors (2026-10-25)
 
 Every way a chain departs from plain Bitcoin is listed here with at least one independent

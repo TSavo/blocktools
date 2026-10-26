@@ -4,6 +4,8 @@
 # Inputs are public test vectors only: BIP-39 "abandon x11 about", private key 1, btcrecover's public
 # fixture wallets (password btcr-test-password). No network: URLs point at 127.0.0.1:9 (closed).
 acct-tx | 0 | printf '%064x' 1 | acct-tx keys --chain atom
+acct-tx | 0 | printf '%064x' 1 | acct-tx keys --chain atom --hrp osmo
+acct-tx | 1 | printf '%064x' 1 | acct-tx keys --chain atom --hrp inj
 acct-tx | 1 | acct-tx build --chain xlm
 armory-read | 0 | { echo btcr-test-password; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read
 armory-read | 1 | { echo wrong; cat "$R/fixtures/external/armory-wallet.wallet"; } | armory-read

@@ -286,3 +286,13 @@ printf '%064x\n' 1 | msg-sign --address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X --mes
 ```sh
 msg-verify --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi --sig AA==
 ```
+
+<!-- run rc=1 expect=cosmos_hrp_without_vector -->
+```sh
+printf '%064x' 1 | acct-tx keys --chain atom --hrp inj
+```
+
+<!-- run rc=1 expect=cosmos_hrp_without_vector -->
+```sh
+acct-tx build --chain atom --from evmos1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --to evmos1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1
+```

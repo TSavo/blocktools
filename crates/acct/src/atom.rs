@@ -8,6 +8,16 @@ use sha2::{Digest, Sha256};
 pub struct Send { pub from: String, pub to: String, pub denom: String, pub amount: u128, pub memo: String,
     pub pubkey: [u8; 33], pub sequence: u64, pub fee: u128, pub gas: u64, pub chain_id: String, pub account_number: u64 }
 
+/// Cosmos SDK chains with a Trust Wallet Core MsgSend SIGN_MODE_DIRECT vector (crates/acct/tests/twc_cosmos.rs):
+/// (bech32 hrp, name, mainnet chain_id, base denom). The chain is detected from the address hrp.
+/// Chains with ethsecp256k1 keys (Injective, Evmos) or amino-JSON signing (Crypto.org vectors) are not listed: refused.
+pub const CHAINS: &[(&str, &str, &str, &str)] = &[
+    ("cosmos", "cosmoshub", "cosmoshub-4", "uatom"), ("osmo", "osmosis", "osmosis-1", "uosmo"), ("juno", "juno", "juno-1", "ujuno"),
+    ("stars", "stargaze", "stargaze-1", "ustars"), ("secret", "secret", "secret-4", "uscrt"), ("terra", "terra2", "phoenix-1", "uluna")];
+/// (hrp, name, mainnet chain_id, denom) for an address, or None for an hrp without a vector.
+pub fn chain_of(addr: &str) -> Option<(&'static str, &'static str, &'static str, &'static str)> {
+    let hrp = addr.rsplit_once('1')?.0; CHAINS.iter().find(|c| c.0 == hrp).copied()
+}
 const MSG_SEND: &str = "/cosmos.bank.v1beta1.MsgSend";
 const PUBKEY: &str = "/cosmos.crypto.secp256k1.PubKey";
 fn coin(denom: &str, amt: u128) -> Vec<u8> { let mut c = vec![]; pb::bytes(&mut c, 1, denom.as_bytes()); pb::bytes(&mut c, 2, amt.to_string().as_bytes()); c }
@@ -83,13 +93,16 @@ impl Send {
         let t = Send { from: s(pb::one(&m, 1).ok_or("no from")?)?, to: s(pb::one(&m, 2).ok_or("no to")?)?, denom, amount,
             memo: pb::one(&bf, 2).map(s).transpose()?.unwrap_or_default(), pubkey, sequence: pb::num(&si, 3), fee: fee_amt, gas: pb::num(&fee, 2), chain_id, account_number };
         if t.body() != body || t.auth_info() != auth { return Err("unsupported fields present (timeout, granter, extension options, ...)".into()) }
-        if address(&t.pubkey) != t.from { return Err("from address does not match signer pubkey".into()) }
+        let c = chain_of(&t.from).ok_or("cosmos_hrp_without_vector: only cosmos/osmo/juno/stars/secret/terra are proven")?;
+        if chain_of(&t.to).map(|x| x.0) != Some(c.0) { return Err("to address hrp differs from from address hrp".into()) }
+        if address_hrp(c.0, &t.pubkey) != t.from { return Err("from address does not match signer pubkey".into()) }
         Ok(t)
     }
     pub fn txid(raw: &[u8]) -> String { Sha256::digest(raw).iter().map(|b| format!("{b:02X}")).collect() }
 }
-pub fn address(pubkey: &[u8; 33]) -> String {
+pub fn address(pubkey: &[u8; 33]) -> String { address_hrp("cosmos", pubkey) }
+pub fn address_hrp(hrp: &str, pubkey: &[u8; 33]) -> String {
     use bitcoin::hashes::{hash160, Hash};
-    blocktools_core::chains::cosmos_address("cosmos", &hash160::Hash::hash(pubkey).to_byte_array())
+    blocktools_core::chains::cosmos_address(hrp, &hash160::Hash::hash(pubkey).to_byte_array())
 }
 pub fn pubkey_of(sk: &[u8; 32]) -> Result<[u8; 33], &'static str> { Ok(PublicKey::from_secret_key(&Secp256k1::new(), &SecretKey::from_slice(sk).map_err(|_| "bad_secret_key")?).serialize()) }

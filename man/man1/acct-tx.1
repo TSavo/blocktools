@@ -19,7 +19,15 @@ acct\-tx \- account\-model payments for xlm, algo and atom. Encoded transactions
 Balance / sequence / rounds come from the host\-side `utxo\-fetch \-\-chain xlm|algo ADDR` (this tool has no network).
 acct\-tx build   \-\-chain xlm  \-\-from G.. \-\-to G.. (\-\-amount STROOPS | \-\-sweep) \-\-fee STROOPS \-\-seq N [\-\-memo\-id N|\-\-memo\-text T] [\-\-max\-time UNIX] [\-\-testnet]
 acct\-tx build   \-\-chain algo \-\-from A.. \-\-to A.. (\-\-amount MICROALGO | \-\-sweep) \-\-fee MICROALGO \-\-first\-round N [\-\-last\-round N] [\-\-note T]
-acct\-tx keys    \-\-chain atom < hex\-private\-key                    \-> {"address","pubkey"} (public only; build needs \-\-pubkey)
+acct\-tx keys    \-\-chain atom [\-\-hrp cosmos|osmo|juno|stars|secret|terra] < hex\-private\-key \-> {"address","pubkey"} (public only; build needs \-\-pubkey)
+.nf
+.RS 2
+  \-\-chain atom covers Cosmos SDK MsgSend (SIGN_MODE_DIRECT, secp256k1) on the chains with a Trust Wallet Core vector:
+  the chain is detected from the \-\-from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2),
+  which sets the base denom and default \-\-chain\-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
+  ethsecp256k1 chains (Injective, Evmos), CosmWasm, IBC and every non\-MsgSend message.
+.RE
+.fi
 acct\-tx build   \-\-chain atom \-\-from cosmos1.. \-\-pubkey HEX33 \-\-to cosmos1.. (\-\-amount UATOM | \-\-sweep \-\-balance UATOM) \-\-fee UATOM
 .nf
 .RS 2
@@ -70,8 +78,10 @@ acct\-tx sign    \-\-chain C \-\-tx FILE \-\-expect\-to ADDR [\-\-testnet] < sec
           algo = amount 0 + close\-to (sends everything and closes the account; fails while ASAs are opted in).
 .fi
 .SH INPUT/OUTPUT
+acct\-tx keys    \-\-chain atom [\-\-hrp cosmos|osmo|juno|stars|secret|terra] < hex\-private\-key \-> {"address","pubkey"} (public only; build needs \-\-pubkey)
 .nf
 .RS 2
+  the chain is detected from the \-\-from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2),
                 (ADA\-only legacy outputs, change back to \-\-from; hex CBOR like cardano\-cli; UTXOs carrying native assets must not be used)
 .RE
 .fi
@@ -96,6 +106,10 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 .nf
 $ printf '%064x' 1 | acct\-tx keys \-\-chain atom
 # exit 0, last status: ok
+$ printf '%064x' 1 | acct\-tx keys \-\-chain atom \-\-hrp osmo
+# exit 0, last status: ok
+$ printf '%064x' 1 | acct\-tx keys \-\-chain atom \-\-hrp inj
+# exit 1, last status: error
 $ acct\-tx build \-\-chain xlm
 # exit 1, last status: error
 .fi

@@ -2,7 +2,11 @@
 //! Balance / sequence / rounds come from the host-side `utxo-fetch --chain xlm|algo ADDR` (this tool has no network).
 //! acct-tx build   --chain xlm  --from G.. --to G.. (--amount STROOPS | --sweep) --fee STROOPS --seq N [--memo-id N|--memo-text T] [--max-time UNIX] [--testnet]
 //! acct-tx build   --chain algo --from A.. --to A.. (--amount MICROALGO | --sweep) --fee MICROALGO --first-round N [--last-round N] [--note T]
-//! acct-tx keys    --chain atom < hex-private-key                    -> {"address","pubkey"} (public only; build needs --pubkey)
+//! acct-tx keys    --chain atom [--hrp cosmos|osmo|juno|stars|secret|terra] < hex-private-key -> {"address","pubkey"} (public only; build needs --pubkey)
+//!   --chain atom covers Cosmos SDK MsgSend (SIGN_MODE_DIRECT, secp256k1) on the chains with a Trust Wallet Core vector:
+//!   the chain is detected from the --from hrp (cosmos=Cosmos Hub, osmo=Osmosis, juno, stars=Stargaze, secret, terra=Terra 2),
+//!   which sets the base denom and default --chain-id. Any other hrp is refused (cosmos_hrp_without_vector), as are
+//!   ethsecp256k1 chains (Injective, Evmos), CosmWasm, IBC and every non-MsgSend message.
 //! acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
 //!                 --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
 //! acct-tx build   --chain ton  --from UQ.. --to EQ..|UQ.. (--amount NANOTON | --sweep) --seqno N --valid-until UNIX [--comment T]
@@ -74,10 +78,11 @@ fn algo_secret(s: &str) -> Zeroizing<[u8; 32]> {
 fn atom_describe(t: &atom::Send, sig: Option<&[u8; 64]>) -> Value {
     let mut w = vec![];
     if t.memo.is_empty() { w.push("memo_missing: exchanges credit deposits by memo; without one the funds may not be credited") }
-    if t.denom != "uatom" { w.push("denom_not_uatom") }
-    if t.chain_id != "cosmoshub-4" { w.push("not_cosmoshub-4: chain_id differs from Cosmos Hub mainnet") }
+    let c = atom::chain_of(&t.from).unwrap_or_else(|| fail("cosmos_hrp_without_vector"));
+    if t.denom != c.3 { w.push("denom_not_chain_base_denom") }
+    if t.chain_id != c.2 { w.push("chain_id_not_mainnet: chain_id differs from the detected chain's mainnet") }
     let raw = sig.map(|s| t.tx_raw(s));
-    json!({"chain":"atom","type":"MsgSend","from":t.from,"to":t.to,"denom":t.denom,"amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 6),
+    json!({"chain":"atom","cosmos_chain":c.1,"hrp":c.0,"expected_chain_id":c.2,"type":"MsgSend","from":t.from,"to":t.to,"denom":t.denom,"amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 6),
         "fee_base":t.fee.to_string(),"fee_str":fmt_units(t.fee, 6),"gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,"memo":t.memo,
         "network":t.chain_id,"signed":sig.is_some(),"signature_valid":sig.map(|s| t.verify(s)),"txid":raw.map(|r| atom::Send::txid(&r)),"warnings":w})
 }
@@ -287,22 +292,25 @@ fn main() {
         (Some("decode"), "ada") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, f, i) = ada_read(&s); emit(ada_describe(&t, f.as_deref(), i)) }
         (Some("decode"), "ton") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, pk) = ton_read(&s); emit(ton_describe(&t, pk.as_ref())) }
         (Some("keys"), "atom") => {
+            let hrp = opt(&a, "--hrp").unwrap_or("cosmos");
+            if !atom::CHAINS.iter().any(|c| c.0 == hrp) { fail("cosmos_hrp_without_vector") }
             let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
             let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
-            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","address":atom::address(&pk),"pubkey":hex(&pk)}));
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","address":atom::address_hrp(hrp, &pk),"pubkey":hex(&pk)}));
         }
         (Some("build"), "atom") => {
             let pubkey: [u8; 33] = unhex(req(&a, "--pubkey")).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"));
             let from = req(&a, "--from").to_string(); let to = req(&a, "--to").to_string();
-            if atom::address(&pubkey) != from { fail("pubkey_does_not_match_from") }
-            for x in [&from, &to] { blocktools_core::chains::cosmos_decode("cosmos", x).unwrap_or_else(|e| fail(e)); }
+            let c = atom::chain_of(&from).unwrap_or_else(|| fail("cosmos_hrp_without_vector"));
+            if atom::address_hrp(c.0, &pubkey) != from { fail("pubkey_does_not_match_from") }
+            for x in [&from, &to] { blocktools_core::chains::cosmos_decode(c.0, x).unwrap_or_else(|e| fail(e)); }
             if from == to { fail("destination_is_source") }
             let fee: u128 = num(&a, "--fee").unwrap_or_else(|| fail("missing --fee"));
             let amount: u128 = if flag(&a, "--sweep") { num::<u128>(&a, "--balance").unwrap_or_else(|| fail("--sweep needs --balance")).checked_sub(fee).filter(|&v| v > 0).unwrap_or_else(|| fail("balance_below_fee")) }
                 else { num(&a, "--amount").unwrap_or_else(|| fail("missing --amount or --sweep")) };
-            let t = atom::Send { from, to, denom: "uatom".into(), amount, memo: opt(&a, "--memo").unwrap_or("").into(), pubkey,
+            let t = atom::Send { from, to, denom: c.3.into(), amount, memo: opt(&a, "--memo").unwrap_or("").into(), pubkey,
                 sequence: num(&a, "--sequence").unwrap_or_else(|| fail("missing --sequence")), fee, gas: num(&a, "--gas").unwrap_or_else(|| fail("missing --gas")),
-                chain_id: opt(&a, "--chain-id").unwrap_or("cosmoshub-4").into(), account_number: num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number")) };
+                chain_id: opt(&a, "--chain-id").unwrap_or(c.2).into(), account_number: num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number")) };
             let d = atom_describe(&t, None);
             for w in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", w.as_str().unwrap()) }
             blocktools_io::outln!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));

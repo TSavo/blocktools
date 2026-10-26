@@ -23,7 +23,7 @@ own public test vectors.
 | Same signing input / output schema for every chain | per-family JSON lines (tx-build, acct-tx, xrp-tx) | no common "SigningInput" envelope |
 | Builders for Solana and Tron | decode and verify only | builders (queue item 5) |
 | C ABI and many language bindings | C ABI + Python/Go/Zig/C++ wrappers | account-family ops; language-registry packaging |
-| Cross-implementation test vectors per coin | KAT table in docs/CHAINS.md (`tests/quirks.rs`); EVM: all 13 Trust Wallet Core signer vectors re-signed byte for byte (`tests/twc_evm.rs`); message signing: TWC's Ethereum personal_sign and Bitcoin signmessage vectors (`tests/twc_message.rs`, `msg-sign`/`msg-verify`) | Cosmos, UTXO forks, Substrate, ed25519 ports |
+| Cross-implementation test vectors per coin | KAT table in docs/CHAINS.md (`tests/quirks.rs`); EVM: all 13 Trust Wallet Core signer vectors re-signed byte for byte (`tests/twc_evm.rs`); message signing: TWC's Ethereum personal_sign and Bitcoin signmessage vectors (`tests/twc_message.rs`, `msg-sign`/`msg-verify`); Cosmos: TWC MsgSend vectors on Cosmos Hub, Osmosis, Juno, Stargaze, Secret and Terra 2 (`tests/twc_cosmos.rs`, chain from hrp) | UTXO forks, Substrate, ed25519 ports |
 
 ### Offline policy layer (like Privy / Turnkey / Coinbase CDP policy engines)
 | capability (public docs) | blocktools today | gap |
