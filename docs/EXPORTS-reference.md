@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 59. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 60. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -535,13 +535,13 @@ evmAbiDecode(request_json: string): string
 
 Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
 
-Calls in test.mjs: 4.
+Calls in test.mjs: 5.
 
 Example (executed):
 
 ```js
-bt.evmAbiDecode("{\"input\":\"0xa9059cbb000000000000000000000000264bd8291fae1d75db2c5f573b07faa6715997b5000000000000000000000000000000000000000000000000000000012d08aab0\",\"sig\":\"approve(address,uint256)\"}")
-// -> {"selector":"0xa9059cbb","status":"no_match"}
+bt.evmAbiDecode("{\"input\":\"0xcdcd77c000000000000000000000000000000000000000000000000000000000000000450000000000000000000000000000000000000000000000000000000000000001\",\"sig\":\"baz(uint32,bool)\"}")
+// -> {"args":[{"type":"uint32","value":"69"},{"type":"bool","value":true}],"hash":"0xcdcd77c0992ec5bbfc459984220f8c45084cc24d9b6efed1fae540db8de801d2","kind":"function","selector":"0xcdcd77c0","signature":"baz(uint32,bool)","status":"ok"}
 ```
 
 Error example (executed):
@@ -549,6 +549,30 @@ Error example (executed):
 ```js
 bt.evmAbiDecode("{\"input\":\"0xa9059cbb000000000000000000000000264bd8291fae1d75db2c5f573b07faa6715997b5000000000000000000000000000000000000000000000000000000012d08aa\",\"sig\":\"transfer(address,uint256)\"}")
 // throws data_too_short
+```
+
+## `evmAbiEncode`
+
+```ts
+evmAbiEncode(request_json: string): string
+```
+
+ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.evmAbiEncode("{\"sig\":\"(uint8)\",\"args\":[\"7\"]}")
+// -> {"data":"0x0000000000000000000000000000000000000000000000000000000000000007","status":"ok","types":"(uint8)"}
+```
+
+Error example (executed):
+
+```js
+bt.evmAbiEncode("{\"sig\":\"f(uint8)\",\"args\":[\"256\"]}")
+// throws value_too_large_for_uint8
 ```
 
 ## `evmKeccak256`

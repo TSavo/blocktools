@@ -44,3 +44,4 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | `eth_getLogs` events → decoded fields | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (c), `abi-decode` |
 | `eth_call` return data (e.g. `balanceOf`) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (d), `abi-decode` |
 | Revert data: `Error(string)`, `Panic`, custom errors | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (e), `abi-decode` |
+| Arguments → calldata (`eth_call`/tx `data`), or a bare tuple (CREATE2 salt preimage) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (g), `abi-encode` |

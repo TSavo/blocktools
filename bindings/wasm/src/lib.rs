@@ -419,3 +419,7 @@ pub fn evm_sig_lookup(hash_hex: &str, sigs_text: &str) -> Result<String, JsError
 /// Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
 #[wasm_bindgen(js_name = evmAbiDecode)]
 pub fn evm_abi_decode(request_json: &str) -> Result<String, JsError> { Ok(evm_api::decode_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
+
+/// ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
+#[wasm_bindgen(js_name = evmAbiEncode)]
+pub fn evm_abi_encode(request_json: &str) -> Result<String, JsError> { Ok(evm_api::encode_json(&evm_req(request_json)?).map_err(err)?.to_string()) }

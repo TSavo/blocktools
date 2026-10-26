@@ -48,3 +48,5 @@ sig-hash | 0 | sig-hash 'transfer(address,uint256)'
 sig-hash | 2 | sig-hash 'not a signature('
 abi-decode | 0 | jq -r .result.input "$R/recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json" | abi-decode --sig 'transfer(address,uint256)'
 abi-decode | 2 | echo 0xa9059cbb00 | abi-decode --sig 'transfer(address,uint256)'
+abi-encode | 0 | abi-encode 'baz(uint32,bool)' 69 true
+abi-encode | 2 | abi-encode 'f(uint8)' 256

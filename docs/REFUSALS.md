@@ -227,3 +227,8 @@ exit 0. Codes come from `crates/evm`; the strict decoder refuses any encoding So
 ```sh
 echo 0xa9059cbb00 | abi-decode --sig 'transfer(address,uint256)'
 ```
+
+<!-- run rc=2 expect=value_too_large_for_uint8 -->
+```sh
+abi-encode 'f(uint8)' 256
+```

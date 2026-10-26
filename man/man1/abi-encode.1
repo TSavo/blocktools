@@ -1,0 +1,48 @@
+.TH ABI\-ENCODE 1 2026-10-25 "blocktools 0.1.0" "blocktools manual"
+.SH NAME
+abi\-encode \- Solidity ABI\-encode calldata (selector + args) or a bare type list, offline
+.SH SYNOPSIS
+.nf
+abi\-encode [SIGNATURE ARG...] [\-\-raw]
+SIGNATURE 'name(T,..)' prepends the 4\-byte selector; '(T,..)' encodes the bare arguments.
+An ARG starting with [ is parsed as JSON (arrays, tuples). With no SIGNATURE, reads {"sig":..,"args":[..]} from stdin.
+.fi
+.SH DESCRIPTION
+Arrays/tuples are JSON arrays; integers decimal or 0x\-hex; bytes 0x\-hex. Inverse of abi\-decode.
+.nf
+.RS 2
+  abi\-encode 'transfer(address,uint256)' 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed 1000000
+  abi\-encode '(address,address,uint24)' 0x..a 0x..b 500 \-\-raw
+  echo '{"sig":"f(uint256[])","args":[["1","2"]]}' | abi\-encode
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-raw   print only the 0x\-hex data, for piping
+.fi
+.SH INPUT/OUTPUT
+Arrays/tuples are JSON arrays; integers decimal or 0x\-hex; bytes 0x\-hex. Inverse of abi\-decode.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status error
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ abi\-encode 'baz(uint32,bool)' 69 true
+# exit 0, last status: ok
+$ abi\-encode 'f(uint8)' 256
+# exit 2, last status: error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It opens hostile wallet files and extracts secrets: run it only sealed and offline (./blocktools run).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

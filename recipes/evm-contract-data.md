@@ -74,3 +74,18 @@ A custom error needs its declaration (from section (b)):
 
 <!-- e2e: expect="signature":"TransactionDeadlinePassed()" ; expect="kind":"error" ; rc=0 -->
     jq .error recipes/fixtures/evm-mainnet/04e-custom-error-eth_call.json | abi-decode --abi recipes/fixtures/evm/candidate-errors.txt
+
+## (g) Arguments → calldata, and back
+
+`abi-encode` is the inverse of `abi-decode`. The Solidity ABI spec example `baz(uint32,bool)` with
+`69, true` gives selector `0xcdcd77c0`:
+
+<!-- e2e: expect="selector":"0xcdcd77c0" ; rc=0 -->
+    abi-encode 'baz(uint32,bool)' 69 true | jq -c '{signature,selector}'
+
+Re-encoding the decoded arguments of `01a` gives its `input` byte for byte:
+
+<!-- e2e: expect="value":"5050510000" ; rc=0 -->
+    abi-encode --raw 'transfer(address,uint256)' 0x264bd8291fae1d75db2c5f573b07faa6715997b5 5050510000 | abi-decode --sig 'transfer(address,uint256)'
+
+Live (UNTESTED here): `D=$(abi-encode --raw 'balanceOf(address)' 0x…); curl -s -X POST -H 'Content-Type: application/json' --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_call\",\"params\":[{\"to\":\"0x…\",\"data\":\"$D\"},\"latest\"]}" "$RPC" | abi-decode --sig 'balanceOf(address) returns (uint256)' --output`

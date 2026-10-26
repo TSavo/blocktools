@@ -361,3 +361,15 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input.slice(0, -2), sig: 'transfer(address,uint256)'})), /./);
   console.log('ok evm abi decode');
 }
+
+{ // evmAbiEncode: Solidity ABI spec example baz(uint32,bool) 69,true, and a round trip through evmAbiDecode
+  const e = JSON.parse(bt.evmAbiEncode(JSON.stringify({sig: 'baz(uint32,bool)', args: ['69', true]})));
+  assert.equal(e.selector, '0xcdcd77c0');
+  assert.equal(e.data, '0xcdcd77c0' + '45'.padStart(64, '0') + '1'.padStart(64, '0'));
+  const d = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: e.data, sig: 'baz(uint32,bool)'})));
+  assert.equal(d.args[0].value, '69'); assert.equal(d.args[1].value, true);
+  const raw = JSON.parse(bt.evmAbiEncode(JSON.stringify({sig: '(uint8)', args: ['7']})));
+  assert.equal(raw.types, '(uint8)');
+  assert.throws(() => bt.evmAbiEncode(JSON.stringify({sig: 'f(uint8)', args: ['256']})), /value_too_large/);
+  console.log('ok evm abi encode');
+}
