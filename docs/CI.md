@@ -28,8 +28,9 @@ run instead of the whole gate twice.
 
 ## Image size claims drift by a page between builds
 
-Two builds of the same sources minutes apart (7c0d1be at 30489d3: 46138880 bytes; c695b54 at 727537d: 46134784
-bytes, docs-only difference between the commits) differ by 4096 bytes of docker-save layer tar. A byte-exact
+Two builds of the same sources minutes apart (7c0d1be measured at 30489d3, c695b54 at 727537d, a docs-only
+difference between the commits; both numbers are in the git history of docs/claims.toml) differ by one 4 Ki
+tar block of docker-save layer size. A byte-exact
 `expect` for image-size-readme therefore does not reproduce across builds; the claim pins one measurement and
 names its store. Treat a re-measurement within a few KiB as the same image.
 
@@ -52,7 +53,8 @@ longest job 7-12 min, and the `cargo build --release` inside a job 0.5-1.8 min. 
   for the sealed image and release.yml sets it for the tarball. scripts/wasm-build.sh unsets the variable so the
   wasm bytes never depend on the caller's environment.
   Measured: the sealed image built at b6d9c5f (fat LTO everywhere) and at 4431115 (thin default, Dockerfile pins fat)
-  are both 45451776 bytes by `scripts/image-size.sh` on the same containerd store, so the change moved no shipped bytes.
+  measure identical by `scripts/image-size.sh` on the same containerd store (the number is the image-size-readme
+  value at 4431115 in docs/claims.toml's history), so the change moved no shipped bytes.
 - `scripts/wasm-check.sh` deleted the default wasm build dir after its first build, and the job cleanup deleted
   it again, so every job's first wasm build was a clean build on top of the clean reproducibility rebuild. Both
   now keep it.
