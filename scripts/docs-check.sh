@@ -57,6 +57,8 @@ grep -q 'share/man' scripts/package-native.sh || { echo "FAIL package-native mis
 sh scripts/findings-check.sh || rc=1  # rule:F-guard F-token F-commit F-status F-dup F-rows F-file
 # 12. CHAINS.md "What each row can do": derive/sign columns re-measured from the built CLIs (detect: tests/chain_caps.rs)
 python3 scripts/chain-caps.py --check || rc=1  # rule:D-caps
+# 13. docs/COVERAGE.md verb x chain matrix re-measured from the CLIs; a verb on one chain served by 2+ tools must be listed (issue #11)
+python3 scripts/coverage.py --check || rc=1  # rule:D-coverage
 python3 scripts/claims-check.py || rc=1  # rule:K-unreg K-gone K-fields K-stale K-run K-macos K-label K-render K-ci K-agree
 [ $rc = 0 ] && echo "docs-check ok"
 exit $rc

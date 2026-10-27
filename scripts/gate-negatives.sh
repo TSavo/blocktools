@@ -71,6 +71,10 @@ neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|sha
 neg D-caps docs-check "differs from what the CLIs do" 'sed "s/^| fet | yes | yes | no |/| fet | yes | yes | acct-tx |/" docs/CHAINS.md > t && mv t docs/CHAINS.md'  # fet has no TWC vector: acct-tx refuses it
 neg D-caps docs-check "differs from what the CLIs do" 'sed "s/^\(| btc | .*\) | mock only |$/\\1 | regtest bitcoin-25.2 |/" docs/CHAINS.md > t && mv t docs/CHAINS.md'  # btc has no real-node broadcast test: the doc may not claim one
 neg D-caps docs-check "pinned in scripts/fork-pins but sign is" 'sed "s/^doge https/eth https/" scripts/fork-pins/doge > scripts/fork-pins/eth'  # a real-node pin on a row tx-build cannot build fails closed
+neg D-coverage docs-check "unlisted overlap: decode/xrp" 'grep -v "^- \`decode/xrp\`" docs/COVERAGE.md > t && mv t docs/COVERAGE.md'  # an overlap nobody listed
+neg D-coverage docs-check "unlisted overlap: keys/xmr" 'sed "s/^    (\"xmr-keys\", \"keys\", \"fixed\", \[\"xmr\"\]),/&\n    (\"xmr-wallet\", \"sweep\", \"fixed\", [\"zec\"]),\n    (\"zec-sapling\", \"keys\", \"fixed\", [\"xmr\"]),/" scripts/coverage.py > t && mv t scripts/coverage.py'  # a second tool grows a verb on a chain already served
+neg D-coverage docs-check "matrix is stale" 'sed "s/^| sweep | - |/| sweep | tx-sign |/" docs/COVERAGE.md > t && mv t docs/COVERAGE.md'  # hand-edited cell
+neg D-coverage docs-check "is listed as an overlap but is served by" 'printf "%s\n" "- \`build/xmr\`: tx-build, xmr-wallet - planted" >> docs/COVERAGE.md'  # a listing the tools do not back
 # ---- findings-check.sh (via docs-check)
 neg F-guard docs-check "has no guard file" 'sed "s/| R2-5 \\(.*\\) | scripts\\/check-deps-regress.sh |/| R2-5 \\1 | - |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-token docs-check "does not carry finding:R2-5" 'grep -v "finding:R2-5" scripts/check-deps-regress.sh > t && mv t scripts/check-deps-regress.sh'
