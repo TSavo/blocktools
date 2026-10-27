@@ -41,13 +41,13 @@ copy of the whole UTXO set from your own node and test the candidates against it
    (the pw-candidates rules) and a wider `--window`. WarpWallet: `--scheme warpwallet --salt EMAIL`
    (scrypt: far slower per candidate, measured below). Hits print in the dump's network encoding (`--chain` overrides).
 
-Measured (`sh scripts/utxo-bench.sh`, synthetic Core-25 dump, Intel Xeon 8 threads, Linux x86_64, at STAMP):
+Measured (`sh scripts/utxo-bench.sh`, synthetic Core-25 dump, Intel Xeon 8 threads, Linux x86_64, at 751299a):
 
-* load: a 20,000,000-coin dump in 5.8 seconds (3.5M coins/s), one thread (unmeasured);
-* memory: peak RSS of 0.99 GB, that is 48 bytes per distinct script plus the bloom filter (unmeasured);
-* bloom: over 1,000,000 never-funded queries the bloom filter passed 0.31%, and the exact set reported 0 funded (unmeasured);
-* `wallet-finder`, one thread: 21479 sha256 candidates/s, five addresses each (unmeasured);
-* WarpWallet: 200 candidates in 111.1 seconds (unmeasured).
+* load: a 20,000,000-coin dump in 5.8 seconds (3.5M coins/s), one thread;
+* memory: peak RSS of 0.99 GB, that is 48 bytes per distinct script plus the bloom filter;
+* bloom: over 1,000,000 never-funded queries the bloom filter passed 0.31%, and the exact set reported 0 funded;
+* `wallet-finder`, one thread: 21479 sha256 candidates/s, five addresses each;
+* WarpWallet: 200 candidates in 111.1 seconds.
 
 Scale to mainnet is not measured here: memory grows with the number of distinct funded scripts, not with
 chain size.
@@ -57,7 +57,7 @@ in front answers most misses without touching the sorted array, and every bloom 
 an exact binary search, so a bloom false positive is never reported as funded. Scripts other than the five
 standard templates (P2PK, multisig, ...) are keyed by their SHA-256. Measured size, speed and bloom
 false-positive rate are in docs/CLAIMS.md (`utxo-*` claims); the test that a known-funded address is found
-and a never-funded one is not runs against a dump written by real Bitcoin Core 25.2 (untested)
+and a never-funded one is not runs against a dump written by real Bitcoin Core 25.2
 (scripts/e2e.d/utxo-real.sh).
 
 NOT BUILT: reading the node's chainstate LevelDB directly (use `dumptxoutset`), non-Bitcoin dumps other
