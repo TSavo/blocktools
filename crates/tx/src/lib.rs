@@ -10,6 +10,7 @@ macro_rules! code { ($s:literal) => {{ const _: () = assert!($crate::__schema::i
 pub mod __schema { include!("../../schema/src/tx_failures.rs"); }
 pub mod build;
 pub mod evm;
+pub mod evm_decode;
 pub mod policy;
 pub mod policy_file;
 /// Signing (takes private keys). Feature `secrets` only.
@@ -312,6 +313,33 @@ fn evm_decoded(b: &[u8]) -> Result<Decoded, &'static str> {
     let outputs = vec![Io { txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
     Ok(Decoded { chain: "eth".into(), ty: if t.kind == evm::Kind::Legacy { "evm-legacy" } else { "evm-1559" }, signed: t.sig.is_some(),
         txid: t.txhash().map(|h| format!("0x{}", hex_enc(h))), inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w, unproven_inputs: 0 })
+}
+
+/// tx-decode's EVM path: every envelope `evm_decode` reads (legacy, 2930, 1559, 4844 canonical and
+/// network form, 7702). The summary keeps the legacy/1559 keys and warnings of `evm_decoded`; the
+/// View carries the additive keys (`View::extra`). Signing paths keep using `evm::Tx::parse`.
+pub fn decode_evm_view(b: &[u8]) -> Result<(Decoded, evm_decode::View), &'static str> {
+    let v = evm_decode::parse(b)?;
+    let t = v.as_tx();
+    let mut w = Vec::new();
+    if t.chain_id.is_none() { w.push("no_chain_id") }
+    if t.to.is_none() { w.push("contract_creation") }
+    if t.sig.is_none() { w.push("unsigned") }
+    let maxfee = t.max_fee_per_gas.saturating_mul(t.gas as u128);
+    if t.max_fee_per_gas > 1_000_000_000_000 { w.push("high_gas_price") }
+    if t.value > 0 && maxfee > t.value / 20 { w.push("high_fee_pct") }
+    if let Some(tc) = evm::token_call(&t.data) {
+        if tc.method == "approve" { w.push(if tc.amount.iter().all(|&x| x == 0xff) { "unlimited_approve" } else { "token_approve" }) }
+        if tc.method == "transferFrom" { w.push("token_transfer_from") }
+    } else if !t.data.is_empty() { w.push("unknown_calldata") }
+    if v.tx_type == 4 { w.push("eip7702_delegation") }
+    let from = v.from.map(|a| addr(&a));
+    if t.sig.is_some() && from.is_none() { w.push("bad_signature") }
+    let inputs = from.map(|a| vec![Io { txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
+    let outputs = vec![Io { txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
+    let d = Decoded { chain: "eth".into(), ty: v.type_name(), signed: t.sig.is_some(), txid: v.hash.map(|h| format!("0x{}", hex_enc(h))),
+        inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w, unproven_inputs: 0 };
+    Ok((d, v))
 }
 
 fn btc_amt(s: u64) -> String { format!("{}.{:08}", s / 100_000_000, s % 100_000_000) }
