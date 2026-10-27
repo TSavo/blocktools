@@ -32,7 +32,7 @@ fn main() {
         let pf = blocktools_tx::policy_file::parse(&std::fs::read_to_string(file).unwrap_or_else(|_| bad("cannot read --policy file"))).unwrap_or_else(|e| bad(e));
         // Flags still apply; the file only adds findings. Without --expect-to/--chain-id flags, the file decides.
         if one("--chain-id").is_none() { f.retain(|x| x != "chain_id_not_pinned") }
-        for x in blocktools_tx::policy_file::check(&d, &one("--chain").unwrap_or(chain.clone()), &pf) { if !f.contains(&x) { f.push(x) } }
+        blocktools_tx::policy_file::apply(&d, &one("--chain").unwrap_or(chain.clone()), &pf, &mut f);
         o["policy_sha256"] = json!(pf.sha256);
     }
     if let Some(c) = approve(&d, &mut f, &a) { o["call"] = c }

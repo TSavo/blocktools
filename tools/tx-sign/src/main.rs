@@ -57,7 +57,7 @@ fn main() {
     let pkey = one("--chain").unwrap_or(chain.clone());
     let full = |d: &blocktools_tx::Decoded| -> Vec<String> {
         let mut f: Vec<String> = check(d, &p).into_iter().map(String::from).collect();
-        if let Some(pf) = &pol { for x in blocktools_tx::policy_file::check(d, &pkey, pf) { if !f.contains(&x) { f.push(x) } } }
+        if let Some(pf) = &pol { blocktools_tx::policy_file::apply(d, &pkey, pf, &mut f) }
         approve(d, &mut f, &a);
         f
     };
