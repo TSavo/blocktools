@@ -9,6 +9,8 @@
 //!
 //! `Coin` = VARINT(height*2 + coinbase), VARINT(compressed amount), compressed script (Core
 //! compressor.cpp: 0 P2PKH, 1 P2SH, 2/3 compressed P2PK, 4/5 uncompressed P2PK, n>=6 raw n-6 bytes).
+pub mod chainstate;
+pub mod leveldb;
 use bitcoin::hashes::{sha256, Hash};
 use std::io::{self, Read};
 
@@ -250,13 +252,26 @@ impl UtxoSet {
         let mut v: Vec<Entry> = Vec::with_capacity(cap);
         while let Some(c) = d.next_coin()? { v.push(Entry { value: c.value, outputs: 1, key: script_key(&c.script) }) }
         if !d.at_eof() { return Err(bad("trailing_bytes_after_coins_count")) }
+        Ok(Self::build(v, bits_per_entry, d.header))
+    }
+    /// Ingest a node's chainstate/ LevelDB directory directly (see [`chainstate`]). The header has
+    /// format 0, no network magic, and the chainstate's best block as base_blockhash.
+    pub fn ingest_chainstate(dir: &std::path::Path, bits_per_entry: u32) -> io::Result<(UtxoSet, chainstate::Stats)> {
+        let mut cs = chainstate::Chainstate::open(dir)?;
+        let mut v: Vec<Entry> = Vec::new();
+        while let Some(c) = cs.next_coin()? { v.push(Entry { value: c.value, outputs: 1, key: script_key(&c.script) }) }
+        let st = cs.stats.clone();
+        let h = Header { format: 0, network_magic: None, base_blockhash: st.best_block.clone().unwrap_or_default(), coins_count: v.len() as u64 };
+        Ok((Self::build(v, bits_per_entry, h), st))
+    }
+    fn build(mut v: Vec<Entry>, bits_per_entry: u32, header: Header) -> UtxoSet {
         let coins = v.len() as u64;
         v.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         v.dedup_by(|b, a| if a.key == b.key { a.value = a.value.saturating_add(b.value); a.outputs += 1; true } else { false });
         v.shrink_to_fit();
         let mut bloom = Bloom::new(v.len(), bits_per_entry);
         for e in &v { bloom.insert(&e.key) }
-        Ok(UtxoSet { set: v, bloom, coins, header: d.header })
+        UtxoSet { set: v, bloom, coins, header }
     }
     pub fn scripts(&self) -> usize { self.set.len() }
     pub fn bloom(&self) -> &Bloom { &self.bloom }
@@ -274,6 +289,18 @@ impl UtxoSet {
     pub fn exact_script(&self, s: &[u8]) -> Option<(u64, u32)> { let k = script_key(s); self.set.binary_search_by(|e| e.key.cmp(&k)).ok().map(|i| (self.set[i].value, self.set[i].outputs)) }
 }
 
+/// One `Coin` body as Core writes it (P2PKH, P2SH, compressed P2PK compressed; others raw).
+pub fn write_coin_body(c: &Coin, o: &mut Vec<u8>) {
+    write_varint(u64::from(c.height) * 2 + u64::from(c.coinbase), o);
+    write_varint(compress_amount(c.value), o);
+    match c.script.as_slice() {
+        [0x76, 0xa9, 0x14, h @ .., 0x88, 0xac] if h.len() == 20 => { o.push(0); o.extend(h) }
+        [0xa9, 0x14, h @ .., 0x87] if h.len() == 20 => { o.push(1); o.extend(h) }
+        [0x21, p @ (2 | 3), x @ .., 0xac] if x.len() == 32 => { o.push(*p); o.extend(x) }
+        s => { write_varint(s.len() as u64 + 6, o); o.extend(s) }
+    }
+}
+
 /// Write a dump (fixtures and tests): `format` 25 (legacy) or 28 (magic header, grouped by txid).
 /// Coins must be grouped by txid for format 28. Scripts are written raw (size+6) except P2PKH/P2SH,
 /// which use the compressed forms Core writes.
@@ -281,16 +308,7 @@ pub fn write_dump(format: u16, magic: [u8; 4], base: [u8; 32], coins: &[Coin]) -
     let mut o = Vec::new();
     if format != 25 { o.extend(b"utxo\xff"); o.extend(2u16.to_le_bytes()); o.extend(magic) }
     o.extend(base); o.extend((coins.len() as u64).to_le_bytes());
-    let body = |c: &Coin, o: &mut Vec<u8>| {
-        write_varint(u64::from(c.height) * 2 + u64::from(c.coinbase), o);
-        write_varint(compress_amount(c.value), o);
-        match c.script.as_slice() {
-            [0x76, 0xa9, 0x14, h @ .., 0x88, 0xac] if h.len() == 20 => { o.push(0); o.extend(h) }
-            [0xa9, 0x14, h @ .., 0x87] if h.len() == 20 => { o.push(1); o.extend(h) }
-            [0x21, p @ (2 | 3), x @ .., 0xac] if x.len() == 32 => { o.push(*p); o.extend(x) }
-            s => { write_varint(s.len() as u64 + 6, o); o.extend(s) }
-        }
-    };
+    let body = write_coin_body;
     let mut i = 0;
     while i < coins.len() {
         if format == 25 { o.extend(coins[i].txid); o.extend(coins[i].vout.to_le_bytes()); body(&coins[i], &mut o); i += 1; continue }
