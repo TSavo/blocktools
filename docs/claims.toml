@@ -566,7 +566,9 @@ id = "utxo-found-planted"
 statement = "utxo-set reads a dumptxoutset file written by real Bitcoin Core 25.2 (regtest): the five brainwallet address shapes funded by Core are reported funded at Core's exact amounts (one summed over 2 outputs), the coin count equals Core's coins_written, five never-funded addresses are reported empty; wallet-finder finds the phrase in free text with all five shapes and no key fields, and exits 1 with no output on text without it"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "BLOCKTOOLS_REQUIRE_FIXTURES=1 bash scripts/e2e.d/utxo-real.sh"
 expect = "ok   utxo-real wallet-finder: phrase found in free text"
 cheap = false
@@ -578,7 +580,9 @@ id = "utxo-bloom-exact"
 statement = "Bloom filter at 12 bits/entry (k = 8): 50,000 members all pass, false-positive rate over 200,000 non-members is between 0.05% and 0.6%, and the exact set reports every bloom false positive absent (property test); measured at scale: 1000000 never-funded queries against a 20000000-coin set, 3127 bloom passes (0.31%), 0 reported funded"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/utxo-bench.sh"
 expect = "{\"queries\": 1000000, \"bloom_pass\": 3127, \"fpr\": 0.003127, \"reported_funded\": 0}"
 value = "0.31%"
@@ -617,31 +621,35 @@ doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "peak RSS of 0.99 G
 
 [[claim]]
 id = "utxo-finder-rate"
-statement = "wallet-finder (one thread) over the repo's own docs as input text against the 20000000-coin set: 303285 sha256 candidates in 14.1 s = 21479 candidates/s, 5 addresses each, 0 hits; WarpWallet: 200 candidates in 111.1 seconds, 0 hits"
+statement = "wallet-finder (one thread) over the repo's own docs as input text against the 20000000-coin set: 312408 sha256 candidates in 15.3 s = 20380 candidates/s, 5 addresses each, 0 hits; WarpWallet: 200 candidates in 118.8 seconds, 0 hits"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/utxo-bench.sh"
 expect = "\"candidates_per_sec\":"
-value = "21479"
+value = "20380"
 env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
 cheap = false
 depends = ["crates/utxo/src/lib.rs", "tools/wallet-finder/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
-doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "21479 sha256 candidates/s" }]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "20380 sha256 candidates/s" }]
 
 [[claim]]
 id = "utxo-finder-warpwallet"
-statement = "wallet-finder --scheme warpwallet (scrypt + PBKDF2 per candidate, one thread): 200 candidates in 111.1 seconds against the 20000000-coin set, 0 hits"
+statement = "wallet-finder --scheme warpwallet (scrypt + PBKDF2 per candidate, one thread): 200 candidates in 118.8 seconds against the 20000000-coin set, 0 hits"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/utxo-bench.sh"
 expect = "\"candidates\":200,"
-value = "111.1"
+value = "118.8"
 env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
 cheap = false
 depends = ["crates/utxo/src/lib.rs", "tools/wallet-finder/src/main.rs", "scripts/utxo-bench.sh"]
-doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "WarpWallet: 200 candidates in 111.1 seconds" }]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "WarpWallet: 200 candidates in 118.8 seconds" }]
 
 [[claim]]
 id = "fork-regtest-ltc"
@@ -820,7 +828,9 @@ id = "chainstate-real-btc"
 statement = "utxo-set --chainstate reads the chainstate/ LevelDB of a real stopped Bitcoin Core 25.2 regtest node ('C' layout, obfuscated; tables and a log) without changing a byte: coins, total and best block equal gettxoutsetinfo and Core's own dumptxoutset count; the funded p2pkh shapes at the exact amounts; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real btc pass 2 wallet-finder: phrase found"
 cheap = false
@@ -832,7 +842,9 @@ id = "chainstate-real-ltc"
 statement = "utxo-set --chainstate reads the chainstate/ of a real stopped Litecoin 0.21.4 regtest node ('C' layout, obfuscated; table and log) without changing a byte: coins, total and best block equal gettxoutsetinfo; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real ltc pass 2 wallet-finder: phrase found"
 cheap = false
@@ -844,7 +856,9 @@ id = "chainstate-real-doge"
 statement = "utxo-set --chainstate reads the chainstate/ of a real stopped Dogecoin 1.14.9 regtest node (old 'c' per-transaction layout with mask bytes, obfuscated; table and log) without changing a byte: coins, total and best block equal gettxoutsetinfo; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real doge pass 2 wallet-finder: phrase found"
 cheap = false
@@ -853,24 +867,28 @@ doc = [{ file = "docs/CHAINS.md", text = "regtest dogecoin-1.14.9 chainstate" },
 
 [[claim]]
 id = "chainstate-bench-doge"
-statement = "utxo-set --chainstate reads a real Dogecoin 1.14.9 regtest chainstate of 936196 coins (2 tables + 1 log, 'c' layout) in 0.59 seconds = 1.6M coins/s with peak RSS 50176000 bytes = 50 MB; the logs-only pass (918175 coins in 2 logs, 0.62 seconds) peaked at 93257728 bytes = 93 MB because logs are held in RAM"
+statement = "utxo-set --chainstate reads a real Dogecoin 1.14.9 regtest chainstate of 936196 coins (2 tables + 1 log, 'c' layout) in 0.51 seconds = 1.8M coins/s with peak RSS 49913856 bytes = 50 MB; the logs-only pass (918175 coins in 2 logs, 0.58 seconds) peaked at 93310976 bytes = 93 MB because logs are held in RAM"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/chainstate-bench.sh"
 expect = "ok   chainstate-real doge pass 2:"
-value = "0.59"
+value = "0.51"
 env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; regtest chain built at test time (500 txs of 2000 outputs)"
 cheap = false
 depends = ["crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs", "scripts/chainstate-bench.sh", "scripts/e2e.d/chainstate-real.sh"]
-doc = [{ file = "docs/CHAINS.md", text = "in 0.59 seconds, peak RSS 50 MB" }]
+doc = [{ file = "docs/CHAINS.md", text = "in 0.51 seconds, peak RSS 50 MB" }]
 
 [[claim]]
 id = "chainstate-dump-btc"
 statement = "chainstate-dump on a real stopped Bitcoin Core 25.2 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real btc pass 2 chainstate-dump: set ="
 cheap = false
@@ -882,7 +900,9 @@ id = "chainstate-dump-ltc"
 statement = "chainstate-dump on a real stopped Litecoin 0.21.4 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real ltc pass 2 chainstate-dump: set ="
 cheap = false
@@ -894,7 +914,9 @@ id = "chainstate-dump-doge"
 statement = "chainstate-dump on a real stopped Dogecoin 1.14.9 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as the utxo-set --write-dump file of the same chainstate (no dumptxoutset in 1.14); --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real doge pass 2 chainstate-dump: set ="
 cheap = false

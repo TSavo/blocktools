@@ -23,7 +23,7 @@ build the dump from its chainstate directly and search your notes against it:
     utxo-set --chainstate ~/.dogecoin/chainstate --write-dump /in/doge-utxo.dat --stats
     wallet-finder --dump /in/doge-utxo.dat --chain doge < /in/notes.txt > /secrets/hits.jsonl
 
-Tested against a real Dogecoin 1.14.9 regtest chainstate, end to end through wallet-finder (untested).
+Tested against a real Dogecoin 1.14.9 regtest chainstate, end to end through wallet-finder.
 To list the coins themselves (JSON lines, or `--addresses-only`, or a `--census` summary):
 
     chainstate-dump --chain doge --census ~/.dogecoin/chainstate
