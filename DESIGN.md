@@ -64,7 +64,7 @@ pastes keys into chat.
 
 ## 3. Agent-facing schema (enforced by `redact`)
 
-One JSON object per line, at most 512 bytes. Allowlisted fields: (unmeasured)
+One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512). Allowlisted fields:
 
 | field | validator |
 |---|---|
@@ -90,7 +90,7 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, scheme, xprv, seed}`; old Electrum 1.x seed: `{scheme:electrum-old, seed}` (no xprv) | ✅ |
 | `phrase-to-key` | stdin phrase lines or `{phrase, salt}` | `{line, scheme, private_key}`: sha256 brainwallet (brainwallet.org, bitaddress.org) and WarpWallet (scrypt+PBKDF2); pipe into `key-to-addresses` | ✅ |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
-| `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap) | ✅ (unmeasured) |
+| `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap, boundary test) | ✅ |
 | `sealed-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |
 | `keystore-open` | stdin: line 1 = password, rest = keystore JSON (or `--password-tty`) | `{kind:eth, address, private_key}` | 1 ✅ |
 | `redact` | raw lines | public lines only | 1 ✅ |
@@ -269,7 +269,7 @@ HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 `minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
 fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
 next-smallest and swapping is confined to `blocktools-net`. blocktools-net: https only (plain http only for
-localhost test servers), 30 s timeout, no redirects, 8 MiB body cap, server data re-validated. (unmeasured)
+localhost test servers), 30 s timeout, no redirects, 8 MiB body cap (measured, net-8mib), server data re-validated. 30 s timeout (unmeasured).
 Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
 
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
@@ -326,7 +326,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
-`secp256k1`. Input is limited to 4 MiB. In agent mode the line passes `redact`: (unmeasured)
+`secp256k1`. Input is limited to 4 MiB (boundary test, tx-input-4mib). In agent mode the line passes `redact`:
 amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.
