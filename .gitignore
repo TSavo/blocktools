@@ -27,3 +27,4 @@ UTC--*
 __pycache__/
 *.whl
 dist/
+!recipes/fixtures/rpc-decode/*.jsonl
