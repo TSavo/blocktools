@@ -84,6 +84,26 @@ pins a block number, tag or block hash. A revert comes back decoded (`Error(stri
 `--abi`/`--error`) with exit 1; an empty `0x` reply to a function that declares returns is `empty_return` (no code
 at that address on that chain, or no such function), never a zero.
 
+### Simulating with state overrides, and tracing: `contract-trace`
+
+`contract-trace` builds the same call (signature and args, or raw `--data HEX|@FILE`, e.g. an unsigned tx's data
+field) and either sends `eth_call` with state overrides (`--call-only --state FILE`, admitted by `rpc`'s read
+allowlist) or passes it to the node's `debug_traceCall` and prints one JSON line per call frame (`callTracer`, depth
+first) or the raw result of another tracer. `debug_traceCall` is not in the read allowlist, so it is refused before
+anything is sent unless you pass `--allow-unlisted`. The state file is checked locally: `{"0xADDR": {"balance",
+"nonce", "code", "state" | "stateDiff"}}`. Against the same `03a` mock (it answers any method with the fixture):
+
+<!-- e2e: expect="status":"ok" ; expect="chain_id":1 ; expect="state_overrides":0 ; rc=0 -->
+    contract-trace $ETH/03a 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data 0x313ce567 --call-only
+
+Without `--allow-unlisted` the trace is refused and nothing is sent:
+
+<!-- e2e: expect="status":"refused" ; expect="code":"method_not_allowlisted" ; rc=1 -->
+    contract-trace $ETH/03a 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals()'
+
+Live (UNTESTED here): `contract-trace "$RPC" 0x… --data @data.hex --from 0x… --state over.json --allow-unlisted`; most
+public endpoints do not serve `debug_traceCall` (you get `rpc_error`); use your own node.
+
 ## (e) Reverts: `Error(string)` and a custom error
 
 `Error(string)` and `Panic(uint256)` are decoded with no signature. `04d` (request "04d") is a

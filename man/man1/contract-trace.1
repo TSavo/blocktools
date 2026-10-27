@@ -1,0 +1,104 @@
+.TH CONTRACT\-TRACE 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+contract\-trace \- simulate an EVM call with state overrides, or trace it with debug_traceCall (HOST\-SIDE, network)
+.SH SYNOPSIS
+.nf
+contract\-trace URL ADDRESS SIGNATURE [ARG...]   trace one call; calldata from the signature, as contract\-call
+contract\-trace URL ADDRESS \-\-data HEX|@FILE     trace raw calldata (e.g. the data field of an unsigned tx)
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  contract\-trace URL ADDRESS SIGNATURE [ARG...]   trace one call; calldata from the signature, as contract\-call
+  contract\-trace URL ADDRESS \-\-data HEX|@FILE     trace raw calldata (e.g. the data field of an unsigned tx)
+.RE
+.fi
+Any EVM\-style chain: URL is the endpoint (or a chain name from the shared endpoint table); the chain id is read
+from the endpoint (eth_chainId) and printed on every line; \-\-chain\-id N refuses any other chain.
+debug_traceCall is not in rpc's read allowlist: it is sent only with \-\-allow\-unlisted (refused otherwise, nothing
+sent). \-\-call\-only sends eth_call with the state overrides instead, which the allowlist admits.
+Options:
+.nf
+.RS 2
+  \-\-block TAG           latest (default), pending, safe, finalized, earliest, a block number, or a 32\-byte block hash
+  \-\-from ADDR           msg.sender for the call
+  \-\-value WEI           call value (decimal or 0x)
+  \-\-gas N               gas limit for the simulated call
+  \-\-state FILE          state overrides: {"0xADDR": {"balance","nonce","code","state"|"stateDiff"}}; checked locally
+  \-\-abi FILE            ABI JSON or signatures: frames whose selector matches are decoded ("call" field)
+  \-\-tracer NAME         callTracer (default: one JSON line per call frame), prestateTracer, or any tracer name the node
+                        knows (one line with the raw result); "struct" sends no tracer (the node's opcode logger)
+  \-\-tracer\-config JSON  tracerConfig object passed through (e.g. {"onlyTopCall":true})
+  \-\-call\-only           eth_call with the overrides; no trace (no \-\-allow\-unlisted needed)
+  \-\-allow\-unlisted      send debug_traceCall (not in rpc's read allowlist)
+  \-\-chain\-id N          refuse unless the endpoint's eth_chainId is N (chain_id_mismatch); nothing else is sent
+  \-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
+  \-\-auth\-env NAME       same, from environment variable NAME
+  \-\-policy FILE         rpc policy file: adds refusals
+  \-\-timeout SECONDS     per request, 1..300 (default 30)
+.RE
+.fi
+stdout: callTracer: one JSON line per frame {"tool","status":"ok","chain_id","frame","depth","type","from","to","value",
+"gas","gasUsed","input","output","error"?,"revertReason"?,"call"?}, depth\-first; other tracers: one line {"tool","status",
+"chain_id","tracer","result"}; \-\-call\-only: one line {"tool","status","chain_id","to","calldata","returndata"}.
+A reverted top frame still prints its frames and exits 1 with {"status":"reverted"} on stderr.
+stderr: {"tool":"contract\-trace","status":...}: reverted, refused (nothing sent), rpc_error, http_error, bad_input.
+Exit 0 ok, 2 bad input, 1 everything else. Same bounds as rpc: no redirects, 8 MiB response cap, https only (plain
+http for localhost); responses carrying key material are withheld; credentials are redacted from all output.
+No signing, no broadcast. Not measured against a live node: tests use a 127.0.0.1 mock.
+.SH OPTIONS
+.nf
+\-\-block TAG           latest (default), pending, safe, finalized, earliest, a block number, or a 32\-byte block hash
+\-\-from ADDR           msg.sender for the call
+\-\-value WEI           call value (decimal or 0x)
+\-\-gas N               gas limit for the simulated call
+\-\-state FILE          state overrides: {"0xADDR": {"balance","nonce","code","state"|"stateDiff"}}; checked locally
+\-\-abi FILE            ABI JSON or signatures: frames whose selector matches are decoded ("call" field)
+\-\-tracer NAME         callTracer (default: one JSON line per call frame), prestateTracer, or any tracer name the node
+                      knows (one line with the raw result); "struct" sends no tracer (the node's opcode logger)
+\-\-tracer\-config JSON  tracerConfig object passed through (e.g. {"onlyTopCall":true})
+\-\-call\-only           eth_call with the overrides; no trace (no \-\-allow\-unlisted needed)
+\-\-allow\-unlisted      send debug_traceCall (not in rpc's read allowlist)
+\-\-chain\-id N          refuse unless the endpoint's eth_chainId is N (chain_id_mismatch); nothing else is sent
+\-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
+\-\-auth\-env NAME       same, from environment variable NAME
+\-\-policy FILE         rpc policy file: adds refusals
+\-\-timeout SECONDS     per request, 1..300 (default 30)
+.fi
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  \-\-abi FILE            ABI JSON or signatures: frames whose selector matches are decoded ("call" field)
+  \-\-tracer NAME         callTracer (default: one JSON line per call frame), prestateTracer, or any tracer name the node
+  \-\-tracer\-config JSON  tracerConfig object passed through (e.g. {"onlyTopCall":true})
+.RE
+.fi
+stdout: callTracer: one JSON line per frame {"tool","status":"ok","chain_id","frame","depth","type","from","to","value",
+"gas","gasUsed","input","output","error"?,"revertReason"?,"call"?}, depth\-first; other tracers: one line {"tool","status",
+stderr: {"tool":"contract\-trace","status":...}: reverted, refused (nothing sent), rpc_error, http_error, bad_input.
+Exit 0 ok, 2 bad input, 1 everything else. Same bounds as rpc: no redirects, 8 MiB response cap, https only (plain
+http for localhost); responses carrying key material are withheld; credentials are redacted from all output.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+1
+last status http_error
+.TP
+1
+last status refused
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ contract\-trace http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals()'
+# exit 1, last status: refused
+$ contract\-trace http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \-\-data 0x313ce567 \-\-call\-only
+# exit 1, last status: http_error
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+Host\-side network tool: it needs the network by design, so it is not in the sealed image and sealed\-run refuses it. Run it on the host and give it public data only (addresses, public keys, signed transactions).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

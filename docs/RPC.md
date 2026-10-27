@@ -449,6 +449,19 @@ does not decode cleanly under the declared types (for example a `uint8` above 25
 127.0.0.1 mock in `tools/contract-call/tests/cli.rs` and in `recipes/evm-contract-data.md`; not measured against a
 live node. Decode the logs a node returns (`eth_getLogs`, receipts) with the offline `log-decode`.
 
+## contract-trace: state overrides and debug_traceCall
+
+`contract-trace URL ADDRESS SIGNATURE [ARG...]` (or `--data HEX|@FILE`) simulates the call. `--call-only` sends
+`eth_call` with the `--state FILE` overrides as the third parameter (read allowlist). Without it the call goes to
+`debug_traceCall` with `{"tracer","tracerConfig","stateOverrides"}`; that method is not in the read allowlist, so it
+is refused (exit 1, nothing sent) unless `--allow-unlisted` is given. `callTracer` (default) output is one JSON line
+per call frame, depth first, with the node's fields passed through and `--abi` selectors decoded into `"call"`; any
+other `--tracer` name (or `struct` for no tracer) prints the raw result on one line. A reverted top frame still
+prints its frames, then `reverted` on stderr and exit 1. The state file is validated locally (addresses, quantities,
+32-byte slots, `state` and `stateDiff` exclusive). Same `check_call_in`, response secret check, credential
+redaction and transport bounds as `contract-call`. Tested against a 127.0.0.1 mock in
+`tools/contract-trace/tests/cli.rs` and in `recipes/evm-contract-data.md`; not measured against a live node.
+
 ## Cookbook (mock round trips, run by `scripts/e2e.d/rpc.sh`)
 
 ```

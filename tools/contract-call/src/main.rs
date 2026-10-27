@@ -23,7 +23,7 @@
 //! or no such function), bad_return, refused (nothing sent), rpc_error, http_error. Exit 0 ok, 2 bad input, 1 everything else.
 //! Only eth_chainId and eth_call are sent, each through rpc's checks (read allowlist, deny-list, policy, secret fields);
 //! responses carrying key material are withheld; credentials are redacted from all output. Same bounds as rpc: no redirects,
-//! 8 MiB response cap, https only (plain http for localhost). No signing, no broadcast, no trace (see contract-trace).
+//! 8 MiB response cap, https only (plain http for localhost). No signing, no broadcast, no trace (state overrides and debug_traceCall: contract-trace).
 use blocktools_evm::{abi, api, sig::{Kind, Sig}, checksum_address, hex, parse_address, unhex};
 use rpc::{check_call_in, parse_auth, parse_policy, redact, response_secret, Proto};
 use serde_json::{json, Value};

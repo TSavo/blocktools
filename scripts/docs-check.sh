@@ -18,7 +18,7 @@ for t in tools/*/; do n=$(basename "$t")
 done
 # 4. host-side network tools are never shipped in the sealed image or allowed by sealed-run
 # (crates/io/sealed-tools.txt is both the sealed-run allowlist and the Dockerfile's ship list)
-for n in utxo-fetch tx-broadcast rpc xmr-wallet contract-call; do
+for n in utxo-fetch tx-broadcast rpc xmr-wallet contract-call contract-trace; do
   grep -qx "$n" crates/io/sealed-tools.txt && { echo "FAIL sealed-run allows $n"; rc=1; }  # rule:D-sealed
 done
 grep -q 'crates/io/sealed-tools.txt' Dockerfile || { echo "FAIL Dockerfile does not ship from crates/io/sealed-tools.txt"; rc=1; }  # rule:D-sealed

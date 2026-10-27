@@ -567,6 +567,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "contract-trace"
+version = "0.1.1"
+dependencies = [
+ "blocktools-evm",
+ "blocktools-io",
+ "blocktools-net",
+ "rpc",
+ "serde_json",
+]
+
+[[package]]
 name = "corez"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
