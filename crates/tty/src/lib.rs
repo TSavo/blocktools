@@ -61,6 +61,19 @@ pub fn confirm(summary: &str) -> bool {
     ok
 }
 
+/// Like confirm, but first the human must type the literal `ack` (a distinct acknowledgement of a
+/// stated risk, e.g. an unknown fee), then the fresh code. Anything else aborts.
+pub fn confirm_ack(summary: &str, ack: &str) -> bool {
+    let Some(mut tty) = open() else { return false };
+    if let Err(e) = pin_check() { let _ = writeln!(tty, "refused: {e} (see SECURITY.md, terminal pinning)"); return false }
+    let _ = write!(tty, "{summary}\nType ACK {ack} to accept this risk (anything else aborts): ");
+    let mut ans = Vec::new();
+    let mut b = [0u8; 1];
+    while tty.read(&mut b).unwrap_or(0) == 1 && b[0] != b'\n' && ans.len() < 64 { ans.push(b[0]) }
+    if String::from_utf8_lossy(&ans).trim() != ack { let _ = writeln!(tty, "aborted"); return false }
+    confirm("")
+}
+
 // ---- Terminal pinning (partial mitigation, see SECURITY.md) ----
 // A process that owns a pty (e.g. an agent running Python's pty.fork) can read the code and type it:
 // /dev/tty alone does not prove a human. Pinning records the human's terminal session (session id +
