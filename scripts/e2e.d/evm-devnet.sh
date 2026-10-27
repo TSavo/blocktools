@@ -31,7 +31,9 @@ K1=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf; K2=0x2B5AD5c4795c026514f8317c7a21
 R42=602a60005260206000f3; I42=600a600c600039600a6000f3$R42
 # store contract (handwritten, no compiler): 36-byte calldata (setValue(uint256)) -> SSTORE slot0 = word; else return slot0
 RS=36600414600e57600435600055005b60005460005260206000f3; IS=601a600c600039601a6000f3$RS
-PIDS=; trap 'for p in $PIDS; do kill $p 2>/dev/null || true; done; rm -rf "$T"' EXIT  # allow-true: node may have exited
+# Wait for each killed geth to exit before removing its datadir: rm racing a node still flushing fails with
+# "Directory not empty" and turns a passing run into exit 1 (measured on the box at 8a7b876).
+PIDS=; trap 'for p in $PIDS; do kill $p 2>/dev/null || true; wait $p 2>/dev/null || true; done; rm -rf "$T"' EXIT  # allow-true: node may have exited
 run() { # schedule port
   S=$1; P=$2; D="$W/$S"; U=http://127.0.0.1:$P; mkdir -p "$D"
   "$GETH" --dev dumpgenesis 2>/dev/null | python3 -c 'import json,sys

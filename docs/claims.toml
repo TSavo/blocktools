@@ -155,14 +155,14 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606804 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534235 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured at 8a7b876 on the box (unchanged bytes and crates; gzip 606793 / 534225); not stampable until a green main commit contains PR #12 (K-ci), restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "5249e0c"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606804 gzip) with names; 1617080 bytes (534235 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
 value = "1,931,794"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
@@ -171,14 +171,14 @@ doc = [{ file = "DESIGN.md", text = "1,931,794 bytes" }]
 
 [[claim]]
 id = "wasm-size-stripped"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606804 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534235 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured at 8a7b876 on the box (unchanged bytes and crates; gzip 606793 / 534225); not stampable until a green main commit contains PR #12 (K-ci), restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "5249e0c"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606804 gzip) with names; 1617080 bytes (534235 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
 value = "1,617,080"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
@@ -187,14 +187,14 @@ doc = [{ file = "DESIGN.md", text = "1,617,080 bytes" }]
 
 [[claim]]
 id = "wasm-crates"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606804 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534235 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured at 8a7b876 on the box (unchanged bytes and crates; gzip 606793 / 534225); not stampable until a green main commit contains PR #12 (K-ci), restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "5249e0c"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606804 gzip) with names; 1617080 bytes (534235 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
@@ -961,11 +961,11 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
+note = "re-run at 8a7b876 plus the trap fix on the box: all 9 checks ok, exit 0, 3 runs; not stampable until a green main commit contains PR #12 and the trap fix (K-ci), restamp in the follow-up"
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "measured"
-commit = "a4d7182"
+status = "untested"
 date = "2026-10-27"
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"

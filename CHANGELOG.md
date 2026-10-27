@@ -88,6 +88,12 @@ existing scripts are listed under "Changed".
   (K-agree) (24688cd, 5a2ceb4, 57492bd, 751299a).
 
 ### Fixed
+- `scripts/release-repos.sh` and `scripts/package-native.sh` no longer bind-mount host paths into docker: sources and
+  staging go in as a tar on stdin and binaries, .rpm and .apk come back as a tar on stdout. On a Docker Desktop daemon
+  (the signer runner) a WSL2 distro path mounts empty, so repos-dry-run failed with "could not find Cargo.toml in
+  /src" (8a7b876).
+- `scripts/e2e.d/evm-devnet.sh` waits for each killed geth before removing its datadir; the cleanup raced the node
+  and turned a passing run into exit 1.
 - `tx-verify`/`tx-sign` could not authorize an ERC-20 `approve` (or any non-transfer contract call) even
   with a `--policy` `allow_calls` entry for its exact `(contract, selector)`: the tools added the general
   findings an allow_calls match authorizes (`token_call_not_transfer` or `unknown_contract_call`,
