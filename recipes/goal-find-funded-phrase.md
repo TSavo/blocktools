@@ -31,7 +31,18 @@ copy of the whole UTXO set from your own node and test the candidates against it
 
    Exit 0 means at least one hit, 1 means none (like `grep`). More candidates: `--rules case,swap,typo,digit`
    (the pw-candidates rules) and a wider `--window`. WarpWallet: `--scheme warpwallet --salt EMAIL`
-   (scrypt: far slower per candidate, see the `utxo-finder-warpwallet` claim). Hits print in the dump's network encoding (`--chain` overrides).
+   (scrypt: far slower per candidate, measured below). Hits print in the dump's network encoding (`--chain` overrides).
+
+Measured (`sh scripts/utxo-bench.sh`, synthetic Core-25 dump, Intel Xeon 8 threads, Linux x86_64, at 7f1310b):
+
+* load: a 20,000,000-coin dump in 6.2 seconds (3.2M coins/s), one thread;
+* memory: peak RSS of 0.99 GB, that is 48 bytes per distinct script plus the bloom filter;
+* bloom: over 1,000,000 never-funded queries the bloom filter passed 0.31%, and the exact set reported 0 funded;
+* `wallet-finder`, one thread: 22469 sha256 candidates/s, five addresses each;
+* WarpWallet: 200 candidates in 113.5 seconds.
+
+Scale to mainnet is not measured here: memory grows with the number of distinct funded scripts, not with
+chain size.
 
 How the set works: every funded scriptPubKey is held in RAM, sorted, with its summed value; a bloom filter
 in front answers most misses without touching the sorted array, and every bloom "maybe" is confirmed by

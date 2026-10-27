@@ -533,3 +533,97 @@ cheap = false
 depends = ["blocktools", "scripts/e2e.d/wrapper-remote.sh"]
 commit = "62027dc"
 date = "2026-10-26"
+
+[[claim]]
+id = "utxo-found-planted"
+statement = "utxo-set reads a dumptxoutset file written by real Bitcoin Core 25.2 (regtest): the five brainwallet address shapes funded by Core are reported funded at Core's exact amounts (one summed over 2 outputs), the coin count equals Core's coins_written, five never-funded addresses are reported empty; wallet-finder finds the phrase in free text with all five shapes and no key fields, and exits 1 with no output on text without it"
+kind = "security"
+platform = "linux"
+status = "measured"
+command = "BLOCKTOOLS_REQUIRE_FIXTURES=1 bash scripts/e2e.d/utxo-real.sh"
+expect = "ok   utxo-real wallet-finder: phrase found in free text"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/utxo-set/src/main.rs", "tools/wallet-finder/src/main.rs", "scripts/e2e.d/utxo-real.sh"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "runs against a dump written by real Bitcoin Core 25.2" }]
+
+[[claim]]
+id = "utxo-bloom-exact"
+statement = "Bloom filter at 12 bits/entry (k = 8): 50,000 members all pass, false-positive rate over 200,000 non-members is between 0.05% and 0.6%, and the exact set reports every bloom false positive absent (property test); measured at scale: 1000000 never-funded queries against a 20000000-coin set, 3127 bloom passes (0.31%), 0 reported funded"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "sh scripts/utxo-bench.sh"
+expect = "{\"queries\": 1000000, \"bloom_pass\": 3127, \"fpr\": 0.003127, \"reported_funded\": 0}"
+value = "0.31%"
+env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/utxo-set/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "bloom filter passed 0.31%" }]
+
+[[claim]]
+id = "utxo-load-time"
+statement = "utxo-set loads a synthetic 20000000-coin Core-25 dumptxoutset in 6.2 seconds = 3215715 coins/s (one thread); runs on the same box ranged 3.2M to 3.9M coins/s"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "sh scripts/utxo-bench.sh"
+expect = "\"coins\":20000000,\"coins_per_sec\":"
+value = "6.2"
+env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/utxo-set/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "dump in 6.2 seconds" }]
+
+[[claim]]
+id = "utxo-ingest"
+statement = "utxo-set ingests a synthetic 20000000-coin Core-25 dumptxoutset in 6.2 seconds (3215715 coins/s, one thread) with peak RSS (VmHWM) 993361920 bytes = 0.99 GB: one 48-byte entry per distinct script plus a 12-bit/entry bloom filter. Runs on the same box ranged 3.2M to 3.9M coins/s"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "sh scripts/utxo-bench.sh"
+expect = "\"coins\":20000000,\"coins_per_sec\":"
+value = "0.99 GB"
+env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/utxo-set/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "peak RSS of 0.99 GB, that is 48 bytes per distinct script" }]
+
+[[claim]]
+id = "utxo-finder-rate"
+statement = "wallet-finder (one thread) over the repo's own docs as input text against the 20000000-coin set: 289213 sha256 candidates in 12.9 s = 22469 candidates/s, 5 addresses each, 0 hits; WarpWallet: 200 candidates in 113.5 seconds, 0 hits"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "sh scripts/utxo-bench.sh"
+expect = "\"candidates_per_sec\":"
+value = "22469"
+env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/wallet-finder/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "22469 sha256 candidates/s" }]
+
+[[claim]]
+id = "utxo-finder-warpwallet"
+statement = "wallet-finder --scheme warpwallet (scrypt + PBKDF2 per candidate, one thread): 200 candidates in 113.5 seconds against the 20000000-coin set, 0 hits"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "sh scripts/utxo-bench.sh"
+expect = "\"candidates\":200,"
+value = "113.5"
+env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
+commit = "7f1310b"
+date = "2026-10-26"
+cheap = false
+depends = ["crates/utxo/src/lib.rs", "tools/wallet-finder/src/main.rs", "scripts/utxo-bench.sh"]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "WarpWallet: 200 candidates in 113.5 seconds" }]
