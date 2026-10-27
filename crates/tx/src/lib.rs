@@ -199,6 +199,29 @@ pub fn decode_bytes(b: &[u8], utxo_chain: &str) -> Result<Decoded, &'static str>
     Ok(btc_tx(c, &tx, None))
 }
 
+/// A raw (non-PSBT, non-EVM, non-PoS, non-Zcash) UTXO tx decoded with input values taken from
+/// full previous transactions. Each prev tx is matched by HASHING it: an input gets an amount only
+/// when a given prev tx hashes to its outpoint txid and has that vout, so a wrong or forged prev tx
+/// can't change the fee (it is ignored and the input stays unknown, warning prevout_missing).
+/// Prev txs that match no input are refused (prevtx_unused), so a mixed-up file is visible.
+pub fn decode_with_prevtxs(b: &[u8], utxo_chain: &str, prevtxs: &[Vec<u8>]) -> Result<Decoded, &'static str> {
+    let c = chains::chain(utxo_chain).ok_or("unknown_chain")?;
+    if utxo_chain == "zec" || pos::layout(utxo_chain).is_some() || b.starts_with(b"psbt\xff") || b.first().is_some_and(|&x| x >= 0xc0) || b.get(1).is_some_and(|&x| x >= 0xc0) {
+        return Err("prevtxs_raw_utxo_tx_only")
+    }
+    let tx: Transaction = deserialize(b).map_err(|_| "bad_transaction")?;
+    let dg = digest::Digest::for_chain(c);
+    let mut parsed = vec![];
+    for p in prevtxs { let t: Transaction = deserialize(p).map_err(|_| "bad_prevtx")?; parsed.push((digest::txid(&t, dg), t)) }
+    if parsed.iter().any(|(id, _)| !tx.input.iter().any(|i| i.previous_output.txid == *id)) { return Err("prevtx_unused") }
+    let prev: Vec<Option<TxOut>> = tx.input.iter().map(|i| parsed.iter().find(|(id, _)| *id == i.previous_output.txid)
+        .and_then(|(_, t)| t.output.get(i.previous_output.vout as usize).cloned())).collect();
+    let missing = prev.iter().any(|p| p.is_none());
+    let mut d = btc_tx(c, &tx, Some(prev));
+    if missing { d.warnings.push("prevout_missing") }
+    Ok(d)
+}
+
 fn out_io(c: &Chain, o: &TxOut) -> Io {
     let s = o.script_pubkey.as_bytes();
     let (kind, address) = match chains::script_to_address(c, s) {
