@@ -89,3 +89,16 @@ fn chain_dust_and_memo_limits() {
         for o in v["outputs"].as_array().unwrap() { let x: u64 = o["value"].as_str().unwrap().parse().unwrap(); assert!(x == 0 || x >= dust, "{chain}: output {x} below dust {dust}") }
     }
 }
+
+/// THORChain BCH vault as served by /thorchain/inbound_addresses (prefixless CashAddr, read live 2026-10-27).
+#[test]
+fn bch_vault_cashaddr_forms() {
+    use blocktools::cashaddr::{address_to_script, to_legacy};
+    let v = "qrs928gzftvvlm0ukyuu3hwx90jadhz66y3f968clg";
+    let legacy = to_legacy(v).unwrap();
+    let a = address_to_script("bch", v).unwrap();
+    assert_eq!(a, address_to_script("bch", &format!("bitcoincash:{v}")).unwrap());
+    assert_eq!(a, address_to_script("bch", &legacy).unwrap());
+    assert_eq!(&a[..3], &[0x76, 0xa9, 0x14]);
+    println!("legacy {legacy}");
+}
