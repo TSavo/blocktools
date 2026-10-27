@@ -72,5 +72,5 @@ and on a macOS claim marked measured without a successful macOS CI job.
 | format-constants | number | any | unmeasurable | Protocol/format sizes (hash and key lengths, OP_RETURN limits, dust, checksum bytes) | `-` | - | - |
 | prior-art | number | any | unmeasurable | Sizes quoted from third-party projects in a research note | `-` | - | - |
 | recovery-real-lost-wallet | security | any | untested | No recovery tool has been tested against a real lost or corrupted wallet | `-` | - | - |
-| macos-sealed | platform | macos | untested | The sealed ./blocktools run / reveal path on macOS (Docker Desktop) has never been run end to end | `-` | - | - |
+| macos-sealed | platform | macos | untested | Sealed on macOS (docs/MACOS.md: a local unix:// engine on the Mac, scripts/macos-sealed-check.sh) has never been run on a Mac; GitHub macOS runners have no Docker | `-` | - | - |
 | macos-remote-context-empty-in | platform | macos | untested | On macOS 26.3.1 x86_64 with an ssh:// docker context, ./blocktools run executed on the remote host and the container saw an empty /in (hand check once, 2026-10-26, not re-runnable in CI) | `-` | - | - |

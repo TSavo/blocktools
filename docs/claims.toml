@@ -513,11 +513,11 @@ doc = [{ file = "README.md", text = "not been tested against any real lost walle
 
 [[claim]]
 id = "macos-sealed"
-statement = "The sealed ./blocktools run / reveal path on macOS (Docker Desktop) has never been run end to end"
+statement = "Sealed on macOS (docs/MACOS.md: a local unix:// engine on the Mac, scripts/macos-sealed-check.sh) has never been run on a Mac; GitHub macOS runners have no Docker"
 kind = "platform"
 platform = "macos"
 status = "untested"
-doc = [{ file = "README.md", text = "macOS sealed path is unverified" }]
+doc = [{ file = "README.md", text = "macOS sealed path is unverified" }, { file = "docs/MACOS.md", text = "Not yet run on any Mac" }]
 
 [[claim]]
 id = "macos-remote-context-empty-in"
