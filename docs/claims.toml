@@ -460,3 +460,41 @@ platform = "linux"
 status = "untested"
 reason = "stamp after a green ci run at the commit adding it"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
+id = "recovery-synthetic-thirdparty"
+statement = "Wallet files written by Bitcoin Core 25.2 (legacy BDB, descriptor SQLite), Electrum 4.5.8 (file-encrypted, keystore-encrypted) and eth-account 0.13.4 (scrypt keystore), plus a python-mnemonic BIP39 phrase with Bitcoin Core deriveaddresses addresses: seed typo/swap/missing/unknown word and a password from a token list recover the generator's own address"
+kind = "security"
+platform = "linux"
+status = "untested"
+doc = [{ file = "README.md", text = "`scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage" }]
+
+[[claim]]
+id = "recovery-real-lost-wallet"
+statement = "No recovery tool has been tested against a real lost or corrupted wallet"
+kind = "security"
+platform = "any"
+status = "untested"
+doc = [{ file = "README.md", text = "not been tested against any real lost wallet" }]
+
+[[claim]]
+id = "macos-sealed"
+statement = "The sealed ./blocktools run / reveal path on macOS (Docker Desktop) has never been run end to end"
+kind = "platform"
+platform = "macos"
+status = "untested"
+doc = [{ file = "README.md", text = "macOS sealed path is unverified" }]
+
+[[claim]]
+id = "macos-remote-context-empty-in"
+statement = "On macOS 26.3.1 x86_64 with an ssh:// docker context, ./blocktools run executed on the remote host and the container saw an empty /in (hand check once, 2026-10-26, not re-runnable in CI)"
+kind = "platform"
+platform = "macos"
+status = "untested"
+doc = [{ file = "README.md", text = "hand-measured once, not re-run in CI" }]
+
+[[claim]]
+id = "wrapper-remote-refusal"
+statement = "./blocktools run/reveal refuse an ssh:// or tcp:// docker engine (DOCKER_HOST or current context) before docker run; BLOCKTOOLS_ALLOW_REMOTE=1 overrides"
+kind = "security"
+platform = "linux"
+status = "untested"
+doc = [{ file = "README.md", text = "scripts/e2e.d/wrapper-remote.sh" }]

@@ -19,6 +19,30 @@ container to you (or to an AI agent driving it) is addresses, derivation paths a
 See [DESIGN.md](DESIGN.md) for the pipe rules and [docs/SECURITY.md](docs/SECURITY.md) for the
 threat model.
 
+## What the recovery side is tested against
+
+blocktools has **not been tested against any real lost wallet (untested)**. Nobody has handed us a real
+corrupted wallet or a real forgotten password, so the headline promise rests on synthetic tests only.
+What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage; (untested) until its first green CI run is stamped):
+
+* Wallet files written by the real third-party software, with throwaway keys and passwords
+  (generated fresh at test time by `scripts/recovery-gen.sh`, never committed; see docs/FIXTURES.md): Bitcoin Core 25.2 legacy BDB and descriptor (SQLite) wallet.dat,
+  Electrum 4.5.8 segwit wallets (whole-file encrypted and keystore-only), and an eth-account 0.13.4
+  scrypt keystore (the geth/MetaMask-export format). A BIP39 phrase from python-mnemonic (the Trezor
+  reference) with addresses computed by Bitcoin Core's `deriveaddresses`.
+* Damage a user would plausibly have: a typo'd seed word, two swapped words, a missing word, an
+  unknown word (`?`), on the BIP39 and Electrum seeds; a password remembered only as "horse battery"
+  plus a digit, or with two letters swapped. `seed-repair` / `pw-candidates` and the wallet readers
+  must reach the address the generator itself printed. Candidate counts and attempt numbers are
+  printed by the script on each run.
+* Our own writers, not third-party ones: `scripts/make-fixtures.py` (dat-read e2e) and
+  `scripts/electrum-bie1-gen.py`. btcrecover's test wallets (fetched by `scripts/fetch-fixtures.sh`)
+  are third-party files but not ours to regenerate.
+
+Not covered: wallets damaged on disk (truncated or bit-flipped files), MetaMask's browser vault, Exodus,
+hardware-wallet passphrases, multisig, passwords not reachable from the tokens you give, seeds with more
+than two unknown words, and every wallet version other than those named above.
+
 ## Install
 
 ### From the v0.1.0 release (Linux x86_64 only)
@@ -113,6 +137,11 @@ read-only root filesystem, all capabilities dropped, a non-root user and memory/
 leak check, so the output is safe to paste or to hand to an agent. `./blocktools reveal` is the
 human-only variant: it needs a real terminal and a typed code, then prints keys.
 `scripts/sealed-check.sh` checks these flags on a real container (Linux Docker only).
+**macOS sealed path is unverified (untested).** The macos CI job runs the tools natively, not sealed. One hand check on a Mac
+(macOS 26.3.1 x86_64; Docker Desktop not running, so `docker` pointed at an `ssh://` context on a Linux host): the container
+ran on the remote host and saw an empty `/in`, because bind mounts resolve on the Docker host (hand-measured once, not re-run in CI) (untested).
+`./blocktools run`/`reveal` now refuse an `ssh://` or `tcp://` engine (`DOCKER_HOST` or the current context) before starting
+a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary; (untested) until stamped); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if the files are on that host.
 Without Docker, `sealed-run agent '<pipeline>'` gives the same redaction but none of the
 container isolation.
 
