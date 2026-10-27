@@ -3,10 +3,10 @@
 utxo\-set \- load a Bitcoin Core `dumptxoutset` file into RAM (exact set of funded output scripts,
 .SH SYNOPSIS
 .nf
-utxo\-set \-\-dump FILE [\-\-chain NAME] [\-\-bits N] [\-\-stats]
+utxo\-set (\-\-dump FILE | \-\-chainstate DIR [\-\-write\-dump OUT]) [\-\-chain NAME] [\-\-bits N] [\-\-stats]
 stdin: one address or scriptPubKey per line (hex, or script:HEX). Blank lines and # comments are skipped.
 stdout: one JSON line per query {query, chain, script, status: funded|empty|bad_input, value_sat, outputs, bloom}.
-stderr: one ingest line {coins, scripts, base_blockhash, network, format, ingest_secs, coins_per_sec,
+stderr: one ingest line {coins, scripts, base_blockhash, network, format (0 = chainstate), ingest_secs, coins_per_sec,
 or argument, 1 when any query line could not be read as an address or script.
 .fi
 .SH DESCRIPTION
@@ -22,6 +22,12 @@ unspent coins and how much. Offline; the dump is public data.
 .nf
   \-\-dump FILE   a Bitcoin Core dumptxoutset file (Core 25\-27 format, or the Core 28+ format with its
                 "utxo" magic header; detected from the first bytes)
+  \-\-chainstate DIR  a Core\-family node's chainstate/ LevelDB directory, read directly (forks with no
+                dumptxoutset: Dogecoin 1.14, ...). Read\-only; STOP the node first, or copy the
+                directory while it is stopped. Both record layouts ('C' per output, 0.15+; 'c' per
+                transaction, 0.8\-0.14) and the obfuscation key are handled.
+  \-\-write\-dump OUT  with \-\-chainstate: also write the coins as a Core 25\-format dumptxoutset file
+                (base_blockhash = the chainstate's best block), so wallet\-finder \-\-dump OUT reads it
   \-\-chain NAME  decode addresses for this chain only (default: auto\-detect each address from its
                 prefix; scriptPubKeys are chain\-free)
   \-\-bits N      bloom filter bits per funded script (default 12; 0 = no bloom, exact set only)
@@ -50,6 +56,8 @@ $ echo 1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T | utxo\-set \-\-dump utxo.dat
 $ utxo\-set \-\-dump utxo.dat \-\-stats
 # exit 0, last status: ok
 $ utxo\-set \-\-dump /dev/null < /dev/null
+# exit 2, last status: bad_input
+$ utxo\-set \-\-chainstate /nonexistent \-\-stats
 # exit 2, last status: bad_input
 .fi
 .SH SECURITY NOTES

@@ -93,6 +93,7 @@ tx-verify | 0 | tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 20
 utxo-set | 0 | echo 1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T | utxo-set --dump utxo.dat
 utxo-set | 0 | utxo-set --dump utxo.dat --stats
 utxo-set | 2 | utxo-set --dump /dev/null < /dev/null
+utxo-set | 2 | utxo-set --chainstate /nonexistent --stats
 wallet-finder | 0 | echo "My old note: correct horse battery staple." | wallet-finder --dump utxo.dat
 wallet-finder | 1 | echo "nothing funded here" | wallet-finder --dump utxo.dat
 wallet-finder | 2 | wallet-finder --dump utxo.dat --rules bogus < /dev/null
