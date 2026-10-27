@@ -1,6 +1,6 @@
 # Chain table
 
-Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `scripts/kat-chains.py`, an independent base58check that uses only hashlib, and are checked in the `kat_long_tail` test. tx-build builds chains whose Sign is `Standard` or ForkId (bch/bsv/btg; tx-sign signs those with SIGHASH_ALL|FORKID, see below); it refuses PosTime only for pot (ppc/nvc/clam/rdd have a dedicated pos-ntime builder/signer, `crates/tx/src/pos.rs`; blk is Standard) and Unknown (qrk, plus the non-UTXO chains, which have their own signers). No coin other than BTC has been signed and accepted on a real network.
+Source of truth: `crates/core/src/chains.rs`. Known-answer vectors come from `scripts/kat-chains.py`, an independent base58check that uses only hashlib, and are checked in the `kat_long_tail` test. tx-build builds chains whose Sign is `Standard` or ForkId (bch/bsv/btg; tx-sign signs those with SIGHASH_ALL|FORKID, see below); it refuses PosTime only for pot (ppc/nvc/clam/rdd have a dedicated pos-ntime builder/signer, `crates/tx/src/pos.rs`; blk is Standard) and Unknown (the non-UTXO chains, which have their own signers; qrk is Standard and builds). No coin other than BTC has been signed and accepted on a real network.
 
 ### What each row can do (measured)
 
