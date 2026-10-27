@@ -31,7 +31,7 @@ python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --cha
 grep -q '"status":"ok"' $T/o && grep -q eth_sendRawTransaction $T/log && echo "ok   tx-broadcast contract call -> eth_sendRawTransaction (mock), id matches" || f bcast
 # Creation: init code of a tiny contract (no compiler: fixed bytes).
 I=600a600c600039600a6000f3602a60005260206000f3
-$B/tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 2000000000 --gas 100000 --create $I > $T/c
+$B/tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 2000000000 --gas 226175 --create $I > $T/c
 H=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["initcode_keccak256"])' $T/c)
 $B/tx-verify --chain-id 1 --create-hash $H < $T/c > $T/v && grep -q '"kind":"create"' $T/v && echo "ok   tx-verify --create-hash approves the exact init code" || f create
 ! $B/tx-verify --chain-id 1 --create-hash 0x$(printf '%064d' 0) < $T/c > $T/v && grep -q initcode_mismatch $T/v && echo "ok   tx-verify: other init code hash -> refused" || f createbad
