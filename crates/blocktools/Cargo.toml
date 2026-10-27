@@ -31,3 +31,6 @@ required-features = ["secrets"]
 [[test]]
 name = "twc_ed25519"
 required-features = ["secrets", "ed25519"]
+[[test]]
+name = "chain_caps"
+required-features = ["ed25519"]
