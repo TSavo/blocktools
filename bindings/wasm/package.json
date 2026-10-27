@@ -1,6 +1,6 @@
 {
   "name": "blocktools",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "blocktools public API in WebAssembly: address validation, xpub watch-only addresses, derivation-path plans, transaction decode/verify. Takes no private keys.",
   "license": "MIT",
   "private": true,

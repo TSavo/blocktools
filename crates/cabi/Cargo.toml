@@ -8,5 +8,5 @@ description = "blocktools C ABI (secrets-off): version, chain table, common sign
 name = "blocktools_c"
 crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
-blocktools = { version = "0.1.1", path = "../blocktools" }
-blocktools-core = { version = "0.1.1", path = "../core" }
+blocktools = { version = "0.2.0", path = "../blocktools" }
+blocktools-core = { version = "0.2.0", path = "../core" }

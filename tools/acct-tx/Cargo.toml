@@ -5,9 +5,9 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-blocktools-io = { version = "0.1.1", path = "../../crates/io" }
-blocktools-acct = { version = "0.1.1", path = "../../crates/acct" }
-blocktools-core = { version = "0.1.1", path = "../../crates/core", default-features = false, features = ["ed25519", "algo", "ton", "sr25519"] }
-blocktools-tty = { version = "0.1.1", path = "../../crates/tty" }
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-acct = { version = "0.2.0", path = "../../crates/acct" }
+blocktools-core = { version = "0.2.0", path = "../../crates/core", default-features = false, features = ["ed25519", "algo", "ton", "sr25519"] }
+blocktools-tty = { version = "0.2.0", path = "../../crates/tty" }
 serde_json = { workspace = true }
 zeroize = { workspace = true }

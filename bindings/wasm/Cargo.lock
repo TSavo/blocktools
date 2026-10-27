@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -108,7 +108,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bitcoin",
  "blocktools-monero",
@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-evm"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "secp256k1",
  "serde_json",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-monero"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "sha3",
  "zeroize",
@@ -137,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-tx"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-wasm"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "blocktools",
  "secp256k1",

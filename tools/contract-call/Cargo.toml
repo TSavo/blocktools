@@ -5,8 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools contract-call (HOST-SIDE, uses the network; not in the sealed image): read EVM contract state with eth_call and decode the return data, through rpc's read allowlist. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-rpc = { version = "0.1.1", path = "../rpc" }
-blocktools-net = { version = "0.1.1", path = "../../crates/net" }
-blocktools-evm = { version = "0.1.1", path = "../../crates/evm" }
-blocktools-io = { version = "0.1.1", path = "../../crates/io" }
+rpc = { version = "0.2.0", path = "../rpc" }
+blocktools-net = { version = "0.2.0", path = "../../crates/net" }
+blocktools-evm = { version = "0.2.0", path = "../../crates/evm" }
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
 serde_json.workspace = true
