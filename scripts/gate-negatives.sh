@@ -89,7 +89,7 @@ neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasur
 # K-ci: a claim stamped at a commit with no completed successful ci run on main (here a fresh commit) must fail.
 neg K-ci docs-check "no successful ci run on main" 'git -c user.name=n -c user.email=n@n commit -q --allow-empty -m plant && sed "0,/^commit = \"1f1fa71\"/s//commit = \"$(git rev-parse --short HEAD)\"/" docs/claims.toml > t && mv t docs/claims.toml'
 # K-agree (expect vs statement): the measured output in expect names a byte count the statement does not carry.
-neg K-agree docs-check "but the statement does not" 'sed "s/; 46138880 bytes\"/; 46138881 bytes\"/" docs/claims.toml > t && mv t docs/claims.toml'
+neg K-agree docs-check "but the statement does not" 'sed "/^id = \"redact-512\"/,/^expect/s/^expect = \"\(.*\)\"/expect = \"\1; 99999 bytes\"/" docs/claims.toml > t && mv t docs/claims.toml'  # a measured number claim; was image-size-readme (pending re-stamp)
 neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'
 neg F-status docs-check "unknown status" 'sed "s/| R1-5 \\(.*\\) | open |/| R1-5 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
