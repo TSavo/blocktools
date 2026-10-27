@@ -464,7 +464,7 @@ expect = "rpc-decode recipe script (-txindex mock): fee 1000"
 cheap = false
 env = "Linux, GitHub-hosted ubuntu runner, ci run 40430463509 e2e job"
 value = "1000"
-depends = ["recipes/rpc-decode.md", "scripts/e2e.d/rpc-decode.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
+depends = ["scripts/e2e.d/rpc-decode.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
 commit = "62027dc"
 date = "2026-10-26"
 
