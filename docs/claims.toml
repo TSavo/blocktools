@@ -882,6 +882,22 @@ depends = ["crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools
 doc = [{ file = "docs/CHAINS.md", text = "in 0.51 seconds, peak RSS 50 MB" }]
 
 [[claim]]
+id = "chainstate-census-doge-mainnet"
+statement = "chainstate-dump --chain doge --census (binary built from pushed commit cd93cd8, sha256 prefix ea4df9cbd8142cbd) on a read-only copy of a real Dogecoin mainnet chainstate (7129 tables + 2 logs, 'c' layout, obfuscated): census at the copy's own best block, count 202,691,739; anchor 202,691,619 was captured at an earlier height (6,432,919); the 120 gap is attributed via third-party explorer data, not node-measured; not a byte-exact match to the node (output: coins 202691739). Best block height 6,432,933; 2450.6 s wall, peak RSS 66 MB, exit 0, ulimit -n 1024; aggregates only, no addresses. Hand run, not CI-reproducible (the chainstate copy is not in CI)."
+kind = "number"
+platform = "linux"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
+command = "chainstate-dump --chain doge --census --hash-serialized DIR"
+expect = "\"coins\":202691739"
+value = "202,691,739"
+env = "Battleaxe, Linux (WSL2 6.6.87.2), loaded host (load average 9-20 during the run); hand run from the cd93cd8 release binary"
+cheap = false
+depends = ["crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "count 202,691,739" }]
+
+[[claim]]
 id = "chainstate-dump-btc"
 statement = "chainstate-dump on a real stopped Bitcoin Core 25.2 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
