@@ -140,13 +140,11 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
 value = "4"
 env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
-commit = "62027dc"
-date = "2026-10-26"
 cheap = true
 depends = ["crates/tx/src/lib.rs", "crates/tx/tests/input_cap.rs"]
 doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
@@ -156,13 +154,11 @@ id = "wasm-size"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
 value = "1,929,738"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
-commit = "cd93cd8"
-date = "2026-10-27"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
 doc = [{ file = "DESIGN.md", text = "1,929,738 bytes" }]
@@ -172,13 +168,11 @@ id = "wasm-size-stripped"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
 value = "1,615,292"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
-commit = "cd93cd8"
-date = "2026-10-27"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
 doc = [{ file = "DESIGN.md", text = "1,615,292 bytes" }]
@@ -188,13 +182,11 @@ id = "wasm-crates"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
-commit = "cd93cd8"
-date = "2026-10-27"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
 doc = [{ file = "DESIGN.md", text = "47 crates" }]
@@ -936,3 +928,15 @@ expect = "ok   chainstate-real doge pass 2 chainstate-dump: set ="
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
+
+[[claim]]
+id = "tx-decode-evm-mainnet"
+statement = "tx-decode --chain eth decodes one real Ethereum mainnet tx of each type (legacy EIP-155, 2930, 1559, 4844, 7702; committed raw bytes from eth_getRawTransactionByHash) and every field the node returns from eth_getTransactionByHash (hash, from, to, nonce, gas, value, input, chainId, v/r/s, fees, accessList, blob fields, authorizationList) equals the decode; a node field the check does not compare fails it"
+kind = "security"
+platform = "any"
+status = "untested"
+command = "sh scripts/e2e.d/evm-decode.sh"
+expect = "ok   tx-decode --chain eth on a non-EVM input -> not_evm"
+cheap = true
+depends = ["crates/tx/src/evm_decode.rs", "crates/tx/src/lib.rs", "tools/tx-decode/src/main.rs", "scripts/evm-decode-check.py", "scripts/e2e.d/evm-decode.sh", "fixtures/evm-mainnet"]
+doc = []
