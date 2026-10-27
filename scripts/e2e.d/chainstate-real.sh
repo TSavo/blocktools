@@ -109,6 +109,10 @@ stop_read() { # pass
   if [ $c != doge ]; then BIN=$B sh scripts/chainstate-vs-dump.sh "$CS" "$W/d.$c" $c > "$W/vs.$c" || f "$c: $(cat "$W/vs.$c")"; tail -1 "$W/vs.$c"
   else "$B/chainstate-dump" --chain $c "$CS" 2>/dev/null | python3 scripts/utxo-multiset.py jsonl > "$W/da.$c"; python3 scripts/utxo-multiset.py dump "$W/w.$c.$P" > "$W/db.$c"
     python3 -c 'import json,sys; a,b=(json.load(open(p)) for p in sys.argv[1:]); sys.exit(0 if all(a[k]==b[k] for k in ("coins","total","full","script_amount")) else 1)' "$W/da.$c" "$W/db.$c" || f "$c: chainstate-dump $(cat "$W/da.$c") != write-dump $(cat "$W/db.$c")"; fi
+  if [ $c = doge ]; then  # pre-0.15 GetUTXOStats equivalents against the node's own gettxoutsetinfo
+    "$B/chainstate-dump" --chain $c --census --hash-serialized "$CS" 2>/dev/null > "$W/hs.$c" || f "$c: --hash-serialized failed"
+    python3 -c 'import json,sys; a=json.load(open(sys.argv[1])); n=json.load(open(sys.argv[2])); h=n.get("hash_serialized_2", n.get("hash_serialized")); ok=a["hash_serialized"]==h and a["bytes_serialized"]==n["bytes_serialized"] and a["transactions"]==n["transactions"]; print(("ok   chainstate-real %s pass %s hash_serialized: %s = node, bytes_serialized %s = node, %s txs" % (sys.argv[3], sys.argv[4], h, n["bytes_serialized"], n["transactions"])) if ok else "FAIL chainstate-real %s: hash_serialized/bytes/txs %s %s %s, node %s %s %s" % (sys.argv[3], a["hash_serialized"], a["bytes_serialized"], a["transactions"], h, n["bytes_serialized"], n["transactions"])); sys.exit(0 if ok else 1)' "$W/hs.$c" "$W/info.$c" $c $P || exit 1
+  fi
   "$B/chainstate-dump" --chain $c --census "$CS" 2>/dev/null > "$W/cen.$c"; [ "$(J coins < "$W/cen.$c")" = "$coins" ] || f "$c: --census $(cat "$W/cen.$c")"
   "$B/chainstate-dump" --chain $c --addresses-only "$CS" 2>/dev/null | wc -l | tr -d ' ' > "$W/ac.$c"; [ "$(cat "$W/ac.$c")" = "$coins" ] || f "$c: --addresses-only gave $(cat "$W/ac.$c") lines"
   other=$([ $L = C ] && echo c || echo C)

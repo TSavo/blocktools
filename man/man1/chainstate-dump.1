@@ -3,7 +3,7 @@
 chainstate\-dump \- stream the UTXO set straight out of a Core\-family node's `chainstate/` LevelDB
 .SH SYNOPSIS
 .nf
-chainstate\-dump \-\-chain NAME [\-\-addresses\-only | \-\-census] [\-\-era C|c] [\-\-obfuscate\-key HEX|none] DIR
+chainstate\-dump \-\-chain NAME [\-\-addresses\-only | \-\-census] [\-\-era C|c] [\-\-obfuscate\-key HEX|none] [\-\-hash\-serialized] DIR
   DIR           a Core\-family node's chainstate/ LevelDB directory. Read\-only: nothing in DIR is opened
                 for writing and no lock is taken. STOP the node first, or copy the directory while it is
                 stopped; a directory whose LOCK a running process holds is refused (Linux, /proc/locks).
@@ -25,6 +25,9 @@ LevelDB read path (crates/utxo/src/leveldb.rs) and both coin layouts (crates/utx
   \-\-addresses\-only  one line per coin: the address, or script:HEX when the script has no address
                 (feeds utxo\-set / a membership set directly)
   \-\-census      no per\-coin lines: one JSON summary (coins, total, per script_type counts)
+  \-\-hash\-serialized  also compute the pre\-0.15 gettxoutsetinfo hash_serialized and bytes_serialized
+                ('c' layout only: Dogecoin 1.14, Core 0.14 GetUTXOStats) into the summary; compare
+                with the node's own gettxoutsetinfo at the same best block
   \-\-era C|c     force the record layout ('C' per output, Core 0.15+; 'c' per transaction, 0.8\-0.14).
                 Default: detected. A record of the other layout is then an error, never reinterpreted.
   \-\-obfuscate\-key HEX|none  use this XOR key instead of the stored one (discrimination checks). A wrong

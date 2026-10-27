@@ -102,13 +102,13 @@ fn discrimination_wrong_key_or_era_fails_loudly() {
     for (i, kk) in k.iter().enumerate() { ops.push(Op::Put(kk, x(coin(100 + i as u64, i % 3 == 0, 1000 * i as u64 + 1, [i as u8; 20])))) }
     mkdb(&d, &[batch(1, &ops)]);
     assert_eq!(all_with(&d, Opts::default()).unwrap(), 50, "detected key and era");
-    assert_eq!(all_with(&d, Opts { era: Some(b'C'), xor: None }).unwrap(), 50);
-    let e = all_with(&d, Opts { era: Some(b'c'), xor: None }).unwrap_err().to_string();
+    assert_eq!(all_with(&d, Opts { era: Some(b'C'), xor: None, hash_serialized: false }).unwrap(), 50);
+    let e = all_with(&d, Opts { era: Some(b'c'), xor: None, hash_serialized: false }).unwrap_err().to_string();
     assert!(e.contains("era_mismatch"), "{e}");
-    let e = all_with(&d, Opts { era: None, xor: Some(vec![0; 8]) }).unwrap_err().to_string();
+    let e = all_with(&d, Opts { era: None, xor: Some(vec![0; 8]), hash_serialized: false }).unwrap_err().to_string();
     assert!(e.contains("wrong obfuscation key"), "no key applied to an obfuscated chainstate: {e}");
     let mut wrong = XOR.to_vec(); wrong[3] ^= 0x10;
-    let e = all_with(&d, Opts { era: None, xor: Some(wrong) }).unwrap_err().to_string();
+    let e = all_with(&d, Opts { era: None, xor: Some(wrong), hash_serialized: false }).unwrap_err().to_string();
     assert!(e.contains("wrong obfuscation key"), "one wrong key byte: {e}");
     // mixed layouts in one directory
     let d = tmp("mixed");

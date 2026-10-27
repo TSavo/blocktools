@@ -824,13 +824,11 @@ id = "chainstate-real-btc"
 statement = "utxo-set --chainstate reads the chainstate/ LevelDB of a real stopped Bitcoin Core 25.2 regtest node ('C' layout, obfuscated; tables and a log) without changing a byte: coins, total and best block equal gettxoutsetinfo and Core's own dumptxoutset count; the funded p2pkh shapes at the exact amounts; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real btc pass 2 wallet-finder: phrase found"
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-25.2 chainstate" }]
 
 [[claim]]
@@ -838,13 +836,11 @@ id = "chainstate-real-ltc"
 statement = "utxo-set --chainstate reads the chainstate/ of a real stopped Litecoin 0.21.4 regtest node ('C' layout, obfuscated; table and log) without changing a byte: coins, total and best block equal gettxoutsetinfo; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real ltc pass 2 wallet-finder: phrase found"
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/fork-pins/ltc", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "regtest litecoin-0.21.4 chainstate" }]
 
 [[claim]]
@@ -852,13 +848,11 @@ id = "chainstate-real-doge"
 statement = "utxo-set --chainstate reads the chainstate/ of a real stopped Dogecoin 1.14.9 regtest node (old 'c' per-transaction layout with mask bytes, obfuscated; table and log) without changing a byte: coins, total and best block equal gettxoutsetinfo; wallet-finder finds the phrase in the --write-dump file and nothing without it"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real doge pass 2 wallet-finder: phrase found"
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/fork-pins/doge", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "regtest dogecoin-1.14.9 chainstate" }, { file = "recipes/chain-litecoin-dogecoin.md", text = "real Dogecoin 1.14.9 regtest chainstate" }]
 
 [[claim]]
@@ -866,15 +860,13 @@ id = "chainstate-bench-doge"
 statement = "utxo-set --chainstate reads a real Dogecoin 1.14.9 regtest chainstate of 936196 coins (2 tables + 1 log, 'c' layout) in 0.59 seconds = 1.6M coins/s with peak RSS 50176000 bytes = 50 MB; the logs-only pass (918175 coins in 2 logs, 0.62 seconds) peaked at 93257728 bytes = 93 MB because logs are held in RAM"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "sh scripts/chainstate-bench.sh"
 expect = "ok   chainstate-real doge pass 2:"
 value = "0.59"
 env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; regtest chain built at test time (500 txs of 2000 outputs)"
 cheap = false
 depends = ["crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs", "scripts/chainstate-bench.sh", "scripts/e2e.d/chainstate-real.sh"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "in 0.59 seconds, peak RSS 50 MB" }]
 
 [[claim]]
@@ -882,13 +874,11 @@ id = "chainstate-dump-btc"
 statement = "chainstate-dump on a real stopped Bitcoin Core 25.2 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real btc pass 2 chainstate-dump: set ="
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "Bitcoin Core 25.2 dumptxoutset" }]
 
 [[claim]]
@@ -896,13 +886,11 @@ id = "chainstate-dump-ltc"
 statement = "chainstate-dump on a real stopped Litecoin 0.21.4 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real ltc pass 2 chainstate-dump: set ="
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "Litecoin 0.21.4 dumptxoutset" }]
 
 [[claim]]
@@ -910,11 +898,9 @@ id = "chainstate-dump-doge"
 statement = "chainstate-dump on a real stopped Dogecoin 1.14.9 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as the utxo-set --write-dump file of the same chainstate (no dumptxoutset in 1.14); --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real doge pass 2 chainstate-dump: set ="
 cheap = false
 depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
-commit = "751299a"
-date = "2026-10-27"
 doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]

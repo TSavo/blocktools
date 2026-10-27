@@ -10,6 +10,7 @@
 //!   of non-zero mask bytes for vout 2.. (coins.h, Unserialize).
 //! Values are XORed with the 8-byte key stored under `"\x0e\x00obfuscate_key"` (dbwrapper.cpp);
 //! `'B'` holds the best block hash. A `'H'` key (Core 0.15+ partial flush in progress) is refused.
+use bitcoin::hashes::{sha256, sha256d, Hash, HashEngine};
 use crate::leveldb::Db;
 use crate::{decompress_amount, read_script, read_varint, Coin};
 use std::io::{self, Cursor, Read};
@@ -26,9 +27,15 @@ pub struct Stats { pub per_output_keys: u64, pub per_tx_keys: u64, pub other_key
 /// layout is then an error, never reinterpreted; force an obfuscation key (hex bytes; empty = none),
 /// used instead of the stored one. Defaults detect both from the data and report them in `Stats`.
 #[derive(Debug, Default, Clone)]
-pub struct Opts { pub era: Option<u8>, pub xor: Option<Vec<u8>> }
+pub struct Opts { pub era: Option<u8>, pub xor: Option<Vec<u8>>, pub hash_serialized: bool }
 
-pub struct Chainstate { db: Db, xor: Vec<u8>, pending: std::vec::IntoIter<Coin>, pub stats: Stats, opts: Opts }
+/// Pre-0.15 `gettxoutsetinfo` equivalents ('c' layout only; Dogecoin 1.14 / Bitcoin Core 0.14
+/// `GetUTXOStats`): SHA256d over best block, then per txid record in key order `txid
+/// (VARINT(vout+1) CTxOut)* VARINT(0)`; bytes = sum of 32 + stored value size.
+#[derive(Debug, Default, Clone)]
+pub struct Serialized { pub transactions: u64, pub bytes: u64, pub hash: Option<String> }
+
+pub struct Chainstate { db: Db, xor: Vec<u8>, pending: std::vec::IntoIter<Coin>, pub stats: Stats, opts: Opts, eng: Option<sha256::HashEngine>, pub serialized: Serialized }
 
 impl Chainstate {
     pub fn open(dir: &Path) -> io::Result<Chainstate> { Chainstate::open_with(dir, Opts::default()) }
@@ -37,7 +44,8 @@ impl Chainstate {
         let db = Db::open(dir)?;
         let stats = Stats { table_files: db.live.tables.len(), log_files: db.live.logs.len(), ..Stats::default() };
         let xor = opts.xor.clone().unwrap_or_else(|| vec![0; 8]);
-        Ok(Chainstate { db, xor, pending: Vec::new().into_iter(), stats, opts })
+        let eng = opts.hash_serialized.then(sha256::HashEngine::default);
+        Ok(Chainstate { db, xor, pending: Vec::new().into_iter(), stats, opts, eng, serialized: Serialized::default() })
     }
     fn era(&mut self, k: u8) -> io::Result<()> {
         if let Some(e) = self.opts.era { if e != k { return Err(bad("era_mismatch: a record of the other layout; the forced era is wrong for this chainstate")) } }
@@ -53,7 +61,14 @@ impl Chainstate {
     pub fn next_coin(&mut self) -> io::Result<Option<Coin>> {
         loop {
             if let Some(c) = self.pending.next() { return Ok(Some(c)) }
-            let Some((k, v)) = self.db.next_live()? else { return Ok(None) };
+            let Some((k, v)) = self.db.next_live()? else {
+                if let Some(e) = self.eng.take() {
+                    if self.stats.per_output_keys > 0 { return Err(bad("hash_serialized: only the pre-0.15 'c' layout is implemented")) }
+                    let h = sha256d::Hash::from_engine(e).to_byte_array();
+                    self.serialized.hash = Some(h.iter().rev().map(|b| format!("{b:02x}")).collect());
+                }
+                return Ok(None)
+            };
             if k == OBF {
                 let (n, x) = v.split_first().ok_or_else(|| bad("obfuscate_key_empty"))?;
                 if usize::from(*n) != x.len() || x.is_empty() { return Err(bad("obfuscate_key_bad")) }
@@ -81,11 +96,22 @@ impl Chainstate {
                     let v = self.unxor(v);
                     let mut txid = [0u8; 32]; txid.copy_from_slice(&k[1..33]);
                     let cs = per_tx(txid, &v).map_err(|e| io::Error::new(e.kind(), format!("{e}: wrong obfuscation key or era?")))?;
+                    if let Some(e) = self.eng.as_mut() {
+                        if self.stats.best_block.is_none() { return Err(bad("hash_serialized: no best block before the coin records")) }
+                        e.input(&txid);
+                        for c in &cs {
+                            if c.script.first() == Some(&0xff) && c.script.len() == 34 { return Err(bad("hash_serialized: an off-curve compressed key; Core's own serialization is undefined here")) }
+                            e.input(&varint_bytes(u64::from(c.vout) + 1)); e.input(&c.value.to_le_bytes());
+                            e.input(&compact_bytes(c.script.len() as u64)); e.input(&c.script);
+                        }
+                        e.input(&[0]);
+                        self.serialized.transactions += 1; self.serialized.bytes += 32 + v.len() as u64;
+                    }
                     self.stats.total_value = cs.iter().fold(self.stats.total_value, |a, c| a.saturating_add(c.value));
                     self.pending = cs.into_iter();
                     self.stats.per_tx_keys += 1;
                 }
-                Some(b'B') => { let v = self.unxor(v); if v.len() == 32 { self.stats.best_block = Some(v.iter().rev().map(|b| format!("{b:02x}")).collect()) } }
+                Some(b'B') => { let v = self.unxor(v); if v.len() == 32 { if let Some(e) = self.eng.as_mut() { e.input(&v) } self.stats.best_block = Some(v.iter().rev().map(|b| format!("{b:02x}")).collect()) } }
                 Some(b'H') => return Err(bad("chainstate_mid_flush_H_key: let the node finish a clean shutdown")),
                 _ => self.stats.other_keys += 1,
             }
@@ -114,4 +140,16 @@ pub fn per_tx(txid: [u8; 32], v: &[u8]) -> io::Result<Vec<Coin>> {
     let height = u32::try_from(read_varint(&mut r)?).map_err(|_| bad("height_overflow"))?;
     if (r.position() as usize) != v.len() { return Err(bad("ccoins_trailing_bytes")) }
     Ok(outs.into_iter().map(|(vout, value, script)| Coin { txid, vout, height, coinbase, value, script }).collect())
+}
+
+/// Core's VARINT (serialize.h WriteVarInt: base 128, MSB first, +1 per continuation).
+pub fn varint_bytes(mut n: u64) -> Vec<u8> {
+    let mut t = Vec::new();
+    loop { t.push((n & 0x7f) as u8 | if t.is_empty() { 0 } else { 0x80 }); if n <= 0x7f { break } n = (n >> 7) - 1; }
+    t.reverse(); t
+}
+/// CompactSize.
+pub fn compact_bytes(n: u64) -> Vec<u8> {
+    match n { 0..=252 => vec![n as u8], 253..=0xffff => [&[253u8][..], &(n as u16).to_le_bytes()].concat(),
+        0x10000..=0xffff_ffff => [&[254u8][..], &(n as u32).to_le_bytes()].concat(), _ => [&[255u8][..], &n.to_le_bytes()].concat() }
 }
