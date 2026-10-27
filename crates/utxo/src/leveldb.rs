@@ -2,7 +2,8 @@
 //! Reads CURRENT -> MANIFEST (live table files and log number), every live table (.ldb/.sst) and the
 //! live write-ahead log(s), and yields the newest live value of every user key in key order. Opens
 //! files read-only; never takes the LOCK, never writes. Block CRCs (masked CRC32C) are checked.
-//! Snappy-compressed blocks are refused (Core-family nodes set kNoCompression for their databases).
+//! Block compression: none (kNoCompressionType 0, what Core-family nodes write) and Snappy
+//! (kSnappyCompression 1), decompressed by the port in `snappy_decompress` (snappy format_description.txt).
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeMap, BinaryHeap};
 use std::fs::File;
@@ -25,6 +26,43 @@ fn crc32c(data: &[u8]) -> u32 {
     let mut c = !0u32;
     for &b in data { c = t[((c ^ u32::from(b)) & 0xff) as usize] ^ (c >> 8) }
     !c
+}
+/// Snappy raw-format decompression, ported from the reference (snappy.cc / format_description.txt):
+/// varint uncompressed length, then elements tagged by the low 2 bits: 00 literal (length in the tag's
+/// upper 6 bits, or 1-4 following bytes when that is 60-63), 01 copy with 3-bit length-4 and 11-bit
+/// offset, 10 copy with 6-bit length-1 and 2-byte offset, 11 copy with 4-byte offset. Every bound is
+/// checked; a length mismatch, zero or out-of-range offset, or truncation is an error, never garbage.
+pub fn snappy_decompress(src: &[u8]) -> io::Result<Vec<u8>> {
+    let mut p = 0usize;
+    let want = usize::try_from(uvarint(src, &mut p).map_err(|_| bad("snappy_bad_length"))?).map_err(|_| bad("snappy_bad_length"))?;
+    if want > 1 << 30 { return Err(bad("snappy_too_large")) }
+    let mut out: Vec<u8> = Vec::with_capacity(want);
+    while p < src.len() {
+        let tag = src[p]; p += 1;
+        let (len, off) = match tag & 3 {
+            0 => {
+                let mut len = usize::from(tag >> 2);
+                if len >= 60 {
+                    let nb = len - 59;
+                    let b = src.get(p..p + nb).ok_or_else(|| bad("snappy_truncated"))?;
+                    len = b.iter().rev().fold(0usize, |a, &x| (a << 8) | usize::from(x)); p += nb;
+                }
+                let len = len + 1;
+                let lit = src.get(p..p.checked_add(len).ok_or_else(|| bad("snappy_truncated"))?).ok_or_else(|| bad("snappy_truncated"))?;
+                if out.len() + len > want { return Err(bad("snappy_overflow")) }
+                out.extend_from_slice(lit); p += len; continue;
+            }
+            1 => { let b = *src.get(p).ok_or_else(|| bad("snappy_truncated"))?; p += 1; (usize::from((tag >> 2) & 7) + 4, (usize::from(tag >> 5) << 8) | usize::from(b)) }
+            2 => { let b = src.get(p..p + 2).ok_or_else(|| bad("snappy_truncated"))?; p += 2; (usize::from(tag >> 2) + 1, usize::from(u16::from_le_bytes([b[0], b[1]]))) }
+            _ => { let b = src.get(p..p + 4).ok_or_else(|| bad("snappy_truncated"))?; p += 4; (usize::from(tag >> 2) + 1, u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize) }
+        };
+        if off == 0 || off > out.len() { return Err(bad("snappy_bad_offset")) }
+        if out.len() + len > want { return Err(bad("snappy_overflow")) }
+        let start = out.len() - off;
+        for i in 0..len { let x = out[start + i]; out.push(x) } // overlapping copies repeat, as in the reference
+    }
+    if out.len() != want { return Err(bad("snappy_length_mismatch")) }
+    Ok(out)
 }
 fn unmask(m: u32) -> u32 { let r = m.wrapping_sub(0xa282_ead8); r.rotate_left(15) }
 fn crc_ok(data: &[u8], masked: u32) -> bool { crc32c(data) == unmask(masked) }
@@ -78,7 +116,7 @@ fn block_entries(b: &[u8]) -> io::Result<Vec<(Vec<u8>, Vec<u8>)>> {
 }
 
 /// Sorted reader over one table file, block by block (memory: one block).
-pub struct Table { f: File, index: Vec<(u64, u64)>, next: usize, cur: std::vec::IntoIter<(Vec<u8>, Vec<u8>)>, pub bytes_read: u64 }
+pub struct Table { f: File, index: Vec<(u64, u64)>, next: usize, cur: std::vec::IntoIter<(Vec<u8>, Vec<u8>)>, pub bytes_read: u64, pub snappy_blocks: u64 }
 impl Table {
     pub fn open(path: &Path) -> io::Result<Table> {
         let mut f = File::open(path)?;
@@ -89,7 +127,7 @@ impl Table {
         if u64::from_le_bytes(ft[40..].try_into().unwrap()) != 0xdb47_7524_8b80_fb57 { return Err(bad("table_magic")) }
         let mut p = 0; let _mo = uvarint(&ft, &mut p)?; let _ms = uvarint(&ft, &mut p)?;
         let io_ = uvarint(&ft, &mut p)?; let is = uvarint(&ft, &mut p)?;
-        let mut t = Table { f, index: Vec::new(), next: 0, cur: Vec::new().into_iter(), bytes_read: 48 };
+        let mut t = Table { f, index: Vec::new(), next: 0, cur: Vec::new().into_iter(), bytes_read: 48, snappy_blocks: 0 };
         let ib = t.block(io_, is)?;
         for (_, v) in block_entries(&ib)? { let mut q = 0; let o = uvarint(&v, &mut q)?; let s = uvarint(&v, &mut q)?; t.index.push((o, s)) }
         Ok(t)
@@ -102,9 +140,11 @@ impl Table {
         let crc = u32::from_le_bytes(b[b.len() - 4..].try_into().unwrap());
         let n = b.len() - 4;
         if !crc_ok(&b[..n], crc) { return Err(bad("block_crc_mismatch")) }
-        match b[n - 1] { 0 => {}, 1 => return Err(bad("snappy_block_unsupported")), _ => return Err(bad("block_compression_unknown")) }
-        b.truncate(n - 1);
-        Ok(b)
+        match b[n - 1] {
+            0 => { b.truncate(n - 1); Ok(b) }
+            1 => { self.snappy_blocks += 1; snappy_decompress(&b[..n - 1]) }
+            _ => Err(bad("block_compression_unknown")),
+        }
     }
     pub fn next_entry(&mut self) -> io::Result<Option<Entry>> {
         loop {
@@ -225,6 +265,7 @@ impl Db {
         Ok(())
     }
     /// Bytes of table blocks read so far.
+    pub fn snappy_blocks(&self) -> u64 { self.tables.iter().map(|t| t.snappy_blocks).sum() }
     pub fn table_bytes(&self) -> u64 { self.tables.iter().map(|t| t.bytes_read).sum() }
     /// Next live (key, value), or None at the end.
     pub fn next_live(&mut self) -> io::Result<Option<(Vec<u8>, Vec<u8>)>> {
