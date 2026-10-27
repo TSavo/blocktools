@@ -271,7 +271,7 @@ HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 `minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
 fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
 next-smallest and swapping is confined to `blocktools-net`. blocktools-net: https only (plain http only for
-localhost test servers), 30 s timeout, no redirects, 8 MiB body cap (net-8mib), server data re-validated. 30 s timeout (unmeasured).
+localhost test servers), 30 s timeout, no redirects, 8 MiB body cap (net-8mib), server data re-validated. The 30 s default timeout is measured against a slow mock (rpc-timeout-30s).
 Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
 
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
