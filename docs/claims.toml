@@ -142,11 +142,13 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "a4d7182"
+date = "2026-10-27"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
 value = "4"
-env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
+env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1; re-run at a4d7182 on the box); boundary test, no timing"
 cheap = true
 depends = ["crates/tx/src/lib.rs", "crates/tx/tests/input_cap.rs"]
 doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
@@ -900,7 +902,9 @@ id = "chainstate-dump-btc"
 statement = "chainstate-dump on a real stopped Bitcoin Core 25.2 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "a4d7182"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real btc pass 2 chainstate-dump: set ="
 cheap = false
@@ -912,7 +916,9 @@ id = "chainstate-dump-ltc"
 statement = "chainstate-dump on a real stopped Litecoin 0.21.4 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "a4d7182"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real ltc pass 2 chainstate-dump: set ="
 cheap = false
@@ -924,7 +930,9 @@ id = "chainstate-dump-doge"
 statement = "chainstate-dump on a real stopped Dogecoin 1.14.9 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as the utxo-set --write-dump file of the same chainstate (no dumptxoutset in 1.14); --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "a4d7182"
+date = "2026-10-27"
 command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
 expect = "ok   chainstate-real doge pass 2 chainstate-dump: set ="
 cheap = false
@@ -942,3 +950,17 @@ expect = "ok   tx-decode --chain eth on a non-EVM input -> not_evm"
 cheap = true
 depends = ["crates/tx/src/evm_decode.rs", "crates/tx/src/lib.rs", "tools/tx-decode/src/main.rs", "scripts/evm-decode-check.py", "scripts/e2e.d/evm-decode.sh", "fixtures/evm-mainnet"]
 doc = []
+
+[[claim]]
+id = "evm-devnet-create-call"
+statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
+kind = "platform"
+platform = "linux"
+status = "measured"
+commit = "a4d7182"
+date = "2026-10-27"
+command = "sh scripts/e2e.d/evm-devnet.sh"
+expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
+cheap = false
+depends = ["scripts/e2e.d/evm-devnet.sh", "scripts/evm-pins/geth", "tools/tx-build/src/main.rs", "tools/tx-sign/src/main.rs", "tools/tx-broadcast/src/main.rs", "tools/contract-call/src/main.rs", "crates/tx/src/evm.rs"]
+doc = [{ file = "recipes/evm-contract-tx.md", text = "evm-devnet.sh" }]

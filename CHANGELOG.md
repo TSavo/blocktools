@@ -7,6 +7,7 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [0.2.0] - Unreleased (release candidate; not tagged)
 
+Version 0.2.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check).
 Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm export or tool was removed
 (checked against v0.1.1: the pinned wasm export list in scripts/wasm-check.sh only gained names; no
 `tools/` crate was removed; no option was removed from any man page). Behaviour changes that can affect
@@ -57,6 +58,16 @@ existing scripts are listed under "Changed".
   `workflow_dispatch` runs an unsigned `repos-dry-run` (e986852, 2b7621f, 1f35e54).
 - macOS: `docs/MACOS.md` defines sealed-on-macOS; `scripts/macos-sealed-check.sh` refuses remote or stopped
   engines (c71bbbb, 8ba288c); the macos CI job is blocking (ab5e316) [e2e-macos].
+- `tx-decode --chain eth`: decodes legacy (pre-155 and 155), EIP-2930, 1559, 4844 (including the blob network
+  wrapper) and 7702 raw transactions through a decode-only view; the signing parser is unchanged; EVM bytes are
+  also auto-detected without `--chain` (62e8201) [tx-decode-evm-mainnet]. `tx-decode --chain
+  xlm|algo|atom|ton|ada|dot|sol|tron|xrp` runs that chain's existing decoder, byte-identical in stdout and exit
+  code (0a83f1c) (issue #11).
+- `docs/COVERAGE.md`: verb x chain matrix measured from the CLIs; docs-check rule D-coverage fails on an
+  unlisted multi-tool cell, a stale listing or a stale matrix, with 4 gate-negatives (bee1d50) (issue #11).
+- e2e `scripts/e2e.d/evm-devnet.sh`: contract creation, a contract call and a value transfer on a pinned
+  geth `--dev` node under the default schedule and Amsterdam, gas from `eth_estimateGas`; gas below the
+  estimate fails on chain (b84d79e) [evm-devnet-create-call] (issue #9).
 - Measured chain capability table (`scripts/chain-caps.py`, `tests/chain_caps.rs`, docs-check) (c362169, 126d4e8).
 - `tty::confirm_ack`: a typed acknowledgement distinct from the confirmation code (3a21083).
 - e2e recovery against wallets written at test time by Bitcoin Core 25.2, Electrum 4.5.8, eth-account and
@@ -83,6 +94,16 @@ existing scripts are listed under "Changed".
   (c6c33f3); EPIPE tolerated when a tool refuses before reading stdin (8ba288c).
 - Sealed image build: the Dockerfile copies `fixtures/utxo`, which the utxo dump tests read; the image
   build failed at cd93cd8 (678a8dd).
+- Recipe `recipes/evm-contract-tx.md` used `--gas 100000` for a contract creation, which ran out of gas on
+  Sepolia (status 0x0, gasUsed = limit; the init code was correct). It now takes `--gas` from `eth_estimateGas`
+  on the user's chain: the same init code is estimated at 56132 on the default schedule and 226175 on
+  Amsterdam, and on Amsterdam `--gas 100000` reproduces the Sepolia failure (b84d79e)
+  [evm-devnet-create-call] (issue #9). The recipe also records the publicnode estimates for Ethereum
+  mainnet and Sepolia taken by hand on 2026-10-27 (not a registered claim).
+- `tx-decode --chain xmr` (and any other chain-table name that is not a UTXO chain, zec, eth or a delegated
+  chain) parsed the input as a Bitcoin-family transaction; it now refuses with `unsupported_chain`, exit 2,
+  before reading input (see the 0.2.0 batch commit; e2e tx-decode.sh).
+- Sealed image build: the Dockerfile also copies `fixtures/leveldb` and `recipes/fixtures/evm-sol` (189e40f).
 - recovery-real swap case picks a swap that fails the BIP39 checksum (62027dc).
 - `fork-regtest` prints a labelled SKIP on non-Linux-x86_64 hosts instead of failing (49e6527).
 - CHAINS.md no longer lists qrk as refused (2fcb79b); wasm lockfile gained sha2, fixing `wasm-check --locked` (f3c23ea).
@@ -103,9 +124,9 @@ existing scripts are listed under "Changed".
   same scripts by hand on the host. Whether GitHub Pages redeploys after the job's push is not observed.
 - The release publishes Linux x86_64 only. macOS arm64 and Linux aarch64 tarballs are built and checked
   in CI but not attached to the release, and the apk/apt/rpm repositories are x86_64 only.
-- Not re-measured since the latest changes (untested until re-run at a green main commit): the sealed
-  image size and sealed run on Linux, utxo-set load/ingest/bloom/planted-coin results, wallet-finder
-  rates, and the real-node chainstate reads and chainstate-dump comparisons.
+- Not measured for this release candidate: the sealed run on Linux (sealed-run-linux; the Docker host used
+  for measuring cannot bind-mount the input directory) and the mainnet fee figures in docs/ROADMAP.md
+  (chains-fee-figures; no measuring command). docs/CLAIMS.md lists every claim with its status.
 - The THORChain memo sends and `verifyThorSend` are tested against regtest nodes and fixtures only, never
   on mainnet.
 - Sealed operation on macOS has never been run on a Mac; no recovery tool has been tested against a real
