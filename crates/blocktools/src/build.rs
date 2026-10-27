@@ -35,6 +35,7 @@ pub fn build_evm_transfer(req: &Value) -> Result<Value, String> {
     let nonce = need(req, "nonce")?; let gas = need(req, "gas")?; let price = need(req, "gasPrice")?;
     if nonce > u64::MAX as u128 { return Err("bad_nonce".into()) }
     if gas < 21000 || gas > 30_000_000 { return Err("bad_gas".into()) }
+    if !req["data"].is_null() || !req["create"].is_null() { return build_evm_contract(req, chain_id, nonce, gas, price) }
     let to = addr(req, "to")?;
     let token = if req["token"].is_null() || req["token"] == "" { None } else { Some(addr(req, "token")?) };
     let fee = gas.checked_mul(price).ok_or("fee_overflow")?;
@@ -61,6 +62,60 @@ pub fn build_evm_transfer(req: &Value) -> Result<Value, String> {
     if token.is_some() { o["token"] = hx(&tx_to).into(); o["recipient"] = hx(&to).into(); o["amount"] = amount.to_string().into() }
     if let Some(f) = req["from"].as_str() { o["from"] = f.into() }
     Ok(o)
+}
+
+/// Contract call (`data`, with `to`) or creation (`create` = init code, no `to`), as `tx-build --data / --create`:
+/// `gas` is required and used as given (no estimate is made); native `value` defaults to 0; `token` and `balance`
+/// are refused. Calldata needs a 4-byte selector; init code must be non-empty. Creation adds `initcode_keccak256`
+/// (pass it to `evmApproveCall` / `verifyTx` as `createHash`) and `to` is null.
+fn build_evm_contract(req: &Value, chain_id: u128, nonce: u128, gas: u128, price: u128) -> Result<Value, String> {
+    let hexf = |k: &str| -> Result<Option<Vec<u8>>, String> {
+        match &req[k] { Value::Null => Ok(None), Value::String(h) => crate::hex_dec(h.trim().trim_start_matches("0x")).map(Some).ok_or(format!("bad_{k}")), _ => Err(format!("bad_{k}")) }
+    };
+    let (data, create) = (hexf("data")?, hexf("create")?);
+    if data.is_some() && create.is_some() { return Err("data_and_create".into()) }
+    if !req["token"].is_null() || !req["balance"].is_null() { return Err("data_create_take_only_value".into()) }
+    let fee = gas.checked_mul(price).ok_or("fee_overflow")?;
+    let value = num(req, "value")?.unwrap_or(0);
+    let tip = num(req, "maxPriorityFeePerGas")?;
+    if tip.is_some_and(|t| t > price) { return Err("tip_above_max_fee".into()) }
+    let (to, d) = match (data, create) {
+        (Some(d), None) => { if d.len() < 4 { return Err("data_needs_selector".into()) } (Some(addr(req, "to")?), d) }
+        (None, Some(c)) => { if !req["to"].is_null() { return Err("create_takes_no_to".into()) } if c.is_empty() { return Err("empty_create".into()) } (None, c) }
+        _ => unreachable!(),
+    };
+    let tx = Tx { kind: if tip.is_some() { Kind::Eip1559 } else { Kind::Legacy }, chain_id: Some(chain_id as u64), nonce: nonce as u64,
+        max_fee_per_gas: price, max_priority_fee_per_gas: tip, gas: gas as u64, to, value, data: d.clone(), access_list: Rlp::L(vec![]), sig: None };
+    let mut o = json!({ "unsigned": hx(&tx.encode_unsigned()), "sighash": hx(&tx.sighash()),
+        "kind": if tip.is_some() { "eip1559" } else { "legacy" }, "chainId": chain_id as u64, "nonce": nonce.to_string(),
+        "gas": gas.to_string(), "gasPrice": price.to_string(), "to": to.map(|t| hx(&t)), "value": value.to_string(),
+        "data": hx(&d), "fee": fee.to_string() });
+    if let Some(t) = tip { o["maxPriorityFeePerGas"] = t.to_string().into() }
+    if to.is_none() { o["initcode_keccak256"] = hx(&crate::evm::keccak(&d)).into() }
+    if let Some(f) = req["from"].as_str() { o["from"] = f.into() }
+    Ok(o)
+}
+
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+    #[test]
+    fn data_and_create() {
+        let to = format!("0x{}", "aa".repeat(20));
+        let c = build_evm_transfer(&json!({"chainId":1,"nonce":3,"gas":60000,"gasPrice":"7","to":to,"data":"0x55241077000000000000000000000000000000000000000000000000000000000000002a"})).unwrap();
+        assert_eq!(c["value"], "0"); assert_eq!(c["to"], to.as_str()); assert!(c.get("initcode_keccak256").is_none());
+        let t = crate::tx::decode(c["unsigned"].as_str().unwrap(), "btc").unwrap();
+        assert_eq!(t.evm.as_ref().unwrap().data.len(), 36);
+        let k = build_evm_transfer(&json!({"chainId":1,"nonce":0,"gas":100000,"gasPrice":"7","create":"0x602a","maxPriorityFeePerGas":"1","value":"5"})).unwrap();
+        assert!(k["to"].is_null()); assert_eq!(k["value"], "5"); assert_eq!(k["initcode_keccak256"], hx(&crate::evm::keccak(&[0x60, 0x2a])));
+        assert!(crate::tx::decode(k["unsigned"].as_str().unwrap(), "btc").unwrap().evm.unwrap().to.is_none());
+        let e = |v: Value| build_evm_transfer(&v).unwrap_err();
+        assert_eq!(e(json!({"chainId":1,"nonce":0,"gasPrice":"7","create":"0x602a"})), "missing_gas");
+        assert_eq!(e(json!({"chainId":1,"nonce":0,"gas":100000,"gasPrice":"7","create":"0x602a","to":to})), "create_takes_no_to");
+        assert_eq!(e(json!({"chainId":1,"nonce":0,"gas":100000,"gasPrice":"7","data":"0x01","to":to})), "data_needs_selector");
+        assert_eq!(e(json!({"chainId":1,"nonce":0,"gas":100000,"gasPrice":"7","create":"0x"})), "empty_create");
+        assert_eq!(e(json!({"chainId":1,"nonce":0,"gas":100000,"gasPrice":"7","data":"0x12345678","to":to,"token":to})), "data_create_take_only_value");
+    }
 }
 
 /// Estimated vbytes to spend one P2PKH-sized input (SwapChan's constant).
