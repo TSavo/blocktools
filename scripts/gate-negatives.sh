@@ -80,7 +80,7 @@ neg K-unreg docs-check "unregistered claim" 'echo "The cache holds 77 MB." >> do
 # K-agree: README number disagrees with the registry value.
 neg K-agree docs-check "does not carry" 'sed -i "s/^value = \"[0-9.]*\"/value = \"31.0\"/" docs/claims.toml'  # any measured number: the pinned 45.3 went inert when the image was re-measured (46.1)
 # K-assert: a registry-untested claim stated as fact (marker removed from its doc line) must fail.
-neg K-assert docs-check "as fact" 'sed -i "s/(reviewer report, not reproduced by us) (untested)/(reviewer report, not reproduced by us) verified/" README.md'
+neg K-assert docs-check "as fact" 'sed -i "s/real lost wallet (untested)\*\*/real lost wallet verified**/" README.md'
 neg K-gone docs-check "not found in" 'sed "s/0\.01 ETH/one hundredth ETH/g" docs/SECURITY.md > t && mv t docs/SECURITY.md'
 neg K-fields docs-check "bad status" 'sed "0,/status = \"measured\"/s//status = \"verified\"/" docs/claims.toml > t && mv t docs/claims.toml'
 neg K-stale docs-check "re-measure" 'echo "// x" >> crates/tx/src/policy.rs && git -c user.name=n -c user.email=n@n commit -qam plant'
@@ -88,7 +88,7 @@ neg K-stale docs-check "image-size-readme" 'python3 -c "import re;p=\"docs/claim
 neg K-run docs-check "expected" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"security\"\nplatform = \"linux\"\nstatus = \"measured\"\ncommand = \"false\"\nexpect = \"ok\"\ncommit = \"%s\"\ndate = \"d\"\ncheap = true\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-fallback docs-check "measured via a fallback path" 'mkdir -p target/x86_64-unknown-linux-musl/release && printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"number\"\nplatform = \"docker\"\nstatus = \"measured\"\ncommand = \"sh scripts/image-size.sh --binary-sum\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ncheap = true\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-macos docs-check "without a ci_run" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"platform\"\nplatform = \"macos\"\nstatus = \"measured\"\ncommand = \"true\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
-neg K-label docs-check "is not labelled" 'sed "/image is 18\.2 MB\./s/ (unmeasured)//" DESIGN.md > t && mv t DESIGN.md'
+neg K-label docs-check "is not labelled" 'sed "/XPM 100,312 sat\/B buildable/s/ (unmeasured)//" docs/ROADMAP.md > t && mv t docs/ROADMAP.md'
 # K-ci: a claim stamped at a commit with no completed successful ci run on main (here a fresh commit) must fail.
 neg K-ci docs-check "no successful ci run on main" 'git -c user.name=n -c user.email=n@n commit -q --allow-empty -m plant && sed "0,/^commit = \"1f1fa71\"/s//commit = \"$(git rev-parse --short HEAD)\"/" docs/claims.toml > t && mv t docs/claims.toml'
 # K-agree (expect vs statement): the measured output in expect names a byte count the statement does not carry.
