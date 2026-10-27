@@ -69,6 +69,8 @@ neg D-man7 docs-check "man7 missing NAME" 'grep -v "^\.SH NAME$" man/man7/blockt
 neg D-share docs-check "package-dist missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-dist.sh > t && mv t scripts/package-dist.sh'
 neg D-share2 docs-check "package-native missing share/man" 'sed "s|share/man|share/zz|g" scripts/package-native.sh > t && mv t scripts/package-native.sh'
 neg D-caps docs-check "differs from what the CLIs do" 'sed "s/^| fet | yes | yes | no |/| fet | yes | yes | acct-tx |/" docs/CHAINS.md > t && mv t docs/CHAINS.md'  # fet has no TWC vector: acct-tx refuses it
+neg D-caps docs-check "differs from what the CLIs do" 'sed "s/^\(| btc | .*\) | mock only |$/\\1 | regtest bitcoin-25.2 |/" docs/CHAINS.md > t && mv t docs/CHAINS.md'  # btc has no real-node broadcast test: the doc may not claim one
+neg D-caps docs-check "pinned in fork-regtest.sh but sign is" 'sed "s/^doge https/eth https/" scripts/e2e.d/fork-regtest.sh > t && mv t scripts/e2e.d/fork-regtest.sh'  # a real-node pin on a row tx-build cannot build fails closed
 # ---- findings-check.sh (via docs-check)
 neg F-guard docs-check "has no guard file" 'sed "s/| R2-5 \\(.*\\) | scripts\\/check-deps-regress.sh |/| R2-5 \\1 | - |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-token docs-check "does not carry finding:R2-5" 'grep -v "finding:R2-5" scripts/check-deps-regress.sh > t && mv t scripts/check-deps-regress.sh'

@@ -10,7 +10,7 @@ fn detect_column_matches_address_detect() {
     let (mut n, mut bad) = (0, Vec::new());
     for l in t.lines() {
         let f: Vec<&str> = l.trim().trim_matches('|').split('|').map(str::trim).collect();
-        if f.len() != 5 || f[0] == "chain" || f[0] == "---" || f[1] != "yes" { continue }
+        if f.len() != 6 || f[0] == "chain" || f[0] == "---" || f[1] != "yes" { continue }
         let addr = f[4].trim_matches('`');
         let c = detect(addr);
         let want = if !c.iter().any(|(k, _)| *k == f[0]) { "no".to_string() } else if c.len() == 1 { "yes".into() } else { format!("yes, 1 of {}", c.len()) };

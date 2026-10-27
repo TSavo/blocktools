@@ -984,3 +984,7 @@ dd8595a138132dee87cee76ce760a1d622fc2fd65d3b6ac7df7e53b7fb6ea7e8
 # solc 0.8.26 keccak256 source hashes in recipes/fixtures/evm-sol/Counter.metadata.json (public test fixture)
 9cefcb3ddcdbe8a1a6d1eea92d973150e62c9ff07c5ca070f2384692612ea70d
 fa314c985e5d311036d25158150e6df7f3fefabb80934049fd1538c0b4709e61
+# sha256 pins of public release tarballs used by scripts/e2e.d/fork-regtest.sh (litecoin 0.21.4, dogecoin 1.14.9, bitcoin-cash-node 28.0.1; each equals the project's signed SHA256SUMS line)
+857fc41091f2bae65c3bf0fd4d388fca915fc93a03f16dd2578ac3cc92898390
+4f227117b411a7c98622c970986e27bcfc3f547a72bef65e7d9e82989175d4f8
+d69ee632147f886ca540cecdff5b1b85512612b4c005e86b09083a63c35b64fa
