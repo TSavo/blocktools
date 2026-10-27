@@ -54,14 +54,18 @@ pub fn open(json: &str, password: &[u8]) -> Result<Zeroizing<[u8; 32]>, &'static
         _ => return Err("unsupported"),
     }
     let ct = hexf(c, "ciphertext")?;
-    let iv = hexf(c.get("cipherparams").ok_or("bad_input")?, "iv")?;
+    let iv0 = hexf(c.get("cipherparams").ok_or("bad_input")?, "iv")?;
     let mac = hexf(c, "mac")?;
-    if ct.len() != 32 || iv.len() != 16 { return Err("unsupported"); }
+    // eth-keyfile (eth-account) stores the IV as a big-endian integer re-encoded without leading
+    // zero bytes (about 1 keystore in 256 has a 15-byte iv) and reads it back as that integer, so a
+    // short IV means left zero padding to the 16-byte AES-CTR counter block.
+    if ct.len() != 32 || iv0.is_empty() || iv0.len() > 16 { return Err("unsupported"); }
+    let mut iv = [0u8; 16]; iv[16 - iv0.len()..].copy_from_slice(&iv0);
     let mut h = Keccak256::new(); h.update(&dk[16..32]); h.update(&ct);
     if h.finalize().as_slice() != mac.as_slice() { return Err("wrong_password"); }
     let mut key = Zeroizing::new([0u8; 32]);
     key.copy_from_slice(&ct);
-    Ctr::new(dk[..16].into(), iv.as_slice().into()).apply_keystream(&mut key[..]);
+    Ctr::new(dk[..16].into(), (&iv).into()).apply_keystream(&mut key[..]);
     Ok(key)
 }
 
@@ -149,6 +153,19 @@ mod tests {
         // Hostile memory request is refused before any allocation.
         let h = VL.replace(r#""n":4096,"r":8"#, r#""n":1048576,"r":64"#);
         assert_eq!(open(&h, b"x").unwrap_err(), "unsupported");
+    }
+    // eth-account 0.13.4 / eth-keyfile 0.8.1 output with a 15-byte iv (leading zero byte dropped),
+    // public dummy key 0x11..11, password "testpassword"; decrypted by eth_account.Account.decrypt.
+    const VSHORT: &str = r#"{"address": "19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A", "crypto": {"cipher": "aes-128-ctr", "cipherparams": {"iv": "785f8b0f220565d7e2e5c4ba681c72"}, "ciphertext": "1d41a82668315621918e69a62974e00ac583dbd65e2020dea63b781d42a715bf", "kdf": "pbkdf2", "kdfparams": {"c": 2, "dklen": 32, "prf": "hmac-sha256", "salt": "eeff9e54bba447c3e629cb8de9816504"}, "mac": "28eefe07b0d1932cfb3992b841ef8025f226344f9edc39e026bbfd0d91e01c90"}, "id": "58f0860e-6fa8-4082-9ce5-8b3e495f323c", "version": 3}"#;
+    #[test] fn eth_keyfile_short_iv() {
+        let (a, k) = open_v3(VSHORT, b"testpassword").unwrap();
+        assert_eq!(k.as_str(), "11".repeat(32));
+        assert_eq!(a, "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A");
+        assert_eq!(open(VSHORT, b"nope").unwrap_err(), "wrong_password");
+        // the padding is on the left: right-padding (or a zero-length / 17-byte iv) does not give the key
+        assert_ne!(hex_enc(&open(&VSHORT.replace(r#""785f8b0f220565d7e2e5c4ba681c72""#, r#""785f8b0f220565d7e2e5c4ba681c7200""#), b"testpassword").unwrap()[..]), "11".repeat(32));
+        assert_eq!(open(&VSHORT.replace("785f8b0f220565d7e2e5c4ba681c72", ""), b"x").unwrap_err(), "unsupported");
+        assert_eq!(open(&VSHORT.replace("785f8b0f220565d7e2e5c4ba681c72", "00112233445566778899aabbccddeeff00"), b"x").unwrap_err(), "unsupported");
     }
     #[test] fn hostile_kdf() {
         let h = V.replace(r#""kdf":"pbkdf2""#, r#""kdf":"evil""#);

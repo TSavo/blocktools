@@ -43,5 +43,10 @@ cp "$D/legacy/wallet.dat" "$O/core-legacy.dat"; cp "$D/desc/wallet.dat" "$O/core
 "$PY" "$ROOT/scripts/recovery-gen/electrum_gen.py" "$O" Horsebatetry7; rm -rf "$O/edir"
 "$PY" -c "
 import json;from eth_account import Account as A;a=A.create()
-open('$O/eth.json','w').write(json.dumps(A.encrypt(a.key,'Horse7')));open('$O/eth.want','w').write(a.address+'\n')"
+open('$O/eth.json','w').write(json.dumps(A.encrypt(a.key,'Horse7')));open('$O/eth.want','w').write(a.address+'\n')
+# eth-keyfile drops leading zero IV bytes (~1 in 256 keystores): always also write one such file.
+while True:
+  j=A.encrypt(a.key,'Horse7',kdf='pbkdf2',iterations=1000)
+  if len(j['crypto']['cipherparams']['iv'])<32: break
+open('$O/eth-shortiv.json','w').write(json.dumps(j))"
 echo "recovery-gen ok: $(ls "$O" | wc -l | tr -d ' ') files in $O"

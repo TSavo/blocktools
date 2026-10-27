@@ -32,12 +32,19 @@ for k in typo missing; do seed electrum-$k electrum "$G/electrum-fileenc.want" "
 pw() {
   s=$(date +%s); printf '%s\n' $2 > "$T/tok"; want=$(head -1 "$5")
   "$B/pw-candidates" --rules "$3" --max 100000 "$T/tok" > "$T/pws"
-  i=0; hit=
+  i=0; hit=; : > "$T/st"
   while IFS= read -r p; do
     i=$((i + 1))
-    if { printf '%s\n' "$p"; cat "$4"; } | sh -c "$6" > "$T/o" 2>/dev/null && grep -qF "$want" "$T/o"; then hit=1; break; fi
+    rc=0; { printf '%s\n' "$p"; cat "$4"; } | sh -c "$6" > "$T/o" 2>"$T/e" || rc=$?
+    if [ $rc = 0 ] && grep -qF "$want" "$T/o"; then hit=1; break; fi
+    # per-attempt outcome for the failure report: status field and stderr only (never the opened key)
+    echo "rc=$rc $(grep -o '"status":"[^"]*"' "$T/o" | head -1) $(head -c 200 "$T/e" | tr '\n' ' ')" >> "$T/st"
   done < "$T/pws"
-  [ -n "$hit" ] || f "$1: password not recovered"
+  if [ -z "$hit" ]; then
+    echo "recovery-real $1: $i candidates tried, none opened; outcome tally:"; sort "$T/st" | uniq -c | sort -rn | head -20
+    echo "recovery-real $1: wallet params: $("$PY" -c 'import json,sys;j=json.load(open(sys.argv[1]));c=j.get("crypto",{});print({"kdf":c.get("kdf"),"iv_bytes":len(c.get("cipherparams",{}).get("iv",""))//2,"ct_bytes":len(c.get("ciphertext",""))//2,"salt_bytes":len(c.get("kdfparams",{}).get("salt",""))//2})' "$4" 2>/dev/null || echo n/a)"
+    f "$1: password not recovered"
+  fi
   while read -r a; do grep -qF "$a" "$T/o" || f "$1: generator address $a missing"; done < "$5"
   echo "ok   recovery-real password $1: opened at attempt $i of $(wc -l < "$T/pws" | tr -d ' '); all $(wc -l < "$5" | tr -d ' ') generator addresses found; $(( $(date +%s) - s ))s"
 }
@@ -47,6 +54,7 @@ pw core-25.2-descriptor-sqlite "horse battery" case,digit "$G/core-desc.dat" "$G
 pw electrum-4.5.8-file-encrypted "horse battery" case,swap,digit "$G/electrum-fileenc" "$G/electrum-fileenc.want" "$B/electrum-read | $B/seed-to-master | $B/derive --preset electrum --chain btc --count 3 --public-only"
 pw electrum-4.5.8-keystore-encrypted "horse battery" case,swap,digit "$G/electrum-keyenc" "$G/electrum-keyenc.want" "$B/electrum-read | $B/seed-to-master | $B/derive --preset electrum --chain btc --count 3 --public-only"
 pw eth-account-0.13.4-scrypt "horse" case,digit "$G/eth.json" "$G/eth.want" "$B/keystore-open"
+pw eth-account-0.13.4-short-iv "horse" case,digit "$G/eth-shortiv.json" "$G/eth.want" "$B/keystore-open"
 # control: a wrong password does not open the Core wallet (the loop above is not vacuous)
 { echo Horsebattery8; cat "$G/core-legacy.dat"; } | "$B/dat-read" > "$T/o" 2>/dev/null && grep -qF "$(head -1 "$G/core-legacy.want")" "$T/o" && f "wrong password opened core-legacy"
 echo "ok   recovery-real control: wrong password does not open the Core 25.2 wallet"

@@ -51,7 +51,7 @@ host (agent)                         sealed container (--network none)
 |---|---|
 | Agent (LLM) context leaks keys (logs, prompt injection, transcripts) | Agent only gets `redact` output; allowlist + validators + leak scan |
 | Hostile wallet files / filenames carrying instructions | Treated as data only; bounded reads; no eval/pickle/shell-outs in tools; filenames never interpreted |
-| Hostile KDF params (CPU/memory DoS) | scrypt bounded by memory (128·N·r ≤ 256 MiB) and work (N·r·p ≤ 2^24), not per-knob, so geth standard, geth --lightkdf (N=4096 p=6) and the Web3 spec vector (N=2^18 r=1 p=8) open; PBKDF2 ≤ 10M iterations; container memory/pids/CPU limits |
+| Hostile KDF params (CPU/memory DoS) | scrypt bounded by memory (128·N·r ≤ 256 MiB) (untested) and work (N·r·p ≤ 2^24), not per-knob, so geth standard, geth --lightkdf (N=4096 p=6) and the Web3 spec vector (N=2^18 r=1 p=8) open; PBKDF2 ≤ 10M iterations; container memory/pids/CPU limits |
 | Exfiltration over the network | `--network none`; no network tools in the image; no network code in tools |
 | Container escape / privilege | non-root uid 10001, `--cap-drop ALL`, `no-new-privileges`, read-only rootfs, noexec tmpfs |
 | Persistence of secrets on disk | Only tmpfs is writable; inputs mounted read-only; `--log-driver none` |
