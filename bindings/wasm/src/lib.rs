@@ -83,13 +83,30 @@ pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx:
 /// alongside ERC-20 transfer calldata.
 #[wasm_bindgen(js_name = verifyTx)]
 #[allow(clippy::too_many_arguments)]
-pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>) -> Result<String, JsError> {
+pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>, call_json: Option<String>) -> Result<String, JsError> {
     if is_sol(chain) { return Err(err("solana_use_solVerifyTx")) } // different policy shape (owner/lamports/mint/allow_programs)
     let d = tx::decode(input, chain).map_err(err)?;
     let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
+    let ex = expect_to.clone();
     let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false) };
     let v = blocktools::tx::policy::verify(&d, &p);
-    Ok(json!({"ok": v.findings.is_empty(), "failures": v.findings, "warnings": d.warnings, "check_these": v.check_these, "fee_cap": v.fee_cap.json()}).to_string())
+    let mut f: Vec<String> = v.findings.iter().map(|x| x.to_string()).collect();
+    // callJson {sigs?, abi?, createHash?}: the tx-verify --call/--abi/--create-hash check of an EVM contract call/creation.
+    let mut call = None;
+    if let Some(cj) = call_json.filter(|c| !c.is_empty()) {
+        let req = evm_req(&cj)?;
+        let sigs = evm_api::sigs_from_req(&req).map_err(err)?;
+        let ch = evm_api::create_hash_from_req(&req).map_err(err)?;
+        if let Some(t) = d.evm.as_ref().filter(|t| t.to.is_none() || !(t.data.is_empty() || tx::evm::token_call(&t.data).is_some())) {
+            let o = evm_api::approve_call(t.to.as_ref().map(|x| &x[..]), &t.data, &sigs, ch.as_ref());
+            let warn: Vec<String> = d.warnings.iter().map(|w| w.to_string()).collect();
+            evm_api::lift_approved(&o, t.to.map(|x| tx::addr(&x)).as_deref(), &ex, &warn, &mut f);
+            call = Some(o);
+        }
+    }
+    let mut o = json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings, "check_these": v.check_these, "fee_cap": v.fee_cap.json()});
+    if let Some(c) = call { o["call"] = c }
+    Ok(o.to_string())
 }
 
 /// Check a tx against an offline policy file (docs/POLICY.md). Deny by default; the rule for `chain`
@@ -409,6 +426,11 @@ pub fn evm_abi_encode_packed(request_json: &str) -> Result<String, JsError> { Ok
 /// CREATE / CREATE2 contract address. Request JSON {deployer, nonce} or {deployer, salt, init_code_hash | init_code}; a tx (from, nonce) also works.
 #[wasm_bindgen(js_name = evmCreateAddress)]
 pub fn evm_create_address(request_json: &str) -> Result<String, JsError> { Ok(evm_api::create_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
+
+/// Strict check of EVM calldata or init code before signing, as tx-verify --call/--abi/--create-hash.
+/// Request JSON {to: "0x.." | null, data, sigs?: [signature], abi?: JSON ABI (text or array), createHash?}.
+#[wasm_bindgen(js_name = evmApproveCall)]
+pub fn evm_approve_call(request_json: &str) -> Result<String, JsError> { Ok(evm_api::approve_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
 
 /// Inspect an ABI (JSON or signature lines): items with selectors/topics, selector collisions, ERC-165/ERC-20 interfaces.
 #[wasm_bindgen(js_name = evmAbiInspect)]

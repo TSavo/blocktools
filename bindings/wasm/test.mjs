@@ -272,6 +272,33 @@ console.log('addressToScript case + zec ok');
   assert.throws(() => bt.verifyTx(sraw, 'sol', [], [], undefined, '', false, undefined), /solana_use_solVerifyTx/);
   console.log('sol v1 ok');
 }
+{ // Contract Read/Write: buildEvmTransfer data/create, evmApproveCall, verifyTx callJson, evmAbiEncode from a JSON ABI
+  const to = '0x' + 'aa'.repeat(20);
+  const abi = JSON.stringify([{type:'function',name:'store',inputs:[{name:'v',type:'uint256'}]},{type:'function',name:'store',inputs:[{name:'v',type:'uint256'},{name:'w',type:'bool'}]}]);
+  const enc = JSON.parse(bt.evmAbiEncode(JSON.stringify({abi, name: 'store', args: ['42']})));
+  assert.equal(enc.name, 'store'); assert.ok(enc.data.startsWith('0x6057361d'), JSON.stringify(enc));
+  assert.throws(() => bt.evmAbiEncode(JSON.stringify({abi, name: 'nope', args: []})), /no_such_function/);
+  const enc2 = JSON.parse(bt.evmAbiEncode(JSON.stringify({abi, name: 'store', args: ['42', true]})));
+  assert.equal(enc2.signature, 'store(uint256,bool)');
+  const c = JSON.parse(bt.buildEvmTransfer(JSON.stringify({chainId: 1, nonce: 3, gas: 60000, gasPrice: '7', to, data: enc2.data})));
+  assert.equal(c.value, '0'); assert.equal(c.to, to); assert.equal(c.data, enc2.data);
+  assert.throws(() => bt.buildEvmTransfer(JSON.stringify({chainId: 1, nonce: 3, gasPrice: '7', to, data: enc.data})), /missing_gas/);
+  const ok = JSON.parse(bt.evmApproveCall(JSON.stringify({to, data: enc.data, abi})));
+  assert.equal(ok.status, 'ok', JSON.stringify(ok));
+  assert.equal(JSON.parse(bt.evmApproveCall(JSON.stringify({to, data: enc.data, sigs: ['other(uint256)']}))).status, 'unknown_selector');
+  const k = JSON.parse(bt.buildEvmTransfer(JSON.stringify({chainId: 1, nonce: 0, gas: 100000, gasPrice: '7', create: '0x' + '5b'.repeat(120)})));
+  assert.equal(k.to, null); assert.equal(k.initcode_keccak256.length, 66);
+  assert.equal(JSON.parse(bt.evmApproveCall(JSON.stringify({to: null, data: k.data, createHash: k.initcode_keccak256}))).status, 'ok');
+  const plain = JSON.parse(bt.verifyTx(c.unsigned, 'eth', [to], [], 1, '', false));
+  assert.equal(plain.ok, false); assert.equal(plain.call, undefined);
+  const v = JSON.parse(bt.verifyTx(c.unsigned, 'eth', [to], [], 1, '', false, undefined, JSON.stringify({abi})));
+  assert.equal(v.ok, true, JSON.stringify(v)); assert.equal(v.call.status, 'ok');
+  const bad = JSON.parse(bt.verifyTx(c.unsigned, 'eth', [to], [], 1, '', false, undefined, JSON.stringify({sigs: ['other(uint256)']})));
+  assert.equal(bad.ok, false);
+  const kv = JSON.parse(bt.verifyTx(k.unsigned, 'eth', [], [], 1, '', false, undefined, JSON.stringify({createHash: k.initcode_keccak256})));
+  assert.equal(kv.ok, true, JSON.stringify(kv));
+  console.log('contract read/write ok');
+}
 // lift 7: buildEvmTransfer / selectUtxos
 {
   const to = '0x' + '01'.repeat(20);

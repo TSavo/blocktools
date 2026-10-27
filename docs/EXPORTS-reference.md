@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 65. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 66. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -144,7 +144,7 @@ buildEvmTransfer(req_json: string): string
 
 Unsigned EIP-155 transfer (ETH forks / extra EVM chains, native or ERC-20). Request JSON: {chainId, nonce, gas, gasPrice, to, value | balance, token?, maxPriorityFeePerGas?, from?}. Returns {unsigned, sighash, kind, chainId, nonce, gas, gasPrice, to, value, data, fee, ...}.
 
-Calls in test.mjs: 3.
+Calls in test.mjs: 6.
 
 Example (executed):
 
@@ -559,7 +559,7 @@ evmAbiEncode(request_json: string): string
 
 ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
 
-Calls in test.mjs: 3.
+Calls in test.mjs: 6.
 
 Example (executed):
 
@@ -621,6 +621,23 @@ Error example (executed):
 ```js
 bt.evmAbiInspect("[")
 // throws bad_abi_json
+```
+
+## `evmApproveCall`
+
+```ts
+evmApproveCall(request_json: string): string
+```
+
+Strict check of EVM calldata or init code before signing, as tx-verify --call/--abi/--create-hash. Request JSON {to: "0x.." | null, data, sigs?: [signature], abi?: JSON ABI (text or array), createHash?}.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.evmApproveCall("{\"to\":\"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"data\":\"0x6057361d000000000000000000000000000000000000000000000000000000000000002a\",\"sigs\":[\"other(uint256)\"]}")
+// -> {"kind":"call","selector":"0x6057361d","status":"unknown_selector"}
 ```
 
 ## `evmBytecodeInspect`
@@ -1281,12 +1298,12 @@ bt.verifySweepTx("{\"from\":\"0x1111111111111111111111111111111111111111\",\"to\
 ## `verifyTx`
 
 ```ts
-verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null | undefined, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null): string
+verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null | undefined, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null, call_json?: string | null): string
 ```
 
 tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata.
 
-Calls in test.mjs: 4.
+Calls in test.mjs: 8.
 
 Example (executed):
 
