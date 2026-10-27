@@ -52,8 +52,10 @@ run_chain() { # chain url sha dir daemon cli rate
   D="$W/$c"; mkdir -p "$D"; port=$((18800 + $(printf %s "$c" | cksum | cut -c1-3) % 100))
   printf 'regtest=1\nserver=1\ntxindex=1\nlisten=0\nrpcport=%s\nrpcallowip=127.0.0.1\n[regtest]\nrpcport=%s\nrpcbind=127.0.0.1\nrpcallowip=127.0.0.1\n' $port $port > "$D/conf"
   [ $c != bch ] || echo expire=0 >> "$D/conf"  # BCHN disables RPC on releases past their planned expiry; throwaway regtest only
+  [ $c != nmc ] || echo fallbackfee=0.001 >> "$D/conf"  # funding sendtoaddress only (the swept tx pays tx-build's fee); Namecoin 28 disables fallback fee estimation
+  DOPT=; [ $c != bsv ] || DOPT="-excessiveblocksize=10000000 -maxstackmemoryusageconsensus=100000000 -minminingtxfee=0.00000001"  # SV Node refuses to start without these consensus/policy limits
   C="$CACHE/$dir/bin/$6 -conf=$D/conf -datadir=$D"
-  "$CACHE/$dir/bin/$5" -conf="$D/conf" -datadir="$D" -pid="$D/node.pid" -daemon >/dev/null || f "$c: $5 did not start"
+  "$CACHE/$dir/bin/$5" -conf="$D/conf" -datadir="$D" -pid="$D/node.pid" $DOPT -daemon >/dev/null || f "$c: $5 did not start"
   STOP="$C stop || kill \$(cat $D/node.pid)"
   i=0; until $C getblockcount >/dev/null 2>&1; do i=$((i + 1)); [ $i -lt 900 ] || f "$c: node RPC not up"; sleep 1; done
   $C getwalletinfo >/dev/null 2>&1 || $C createwallet w >/dev/null || f "$c: createwallet"  # doge 1.14 and BCHN load a default wallet; ltc 0.21 has none

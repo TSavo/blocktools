@@ -739,3 +739,31 @@ date = "2026-10-26"
 cheap = false
 depends = ["scripts/e2e.d/fork-regtest.sh", "scripts/fork-pins/rvn"]
 doc = [{ file = "docs/CHAINS.md", text = "regtest raven-4.8.0-225491298" }]
+
+[[claim]]
+id = "fork-regtest-nmc"
+statement = "A nmc P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned namecoin-28.0 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "untested"
+command = "FORK_CHAINS=nmc CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest nmc (namecoin-28.0)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh", "scripts/fork-pins/nmc"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest namecoin-28.0" }]
+
+[[claim]]
+id = "fork-regtest-bsv"
+statement = "A bsv P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned bitcoin-sv-1.2.3 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "untested"
+command = "FORK_CHAINS=bsv CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest bsv (bitcoin-sv-1.2.3)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh", "scripts/fork-pins/bsv"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-sv-1.2.3" }]
