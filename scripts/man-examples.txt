@@ -67,6 +67,7 @@ create-address | 2 | create-address --deployer 0x6ac7ea33f8831ea9dcc53393aaa88b2
 abi-inspect | 0 | abi-inspect "$R/recipes/fixtures/evm/erc20-plus-collision.txt"
 abi-inspect | 2 | echo '[' | abi-inspect
 bytecode-inspect | 0 | bytecode-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3
+bytecode-inspect | 0 | bytecode-inspect --metadata "$R/recipes/fixtures/evm-sol/Counter.metadata.json" --sources "$R/recipes/fixtures/evm-sol" < "$R/recipes/fixtures/evm-sol/Counter.runtime.hex"
 bytecode-inspect | 2 | bytecode-inspect 0x1
 typed-data-verify | 0 | typed-data-verify "$R/recipes/fixtures/evm/eip712-mail-signed.json"
 typed-data-verify | 2 | typed-data-verify --sig 0x00 "$R/recipes/fixtures/evm/eip712-mail.json"

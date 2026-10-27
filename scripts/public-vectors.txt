@@ -981,3 +981,6 @@ c35d282f39674135af5a29d3b5e0365813cca977f83a09e06e8b74c31a8e8282
 # sha256 pins of public downloads used by scripts/recovery-gen.sh (bitcoin-25.2-x86_64-linux-gnu.tar.gz, Electrum-4.5.8.tar.gz)
 8d8c387e597e0edfc256f0bbace1dac3ad1ebf4a3c06da3e2975fda333817dea
 dd8595a138132dee87cee76ce760a1d622fc2fd65d3b6ac7df7e53b7fb6ea7e8
+# solc 0.8.26 keccak256 source hashes in recipes/fixtures/evm-sol/Counter.metadata.json (public test fixture)
+9cefcb3ddcdbe8a1a6d1eea92d973150e62c9ff07c5ca070f2384692612ea70d
+fa314c985e5d311036d25158150e6df7f3fefabb80934049fd1538c0b4709e61

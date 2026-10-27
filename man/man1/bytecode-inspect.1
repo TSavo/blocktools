@@ -8,6 +8,8 @@ HEX (or stdin): runtime code as 0x\-hex, or an eth_getCode JSON\-RPC response ({
 Prints kind (empty, code, eip1167_proxy + implementation, eip7702_delegation + delegate, eof), size,
 exceeds_eip170, keccak256 (the code hash), metadata (solc version, ipfs/bzzr hash), opcode counts and
 selector_candidates: PUSH4 values compared with EQ (heuristic; confirm with sig\-hash \-\-lookup).
+Exit 0 ok, 1 mismatch or no_metadata, 2 bad input. No compiler is run: this proves the files are the ones the
+build hashed, not that the code compiles to this bytecode beyond that hash.
 .fi
 .SH DESCRIPTION
 check the EIP\-170 size limit, parse the Solidity CBOR metadata trailer, count notable opcodes
@@ -16,18 +18,23 @@ and list dispatcher selector candidates (heuristic), offline.
 .RS 2
   jq \-r .result getCode.json | bytecode\-inspect
   bytecode\-inspect < eth_getCode\-response.json
+  bytecode\-inspect \-\-metadata metadata.json [\-\-sources DIR] < code.hex   offline source/metadata check, no compiler
 .RE
 .fi
 .SH OPTIONS
 .nf
-\-\-lookup
+  \-\-metadata FILE   check FILE (the exact metadata.json bytes solc wrote) against the ipfs hash in the code's CBOR
+                    trailer (runtime code, or creation code with constructor args appended), and compare the
+                    compiler version; prints {"status":"ok"|"mismatch","metadata_match","sources":{path:{status}}}
+  \-\-sources DIR     re\-hash each source named in the metadata (DIR/<path>) against its keccak256 and dweb:/ipfs URL;
+                    sources inlined in the metadata ("content") are checked without DIR; absent ones are not_provided
 .fi
-Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 .nf
 .RS 2
   jq \-r .result getCode.json | bytecode\-inspect
   bytecode\-inspect < eth_getCode\-response.json
+  bytecode\-inspect \-\-metadata metadata.json [\-\-sources DIR] < code.hex   offline source/metadata check, no compiler
 .RE
 .fi
 .SH EXIT STATUS
@@ -43,6 +50,8 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 .SH EXAMPLES
 .nf
 $ bytecode\-inspect 0x363d3d373d3d3d363d73bebebebebebebebebebebebebebebebebebebebe5af43d82803e903d91602b57fd5bf3
+# exit 0, last status: ok
+$ bytecode\-inspect \-\-metadata "$R/recipes/fixtures/evm\-sol/Counter.metadata.json" \-\-sources "$R/recipes/fixtures/evm\-sol" < "$R/recipes/fixtures/evm\-sol/Counter.runtime.hex"
 # exit 0, last status: ok
 $ bytecode\-inspect 0x1
 # exit 2, last status: bad_input

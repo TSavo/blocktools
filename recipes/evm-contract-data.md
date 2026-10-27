@@ -104,6 +104,21 @@ Without `--allow-unlisted` the trace is refused and nothing is sent:
 Live (UNTESTED here): `contract-trace "$RPC" 0x… --data @data.hex --from 0x… --state over.json --allow-unlisted`; most
 public endpoints do not serve `debug_traceCall` (you get `rpc_error`); use your own node.
 
+### Are these the sources? Offline metadata check (no compiler)
+
+solc appends a CBOR trailer to the code holding the IPFS hash of the exact `metadata.json` it wrote, and that
+file lists every source with its keccak256. `bytecode-inspect --metadata FILE [--sources DIR]` re-hashes the
+metadata and each source and compares them with the trailer: no compiler runs, so this proves the files are the
+ones the build hashed (compiler version and settings included), nothing more. Runtime code or creation code
+(constructor arguments appended) both work. The fixture is a solc 0.8.26 build
+([fixtures/evm-sol/PROVENANCE.md](fixtures/evm-sol/PROVENANCE.md)):
+
+<!-- e2e: expect="metadata_match":true ; expect="status":"match" ; expect="sources_missing":0 ; expect="status":"ok" ; rc=0 -->
+    bytecode-inspect --metadata recipes/fixtures/evm-sol/Counter.metadata.json --sources recipes/fixtures/evm-sol < recipes/fixtures/evm-sol/Counter.runtime.hex
+
+A changed source is `"status":"mismatch"` for that file (and the whole result), exit 1. The deployed code comes
+from `eth_getCode` (`jq -r .result`); the metadata and sources from the project's build output.
+
 ## (e) Reverts: `Error(string)` and a custom error
 
 `Error(string)` and `Panic(uint256)` are decoded with no signature. `04d` (request "04d") is a

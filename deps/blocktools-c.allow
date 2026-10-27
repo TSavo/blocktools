@@ -30,6 +30,7 @@ secp256k1
 secp256k1-sys
 serde_core
 serde_json
+sha2
 sha3
 subtle
 syn

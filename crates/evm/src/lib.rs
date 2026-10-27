@@ -10,6 +10,7 @@ pub mod bytecode;
 pub mod create;
 pub mod eip712;
 pub mod inspect;
+pub mod metadata;
 pub mod sig;
 pub mod u256;
 

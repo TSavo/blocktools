@@ -13,6 +13,8 @@ blocktools-monero
 blocktools-secrets
 blocktools-tty
 blocktools-tx
+cfg-if
+cpufeatures
 crypto-common
 digest
 generic-array
@@ -27,6 +29,7 @@ secp256k1
 secp256k1-sys
 serde_core
 serde_json
+sha2
 sha3
 typenum
 zeroize
