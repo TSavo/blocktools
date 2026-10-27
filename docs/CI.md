@@ -178,3 +178,13 @@ python3 with cryptography and pyyaml, groff, git, file) and nothing of the gener
 bind-mounted at `/src` and cargo caches in named volumes. Bind mounts resolve on the Docker host: from a
 Mac whose docker context is Battleaxe, point `GATE_SRC` at a checkout on Battleaxe. The sealed runtime image
 is still `Dockerfile`; the two share nothing. Measured on Battleaxe (docker context from a Mac, checkout cloned on Battleaxe, branch prebip39-phrases at 420f7b1): `lint` and `test` passed in the image before the jq/openssl/safe.directory additions (lint needed jq for a man example, negatives needed git to trust the clone source); `negatives` (67 lines, all ok) and `e2e` (145 recipe examples ok, 0 skipped, "e2e: all ok") passed in the final image. Not measured: running the image on a Docker host other than Battleaxe, and the image under a non-root `--user`.
+
+## Platforms
+
+e2e on macos-latest (arm64) is blocking since FINDINGS R1-8 closed (ci run 40464301446 at 006d03b). It runs natively,
+not sealed, and skips wasm-check, paths evm-inspect/sol/tron, fork-regtest, utxo-real and recovery-real (Linux x86_64 pins).
+Two more jobs run `gate.sh test` and `gate.sh package` on GitHub-hosted arm64 runners and upload the tarball as a CI
+artifact: `package-macos` (macOS arm64 tarball, 47 Mach-O arm64 binaries, minos 11.0) and `package-linux-arm`
+(Linux aarch64 tarball, glibc >= 2.39). Measured at 006d03b: both pass, the packaged derive reproduces the BIP84 vector.
+Nothing here is released: release.yml still builds and publishes linux-x86_64 only, on v* tags. Not built: musl,
+macOS x86_64.

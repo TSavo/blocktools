@@ -9,7 +9,7 @@ Exit status 1 when:
   * a measured claim is stale: a file in `depends` changed since `commit`;           [K-stale]
   * a measured claim marked cheap=true: its command fails or prints no `expect`;     [K-run]
   * a measured macos claim has no `ci_run`, or that run's macos job did not succeed
-    at the claim's commit (checked with gh; fails closed if gh is unavailable);      [K-macos]
+    at the claim's commit, nor every job named in `ci_job` (gh; fails closed without gh); [K-macos]
   * a number claim that is not measured is not labelled "(unmeasured)" on its doc line,
     or an unmeasurable claim has no reason;
   * a re-run measured claim's command reports FALLBACK (measured something else);   [K-fallback]                                          [K-label]
@@ -151,8 +151,11 @@ def main():
                     ok = False
                     if r.returncode == 0:
                         j = json.loads(r.stdout)
-                        ok = j["headSha"].startswith(com) and any(x["name"] == "macos" and x["conclusion"] == "success" for x in j["jobs"])
-                    if not ok: bad.append(f"[K-macos] {cid}: ci_run {run} has no successful macos job at {com}")  # rule:K-macos
+                        # ci_job: further jobs of that run the claim rests on (e.g. package-macos); all must have succeeded
+                        need = {"macos"} | set([c["ci_job"]] if isinstance(c.get("ci_job"), str) else c.get("ci_job", []))
+                        done = {x["name"] for x in j["jobs"] if x["conclusion"] == "success"}
+                        ok = j["headSha"].startswith(com) and need <= done
+                    if not ok: bad.append(f"[K-macos] {cid}: ci_run {run} has no successful macos job (and {c.get('ci_job', 'no extra jobs')}) at {com}")  # rule:K-macos
             if c.get("command") and (c.get("cheap") or run_all):
                 r = subprocess.run(c["command"], shell=True, capture_output=True, text=True)
                 if "FALLBACK" in r.stdout + r.stderr:

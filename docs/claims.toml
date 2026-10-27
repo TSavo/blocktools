@@ -187,11 +187,18 @@ doc = [{ file = "docs/SECURITY.md", text = "23.8 MB" }]
 
 [[claim]]
 id = "e2e-macos"
-statement = "scripts/e2e-local.sh runs on Linux and macOS (macOS: last manual SwapChan run failed at tx-sign; no CI macOS job yet)"
+statement = "scripts/e2e-local.sh passes on GitHub's macos-latest (arm64) in the blocking macos CI job, pin-tty steps included; skipped there: wasm-check, paths evm-inspect/sol/tron, fork-regtest, utxo-real, recovery-real"
 kind = "platform"
 platform = "macos"
-status = "untested"
-doc = [{ file = "docs/SECURITY.md", text = "macOS (untested)" }]
+status = "measured"
+command = "sh scripts/gate.sh e2e (CI job macos)"
+expect = "ok   pinned terminal: code from another pty session refused"
+cheap = false
+depends = ["scripts/e2e-local.sh", "crates/tty/src/lib.rs"]
+ci_run = "40464301446"
+commit = "006d03b"
+date = "2026-10-27"
+doc = [{ file = "docs/CI.md", text = "e2e on macos-latest (arm64) is blocking" }]
 
 [[claim]]
 id = "chains-fee-figures"
@@ -457,7 +464,7 @@ id = "rpc-decode-mock-fee"
 statement = "recipes/rpc-decode.md pipeline (rpc blockinfo/block/rawtx/prevtxs | tx-decode --prevtxs) against scripts/mock-bitcoind.py, a deterministic fake pruned regtest bitcoind (not a real node): the mock spend of 50000 sat in, 49000 sat out decodes with fee 1000 sat; pruned mode needs the block hash and prevtxs fails with -5; rpc dumpprivkey | cat exits 0 with PIPESTATUS 1 0 (Linux box)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/rpc-decode.sh)"
 expect = "rpc-decode recipe script (-txindex mock): fee 1000"
@@ -465,22 +472,22 @@ cheap = false
 env = "Linux, GitHub-hosted ubuntu runner, ci run 40430463509 e2e job"
 value = "1000"
 depends = ["scripts/e2e.d/rpc-decode.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
-commit = "62027dc"
-date = "2026-10-26"
+commit = "006d03b"
+date = "2026-10-27"
 
 [[claim]]
 id = "sendraw-fee-shown"
 statement = "rpc sendraw against scripts/mock-bitcoind.py (fake regtest bitcoind, not a real node): with -txindex or --prevtxs the terminal confirmation shows fee 0.00001000 btc; pruned without --prevtxs it shows a FEE UNKNOWN banner, and answering the code but not ACK FEE-UNKNOWN aborts with no sendrawtransaction sent (scripts/e2e.d/sendraw-fee.sh, Linux box)"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 doc = [{ file = "docs/RPC.md", text = "refusing the ACK sends nothing" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/sendraw-fee.sh)"
 expect = "rpc sendraw unknown fee: loud banner, refusing the ACK aborts, nothing sent"
 cheap = false
 depends = ["scripts/e2e.d/sendraw-fee.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
-commit = "62027dc"
-date = "2026-10-26"
+commit = "006d03b"
+date = "2026-10-27"
 
 [[claim]]
 id = "recovery-synthetic-thirdparty"
@@ -767,3 +774,33 @@ date = "2026-10-26"
 cheap = false
 depends = ["scripts/e2e.d/fork-regtest.sh", "scripts/fork-pins/bsv"]
 doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-sv-1.2.3" }]
+
+[[claim]]
+id = "package-macos-arm64"
+statement = "On GitHub's macos-latest the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 47 Mach-O arm64 binaries (minos 11.0) whose packaged seed-to-master | derive reproduces the BIP84 vector; CI artifact only, never released"
+kind = "platform"
+platform = "macos"
+status = "measured"
+command = "sh scripts/gate.sh package (CI job package-macos)"
+expect = "47 binaries, all Mach-O/aarch64, minos 11.0"
+cheap = false
+depends = ["scripts/package.sh"]
+ci_run = "40464301446"
+ci_job = "package-macos"
+commit = "006d03b"
+date = "2026-10-27"
+doc = [{ file = "docs/CI.md", text = "macOS arm64 tarball" }]
+
+[[claim]]
+id = "package-linux-aarch64"
+statement = "On GitHub's ubuntu-24.04-arm the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 47 ELF aarch64 binaries (glibc >= 2.39) whose packaged derive reproduces the BIP84 vector; CI artifact only, never released"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "sh scripts/gate.sh package (CI job package-linux-arm)"
+expect = "47 binaries, all ELF/aarch64, glibc>=2.39"
+cheap = false
+depends = ["scripts/package.sh"]
+commit = "006d03b"
+date = "2026-10-27"
+doc = [{ file = "docs/CI.md", text = "Linux aarch64 tarball" }]
