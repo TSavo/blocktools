@@ -3,6 +3,7 @@
 # with -acceptnonstdtxn=0 so mainnet standardness policy applies (doge/ltc regtest default to accepting non-standard).
 # Per chain: fund throwaway key 1 (P2PKH), psbtmemo::build (examples/memo-sign.rs, signs with public key 1) a send
 # to vault = key 2 (BCH: prefixless CashAddr, the live THORChain vault form) with change to key 1, then
+#   tx-envelope verify_thor_send on the PSBT -> ok (and a memo case change -> refused with "memo"),
 #   sendrawtransaction -> accepted, mined; on chain: exactly [vault == amount, change == key 1, OP_RETURN == memo
 #   bytes], every input sequence 0xffffffff (non-RBF). A second tx sends exactly the chain's builder dust with a
 #   memo of exactly the chain's OP_RETURN limit (80 B; bch 220 B) and must also be accepted and mined. Negative
@@ -57,7 +58,14 @@ send_one() { # tag amount memo
   vout=$($C getrawtransaction "$fund" 1 | python3 -c 'import sys,json; print([o["n"] for o in json.load(sys.stdin)["vout"] if o["scriptPubKey"]["hex"]==sys.argv[1]][0])' "$S1")
   printf '{"txid":"%s","vout":%s,"amount":10000000000,"address":"%s","prev_tx":"%s"}\n' "$fund" "$vout" "$A1" "$prev" > "$W/u.$c.$tag"
   "$MS" $c "$W/u.$c.$tag" "$V" "$amt" "$A1" "$RATE" "$mh" > "$W/s.$c.$tag" || { cat "$W/s.$c.$tag"; f "$c $tag: build/sign"; }
-  raw=$(jf raw < "$W/s.$c.$tag")
+  psbt=$(jf psbt < "$W/s.$c.$tag"); raw=$(jf raw < "$W/s.$c.$tag")
+  printf '{"op":"verify_thor_send","chain":"%s","tx":"%s","vault":"%s","memo":"%s","amount":"%s","change":"%s","taker":"%s"}' $c "$psbt" "$V" "$memo" "$amt" "$A1" "$A1" > "$W/e.$c.$tag"
+  "$B/tx-envelope" --json "$(cat "$W/e.$c.$tag")" > "$W/v.$c.$tag" || true  # allow-true: result checked next
+  grep -q '"ok":true' "$W/v.$c.$tag" || { cat "$W/v.$c.$tag"; f "$c $tag: verify_thor_send refused the honest PSBT"; }
+  bad=$(printf %s "$memo" | tr 'T' 't')
+  sed "s|\"memo\":\"$memo\"|\"memo\":\"$bad\"|" "$W/e.$c.$tag" > "$W/eb.$c.$tag"
+  "$B/tx-envelope" --json "$(cat "$W/eb.$c.$tag")" > "$W/vb.$c.$tag" || true  # allow-true: result checked next
+  python3 -c 'import json,sys; d=json.loads(open(sys.argv[1]).readline()); d=d.get("result",d); assert d["ok"] is False and "memo" in d["failures"]' "$W/vb.$c.$tag" || { cat "$W/vb.$c.$tag"; f "$c $tag: memo case change not refused with reason memo"; }
   if [ $tag = limits ]; then
     for o in dust:$ndust memo; do
       "$MS" $c "$W/u.$c.$tag" "$V" "$amt" "$A1" "$RATE" "$mh" $o > "$W/n.$c.${o%%:*}" || { cat "$W/n.$c.${o%%:*}"; f "$c: probe $o build"; }
