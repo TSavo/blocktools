@@ -82,10 +82,13 @@ print(json.dumps({a():1 for _ in range(2000)}))')" >/dev/null || f "$c: bulk sen
 stop_read() { # pass
   P=$1
   $C gettxoutsetinfo > "$W/info.$c" || f "$c: gettxoutsetinfo"
-  if [ $c = btc ]; then rm -f "$W/d.$c"; $C dumptxoutset "$W/d.$c" | Jd coins_written > "$W/written.$c"; fi
+  if [ $c != doge ]; then rm -f "$W/d.$c"; $C dumptxoutset "$W/d.$c" | Jd coins_written > "$W/written.$c"; fi
+  CS="$D/regtest/chainstate"
+  set +e; "$B/chainstate-dump" --chain $c --census "$CS" > /dev/null 2> "$W/lock.$c"; rc=$?; set -e
+  [ $rc = 2 ] && grep -q chainstate_locked "$W/lock.$c" || f "$c: chainstate-dump on the live node's dir: rc=$rc $(cat "$W/lock.$c")"
   pid=$(cat "$D/node.pid"); $C stop >/dev/null || f "$c: stop"; STOP=true
   i=0; while kill -0 "$pid" 2>/dev/null; do i=$((i + 1)); [ $i -lt 120 ] || f "$c: node did not exit"; sleep 1; done
-  CS="$D/regtest/chainstate"; [ -f "$CS/CURRENT" ] || f "$c: no chainstate at $CS"
+  [ -f "$CS/CURRENT" ] || f "$c: no chainstate at $CS"
   (cd "$CS" && sha256sum $(ls | grep -vx LOCK) ) > "$W/before.$c"
   cut -d' ' -f3 "$W/hit" | "$B/utxo-set" --chainstate "$CS" --write-dump "$W/w.$c.$P" 2> "$W/ingest.$c" | J script status value_sat outputs > "$W/got.$c" || f "$c: utxo-set --chainstate: $(cat "$W/ingest.$c")"
   (cd "$CS" && sha256sum $(ls | grep -vx LOCK) ) | cmp -s - "$W/before.$c" || f "$c: chainstate files changed by reading"
@@ -95,12 +98,25 @@ stop_read() { # pass
   [ "$coins" = "$1" ] && [ "$wr" = "$1" ] || f "$c: read $coins coins (wrote $wr), node txouts $1"
   [ "$total" = "$2" ] || f "$c: total $total sat, node total_amount $2 sat"
   [ "$best" = "$3" ] || f "$c: best block $best, node $3"
-  [ $c != btc ] || [ "$(cat "$W/written.$c")" = "$coins" ] || f "btc: Core dumptxoutset wrote $(cat "$W/written.$c"), chainstate read $coins"
+  [ $c = doge ] || [ "$(cat "$W/written.$c")" = "$coins" ] || f "$c: Core dumptxoutset wrote $(cat "$W/written.$c"), chainstate read $coins"
   case $L in C) [ "$po" -gt 0 ] && [ "$pt" = 0 ] || f "$c: want per-output 'C' layout, saw C=$po c=$pt";; c) [ "$pt" -gt 0 ] && [ "$po" = 0 ] || f "$c: want per-tx 'c' layout, saw C=$po c=$pt";; esac
   [ "$obf" = True ] || f "$c: chainstate not obfuscated (expected a non-zero obfuscate_key)"
   while read -r l; do grep -qx "$l" "$W/got.$c" || f "$c: want '$l', got: $(cat "$W/got.$c")"; done < "$W/want.$c"
   cut -d' ' -f3 "$W/miss" | "$B/utxo-set" --chainstate "$CS" 2>/dev/null | J status > "$W/m.$c"
   [ "$(grep -c '^empty$' "$W/m.$c")" -eq 2 ] || f "$c: never-funded scripts reported funded: $(cat "$W/m.$c")"
+  # the standalone tool: JSON lines digested by the independent Python decoder (scripts/utxo-multiset.py)
+  # against Core's own dumptxoutset (btc, ltc) or against utxo-set's --write-dump (doge: no dumptxoutset)
+  if [ $c != doge ]; then BIN=$B sh scripts/chainstate-vs-dump.sh "$CS" "$W/d.$c" $c > "$W/vs.$c" || f "$c: $(cat "$W/vs.$c")"; tail -1 "$W/vs.$c"
+  else "$B/chainstate-dump" --chain $c "$CS" 2>/dev/null | python3 scripts/utxo-multiset.py jsonl > "$W/da.$c"; python3 scripts/utxo-multiset.py dump "$W/w.$c.$P" > "$W/db.$c"
+    python3 -c 'import json,sys; a,b=(json.load(open(p)) for p in sys.argv[1:]); sys.exit(0 if all(a[k]==b[k] for k in ("coins","total","full","script_amount")) else 1)' "$W/da.$c" "$W/db.$c" || f "$c: chainstate-dump $(cat "$W/da.$c") != write-dump $(cat "$W/db.$c")"; fi
+  "$B/chainstate-dump" --chain $c --census "$CS" 2>/dev/null > "$W/cen.$c"; [ "$(J coins < "$W/cen.$c")" = "$coins" ] || f "$c: --census $(cat "$W/cen.$c")"
+  "$B/chainstate-dump" --chain $c --addresses-only "$CS" 2>/dev/null | wc -l | tr -d ' ' > "$W/ac.$c"; [ "$(cat "$W/ac.$c")" = "$coins" ] || f "$c: --addresses-only gave $(cat "$W/ac.$c") lines"
+  other=$([ $L = C ] && echo c || echo C)
+  for bad in "--obfuscate-key none" "--era $other"; do
+    set +e; "$B/chainstate-dump" --chain $c $bad "$CS" > /dev/null 2> "$W/bad.$c"; rc=$?; set -e
+    [ $rc = 2 ] || f "$c: chainstate-dump $bad: rc=$rc (want 2, loud failure): $(tail -1 "$W/bad.$c")"
+  done
+  echo "ok   chainstate-real $c pass $P chainstate-dump: set = $([ $c = doge ] && echo "utxo-set --write-dump" || echo "Core dumptxoutset") (full + scriptPubKey/amount digests); --census, --addresses-only; live dir refused; --obfuscate-key none and --era $other fail rc 2"
   echo "ok   chainstate-real $c pass $P: $coins coins ($L layout, obfuscated, $tf tables + $lf logs) = node txouts/total/bestblock; funded p2pkh shapes exact, never-funded empty; files unchanged; ${secs}s, peak_rss $rss B"
   printf 'Shopping list. Milk!\nMy old note: correct horse battery staple. Do not lose it\n' > "$W/notes"
   set +e; "$B/wallet-finder" --dump "$W/w.$c.$P" < "$W/notes" > "$W/found.$c" 2> "$W/fsum.$c"; rc=$?; set -e
