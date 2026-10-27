@@ -49,6 +49,32 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/SHA256SUMS
+  # Dry-run only: arm64 tarballs as artifacts on workflow_dispatch. Not needed by publish or
+  # repos, so nothing here is ever released. Same steps as ci.yml package-macos/package-linux-arm.
+  dryrun-macos-arm64:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: sh scripts/gate.sh package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dryrun-macos-arm64
+          path: dist/*
+  dryrun-linux-aarch64:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: sh scripts/gate.sh package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dryrun-linux-aarch64
+          path: dist/*
   release-env:
     # finding:R2-6: refuse to publish unless the "release" environment deploys only from v* tags.
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}

@@ -49,7 +49,8 @@ fn mock(replies: Vec<(u16, String)>) -> (String, Log) {
 }
 fn run(args: &[&str], stdin: &str) -> (i32, String, String) {
     let mut c = Command::new(env!("CARGO_BIN_EXE_rpc")).args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
-    c.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
+    // A tool that refuses before reading stdin closes it: EPIPE here is expected, the exit code and stderr are asserted.
+    if let Err(e) = c.stdin.take().unwrap().write_all(stdin.as_bytes()) { assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}"); }
     let o = c.wait_with_output().unwrap();
     (o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).into(), String::from_utf8_lossy(&o.stderr).into())
 }

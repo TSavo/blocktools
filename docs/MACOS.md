@@ -33,8 +33,9 @@ Not yet run on any Mac (untested); claim macos-sealed. On the Mac:
 
 1. A local engine, for example `brew install colima docker && colima start` or Docker Desktop running.
    Then `docker context use default` (or `colima`), so `docker context inspect` shows `unix://`.
-2. In a checkout at a green main commit: `docker build -t blocktools:local .`
-3. `sh scripts/macos-sealed-check.sh; echo rc=$?`, and keep the whole output. `rc=0` with
+2. One command, in a checkout at a green main commit (builds the image with that engine, then checks):
+   `git pull --ff-only && sh scripts/macos-sealed-check.sh --build >macos-sealed.txt 2>&1; echo rc=$? >>macos-sealed.txt; cat macos-sealed.txt`
+3. Keep the whole output. `rc=0` with
    `macos-sealed-check ok` is the measurement. It needs no secrets: it uses the public test mnemonic.
 4. Optional: `sh scripts/image-size.sh` for the image size on that engine.
 

@@ -4,7 +4,8 @@ use std::process::{Command, Stdio};
 fn fx(p: &str) -> String { format!("{}/../../recipes/fixtures/evm-sol/{p}", env!("CARGO_MANIFEST_DIR")) }
 fn run(args: &[&str], stdin: &str) -> (i32, serde_json::Value, String) {
     let mut c = Command::new(env!("CARGO_BIN_EXE_bytecode-inspect")).args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
-    c.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
+    // A tool that refuses before reading stdin closes it: EPIPE here is expected, the exit code and stderr are asserted.
+    if let Err(e) = c.stdin.take().unwrap().write_all(stdin.as_bytes()) { assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}"); }
     let o = c.wait_with_output().unwrap();
     let out = String::from_utf8_lossy(&o.stdout).to_string();
     (o.status.code().unwrap(), serde_json::from_str(out.trim()).unwrap_or(serde_json::Value::Null), String::from_utf8_lossy(&o.stderr).into())

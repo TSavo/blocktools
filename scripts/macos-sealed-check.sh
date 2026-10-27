@@ -16,6 +16,10 @@ ep=${DOCKER_HOST:-$($D context inspect --format '{{.Endpoints.docker.Host}}' 2>/
 case "$ep" in unix://*) ;; *) echo "macos-sealed-check: engine endpoint '$ep' is not a local unix socket (refused: see docs/MACOS.md)" >&2; exit 2;; esac
 srv=$($D version --format '{{.Server.Os}}/{{.Server.Arch}} {{.Server.Version}}' 2>/dev/null) || { echo "macos-sealed-check: docker engine not running at $ep" >&2; exit 2; }
 echo "host: macOS $(sw_vers -productVersion) $(uname -m); engine: $ep, server $srv; commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if [ "${1:-}" = --build ]; then
+  echo "building blocktools:local with $ep"
+  $D build -q -t blocktools:local . >/dev/null || { echo "macos-sealed-check: docker build failed" >&2; exit 1; }
+fi
 out=$(sh scripts/sealed-check.sh 2>&1) && rc=0 || rc=$?
 printf '%s\n' "$out"
 [ $rc = 0 ] && echo "macos-sealed-check ok"
