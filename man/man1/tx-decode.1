@@ -3,24 +3,34 @@
 tx\-decode \- one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
 .SH SYNOPSIS
 .nf
-tx\-decode [\-\-chain btc|ltc|doge] [\-\-text] < transaction \-> JSON lines (or plain summary)
+tx\-decode [\-\-chain btc|ltc|doge] [\-\-text] [\-\-prevtxs FILE] < transaction \-> JSON lines (or plain summary)
        tx\-decode \-\-nvc\-json TXID < api.novaco.in gettransaction JSON \-> raw tx hex (fails unless the hash is TXID)
+       rpc URL rawtx TXID [BLOCKHASH] | tx\-decode                      decode a tx fetched by rpc (its JSON line has "tx")
+       rpc URL rawtx TXID > t; rpc URL prevtxs < t > p; tx\-decode \-\-prevtxs p < t   input amounts + fee
 .fi
 .SH DESCRIPTION
 "psbt"/"tx"/"unsigned_tx"/"signed_tx") \-> public JSON lines, or \-\-text for a human summary.
-Offline, no keys. Flags: \-\-chain btc|ltc|doge (address encoding for UTXO txs), \-\-text,
-\-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex, hash\-checked against TXID).
+Offline, no keys, never opens a network connection. Flags: \-\-chain btc|ltc|doge (address
+encoding for UTXO txs), \-\-text, \-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex,
+hash\-checked against TXID), \-\-prevtxs FILE (full previous transactions, one per line as hex or a
+JSON line with "tx"/"hex", e.g. the output of `rpc URL prevtxs` or `rpc URL rawtx`): input
+amounts and the fee are filled in for a raw UTXO tx. A prev tx counts only if it hashes to the
+input's outpoint txid; an input with no matching prev tx stays unknown (warning prevout_missing);
+a prev tx matching no input is refused (prevtx_unused). Fetching prev txs is rpc's job (its
+allowlist, deny\-list and credential redaction apply); tx\-decode itself stays offline.
 .SH OPTIONS
 .nf
-\-\-chain
-\-\-nvc\-json
-\-\-text
+  \-\-prevtxs FILE: previous txs, one per line (hex, or JSON with "tx"/"hex"); each must hash to an input's outpoint
+  txid (else prevtx_unused); inputs without one warn prevout_missing. tx\-decode never opens a socket.
+  Input is read from stdin only; a hex argument is not read (bad_transaction on empty stdin).
 .fi
-Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 tx\-decode: one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
 "psbt"/"tx"/"unsigned_tx"/"signed_tx") \-> public JSON lines, or \-\-text for a human summary.
-\-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex, hash\-checked against TXID).
+encoding for UTXO txs), \-\-text, \-\-nvc\-json TXID (Novacoin explorer JSON on stdin \-> raw hex,
+JSON line with "tx"/"hex", e.g. the output of `rpc URL prevtxs` or `rpc URL rawtx`): input
+input's outpoint txid; an input with no matching prev tx stays unknown (warning prevout_missing);
+a prev tx matching no input is refused (prevtx_unused). Fetching prev txs is rpc's job (its
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
