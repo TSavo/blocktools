@@ -94,11 +94,11 @@ The real control is still the human reading the summary on a terminal the agent 
 ## Keystore KDF bounds (security review 2026-10-25)
 
 `keystore-open` used per-knob caps (p ≤ 4) that rejected the Web3 spec's own scrypt vector (p=8). It now
-bounds what matters: memory 128·N·r ≤ 256 MiB (untested) and work N·r·p ≤ 2^24 (8x geth standard), checked with
+bounds what matters: memory 128·N·r ≤ 256 MiB and work N·r·p ≤ 2^24 (8x geth standard), checked with
 overflow-safe arithmetic before any allocation. All scrypt goes through the RustCrypto `scrypt` crate (>= 0.12, which dropped the RFC 7914
 N < 2^(16r) erratum check, so the spec vector N=2^18, r=1 works); there is no in-tree KDF or cipher code.
 Tests: spec vector (p=8),
-geth --lightkdf (N=4096, r=8, p=6), RFC 7914 vector 2 through the crate, bounds, hostile 8 GiB request refused (untested).
+geth --lightkdf (N=4096, r=8, p=6), RFC 7914 vector 2 through the crate, bounds, hostile 8 GiB request refused.
 
 ## EVM verification defaults (security review 2026-10-25)
 

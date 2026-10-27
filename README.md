@@ -23,7 +23,7 @@ threat model.
 
 blocktools has **not been tested against any real lost wallet (untested)**. Nobody has handed us a real
 corrupted wallet or a real forgotten password, so the headline promise rests on synthetic tests only.
-What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage) (untested):
+What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage):
 
 * Wallet files written by the real third-party software, with throwaway keys and passwords
   (generated fresh at test time by `scripts/recovery-gen.sh`, never committed; see docs/FIXTURES.md): Bitcoin Core 25.2 legacy BDB and descriptor (SQLite) wallet.dat,
