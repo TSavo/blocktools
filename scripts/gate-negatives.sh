@@ -23,7 +23,7 @@ reset() { git -C "$wt" reset -q --hard "$head0" && git -C "$wt" clean -fdqx && e
 rc=0; n=0; want=" ${*:-} "
 # baseline: each gate script passes on the unplanted tree, else every negative would be vacuous
 for s in hygiene-check docs-check prepush-check secret-scan check-deps; do
-  (cd "$wt" && sh "scripts/$s.sh") > "$base/out" 2>&1 || { echo "FAIL gate-negatives: baseline $s fails on clean HEAD"; tail -5 "$base/out"; exit 1; }
+  (cd "$wt" && sh "scripts/$s.sh") > "$base/out" 2>&1 || { echo "FAIL gate-negatives: baseline $s fails on clean HEAD (full output follows)"; cat "$base/out"; exit 1; }
 done
 neg() {  # neg ID SCRIPT EXPECTED-SUBSTRING PLANT-SHELL
   id=$1 s=$2 exp=$3 plant=$4

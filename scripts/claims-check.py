@@ -159,6 +159,8 @@ def main():
                     bad.append(f"[K-fallback] {cid}: `{c['command']}` measured via a fallback path, not the property")  # rule:K-fallback
                 elif r.returncode or c.get("expect", "\0") not in r.stdout:
                     bad.append(f"[K-run] {cid}: `{c['command']}` rc={r.returncode}, expected {c.get('expect')!r} in output: {(r.stdout + r.stderr)[-300:]!r}")  # rule:K-run
+                    # full output (not truncated) so a one-off failure is diagnosable from the CI log
+                    print(f"claims: K-run {cid} full output (rc={r.returncode}):\n--- stdout ---\n{r.stdout}\n--- stderr ---\n{r.stderr}\n--- end {cid} ---", file=sys.stderr)
     for f in DOCS:
         if not os.path.exists(f): continue
         for n, line in enumerate(open(f, encoding="utf-8").read().split("\n"), 1):
