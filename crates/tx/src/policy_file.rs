@@ -69,6 +69,36 @@ pub fn parse(text: &str) -> Result<PolicyFile, &'static str> {
 fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
 fn u256_small(b: &[u8; 32]) -> Option<u128> { if b[..16].iter().any(|&x| x != 0) { None } else { Some(u128::from_be_bytes(b[16..].try_into().unwrap())) } }
 
+/// Whether the file's rule for `chain` has an `allow_calls` entry matching this EVM tx's
+/// (contract, selector). Mirrors the `allowed_call` computed in `check`; exposed so the CLI tools
+/// can lift the approve findings the general check raises for an explicitly authorized call.
+pub fn allows_call(d: &Decoded, chain: &str, pf: &PolicyFile) -> bool {
+    let Some((_, r)) = pf.rules.iter().find(|(c, _)| c == chain) else { return false };
+    let Some(t) = &d.evm else { return false };
+    if t.data.is_empty() || crate::evm::token_call(&t.data).is_some_and(|c| c.method == "transfer") { return false }
+    let to = t.to.map(|a| crate::addr(&a));
+    let sel: Option<[u8; 4]> = t.data.get(..4).and_then(|s| s.try_into().ok());
+    to.as_deref().zip(sel).is_some_and(|(a, s)| r.allow_calls.iter().any(|(x, xs)| same(x, a) && *xs == s))
+}
+
+/// Merge this file's findings into `f` (the caller's general verdict) and lift the findings an
+/// explicit `allow_calls` entry authorizes for a non-transfer call: `token_call_not_transfer`, and
+/// `has_warnings` when the only warnings are `unsigned`/`token_approve`. The general `policy::check`
+/// raises these independently of this file, so without lifting here an authorized approve can never
+/// be verified or signed (parallels the `--call` path's `evm::lift_approved`).
+pub fn apply(d: &Decoded, chain: &str, pf: &PolicyFile, f: &mut Vec<String>) {
+    for x in check(d, chain, pf) { if !f.contains(&x) { f.push(x) } }
+    if allows_call(d, chain, pf) {
+        // The allow_calls entry names the exact (contract, selector); that IS the destination
+        // authorization (check() likewise suppresses policy:allow_to for an allowed call). A
+        // non-transfer token call (e.g. approve) has no transfer recipient, so policy::check forces
+        // its destination to None and raises destination_not_expected whenever --expect-to is set;
+        // lift it here alongside the approve findings, or an authorized approve could never sign.
+        f.retain(|x| x != "token_call_not_transfer" && x != "destination_not_expected" && x != "unknown_contract_call");
+        if d.warnings.iter().all(|w| matches!(*w, "unsigned" | "token_approve" | "unknown_calldata")) { f.retain(|x| x != "has_warnings") }
+    }
+}
+
 /// Findings for `d` under the file's rule for `chain` (empty = allowed).
 pub fn check(d: &Decoded, chain: &str, pf: &PolicyFile) -> Vec<String> {
     let Some((_, r)) = pf.rules.iter().find(|(c, _)| c == chain) else { return vec![crate::code!("policy:no_rule_for_chain").into()] };

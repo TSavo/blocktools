@@ -88,6 +88,14 @@ existing scripts are listed under "Changed".
   (K-agree) (24688cd, 5a2ceb4, 57492bd, 751299a).
 
 ### Fixed
+- `tx-verify`/`tx-sign` could not authorize an ERC-20 `approve` (or any non-transfer contract call) even
+  with a `--policy` `allow_calls` entry for its exact `(contract, selector)`: the tools added the general
+  findings an allow_calls match authorizes (`token_call_not_transfer` or `unknown_contract_call`,
+  `has_warnings`, and for signing `destination_not_expected`) into their own verdict, then merged the
+  policy file's findings only by ADDITION, never lifting the general ones the allowance waives -- so
+  neither a token `approve` nor an opaque contract call (e.g. THORChain `depositWithExpiry`) listed in
+  `allow_calls` could verify or sign. A new `policy_file::apply` merges and lifts in one place; both
+  tools call it (issue #12). Regression: `scripts/e2e.d/approve-policy.sh`.
 - `keystore-open` accepts eth-keyfile keystores whose IV lost leading zero bytes (previously reported
   unsupported; cause of a flaky recovery test) (3c7c460) [scrypt-bounds, recovery-synthetic-thirdparty].
 - rpc tests ignore stray loopback connections (8acb94a); mock-bitcoind start wait for slower runners
