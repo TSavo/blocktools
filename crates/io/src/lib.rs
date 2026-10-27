@@ -20,7 +20,7 @@ const TAIL: &str = "Unit tests are evidence, not a substitute for your own revie
 
 /// The sealed-run allowlist (crates/io/sealed-tools.txt): what sealed-run runs, what the sealed image ships.
 pub const SEALED_TOOLS_TXT: &str = include_str!("../sealed-tools.txt");
-/// Host-side network tools and their class (crates/io/host-tools.txt).
+/// Host-side tools and their class (crates/io/host-tools.txt).
 pub const HOST_TOOLS_TXT: &str = include_str!("../host-tools.txt");
 fn lines(t: &'static str) -> impl Iterator<Item = &'static str> {
     t.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#'))
@@ -40,6 +40,7 @@ pub fn banner(tool: &str) -> String {
     } else {
         match host_class(tool) {
             Some("public") => "Host-side network tool: it needs the network by design, so it is not in the sealed image and sealed-run refuses it. Run it on the host and give it public data only (addresses, public keys, signed transactions).".to_string(),
+            Some("offline") => "Host-side offline tool: it opens no network connection and reads public chain data; it is not in the sealed image and sealed-run refuses it. It never prints a key; anything it prints from your own input (a matching phrase) is yours to keep private, so send stdout to a private file.".to_string(),
             Some("local-rpc") => "Host-side tool that needs a network connection to a local wallet RPC: it is not in the sealed image and sealed-run refuses it. It sends secrets only to a loopback RPC; run it on an offline host.".to_string(),
             _ => format!("UNCLASSIFIED: {tool} is in neither crates/io/sealed-tools.txt nor crates/io/host-tools.txt."),
         }

@@ -55,7 +55,7 @@ $ utxo\-set \-\-dump /dev/null < /dev/null
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
 Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
-UNCLASSIFIED: utxo\-set is in neither crates/io/sealed\-tools.txt nor crates/io/host\-tools.txt.
+Host\-side offline tool: it opens no network connection and reads public chain data; it is not in the sealed image and sealed\-run refuses it. It never prints a key; anything it prints from your own input (a matching phrase) is yours to keep private, so send stdout to a private file.
 Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
 .SH SEE ALSO
 blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

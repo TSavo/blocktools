@@ -1,8 +1,11 @@
-# Host-side tools that need the network. Not in the sealed image; sealed-run refuses them (unsupported).
-# <name> <class>: public = network by design, sees public data only; local-rpc = talks to a loopback RPC.
+# Host-side tools. Not in the sealed image; sealed-run refuses them (unsupported).
+# <name> <class>: public = network by design, sees public data only; local-rpc = talks to a loopback RPC;
+# offline = opens no network connection, reads public chain data (not yet in the sealed image).
 rpc public
 utxo-fetch public
 tx-broadcast public
 xmr-wallet local-rpc
 contract-call public
 contract-trace public
+utxo-set offline
+wallet-finder offline
