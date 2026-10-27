@@ -5,13 +5,16 @@
 //!
 //! Request:
 //! ```json
-//! {"envelope":"blocktools.sign/v1","op":"decode"|"verify"|"check","chain":"btc",
+//! {"envelope":"blocktools.sign/v1","op":"decode"|"verify"|"check"|"verify_thor_send","chain":"btc",
 //!  "tx":"<hex|psbt|base64|json>", ...}
 //! ```
 //! `verify` also takes `expect_to` (string or array), optional `change`, `max_fee`,
 //! `chain_id`, `allow_warnings`. `check` takes the same fields as [`crate::check::tx_json`]
 //! (`expected_outputs`, `owner_addr`, `max_fee`, optional `input_values`) plus `tx`
 //! (aliased as `raw_tx_hex` when that field is used instead).
+//!
+//! `verify_thor_send` checks a THORChain inbound send (btc/ltc/doge/bch): `tx`, `vault`, `memo`,
+//! `amount`, optional `change`, `taker` (string or array) and `max_fee`; see [`crate::thor`].
 //!
 //! Response always carries `envelope`, `status` (`ok`|`error`), `op`, `chain`.
 use blocktools_core::chains;
@@ -165,6 +168,13 @@ pub fn run(input: &str) -> String {
                 }
             }
             let result: Value = serde_json::from_str(&crate::check::tx_json(&obj.to_string())).unwrap_or(json!({"ok": false, "reasons": ["bad_check_output"]}));
+            json!({"envelope": ENVELOPE, "status": "ok", "op": op, "chain": chain, "family": family(chain), "result": result}).to_string()
+        }
+        "verify_thor_send" => {
+            // THORChain inbound send check: same fields as [`crate::thor::verify_send_json`]; `tx` is the PSBT/raw tx.
+            let mut obj = v.clone();
+            if let (Some(tx), Some(m)) = (tx_field(&v), obj.as_object_mut()) { m.insert("tx".into(), json!(tx)); }
+            let result: Value = serde_json::from_str(&crate::thor::verify_send_json(&obj.to_string())).unwrap_or(json!({"ok": false, "failures": ["bad_output"]}));
             json!({"envelope": ENVELOPE, "status": "ok", "op": op, "chain": chain, "family": family(chain), "result": result}).to_string()
         }
         "chain_table" => {

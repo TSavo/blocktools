@@ -1,13 +1,16 @@
 //! tx-envelope: common signing envelope (public half). Reads one JSON object from stdin
-//! (or `--json '{...}'`) and prints one JSON object: decode / verify / check / chain_table
+//! (or `--json '{...}'`) and prints one JSON object: decode / verify / check / verify_thor_send / chain_table
 //! across UTXO, EVM, ZEC, Sol and Tron. Never takes a private key. Same schema as the C ABI
 //! `bt_envelope` and `blocktools::envelope::run` (`envelope":"blocktools.sign/v1"`).
 //!   echo '{"op":"decode","chain":"btc","tx":"<hex|psbt>"}' | tx-envelope
 //!   tx-envelope --json '{"op":"chain_table","chain":"_"}'
+//!   tx-envelope --json '{"op":"verify_thor_send","chain":"ltc","tx":"<psbt>","vault":"ltc1...","memo":"=:...","amount":"20000000","change":"ltc1...","taker":["ltc1..."]}'
+//!     THORChain inbound send check: result {ok, failures[], outputs, memo, fee, rbf}; failures name the
+//!     reason (vault, amount, memo, change, output_count, rbf, fee, input_unknown, input_foreign, tx, chain).
 use std::io::Read;
 
 fn main() {
-    blocktools_io::help("tx-envelope [--json OBJ]: common signing envelope (decode|verify|check|chain_table); public data only");
+    blocktools_io::help("tx-envelope [--json OBJ]: common signing envelope (decode|verify|check|verify_thor_send|chain_table); public data only");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let input = if let Some(i) = a.iter().position(|x| x == "--json") {
         a.get(i + 1).cloned().unwrap_or_else(|| {

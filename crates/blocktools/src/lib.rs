@@ -226,6 +226,7 @@ pub mod substrate;
 pub mod sol;
 pub mod cashaddr;
 pub mod psbtmemo;
+pub mod thor;
 pub mod tron;
 pub mod soltron;
 pub mod verifier;

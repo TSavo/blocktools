@@ -41,6 +41,7 @@ tx-broadcast | 2 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url h
 tx-build | 2 | tx-build --chain eth
 tx-decode | 2 | echo zz | tx-decode
 tx-envelope | 1 | tx-envelope --json '{"op":"chain_table"}'
+tx-envelope | 0 | tx-envelope --json '{"op":"verify_thor_send","chain":"ltc","tx":"zz"}'
 tx-sign | 2 | echo x > t; tx-sign --tx t --expect-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 < /dev/null
 tx-verify | 2 | echo zz | tx-verify
 utxo-fetch | 1 | utxo-fetch --chain btc --url http://127.0.0.1:9 bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3

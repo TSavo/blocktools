@@ -3,16 +3,19 @@
 tx\-envelope \- common signing envelope (public half). Reads one JSON object from stdin
 .SH SYNOPSIS
 .nf
-tx\-envelope [\-\-json OBJ]: common signing envelope (decode|verify|check|chain_table); public data only
+tx\-envelope [\-\-json OBJ]: common signing envelope (decode|verify|check|verify_thor_send|chain_table); public data only
 .fi
 .SH DESCRIPTION
-(or `\-\-json '{...}'`) and prints one JSON object: decode / verify / check / chain_table
+(or `\-\-json '{...}'`) and prints one JSON object: decode / verify / check / verify_thor_send / chain_table
 across UTXO, EVM, ZEC, Sol and Tron. Never takes a private key. Same schema as the C ABI
 `bt_envelope` and `blocktools::envelope::run` (`envelope":"blocktools.sign/v1"`).
 .nf
 .RS 2
   echo '{"op":"decode","chain":"btc","tx":"<hex|psbt>"}' | tx\-envelope
   tx\-envelope \-\-json '{"op":"chain_table","chain":"_"}'
+  tx\-envelope \-\-json '{"op":"verify_thor_send","chain":"ltc","tx":"<psbt>","vault":"ltc1...","memo":"=:...","amount":"20000000","change":"ltc1...","taker":["ltc1..."]}'
+    THORChain inbound send check: result {ok, failures[], outputs, memo, fee, rbf}; failures name the
+    reason (vault, amount, memo, change, output_count, rbf, fee, input_unknown, input_foreign, tx, chain).
 .RE
 .fi
 .SH OPTIONS
@@ -22,14 +25,20 @@ across UTXO, EVM, ZEC, Sol and Tron. Never takes a private key. Same schema as t
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 tx\-envelope: common signing envelope (public half). Reads one JSON object from stdin
-(or `\-\-json '{...}'`) and prints one JSON object: decode / verify / check / chain_table
+(or `\-\-json '{...}'`) and prints one JSON object: decode / verify / check / verify_thor_send / chain_table
 .nf
 .RS 2
   tx\-envelope \-\-json '{"op":"chain_table","chain":"_"}'
+  tx\-envelope \-\-json '{"op":"verify_thor_send","chain":"ltc","tx":"<psbt>","vault":"ltc1...","memo":"=:...","amount":"20000000","change":"ltc1...","taker":["ltc1..."]}'
+    THORChain inbound send check: result {ok, failures[], outputs, memo, fee, rbf}; failures name the
+    reason (vault, amount, memo, change, output_count, rbf, fee, input_unknown, input_foreign, tx, chain).
 .RE
 .fi
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
 .TP
 1
 last status error
@@ -39,6 +48,8 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 .nf
 $ tx\-envelope \-\-json '{"op":"chain_table"}'
 # exit 1, last status: error
+$ tx\-envelope \-\-json '{"op":"verify_thor_send","chain":"ltc","tx":"zz"}'
+# exit 0, last status: ok
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

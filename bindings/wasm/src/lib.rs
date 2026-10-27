@@ -177,6 +177,20 @@ pub fn address_validate(chain: &str, addr: &str) -> Result<String, JsError> {
 /// Fail-closed tx check, JSON in / JSON out; never throws. See EXPORTS.md for the schema.
 #[wasm_bindgen(js_name = checkTx)]
 pub fn check_tx(input_json: &str) -> String { twin_str(&blocktools::check::tx_json(input_json)) }
+/// THORChain inbound send check (btc/ltc/doge/bch); never throws. Shape must be exactly
+/// [vault == amount, optional change -> change_addr, OP_RETURN == memo bytes], non-RBF, inputs known
+/// (and owned by `taker_addrs`: one address, a JSON array, or ""), fee <= `max_fee` ("" = chain default).
+/// `amount`/`max_fee` are decimal strings. Returns {ok, failures[], outputs, memo, fee, rbf}.
+#[wasm_bindgen(js_name = verifyThorSend)]
+pub fn verify_thor_send(chain: &str, tx_or_psbt: &str, expected_vault: &str, expected_memo: &str, expected_amount: &str, change_addr: &str, taker_addrs: &str, max_fee: &str) -> String {
+    let Ok(amount) = expected_amount.trim().parse::<u64>() else { return json!({"ok": false, "failures": ["amount"], "outputs": [], "memo": null, "fee": null, "rbf": null}).to_string() };
+    let t = taker_addrs.trim();
+    let takers: Vec<String> = if t.starts_with('[') { serde_json::from_str(t).unwrap_or_else(|_| vec![String::from("\u{0}")]) } else if t.is_empty() { vec![] } else { vec![t.to_string()] };
+    let mf = max_fee.trim();
+    let mf = if mf.is_empty() { None } else { match mf.parse::<u64>() { Ok(x) => Some(x), Err(_) => return json!({"ok": false, "failures": ["max_fee"], "outputs": [], "memo": null, "fee": null, "rbf": null}).to_string() } };
+    let ch = change_addr.trim();
+    blocktools::thor::verify_send(chain, tx_or_psbt, expected_vault, expected_memo.as_bytes(), amount, (!ch.is_empty()).then_some(ch), &takers, mf).to_string()
+}
 
 /// Every verified chain (and `zec`) on which `addr` is valid: JSON [{chain,kind}]. Collisions
 /// (DGB/DOGE, VIA/VTC, version 50/0 ...) return all candidates; an empty list = unrecognised.

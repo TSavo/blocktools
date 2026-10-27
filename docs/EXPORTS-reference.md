@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 66. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 67. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -1293,6 +1293,23 @@ Example (executed):
 ```js
 bt.verifySweepTx("{\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x1111111111111111111111111111111111111111\",\"value\":\"5\",\"chainId\":1}", "0x1111111111111111111111111111111111111111", 1, "")
 // -> {"call":"native transfer to owner (chainId 1)","verified":true}
+```
+
+## `verifyThorSend`
+
+```ts
+verifyThorSend(chain: string, tx_or_psbt: string, expected_vault: string, expected_memo: string, expected_amount: string, change_addr: string, taker_addrs: string, max_fee: string): string
+```
+
+THORChain inbound send check (btc/ltc/doge/bch); never throws. Shape must be exactly [vault == amount, optional change -> change_addr, OP_RETURN == memo bytes], non-RBF, inputs known (and owned by `taker_addrs`: one address, a JSON array, or ""), fee <= `max_fee` ("" = chain default). `amount`/`max_fee` are decimal strings. Returns {ok, failures[], outputs, memo, fee, rbf}.
+
+Calls in test.mjs: 7.
+
+Example (executed):
+
+```js
+bt.verifyThorSend("btc", "zz", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", "=:ETH.ETH:0x0000000000000000000000000000000000000001", "50000", "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g", "", "")
+// -> {"failures":["tx"],"fee":null,"memo":null,"ok":false,"outputs":[],"rbf":null}
 ```
 
 ## `verifyTx`

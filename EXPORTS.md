@@ -10,7 +10,7 @@ Every export, with an executed example and its error code, is in the generated
 
 ## Every JS export
 
-`addressToScript`, `addressValidate`, `addressesFromXpub`, `base58Decode`, `base58Encode`, `blake2b`, `buildEvmTransfer`, `buildPsbtWithMemo`, `buildUnsignedSweep`, `buildUnsignedSweepAt`, `cashAddrDecode`, `cashAddrEncode`, `cashAddrToLegacy`, `chainParams`, `chainTable`, `checkTx`, `checkTxPolicy`, `convertAddress`, `convertAddressFrom`, `decodeAccountInfo`, `decodeTx`, `deriveFromXpub`, `describeTx`, `detectAddress`, `detectAddressInfo`, `evmAbiDecode`, `evmAbiEncode`, `evmAbiEncodePacked`, `evmAbiInspect`, `evmApproveCall`, `evmBytecodeInspect`, `evmCreateAddress`, `evmKeccak256`, `evmSigHash`, `evmSigLookup`, `evmTypedDataVerify`, `explainPlan`, `legacyToCashAddr`, `listChains`, `polkadotAccountStorageKey`, `recoveryTables`, `scriptToAddress`, `selectUtxos`, `serializeNvcTxFromJson`, `solAnchorDiscriminator`, `solAssociatedTokenAddress`, `solBuildTransfer`, `solDecodeTx`, `solFindProgramAddress`, `solIsOnCurve`, `solVerifyTx`, `ss58Decode`, `ss58Encode`, `supportedChains`, `tronBuildTransfer`, `tronDecodeTx`, `tronTxId`, `twox128`, `unverifiedChains`, `validateAddress`, `verifyRecovery`, `verifyRecoveryRaw`, `verifySweepRaw`, `verifySweepTx`, `verifyTx`.
+`addressToScript`, `addressValidate`, `addressesFromXpub`, `base58Decode`, `base58Encode`, `blake2b`, `buildEvmTransfer`, `buildPsbtWithMemo`, `buildUnsignedSweep`, `buildUnsignedSweepAt`, `cashAddrDecode`, `cashAddrEncode`, `cashAddrToLegacy`, `chainParams`, `chainTable`, `checkTx`, `checkTxPolicy`, `convertAddress`, `convertAddressFrom`, `decodeAccountInfo`, `decodeTx`, `deriveFromXpub`, `describeTx`, `detectAddress`, `detectAddressInfo`, `evmAbiDecode`, `evmAbiEncode`, `evmAbiEncodePacked`, `evmAbiInspect`, `evmApproveCall`, `evmBytecodeInspect`, `evmCreateAddress`, `evmKeccak256`, `evmSigHash`, `evmSigLookup`, `evmTypedDataVerify`, `explainPlan`, `legacyToCashAddr`, `listChains`, `polkadotAccountStorageKey`, `recoveryTables`, `scriptToAddress`, `selectUtxos`, `serializeNvcTxFromJson`, `solAnchorDiscriminator`, `solAssociatedTokenAddress`, `solBuildTransfer`, `solDecodeTx`, `solFindProgramAddress`, `solIsOnCurve`, `solVerifyTx`, `ss58Decode`, `ss58Encode`, `supportedChains`, `tronBuildTransfer`, `tronDecodeTx`, `tronTxId`, `twox128`, `unverifiedChains`, `validateAddress`, `verifyRecovery`, `verifyRecoveryRaw`, `verifySweepRaw`, `verifySweepTx`, `verifyThorSend`, `verifyTx`.
 
 This is the pinned set in `scripts/wasm-check.sh` (without the wasm-bindgen glue); the count and an executed example of each are in docs/EXPORTS-reference.md. JSON shapes are in the tables below.
 
@@ -24,6 +24,7 @@ This is the pinned set in `scripts/wasm-check.sh` (without the wasm-bindgen glue
 | `deriveFromXpub(chain, xpub, path, index)` | `derive::from_xpub(chain, xpub, path, index)` | `[{chain,kind,path,address}]`, one row per script kind; `path` is relative to the xpub and non-hardened ("", "m/0", "0/7"); throws `bad_xpub`, `bad_path`, or `unknown_or_unverified_chain` |
 | `addressValidate(chain, addr)` | `address::validate(chain, addr)` | kind string (`P2pkh`, `P2sh`, `SegwitV0`, `Taproot`, `Eth`, …); throws when the address is invalid or the chain is unverified |
 | `checkTx(json)` | `check::tx_json(json)` | see below; never throws |
+| `verifyThorSend(chain, txOrPsbt, expectedVault, expectedMemo, expectedAmount, changeAddr, takerAddrs, maxFee)` | `thor::verify_send` | THORChain inbound send check on btc/ltc/doge/bch, see below; never throws |
 | `detectAddress(addr)` | `address::detect(addr)` | `[{chain,kind}]`, one entry for **every** verified chain the address is valid on (and `zec`). Collisions such as DGB/DOGE 30, VIA/VTC 71, version 50 (MONA/MEC p2pkh, LTC/QTUM p2sh) and version 0 (BTC/BCH/BSV/TRC) all come back; `[]` means unrecognised |
 | `detectAddressInfo(addr)` | `address::detect(addr)` | additive: `{candidates:[{chain,kind}], ambiguous, kinds_agree}`. `candidates` is the detectAddress list, except an XRP X-address (XLS-5d) reports kind `"xaddress"` (detectAddress/addressValidate keep `"Xrp"`; classic r-addresses stay `"Xrp"`). `ambiguous` = more than one chain; `kinds_agree` = all candidates have the same script kind (when false, convertAddress throws `ambiguous_address`) |
 | `convertAddress(addr, to)` | `address::convert(addr, to)` | the same hash, re-encoded for `to`; throws `unrecognised_address`, `ambiguous_address` (candidates disagree on p2pkh vs p2sh), `unknown_or_unverified_chain` or `no_equivalent` |
@@ -111,6 +112,30 @@ Out: `{"ok", "reasons":[...], "outputs":[{"address","amount"}], "fee", "inputs":
 - Signing: `unsupported_sighash_for_chain`, for chains with fork-id, PoS-time, or unknown signing.
 - `warning:<w>`, for any decoder warning except `unsigned` and `input_amounts_unknown`.
 - EVM: the reasons from `tx::policy::check`.
+
+### verifyThorSend (fail-closed)
+
+`verifyThorSend(chain, txOrPsbt, expectedVault, expectedMemo, expectedAmount, changeAddr, takerAddrs, maxFee)`;
+CLI: `tx-envelope` op `verify_thor_send` (fields `chain`, `tx`, `vault`, `memo`, `amount`, `change`, `taker`, `max_fee`).
+`chain` is btc, ltc, doge or bch. `expectedAmount` and `maxFee` are decimal strings (`maxFee` "" = the chain's
+high-fee warning level); `takerAddrs` is one address, a JSON array, or "" (no ownership check). Returns
+`{ok, failures:[...], outputs:[{address, amount, kind}], memo, fee, rbf}`; `ok` only when the outputs are exactly
+`[vault paying expectedAmount, optional change to changeAddr, OP_RETURN whose bytes equal expectedMemo]`.
+Addresses compare by output script, so a BCH vault in prefixless CashAddr (as THORChain's inbound_addresses
+serves it), prefixed CashAddr or legacy form is the same vault. Failure names:
+
+| failure | meaning |
+|---|---|
+| `vault` / `vault_invalid` | first output is not the vault script / the vault address does not parse |
+| `amount` | first output's value differs from expectedAmount |
+| `memo` | last output is not OP_RETURN, or its pushed bytes differ from expectedMemo (exact, case-sensitive) |
+| `change` / `change_invalid` | the middle output does not pay changeAddr / changeAddr does not parse |
+| `output_count` | not 2 or 3 outputs, or an OP_RETURN before the last output |
+| `rbf` | an input's nSequence is not final (BIP-125 signalling) |
+| `fee` | fee above maxFee (or the default level) |
+| `input_unknown` | an input's value is not proven: no witness_utxo/non_witness_utxo, a non_witness_utxo whose txid is not the prevout, a witness_utxo on an input whose signature does not commit to the amount, or a raw tx (no input data) |
+| `input_foreign` / `taker_invalid` | an input's script is none of takerAddrs / a taker address does not parse |
+| `tx` / `chain` | undecodable tx or PSBT / chain not btc, ltc, doge or bch |
 
 ## EVM contract data (`blocktools::evm`)
 
