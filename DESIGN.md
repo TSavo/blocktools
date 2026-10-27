@@ -376,7 +376,7 @@ as files in `in/` and lines from `redact`.
 ### Verified status (2026-10-24, Battleaxe, Docker 29.8.2, linux/amd64)
 
 Measured: the image builds (dependency allowlist check + `cargo test` in the build stage), and the
-runtime image is 18.2 MB. Under the full sealing flags: (unmeasured)
+runtime image built (its size then was not kept; README carries the measured size). Under the full sealing flags: (unmeasured)
 * `seed-repair | derive` on the public "abandon … about" vector with typos, through `sealed-run agent`:
   7 lines, only addresses, paths and statuses, with the expected BIP44/49/84/86/ETH addresses.
 * `keystore-open` on the Web3 spec vector: only `0x008AeEda4D805471dF9b2A5B0f38A0C3bCBA786b`.
@@ -394,7 +394,7 @@ newest verified-status section.)
 ### Re-verified (2026-10-24, Battleaxe via the Mac docker context, linux/amd64, 32 CPUs, commit 38b386d)
 
 Measured: `docker --context battleaxe build` of 38b386d succeeds in about 2 min (build stage runs the dependency
-allowlist check and `cargo test`); the runtime image is 33.3 MB (was 18.2 MB, then 40.4 MB, before later chains/tools; re-measured from sealed musl bins / scratch image). (unmeasured)
+allowlist check and `cargo test`); the runtime image built (sizes from that period were not kept; README carries the measured size). (unmeasured)
 Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), through `sealed-run agent`, on the public
 "abandon … about" vector:
 * `zec-sapling --count 2`: 2 rows, first address = local KAT zs188wzu…f0nta; no mnemonic or zxviews in output.
@@ -528,8 +528,8 @@ already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-c
 it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
 crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
 code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
-`bindings/wasm/test.mjs` (public vectors) under Node. Measured: 721,735 bytes (253,350 gzip) (unmeasured)
-with names; 610,229 bytes (228,524 gzip) stripped; 41 crates in the wasm tree. The module also (unmeasured)
+`bindings/wasm/test.mjs` (public vectors) under Node. Measured at cd93cd8 (rustc 1.85.1, `scripts/wasm-size.sh`): 1,929,738 bytes (606,554 gzip)
+with names; 1,615,292 bytes (533,979 gzip) stripped; 47 crates in the wasm tree. The module also
 exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
 that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
 (secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.

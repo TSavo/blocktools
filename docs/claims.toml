@@ -72,30 +72,6 @@ depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-l
 doc = [{ file = "README.md", text = "47.0 MB" }]
 
 [[claim]]
-id = "image-sealed-battleaxe"
-statement = "Sealed run on Battleaxe at a15504d: build OK, 218 builder-stage tests pass, agent mode under --network none --read-only --cap-drop ALL prints seed and xprv as [REDACTED]; image inspect 56.2 MB (containerd image store). Reviewer report pasted by T, not reproduced by us"
-kind = "platform"
-platform = "docker"
-status = "untested"
-doc = [{ file = "README.md", text = "reviewer report, not reproduced by us" }]
-
-[[claim]]
-id = "image-size-battleaxe-reviewer"
-statement = "docker image inspect 56.2 MB on Battleaxe (containerd image store) at a15504d; reviewer report, not reproduced by us"
-kind = "number"
-platform = "docker"
-status = "untested"
-doc = [{ file = "README.md", text = "56.2 MB" }]
-
-[[claim]]
-id = "image-size-history"
-statement = "Historic image sizes in DESIGN (18.2, 40.4, 33.3 MB)"
-kind = "number"
-platform = "docker"
-status = "untested"
-doc = [{ file = "DESIGN.md", text = "18.2 MB" }, { file = "DESIGN.md", text = "40.4 MB" }, { file = "DESIGN.md", text = "33.3 MB" }]
-
-[[claim]]
 id = "redact-512"
 statement = "Redacted JSON lines are at most 512 bytes: a 512-byte line passes unchanged, a 513+ byte line is dropped (boundary test, k = 0..32 warnings)"
 kind = "number"
@@ -177,27 +153,67 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
-statement = "wasm module size and crate count"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "untested"
-doc = [{ file = "DESIGN.md", text = "721,735 bytes" }, { file = "DESIGN.md", text = "610,229 bytes" }, { file = "DESIGN.md", text = "41 crates" }]
+status = "measured"
+command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
+expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
+value = "1,929,738"
+env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
+commit = "cd93cd8"
+date = "2026-10-27"
+cheap = false
+depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
+doc = [{ file = "DESIGN.md", text = "1,929,738 bytes" }]
+
+[[claim]]
+id = "wasm-size-stripped"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
+expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
+value = "1,615,292"
+env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
+commit = "cd93cd8"
+date = "2026-10-27"
+cheap = false
+depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
+doc = [{ file = "DESIGN.md", text = "1,615,292 bytes" }]
+
+[[claim]]
+id = "wasm-crates"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,929,738 bytes (1929738; 606554 gzip -9 -n) with names; 1,615,292 bytes (1615292; 533979 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
+expect = "wasm 1929738 bytes (606554 gzip) with names; 1615292 bytes (533979 gzip) stripped; 47 crates in the wasm tree"
+value = "47"
+env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
+commit = "cd93cd8"
+date = "2026-10-27"
+cheap = false
+depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
+doc = [{ file = "DESIGN.md", text = "47 crates" }]
 
 [[claim]]
 id = "armory-2mib"
-statement = "The Armory test wallet (gurnec/btcrecover) has KDF memory 2 MiB x 4 iterations: a fixture parameter, not a reader limit (armory-read caps files at 64 MiB)"
+statement = "The Armory test wallet fixture (gurnec/btcrecover, fixtures/external/armory-wallet.wallet) has KDF memory 2097152 bytes (2 MiB) x 4 iterations, read from its KDF parameters at offset 334: a fixture parameter, not a reader limit"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+command = "python3 -c \"import struct;d=open('fixtures/external/armory-wallet.wallet','rb').read();m,i=struct.unpack('<QI',d[334:346]);print('armory fixture KDF mem',m,'bytes, iterations',i)\""
+expect = "armory fixture KDF mem 2097152 bytes, iterations 4"
+value = "2"
+env = "any (reads fixture bytes; the box, python3)"
+commit = "cd93cd8"
+date = "2026-10-27"
+cheap = true
+depends = ["fixtures/external/armory-wallet.wallet"]
 doc = [{ file = "DESIGN.md", text = "2 MiB" }]
-
-[[claim]]
-id = "wheels-23mb"
-statement = "Historic Python wheels size"
-kind = "number"
-platform = "linux"
-status = "untested"
-doc = [{ file = "docs/SECURITY.md", text = "23.8 MB" }]
 
 [[claim]]
 id = "e2e-macos"
@@ -221,14 +237,6 @@ kind = "number"
 platform = "linux"
 status = "untested"
 doc = [{ file = "docs/CHAINS.md", text = "100,312 sat" }, { file = "docs/CHAINS.md", text = "512 sat" }, { file = "docs/CHAINS.md", text = "1004 sat" }, { file = "docs/CHAINS.md", text = "700 sat" }, { file = "docs/CHAINS.md", text = "101 sat" }, { file = "docs/CHAINS.md", text = "60,463 sat" }, { file = "docs/CHAINS.md", text = "1,000 sat" }, { file = "docs/CHAINS.md", text = "2,000 sat" }, { file = "docs/CHAINS.md", text = "2.54 sat" }, { file = "docs/CHAINS.md", text = "102.8 sat" }, { file = "docs/CHAINS.md", text = "2.5 sat" }, { file = "docs/CHAINS.md", text = "100 sat" }, { file = "docs/CHAINS.md", text = "1 sat" }, { file = "docs/CHAINS.md", text = "3.9 sat" }, { file = "docs/CHAINS.md", text = "20.0 sat" }, { file = "docs/CHAINS.md", text = "5.4 sat" }, { file = "docs/CHAINS.md", text = "49.7 sat" }, { file = "docs/ROADMAP.md", text = "100,312 sat" }, { file = "recipes/chain-qtum.md", text = "700 sat" }]
-
-[[claim]]
-id = "parity-1mb"
-statement = "ROADMAP-PARITY size figure"
-kind = "number"
-platform = "linux"
-status = "untested"
-doc = [{ file = "docs/ROADMAP-PARITY.md", text = "1.0 MB" }]
 
 [[claim]]
 id = "format-constants"
