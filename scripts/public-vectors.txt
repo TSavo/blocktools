@@ -972,3 +972,5 @@ da009602a5781a8795d55c6e68a4b4d52969a75955ea70255869dd17c3398592
 # Dockerfile.gate base image digest (rust:1.85.1-slim-bookworm) and node 20.19.5 tarball sha256 (nodejs.org)
 9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36
 315046739a513a70e03a4a55a8afda8cf979f30852e576075c340084e3f8ac0f
+# docs/CHAINS.md chain-caps table: public addresses (aptos/sui/near...) derived from the BIP-39 public test phrase abandon x11 about
+5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412
