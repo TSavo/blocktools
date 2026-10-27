@@ -45,6 +45,8 @@ def call(m, p):
             return err(-5, "No such mempool transaction. Use -txindex or provide a block hash to enable blockchain transaction queries.")
         if p[1] in (True, 1): return {"txid": p[0], "hex": t[0], "blockhash": HASH[t[1]]}, None
         return t[0], None
+    if m == "sendrawtransaction":  # logs nothing to disk; answers the txid of the hex it was given
+        return (dsha(bytes.fromhex(p[0]))[::-1].hex(), None) if p and isinstance(p[0], str) else err(-22, "TX decode failed")
     if m == "dumpprivkey": return "cVpF924EspNh8KjYsfhgY96mmxvT6DgdWiTYMtMjuM74hJaU5psW", None  # BIP key-1 regtest WIF, public test value
     return err(-32601, "Method not found")
 class H(http.server.BaseHTTPRequestHandler):

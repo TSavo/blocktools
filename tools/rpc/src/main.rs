@@ -7,7 +7,10 @@
 //!   rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
 //!   rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
 //!   ... | rpc URL prevtxs              bitcoind: tx on stdin -> one rawtx line per distinct input txid (tx-decode --prevtxs)
-//!   ... | rpc URL sendraw              broadcast ONE signed tx (tx-sign output or hex): decoded summary + typed code on the terminal
+//!   ... | rpc URL sendraw              broadcast ONE signed tx (tx-sign output or hex): decoded summary + typed code on the terminal.
+//!                                      UTXO: the summary shows input values and the fee, from --prevtxs FILE or looked up on
+//!                                      this endpoint (bitcoind getrawtransaction, Esplora tx/ID/hex; allowlisted, hash-checked).
+//!                                      If the fee is still unknown: a FEE UNKNOWN banner and you must type ACK FEE-UNKNOWN first
 //! URL may also be a chain name from the shared endpoint table (btc, ltc, eth, atom, ...) or an EVM chain id with a default (1).
 //! The protocol is detected from the URL, then the method name, then (shortcuts only) read-only probes; --protocol overrides.
 //! Options:
@@ -21,6 +24,7 @@
 //!                         refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
 //!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
 //!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
+//!   --prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
 //!   --timeout SECONDS     per request, 1..300 (default 30)
 //! Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell-quote
 //!  it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
@@ -47,7 +51,7 @@ use rpc::*;
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Read};
 
-struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: u64 }
+struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: u64, prevtxs: Option<String> }
 
 fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
@@ -262,23 +266,63 @@ fn shortcut(cx: &Cx, name: &str, arg: Option<&str>, arg2: Option<&str>) {
 fn check_hex32(cx: &Cx, h: &str) { if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) { bad(Some(cx), "expected a 64-hex txid / block hash") } }
 /// getrawtransaction [txid, false(, blockhash)] -> {"protocol","txid","tx"(,"blockhash")}; the hex must hash to txid.
 fn rawtx(cx: &Cx, id: &str, bh: Option<&str>) -> Value {
+    match rawtx_try(cx, id, bh) { Ok(v) => v, Err((st, e)) => fail(Some(cx), st, e) }
+}
+/// Same as rawtx but returns the failure (status, detail) instead of exiting: sendraw uses it to look up prevouts.
+fn rawtx_try(cx: &Cx, id: &str, bh: Option<&str>) -> Result<Value, (&'static str, Value)> {
     let params = match bh { Some(h) => json!([id, false, h]), None => json!([id, false]) };
     if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, "getrawtransaction", &params, &cx.deny, false, false) { refused(cx, r) }
     let req = json!({"jsonrpc":"2.0","id":1,"method":"getrawtransaction","params":params}).to_string();
     let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
-    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
+    let v: Value = serde_json::from_slice(&b).map_err(|_| ("http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})))?;
     if !v["error"].is_null() {
         let hint = if bh.is_none() { "pruned node or no -txindex: give the block hash (rpc URL rawtx TXID BLOCKHASH)" } else { "transaction not in that block" };
-        fail(Some(cx), "rpc_error", json!({"method":"getrawtransaction","error":v["error"],"hint":hint}))
+        return Err(("rpc_error", json!({"method":"getrawtransaction","error":v["error"],"hint":hint})))
     }
     withhold_secrets(cx, &v);
-    let hex = v["result"].as_str().filter(|h| h.len() % 2 == 0 && h.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| bad(Some(cx), "bad tx hex from node")).to_ascii_lowercase();
-    let raw = blocktools_core::hex_dec(&hex).unwrap_or_else(|| bad(Some(cx), "bad tx hex from node"));
-    let got = blocktools_tx::decode_bytes(&raw, &cx.chain).ok().and_then(|d| d.txid).unwrap_or_default();
-    if !got.eq_ignore_ascii_case(id) { fail(Some(cx), "error", json!({"error":"node_tx_hash_differs","txid":id})) }
-    let mut o = json!({"protocol":"btc","txid":id.to_ascii_lowercase(),"tx":hex});
+    let raw = checked_tx(cx, v["result"].as_str().unwrap_or(""), id)?;
+    let mut o = json!({"protocol":"btc","txid":id.to_ascii_lowercase(),"tx":blocktools_core::hex_enc(&raw)});
     if let Some(h) = bh { o["blockhash"] = json!(h.to_ascii_lowercase()) }
-    o
+    Ok(o)
+}
+/// Hex from a node -> bytes, refused unless it hashes to the txid asked for.
+fn checked_tx(cx: &Cx, hex: &str, id: &str) -> Result<Vec<u8>, (&'static str, Value)> {
+    let hex = hex.trim();
+    let raw = Some(hex).filter(|h| h.len() % 2 == 0 && h.bytes().all(|b| b.is_ascii_hexdigit())).and_then(|h| blocktools_core::hex_dec(&h.to_ascii_lowercase()))
+        .ok_or(("bad_input", json!({"error":"bad tx hex from node"})))?;
+    let got = blocktools_tx::decode_bytes(&raw, &cx.chain).ok().and_then(|d| d.txid).unwrap_or_default();
+    if !got.eq_ignore_ascii_case(id) { return Err(("error", json!({"error":"node_tx_hash_differs","txid":id}))) }
+    Ok(raw)
+}
+/// Previous transactions for sendraw's fee line: --prevtxs FILE, else looked up on the broadcast endpoint
+/// (bitcoind getrawtransaction / Esplora GET tx/ID/hex) through the same allowlist; every one hash-checked.
+fn sendraw_prevtxs(cx: &Cx, p: Proto, d: &blocktools_tx::Decoded) -> (Vec<Vec<u8>>, Vec<String>) {
+    let mut out = vec![]; let mut miss = vec![];
+    if let Some(f) = &cx.prevtxs {
+        let s = std::fs::read_to_string(f).unwrap_or_else(|_| bad(Some(cx), "cannot read --prevtxs"));
+        for l in s.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            let h = serde_json::from_str::<Value>(l).ok().and_then(|v| v["tx"].as_str().map(String::from)).unwrap_or_else(|| l.to_string());
+            out.push(blocktools_core::hex_dec(h.trim_start_matches("0x")).unwrap_or_else(|| bad(Some(cx), "--prevtxs: each line a hex tx or {\"tx\":HEX}")));
+        }
+        return (out, miss)
+    }
+    let mut seen: Vec<String> = vec![];
+    for i in &d.inputs { if let Some(t) = &i.txid { if !seen.contains(t) { seen.push(t.clone()) } } }
+    if seen.len() > 2000 { return (out, vec!["too many inputs to look up".into()]) }
+    for t in seen {
+        let r = match p {
+            Proto::Btc => rawtx_try(cx, &t, None).and_then(|v| blocktools_core::hex_dec(v["tx"].as_str().unwrap_or("")).ok_or(("bad_input", json!({})))),
+            Proto::Esplora => {
+                let path = format!("tx/{t}/hex");
+                if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, &path, &Value::Null, &cx.deny, false, false) { refused(cx, r) }
+                let (code, b) = http(cx, "GET", &format!("{}/{path}", base(cx)), None);
+                if (200..300).contains(&code) { checked_tx(cx, &String::from_utf8_lossy(&b), &t) } else { Err(("http_error", json!({"http_status":code}))) }
+            }
+            _ => Err(("unsupported", json!({}))),
+        };
+        match r { Ok(raw) => out.push(raw), Err((st, _)) => miss.push(format!("{t} ({st})")) }
+    }
+    (out, miss)
 }
 /// Broadcast one signed tx after the human types the code (same check and prompt as tx-broadcast).
 fn sendraw(cx: &Cx) {
@@ -288,17 +332,31 @@ fn sendraw(cx: &Cx) {
         Some(h) => blocktools_core::hex_dec(h.trim_start_matches("0x")).unwrap_or_else(|| bad(Some(cx), "signed_tx hex")),
         None => blocktools_tx::input_bytes(&s).unwrap_or_else(|e| bad(Some(cx), e)),
     };
-    let d = blocktools_tx::decode_bytes(&raw, &cx.chain).unwrap_or_else(|e| bad(Some(cx), e));
+    let mut d = blocktools_tx::decode_bytes(&raw, &cx.chain).unwrap_or_else(|e| bad(Some(cx), e));
     if !d.signed { refused(cx, Refusal { code: "not_signed", detail: "sendraw takes a signed transaction".into() }) }
     let p = cx.proto.unwrap_or(if d.evm.is_some() { Proto::Evm } else { proto_for_shortcut(cx) });
+    let mut why = String::new();
+    if d.evm.is_none() && d.fee.is_none() {
+        let (prevs, miss) = sendraw_prevtxs(cx, p, &d);
+        match blocktools_tx::decode_with_prevtxs(&raw, &cx.chain, &prevs) {
+            Ok(d2) if d2.fee.is_some() => d = d2,
+            Ok(_) => why = format!("previous transactions not found: {}", miss.join(", ")),
+            Err(e) => why = format!("{e}{}", if miss.is_empty() { String::new() } else { format!("; not found: {}", miss.join(", ")) }),
+        }
+    }
+    let fee_unknown = d.evm.is_none() && d.fee.is_none();
     if d.evm.is_some() != (p == Proto::Evm) { refused(cx, Refusal { code: "chain_or_signature_mismatch", detail: format!("tx type {} vs endpoint protocol {}", d.ty, p.name()) }) }
     if let Some(e) = &d.evm {
         let got = endpoint_chain_id(cx);
         if e.chain_id != Some(got) || cx.chain_id.is_some_and(|c| c != got) { refused(cx, Refusal { code: "chain_id_mismatch", detail: format!("tx chain id {:?}, endpoint {got}", e.chain_id) }) }
     }
     let host = cx.url.split('/').take(3).collect::<Vec<_>>().join("/");
-    let summary = format!("{}\nBROADCAST to {host} ({})\nThis is irreversible.\n", d.text().trim_end(), p.name());
-    if !blocktools_tty::confirm(&summary) { fail(Some(cx), "aborted", json!({"detail":"no terminal or wrong code; nothing sent"})) }
+    let mut summary = format!("{}\nBROADCAST to {host} ({})\nThis is irreversible.\n", d.text().trim_end(), p.name());
+    if fee_unknown {
+        summary = format!("!!!!!!!!!!!!!!!! FEE UNKNOWN !!!!!!!!!!!!!!!!\n!! The fee could not be determined: {why}\n!! A wrong fee can burn the whole input value. Give --prevtxs FILE (rpc URL prevtxs) to see it.\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n{summary}");
+    }
+    let ok = if fee_unknown { blocktools_tty::confirm_ack(&summary, "FEE-UNKNOWN") } else { blocktools_tty::confirm(&summary) };
+    if !ok { fail(Some(cx), "aborted", json!({"detail":"no terminal or wrong code; nothing sent"})) }
     let hex = blocktools_core::hex_enc(&raw);
     let got = match p {
         Proto::Evm => jr_send(cx, "eth_sendRawTransaction", json!([format!("0x{hex}")])),
@@ -376,7 +434,7 @@ fn main() {
     let usage = header();
     blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
-    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30;
+    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30; let mut prevtxs = None;
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         let mut val = |k: &str| it.next().unwrap_or_else(|| bad(None, &format!("{k} needs a value")));
@@ -389,6 +447,7 @@ fn main() {
             "--policy" => { let f = val("--policy"); deny = parse_policy(&std::fs::read_to_string(&f).unwrap_or_else(|_| bad(None, "cannot read --policy"))).unwrap_or_else(|e| bad(None, &e)) }
             "--allow-wallet-sign" => wallet_sign = true,
             "--allow-unlisted" => allow_unlisted = true,
+            "--prevtxs" => prevtxs = Some(val("--prevtxs")),
             "--timeout" => timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=300).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..300")),
             "--user" | "--password" | "--pass" | "--auth" | "--token" | "--header" | "-H" | "-u" | "--bearer" | "--cookie" =>
                 fail(None, "refused", json!({"code":"credential_on_command_line","detail":"use --auth-file FILE or --auth-env NAME"})),
@@ -407,7 +466,7 @@ fn main() {
     let (headers, secrets) = match &auth { Some(a) => parse_auth(a).unwrap_or_else(|e| bad(None, e)), None => (vec![], vec![]) };
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
-    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout };
+    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout, prevtxs };
     if pos.len() > 4 || (pos.len() == 4 && pos[1] != "rawtx") { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {

@@ -11,7 +11,7 @@ rpc URL rawtx TXID [BLOCKHASH]     bitcoind: {"protocol","txid","tx":HEX[,"block
 rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
 rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
 \&... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
-\&... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+\&... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal.
  Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell\-quote
  Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
  node's raw JSON\-RPC envelope, so read .result. A pruned node without \-txindex answers getrawtransaction
@@ -34,7 +34,10 @@ rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","heade
   rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
   rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
   ... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
-  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal.
+                                     UTXO: the summary shows input values and the fee, from \-\-prevtxs FILE or looked up on
+                                     this endpoint (bitcoind getrawtransaction, Esplora tx/ID/hex; allowlisted, hash\-checked).
+                                     If the fee is still unknown: a FEE UNKNOWN banner and you must type ACK FEE\-UNKNOWN first
 .RE
 .fi
 URL may also be a chain name from the shared endpoint table (btc, ltc, eth, atom, ...) or an EVM chain id with a default (1).
@@ -52,6 +55,7 @@ Options:
                         refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
   \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                         method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
+  \-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
   \-\-timeout SECONDS     per request, 1..300 (default 30)
 .RE
 .fi
@@ -88,6 +92,7 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
                       refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
 \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                       method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
+\-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
 \-\-timeout SECONDS     per request, 1..300 (default 30)
   it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
   Auth fails closed: an empty \-\-auth\-file is auth_empty (exit 2) and the secret is never echoed anywhere.
@@ -100,7 +105,8 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
   ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
   rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
   ... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
-  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+  ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal.
+                                     UTXO: the summary shows input values and the fee, from \-\-prevtxs FILE or looked up on
                         method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 .RE
 .fi
@@ -109,7 +115,6 @@ it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sen
 Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
 node's raw JSON\-RPC envelope, so read .result. A pruned node without \-txindex answers getrawtransaction
 (allowlist, deny\-list, secret field, credential flag); "rpc_error" or "http_error" means the node or server
-answered with an error. All three exit 1. "bad_input" (exit 2) is decided locally before any connection.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
