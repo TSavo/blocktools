@@ -3,7 +3,7 @@
 tx\-broadcast \- tx\-broadcast (HOST\-SIDE, network): send ONE already\-signed transaction, after the human reads
 .SH SYNOPSIS
 .nf
-tx\-broadcast \-\-chain btc|ltc|doge|eth [\-\-url URL] < signed tx  (asks for a code on the terminal)
+tx\-broadcast \-\-chain btc|ltc|doge|eth [\-\-url URL] < signed tx  (asks for a code on the terminal; bare signed UTXO hex has no fee shown: FEE UNKNOWN banner, type ACK FEE\-UNKNOWN too)
 .fi
 .SH DESCRIPTION
 its summary on the terminal and types a code. Irreversible.
@@ -14,6 +14,7 @@ its summary on the terminal and types a code. Irreversible.
 .fi
 UTXO chains: POST {esplora}/tx; EVM: eth_sendRawTransaction. The id the server returns must
 equal the id computed locally, or status is "error". Defaults as utxo\-fetch.
+Bare signed UTXO hex (no input values, so no fee): a FEE UNKNOWN banner and you must type ACK FEE\-UNKNOWN first.
 .SH OPTIONS
 .nf
 \-\-chain
@@ -26,6 +27,7 @@ Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help)
   tx\-broadcast \-\-chain btc|ltc|doge|eth [\-\-url URL] < tx\-sign output (or signed hex)
 .RE
 .fi
+Bare signed UTXO hex (no input values, so no fee): a FEE UNKNOWN banner and you must type ACK FEE\-UNKNOWN first.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP

@@ -24,7 +24,13 @@ nosid $B/tx-broadcast --chain btc --url $U < $T/s | grep -q aborted && echo "ok 
 : > $T/log; python3 scripts/e2e-only/tty-drive.py wrong $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U >/dev/null || true  # allow-true: nonzero exit is the expected refusal; the outcome is asserted on the next line
 grep -q aborted $T/o && [ ! -s $T/log ] && echo "ok   tx-broadcast wrong code -> nothing sent" || f wrong
 python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U > $T/tty
-grep -q '"status":"ok"' $T/o && grep -q "^/tx " $T/log && grep -q BROADCAST $T/tty && echo "ok   tx-broadcast right code -> posted once, id matches" || f right
+grep -q '"status":"ok"' $T/o && grep -q "^/tx " $T/log && grep -q BROADCAST $T/tty && ! grep -q "FEE UNKNOWN" $T/tty && echo "ok   tx-broadcast right code -> posted once, id matches" || f right
+# bare signed hex (no input values): FEE UNKNOWN banner + distinct ACK; refusing the ACK sends nothing, ACK + code sends
+jq -r .signed_tx $T/s > $T/raw; : > $T/log
+if python3 scripts/e2e-only/tty-drive.py noack $T/raw $T/o $PWD/$B/tx-broadcast --chain btc --url $U > $T/tty; then f "unknown fee sent without ACK"; fi
+grep -q 'FEE UNKNOWN' $T/tty && grep -q 'Type ACK FEE-UNKNOWN' $T/tty && grep -q aborted $T/o && [ ! -s $T/log ] && echo "ok   tx-broadcast bare hex: FEE UNKNOWN banner, no ACK -> nothing sent" || f feeunk
+python3 scripts/e2e-only/tty-drive.py right $T/raw $T/o $PWD/$B/tx-broadcast --chain btc --url $U > $T/tty
+grep -q '"status":"ok"' $T/o && grep -q "^/tx " $T/log && echo "ok   tx-broadcast bare hex: ACK FEE-UNKNOWN + code -> posted" || f feeack
 python3 scripts/e2e-only/tty-drive.py right $T/s $T/o $PWD/$B/tx-broadcast --chain btc --url $U/wrongid >/dev/null || true  # allow-true: nonzero exit is the expected refusal; the outcome is asserted on the next line
 grep -q server_id_differs $T/o && echo "ok   tx-broadcast flags server id mismatch" || f mism
 # D1-11: the account was fetched from a chain-1 node; building for chain 8453 with it must refuse (rc 2).

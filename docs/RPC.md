@@ -241,7 +241,10 @@ previous tx must hash to the txid the input names. With them the summary shows e
 anything else aborts and nothing is sent. On a pruned node, run `rpc URL rawtx TXID BLOCKHASH` for each input, then
 pass the lines to `--prevtxs`. Tested against scripts/mock-bitcoind.py (a fake regtest node, not bitcoind) by
 `scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing.
-`tx-broadcast` was not changed.
+`tx-broadcast` given bare signed UTXO hex (no input values, so no fee) shows the same banner and wants the same
+`ACK FEE-UNKNOWN`; the tx-sign JSON output carries the input values and needs only the code. Tested in
+`scripts/e2e.d/net.sh` against scripts/mock-chain.py: refusing the ACK posts nothing, the ACK plus the code posts once.
+A hostile endpoint can force the banner by answering "not found" (docs/SECURITY.md, known limits).
 
 ## Safety: what is refused
 

@@ -3,6 +3,7 @@
 //!   tx-broadcast --chain btc|ltc|doge|eth [--url URL] < tx-sign output (or signed hex)
 //! UTXO chains: POST {esplora}/tx; EVM: eth_sendRawTransaction. The id the server returns must
 //! equal the id computed locally, or status is "error". Defaults as utxo-fetch.
+//! Bare signed UTXO hex (no input values, so no fee): a FEE UNKNOWN banner and you must type ACK FEE-UNKNOWN first.
 use bitcoin::psbt::Psbt;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -12,7 +13,7 @@ fn out(status: &str, extra: Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(blocktools_io::exit_code(status))
 }
 fn main() {
-    blocktools_io::help("tx-broadcast --chain btc|ltc|doge|eth [--url URL] < signed tx  (asks for a code on the terminal)");
+    blocktools_io::help("tx-broadcast --chain btc|ltc|doge|eth [--url URL] < signed tx  (asks for a code on the terminal; bare signed UTXO hex has no fee shown: FEE UNKNOWN banner, type ACK FEE-UNKNOWN too)");
     let a: Vec<String> = std::env::args().collect();
     let one = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).last();
     let chain = one("--chain").unwrap_or("btc".into());
@@ -32,8 +33,14 @@ fn main() {
     let local = d.txid.clone().unwrap_or_default();
     let url = one("--url").unwrap_or_else(|| match chain.as_str() { "btc" | "ltc" | "eth" => blocktools_net::default_endpoint(&chain).unwrap_or_default().into(),
         _ => out("bad_input", json!({"error":"--url required"})) });
-    let summary = format!("{}\nBROADCAST to {url}\nThis is irreversible.\n", shown.text().trim_end());
-    if !blocktools_tty::confirm(&summary) { out("aborted", json!({})) }
+    let mut summary = format!("{}\nBROADCAST to {url}\nThis is irreversible.\n", shown.text().trim_end());
+    // bare signed hex carries no input values: say so loudly and want a distinct ACK (same as rpc sendraw)
+    let fee_unknown = shown.evm.is_none() && shown.fee.is_none();
+    if fee_unknown {
+        summary = format!("!!!!!!!!!!!!!!!! FEE UNKNOWN !!!!!!!!!!!!!!!!\n!! The fee could not be determined: the input is bare signed hex, which carries no input values.\n!! A wrong fee can burn the whole input value. Broadcast the tx-sign JSON output (it carries them) to see it.\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n{summary}");
+    }
+    let ok = if fee_unknown { blocktools_tty::confirm_ack(&summary, "FEE-UNKNOWN") } else { blocktools_tty::confirm(&summary) };
+    if !ok { out("aborted", json!({})) }
     let hexs = blocktools_core::hex_enc(&raw);
     let got = if chain == "eth" {
         blocktools_net::rpc(&url, "eth_sendRawTransaction", json!([format!("0x{hexs}")])).map(|v| v.as_str().unwrap_or("").trim_start_matches("0x").to_ascii_lowercase())
