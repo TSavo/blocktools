@@ -11,3 +11,6 @@ N=crates/tx/tests/data/nvc_c053a3fd.json; T=c053a3fddd508df8cadd90bf8c987c35802c
 h=$($B/tx-decode --nvc-json $T < $N)
 [ ${#h} = 360 ] && echo "$h" | $B/tx-decode --chain nvc | grep -q "$T" && echo "ok   tx-decode --nvc-json coinstake" || { echo "FAIL tx-decode --nvc-json"; exit 1; }
 if $B/tx-decode --nvc-json cdced5fa03d9651443deea305e09290b925794ed3836de21ef30e13f42f83bd7 < $N > /dev/null; then echo "FAIL tx-decode --nvc-json wrong txid accepted"; exit 1; else echo "ok   tx-decode --nvc-json wrong txid refused"; fi
+# A non-UTXO chain without a decoder (xmr) is refused, not parsed as UTXO bytes (docs/COVERAGE.md finding).
+o=$($B/tx-decode --chain xmr < $V/block170.hex) && { echo "FAIL tx-decode --chain xmr accepted"; exit 1; }
+echo "$o" | grep -q '"error":"unsupported_chain' && echo "ok   tx-decode --chain xmr refused (unsupported_chain)" || { echo "FAIL tx-decode --chain xmr: $o"; exit 1; }

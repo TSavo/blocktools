@@ -35,8 +35,8 @@ in the script's `NO_TX_VERB`; a new tool binary in neither list fails the gate. 
 
 ## Findings from the audit
 
-- `tx-decode --chain xmr` (and any chain-table name that is not a UTXO chain) is accepted and the bytes are parsed as a
-  UTXO transaction; it should refuse with `unknown_chain`. Not changed here (that narrows behaviour); excluded from the probe.
+- `tx-decode --chain xmr` (and any chain-table name that is not a UTXO chain, zec, eth or a delegated chain) used to parse
+  the bytes as a UTXO transaction; it now refuses with `unsupported_chain` before reading input (e2e tx-decode.sh).
 - `tx-verify` and `tx-sign` take the chain from the tx file (`resolve_chain`), so they are listed from their
   documented chains, not probed: a dummy input fails on the bytes before the chain is checked.
 - `tron verify` exists only in sol-tron-tx; `tx-envelope` refuses it.

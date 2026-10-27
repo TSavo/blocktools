@@ -48,6 +48,12 @@ fn main() {
             Err(_) => fail("delegate_missing"),
         };
     }
+    // A chain-table name that is neither a UTXO chain, zec, eth nor a delegated chain above (xmr, and the
+    // other account chains without a decoder here) is refused before any bytes are read: it would
+    // otherwise be parsed as a Bitcoin-family transaction.
+    if chain != "eth" && chain != "zec" && blocktools_core::chains::chain(chain).is_some_and(|c| !matches!(c.enc, blocktools_core::chains::Enc::Utxo { .. })) {
+        return fail("unsupported_chain: tx-decode has no decoder for this chain");
+    }
     let mut s = String::new();
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { return fail("bad_input") }
     if let Some(i) = a.iter().position(|x| x == "--nvc-json") {
