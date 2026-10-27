@@ -8,6 +8,14 @@ copy of the whole UTXO set from your own node and test the candidates against it
 
         bitcoin-cli dumptxoutset /path/utxo.dat
 
+   Or use rpc, which needs `--allow-unlisted` because the call writes a file. The slow-method default timeout
+   is 3600 s; use `--timeout` to change it:
+
+        rpc --allow-unlisted --auth-file ~/.bitcoin/.cookie http://127.0.0.1:8332 dumptxoutset '["/path/utxo.dat"]'
+
+   Either way the file is written on the node host. Copy it to wherever `utxo-set` runs. If rpc reports
+   status `timeout`, the node is still writing the file, so wait for it to finish.
+
    Both file layouts are read: Core 25-27 (no header magic) and Core 28+ (`utxo` magic, network
    magic, version). The format is detected from the first bytes; the network comes from the Core 28+ header,
    and addresses on stdin are matched by their scriptPubKey, so you do not need `--chain`.

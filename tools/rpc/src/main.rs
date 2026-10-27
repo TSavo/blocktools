@@ -25,7 +25,9 @@
 //!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
 //!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
 //!   --prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
-//!   --timeout SECONDS     per request, 1..300 (default 30)
+//!   --timeout SECONDS     whole request (connect, wait, read), 1..86400. Default 30, or 3600 for the slow
+//!                         bitcoind methods (dumptxoutset, loadtxoutset, scantxoutset, gettxoutsetinfo, rescanblockchain,
+//!                         verifychain; docs/RPC.md "Slow methods"). Past it: stderr status "timeout" with timeout_secs, exit 1
 //! Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell-quote
 //!  it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
 //! Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
@@ -46,12 +48,12 @@
 //! Refused even with --allow-unlisted (deny-list, see docs/RPC.md): methods that export, import or unlock keys, wallet
 //! signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 //! Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
-//! Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
+//! Bounds: 30 s timeout (3600 s for slow methods; --timeout), redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
 use rpc::*;
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Read};
 
-struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: u64, prevtxs: Option<String> }
+struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: std::cell::Cell<u64>, timeout_set: bool, prevtxs: Option<String> }
 
 fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
@@ -72,12 +74,27 @@ fn emit(cx: &Cx, body: &str) {
 fn snippet(b: &[u8]) -> String { String::from_utf8_lossy(&b[..b.len().min(300)]).chars().map(|c| if c.is_control() { ' ' } else { c }).collect() }
 
 fn http(cx: &Cx, method: &str, url: &str, body: Option<&[u8]>) -> (i32, Vec<u8>) {
-    blocktools_net::send(method, url, body, &cx.headers, cx.timeout).unwrap_or_else(|e| fail(Some(cx), "http_error", json!({"error":e})))
+    blocktools_net::send(method, url, body, &cx.headers, cx.timeout.get()).unwrap_or_else(|e| net_fail(cx, e))
 }
+/// A transport error: status "timeout" (with the timeout used) when no complete answer came in time, else http_error.
+fn net_fail(cx: &Cx, e: String) -> ! {
+    if e == blocktools_net::TIMEOUT {
+        let t = cx.timeout.get();
+        fail(Some(cx), "timeout", json!({"timeout_secs":t,"timeout_source":if cx.timeout_set { "--timeout" } else if t == SLOW_TIMEOUT { "slow_method_default" } else { "default" },
+            "detail":format!("no complete response within {t} s; the node may still be running the call (a dumptxoutset keeps writing its file on the node host). Raise --timeout up to {MAX_TIMEOUT}.")}))
+    }
+    fail(Some(cx), "http_error", json!({"error":e}))
+}
+/// Without --timeout, a call to one of these gets SLOW_TIMEOUT instead of the 30 s default (docs/RPC.md "Slow methods").
+const SLOW: &[&str] = &["dumptxoutset", "loadtxoutset", "scantxoutset", "gettxoutsetinfo", "rescanblockchain", "verifychain", "importdescriptors", "importmulti", "rescanwallet"];
+const SLOW_TIMEOUT: u64 = 3600;
+const MAX_TIMEOUT: u64 = 86400;
+fn slow(cx: &Cx, method: &str) { if !cx.timeout_set && SLOW.contains(&method) { cx.timeout.set(SLOW_TIMEOUT) } }
 fn withhold_secrets(cx: &Cx, v: &Value) { if let Some(w) = response_secret(v, 0) { refused(cx, Refusal { code: "response_contains_secret", detail: format!("{w}; nothing printed") }) } }
 
 /// One checked JSON-RPC call; returns `result`.
 fn jr(cx: &Cx, method: &str, params: Value) -> Value {
+    slow(cx, method);
     if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, method, &params, &cx.deny, false, false) { refused(cx, r) }
     let req = json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string();
     let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
@@ -110,7 +127,7 @@ fn proto_for_shortcut(cx: &Cx) -> Proto {
     if let Some(p) = cx.proto { return p }
     let probe = |m: &str| -> Option<Value> {
         let req = json!({"jsonrpc":"2.0","id":1,"method":m,"params":[]}).to_string();
-        let (_, b) = blocktools_net::send("POST", &cx.url, Some(req.as_bytes()), &cx.headers, cx.timeout).ok()?;
+        let (_, b) = blocktools_net::send("POST", &cx.url, Some(req.as_bytes()), &cx.headers, cx.timeout.get()).ok()?;
         let v: Value = serde_json::from_slice(&b).ok()?;
         v.get("result").filter(|r| !r.is_null()).cloned()
     };
@@ -391,6 +408,7 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
     for c in &calls {
         let m = c["method"].as_str().unwrap_or_else(|| bad(Some(cx), "request without method"));
         let params = c.get("params").cloned().unwrap_or(Value::Null);
+        slow(cx, m);
         match check_call_in(cx.proto, cx.allow_unlisted, m, &params, &cx.deny, cx.wallet_sign, false) {
             Err(r) => refused(cx, r),
             Ok(Pass::WalletSign) => {
@@ -434,7 +452,7 @@ fn main() {
     let usage = header();
     blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
-    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30; let mut prevtxs = None;
+    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30; let mut timeout_set = false; let mut prevtxs = None;
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         let mut val = |k: &str| it.next().unwrap_or_else(|| bad(None, &format!("{k} needs a value")));
@@ -448,7 +466,7 @@ fn main() {
             "--allow-wallet-sign" => wallet_sign = true,
             "--allow-unlisted" => allow_unlisted = true,
             "--prevtxs" => prevtxs = Some(val("--prevtxs")),
-            "--timeout" => timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=300).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..300")),
+            "--timeout" => { timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=MAX_TIMEOUT).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..86400")); timeout_set = true }
             "--user" | "--password" | "--pass" | "--auth" | "--token" | "--header" | "-H" | "-u" | "--bearer" | "--cookie" =>
                 fail(None, "refused", json!({"code":"credential_on_command_line","detail":"use --auth-file FILE or --auth-env NAME"})),
             s if s.starts_with("--") => bad(None, "unknown flag"),
@@ -466,7 +484,7 @@ fn main() {
     let (headers, secrets) = match &auth { Some(a) => parse_auth(a).unwrap_or_else(|e| bad(None, e)), None => (vec![], vec![]) };
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
-    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout, prevtxs };
+    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout: std::cell::Cell::new(timeout), timeout_set, prevtxs };
     if pos.len() > 4 || (pos.len() == 4 && pos[1] != "rawtx") { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {

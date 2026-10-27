@@ -16,7 +16,7 @@
 //!   --auth-file FILE      credentials, same formats as rpc --auth-file; never printed
 //!   --auth-env NAME       same, from environment variable NAME
 //!   --policy FILE         rpc policy file: adds refusals (deny eth_call and nothing is sent)
-//!   --timeout SECONDS     per request, 1..300 (default 30)
+//!   --timeout SECONDS     per request, 1..300 (default 30); past it stderr status "timeout" with timeout_secs, exit 1
 //! stdout: one JSON line per call {"tool","status":"ok","chain_id","to","block","function","selector","calldata",
 //! "returndata","returns","outputs":[{name,type,value}]}; no returns list: returndata only.
 //! stderr: {"tool":"contract-call","status":...}: reverted (with the decoded revert), empty_return (no code at the address
@@ -44,7 +44,7 @@ fn bad(cx: Option<&Cx>, e: &str) -> ! { fail(cx, "bad_input", json!({"error":e})
 fn jr(cx: &Cx, method: &str, params: Value) -> Result<Value, Value> {
     if let Err(r) = check_call_in(Some(Proto::Evm), false, method, &params, &cx.deny, false, false) { fail(Some(cx), "refused", json!({"code":r.code,"detail":r.detail})) }
     let req = json!({"jsonrpc":"2.0","id":1,"method":method,"params":params}).to_string();
-    let (code, b) = blocktools_net::send("POST", &cx.url, Some(req.as_bytes()), &cx.headers, cx.timeout).unwrap_or_else(|e| fail(Some(cx), "http_error", json!({"error":e})));
+    let (code, b) = blocktools_net::send("POST", &cx.url, Some(req.as_bytes()), &cx.headers, cx.timeout).unwrap_or_else(|e| if e == blocktools_net::TIMEOUT { fail(Some(cx), "timeout", json!({"timeout_secs":cx.timeout,"detail":format!("no complete response within {} s; raise --timeout (1..300)", cx.timeout)})) } else { fail(Some(cx), "http_error", json!({"error":e})) });
     let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON"})));
     if let Some(w) = response_secret(&v, 0) { fail(Some(cx), "refused", json!({"code":"response_contains_secret","detail":format!("{w}; nothing printed")})) }
     if !v["error"].is_null() { return Err(v["error"].clone()) }

@@ -5,12 +5,23 @@ use serde_json::{json, Value};
 
 pub const MAX_BODY: usize = 8 << 20;
 
+/// The error string `send` returns when the per-request timeout passed before a complete response
+/// (minreq: io TimedOut / WouldBlock, "the timeout of the request was reached"). Callers report it as status "timeout".
+pub const TIMEOUT: &str = "timeout";
+fn herr(e: minreq::Error) -> String {
+    match e {
+        minreq::Error::IoError(ref io) if matches!(io.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) => TIMEOUT.into(),
+        minreq::Error::TooManyRedirections => "redirect refused (rpc never follows redirects)".to_string(),
+        e => format!("http: {e}"),
+    }
+}
 fn finish(r: minreq::Request) -> Result<(i32, Vec<u8>), String> {
+    let fe = |e: minreq::Error| { let m = herr(e); if m == TIMEOUT { "timeout: no complete response within 30 s".to_string() } else { m } };
     let lazy = r.with_timeout(30).with_max_redirects(0).with_max_headers_size(8192).with_max_status_line_length(512)
-        .send_lazy().map_err(|e| format!("http: {e}"))?;
+        .send_lazy().map_err(fe)?;
     let code = lazy.status_code;
     let mut body = Vec::new();
-    for b in lazy { let (b, _) = b.map_err(|e| format!("http: {e}"))?; body.push(b); if body.len() > MAX_BODY { return Err("response too large".into()) } }
+    for b in lazy { let (b, _) = b.map_err(fe)?; body.push(b); if body.len() > MAX_BODY { return Err("response too large".into()) } }
     Ok((code, body))
 }
 fn ok(r: Result<(i32, Vec<u8>), String>) -> Result<Vec<u8>, String> {
@@ -38,7 +49,8 @@ pub const ENDPOINTS: &[(&str, &str, &str)] = &[
 pub fn default_endpoint(chain: &str) -> Option<&'static str> { ENDPOINTS.iter().find(|e| e.0 == chain).map(|e| e.1) }
 
 /// General request for `rpc`: any status is returned (JSON-RPC servers put errors in 4xx/5xx bodies).
-/// Same bounds as get/post (no redirects, MAX_BODY, header limits); `timeout` in seconds.
+/// Same bounds as get/post (no redirects, MAX_BODY, header limits); `timeout` in seconds for the whole request
+/// (connect, send, wait, read). A timeout returns exactly `Err(TIMEOUT)`.
 /// Header VALUES are never included in any error string this returns.
 pub fn send(method: &str, url: &str, body: Option<&[u8]>, headers: &[(String, String)], timeout: u64) -> Result<(i32, Vec<u8>), String> {
     check_url(url)?;
@@ -46,11 +58,11 @@ pub fn send(method: &str, url: &str, body: Option<&[u8]>, headers: &[(String, St
     for (k, v) in headers { r = r.with_header(k.as_str(), v.as_str()) }
     if let Some(b) = body { r = r.with_header("Content-Type", "application/json").with_body(b.to_vec()) }
     let lazy = r.with_timeout(timeout).with_max_redirects(0).with_max_headers_size(8192).with_max_status_line_length(512)
-        .send_lazy().map_err(|e| match e { minreq::Error::TooManyRedirections => "redirect refused (rpc never follows redirects)".to_string(), e => format!("http: {e}") })?;
+        .send_lazy().map_err(herr)?;
     let code = lazy.status_code;
     if (300..400).contains(&code) { return Err(format!("redirect refused (status {code}; rpc never follows redirects)")) }
     let mut out = Vec::new();
-    for b in lazy { let (b, _) = b.map_err(|e| format!("http: {e}"))?; out.push(b); if out.len() > MAX_BODY { return Err("response too large".into()) } }
+    for b in lazy { let (b, _) = b.map_err(herr)?; out.push(b); if out.len() > MAX_BODY { return Err("response too large".into()) } }
     Ok((code, out))
 }
 /// Esplora UTXOs of one address as utxo-fetch lines {"txid","vout","amount","address"[,"prev_tx"]}.

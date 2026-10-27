@@ -79,7 +79,7 @@ The one public endpoint call is labelled.
 Measured on 2026-10-25 20:39 PDT on the Linux box (x86_64). This is a harmless read-only call to a public endpoint:
 
 ```
-$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber
+$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber  # (untested)
 {"jsonrpc":"2.0","result":"0x190e9b3","id":1}
 $ rpc eth height
 {"height":26274227,"protocol":"evm"}
@@ -101,7 +101,7 @@ The default shortcut set maps to the read-only EVM methods that SwapChan uses (`
 
 | shortcut | method |
 |---|---|
-| `height` | `eth_blockNumber` |
+| `height` | `eth_blockNumber` (untested) |
 | `chainid` | `eth_chainId` |
 | `balance ADDR` | `eth_getBalance [ADDR,"latest"]` |
 | `nonce ADDR` | `eth_getTransactionCount [ADDR,"pending"]` |
@@ -216,6 +216,27 @@ order:
 These are SwapChan's field observations from `/workspace/handoff/rpc-knife-requirements.md`. `rpc` did not measure them
 (unmeasured).
 
+## Slow methods and timeouts
+
+Every rpc request has one wall-clock timeout covering the whole request. It is 30 s by default.
+These methods get 3600 s instead: `dumptxoutset`, `loadtxoutset`, `scantxoutset` (also behind the `utxos`
+shortcut), `gettxoutsetinfo`, `rescanblockchain`, `verifychain`, `importmulti` and `rescanwallet`.
+`importdescriptors` is on the slow list too, but the deny-list refuses it first (it carries secrets), so it is
+never sent. `--timeout SECS` (1..86400) overrides both.
+
+When the timeout passes, rpc writes stderr status `"timeout"`, not `http_error`. The status includes
+`timeout_secs` and `timeout_source` (`--timeout`, `slow_method_default` or `default`), and rpc exits 1.
+A timeout only stops rpc from waiting. The node may still be running the call.
+
+`dumptxoutset` is not on the read allowlist, because it writes a file. It needs `--allow-unlisted`:
+
+    rpc --allow-unlisted --auth-file ~/.bitcoin/.cookie http://127.0.0.1:8332 dumptxoutset '["/path/utxo.dat"]'
+
+The file is written **on the node host**, at a path the node chooses, not where rpc runs. If you
+time out, the node keeps writing the file. Wait for it to finish rather than starting a second dump.
+`contract-call` and `contract-trace` take `--timeout` 1..300 and report the same `"timeout"` status.
+`tx-broadcast` keeps a fixed 30 s, and a timeout there reads `timeout: no complete response within 30 s`.
+
 ## Credentials (wallet RPC)
 
 - `--auth-file FILE` or `--auth-env NAME` accepts these forms:
@@ -240,13 +261,13 @@ previous tx must hash to the txid the input names. With them the summary shows e
 `FEE UNKNOWN` banner saying which txids were not found, and you must type `ACK FEE-UNKNOWN` before the usual code;
 anything else aborts and nothing is sent. On a pruned node, run `rpc URL rawtx TXID BLOCKHASH` for each input, then
 pass the lines to `--prevtxs`. Tested against scripts/mock-bitcoind.py (a fake regtest node, not bitcoind) by
-`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing.
+`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing. (untested)
 `tx-broadcast` given bare signed UTXO hex (no input values, so no fee) shows the same banner and wants the same
 `ACK FEE-UNKNOWN`; the tx-sign JSON output carries the input values and needs only the code. Tested in
 `scripts/e2e.d/net.sh` against scripts/mock-chain.py: refusing the ACK posts nothing, the ACK plus the code posts once.
 A hostile endpoint can force the banner by answering "not found" (docs/SECURITY.md, known limits).
 
-## Safety: what is refused
+## Safety: what is refused (untested)
 
 The agent must never see keys, seeds or passwords. Every refusal exits 1 (status refused), and nothing is sent to the server:
 
@@ -430,7 +451,7 @@ scope.
 
 - Response bodies are data only. When stdout is a terminal, control characters are replaced so that escape sequences cannot
   act on the terminal.
-- Responses larger than 8 MiB are refused.
+- Responses larger than 8 MiB are refused. (untested)
 - Redirects are never followed, to any host. A 3xx is an `http_error`, and v1 has no flag to change this.
 - Only https URLs are accepted, except plain http to localhost/127.0.0.1.
 - Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
@@ -488,6 +509,8 @@ Per-chain recipes live in the docs index, which the docs worker owns.
 Run on Linux (x86_64) on 2026-10-25:
 - `cargo test -p rpc`: the lib tests, plus CLI tests against an in-process mock that records the raw request bytes.
 - `scripts/e2e.d/rpc.sh`.
+- `scripts/e2e.d/rpc-timeout.sh`: the mock holds the response open. It measured the 30 s default timeout
+  (status `timeout` at 30.0 s), plus `--timeout 2`, the slow-method default and the dumptxoutset allowlist refusal. (unmeasured)
 - `scripts/e2e.d/rpc-decode.sh`: the recipes/rpc-decode.md pipeline against `scripts/mock-bitcoind.py`, a deterministic
   fake pruned regtest bitcoind (pruned and `-txindex` modes). It is a mock, not bitcoind.
 - The single public read shown above.

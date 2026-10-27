@@ -4,8 +4,11 @@ that never contacts any network. It models a PRUNED node without -txindex: getra
 answers only when the block hash is given ([txid, verbose, blockhash]), like bitcoind's -5 error.
 Chain: 3 regtest-shaped blocks; block 1 holds PREV (pays 50000 sat to a public test p2wpkh
 address, BIP173 vector), block 2 holds SPEND (spends PREV:0, pays 49000 sat) -> fee 1000 sat.
-Logs every request body to LOGFILE. usage: mock-bitcoind.py PORTFILE LOGFILE [--txindex]"""
-import hashlib, http.server, json, os, socketserver, sys
+Logs every request body to LOGFILE. usage: mock-bitcoind.py PORTFILE LOGFILE [--txindex]
+Slow node: MOCK_SLOW=SECS sleeps that long before answering the methods in MOCK_SLOW_METHODS (comma list, default
+dumptxoutset), the way a real dumptxoutset holds the HTTP request open while it writes the file on the node host.
+dumptxoutset here writes NO file; it answers a Core-shaped result for the path it was given."""
+import hashlib, http.server, json, os, socketserver, sys, time
 def dsha(b): return hashlib.sha256(hashlib.sha256(b).digest()).digest()
 SPK = bytes.fromhex("0014751e76e8199196d454941c45d1b3a323f1433bd6")  # bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
 def tx(prev_txid_le, vout, value):
@@ -23,6 +26,10 @@ def err(code, msg): return None, {"code": code, "message": msg}
 def call(m, p):
     if not isinstance(p, (list, dict)): return err(-32600, "Params must be an array or object")
     if isinstance(p, dict): p = list(p.values())
+    if m in os.environ.get("MOCK_SLOW_METHODS", "dumptxoutset").split(","): time.sleep(float(os.environ.get("MOCK_SLOW", "0")))
+    if m == "dumptxoutset":
+        if not p or not isinstance(p[0], str): return err(-1, "dumptxoutset \"path\" ( \"type\" {...} )")
+        return {"coins_written": 2, "base_hash": HASH[2], "base_height": 2, "path": "/mock-node-host/" + os.path.basename(p[0]), "nchaintx": 3}, None
     if m == "getblockcount": return 2, None
     if m == "getbestblockhash": return HASH[2], None
     if m == "getblockhash":

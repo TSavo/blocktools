@@ -35,7 +35,7 @@ Options:
   \-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
   \-\-auth\-env NAME       same, from environment variable NAME
   \-\-policy FILE         rpc policy file: adds refusals
-  \-\-timeout SECONDS     per request, 1..300 (default 30)
+  \-\-timeout SECONDS     per request, 1..300 (default 30); past it stderr status "timeout" with timeout_secs, exit 1
 .RE
 .fi
 stdout: callTracer: one JSON line per frame {"tool","status":"ok","chain_id","frame","depth","type","from","to","value",
@@ -63,7 +63,7 @@ No signing, no broadcast. Not measured against a live node: tests use a 127.0.0.
 \-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
 \-\-auth\-env NAME       same, from environment variable NAME
 \-\-policy FILE         rpc policy file: adds refusals
-\-\-timeout SECONDS     per request, 1..300 (default 30)
+\-\-timeout SECONDS     per request, 1..300 (default 30); past it stderr status "timeout" with timeout_secs, exit 1
 .fi
 .SH INPUT/OUTPUT
 .nf

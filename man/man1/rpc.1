@@ -56,7 +56,9 @@ Options:
   \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                         method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
   \-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
-  \-\-timeout SECONDS     per request, 1..300 (default 30)
+  \-\-timeout SECONDS     whole request (connect, wait, read), 1..86400. Default 30, or 3600 for the slow
+                        bitcoind methods (dumptxoutset, loadtxoutset, scantxoutset, gettxoutsetinfo, rescanblockchain,
+                        verifychain; docs/RPC.md "Slow methods"). Past it: stderr status "timeout" with timeout_secs, exit 1
 .RE
 .fi
 Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell\-quote
@@ -79,7 +81,7 @@ Fail closed: only methods and REST paths in the per\-protocol read allowlist (AL
 Refused even with \-\-allow\-unlisted (deny\-list, see docs/RPC.md): methods that export, import or unlock keys, wallet
 signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
 Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
-Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
+Bounds: 30 s timeout (3600 s for slow methods; \-\-timeout), redirects never followed, 8 MiB response cap, https only (plain http for localhost). No retries.
 .SH OPTIONS
 .nf
 \-\-protocol evm|btc|sol|tron|cosmos|esplora|blockbook   override detection
@@ -93,7 +95,9 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
 \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                       method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 \-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
-\-\-timeout SECONDS     per request, 1..300 (default 30)
+\-\-timeout SECONDS     whole request (connect, wait, read), 1..86400. Default 30, or 3600 for the slow
+                      bitcoind methods (dumptxoutset, loadtxoutset, scantxoutset, gettxoutsetinfo, rescanblockchain,
+                      verifychain; docs/RPC.md "Slow methods"). Past it: stderr status "timeout" with timeout_secs, exit 1
   it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
   Auth fails closed: an empty \-\-auth\-file is auth_empty (exit 2) and the secret is never echoed anywhere.
   \-\-allow\-unlisted lifts only the allowlist: dumpprivkey and the rest of the deny\-list stay refused.
