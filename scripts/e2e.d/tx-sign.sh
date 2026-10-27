@@ -30,6 +30,7 @@ $B/tx-sign --tx $T/p --expect-to $D --max-fee 1000 < $T/k | grep -q fee_above_ca
 nosid $B/tx-sign --tx $T/p --expect-to $D < $T/k | grep -q aborted && echo "ok   tx-sign refuses without terminal" || f notty
 python3 scripts/e2e-only/tty-drive.py wrong $T/k $T/o $PWD/$B/tx-sign --tx $T/p --expect-to $D >/dev/null || true  # allow-true: nonzero exit is the expected refusal; the outcome is asserted on the next line
 grep -q aborted $T/o && ! grep -q signed_tx $T/o && echo "ok   tx-sign wrong code -> nothing signed" || f wrong
+# finding:R1-8 (macOS: the controlling tty comes from proc_pidinfo; these three steps run in the macos CI job).
 # Terminal pinning: a pin made in one pty session refuses a code typed from a fresh pty (the
 # agent-spawned-pty case). Limit: an agent that can write the pin file can re-pin; see SECURITY.md.
 BLOCKTOOLS_TTY_PIN=$T/pin python3 scripts/e2e-only/tty-drive.py right /dev/null $T/pinout $PWD/$B/sealed-run pin-tty > /dev/null

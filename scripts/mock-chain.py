@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fake Esplora + JSON-RPC server on 127.0.0.1 for tests. Never contacts any real network.
 usage: mock-chain.py PORTFILE LOGFILE EXPECTFILE   (writes chosen port, logs every POST body)"""
-import hashlib, http.server, json, os, sys
+import hashlib, http.server, json, os, socketserver, sys
 TID = "c" * 64
 UT = [{"txid": TID, "vout": 0, "value": 50000, "status": {"confirmed": True}}]
 def txid(h, single=False):
@@ -106,5 +106,11 @@ class H(http.server.BaseHTTPRequestHandler):
         if m == "eth_sendRawTransaction": res = "0x" + (exp or keccak256(bytes.fromhex(r["params"][0][2:])).hex())
         self.send(200, json.dumps({"jsonrpc": "2.0", "id": 1, "result": res}))
 if __name__ == "__main__":
-    s = http.server.HTTPServer(("127.0.0.1", 0), H)
-    open(sys.argv[1], "w").write(str(s.server_address[1])); s.serve_forever()
+    # HTTPServer.server_bind calls socket.getfqdn(), a reverse-DNS lookup that can stall on macOS runners;
+    # a plain TCP bind is all a 127.0.0.1 mock needs. The port file appears whole (rename) once bound.
+    class S(http.server.HTTPServer):
+        def server_bind(self):
+            socketserver.TCPServer.server_bind(self); self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
+    s = S(("127.0.0.1", 0), H)
+    with open(sys.argv[1] + ".tmp", "w") as o: o.write(str(s.server_address[1]))
+    os.replace(sys.argv[1] + ".tmp", sys.argv[1]); s.serve_forever()

@@ -5,10 +5,10 @@
 set -eu
 B=${BIN:-target/release}; Bab=$(cd "$B" && pwd)
 W=$(mktemp -d); trap 'kill $M1 $M2 2>/dev/null; rm -rf "$W"' EXIT
-python3 scripts/mock-bitcoind.py "$W/p1" "$W/log1" & M1=$!
-python3 scripts/mock-bitcoind.py "$W/p2" "$W/log2" --txindex & M2=$!
-i=0; while [ ! -s "$W/p1" ] || [ ! -s "$W/p2" ]; do i=$((i+1)); [ $i -lt 600 ] || { echo "FAIL sendraw-fee: mock did not start"; exit 1; }; sleep 0.05; done
-U1=http://127.0.0.1:$(cat "$W/p1"); U2=http://127.0.0.1:$(cat "$W/p2")
+python3 scripts/mock-bitcoind.py "$W/p1" "$W/log1" 2> "$W/err1" & M1=$!
+python3 scripts/mock-bitcoind.py "$W/p2" "$W/log2" --txindex 2> "$W/err2" & M2=$!
+t0=$(date +%s); i=0; while [ ! -s "$W/p1" ] || [ ! -s "$W/p2" ]; do i=$((i+1)); [ $i -lt 600 ] || { echo "FAIL sendraw-fee: mock did not start in 600 polls ($(($(date +%s) - t0))s)"; for m in 1 2; do eval "pid=\$M$m"; kill -0 "$pid" 2>/dev/null && st=running || st=exited; echo "mock $m: $st, port file: $(cat "$W/p$m" 2>/dev/null || echo none), stderr:"; cat "$W/err$m"; done; exit 1; }; sleep 0.05; done
+U1=http://127.0.0.1:$(cat "$W/p1"); U2=http://127.0.0.1:$(cat "$W/p2"); echo "ok   sendraw-fee: mocks up after $i polls ($(($(date +%s) - t0))s)"
 f() { echo "FAIL sendraw-fee: $1"; cat "$W/tty" "$W/o" 2>/dev/null; exit 1; }
 jq -r .tx recipes/fixtures/rpc-decode/spend.json | python3 -c 'import sys;h=sys.stdin.read().strip();print(h[:82]+"0151"+h[84:])' > "$W/s"
 D="python3 scripts/e2e-only/tty-drive.py"

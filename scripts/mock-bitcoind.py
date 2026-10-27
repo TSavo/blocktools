@@ -5,7 +5,7 @@ answers only when the block hash is given ([txid, verbose, blockhash]), like bit
 Chain: 3 regtest-shaped blocks; block 1 holds PREV (pays 50000 sat to a public test p2wpkh
 address, BIP173 vector), block 2 holds SPEND (spends PREV:0, pays 49000 sat) -> fee 1000 sat.
 Logs every request body to LOGFILE. usage: mock-bitcoind.py PORTFILE LOGFILE [--txindex]"""
-import hashlib, http.server, json, sys
+import hashlib, http.server, json, os, socketserver, sys
 def dsha(b): return hashlib.sha256(hashlib.sha256(b).digest()).digest()
 SPK = bytes.fromhex("0014751e76e8199196d454941c45d1b3a323f1433bd6")  # bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
 def tx(prev_txid_le, vout, value):
@@ -65,5 +65,11 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
 if __name__ == "__main__":
     if sys.argv[1:2] == ["--ids"]: print(PREV_ID, SPEND_ID, HASH[1], HASH[2]); sys.exit()
-    s = http.server.HTTPServer(("127.0.0.1", 0), H)
-    open(sys.argv[1], "w").write(str(s.server_address[1])); s.serve_forever()
+    # HTTPServer.server_bind calls socket.getfqdn(), a reverse-DNS lookup that can stall on macOS runners;
+    # a plain TCP bind is all a 127.0.0.1 mock needs. The port file appears whole (rename) once bound.
+    class S(http.server.HTTPServer):
+        def server_bind(self):
+            socketserver.TCPServer.server_bind(self); self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
+    s = S(("127.0.0.1", 0), H)
+    with open(sys.argv[1] + ".tmp", "w") as o: o.write(str(s.server_address[1]))
+    os.replace(sys.argv[1] + ".tmp", sys.argv[1]); s.serve_forever()

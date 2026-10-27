@@ -59,12 +59,13 @@ jobs:
       - if: always()
         run: git worktree prune && git clean -ffdxq -e target && for d in "${TMPDIR:-/tmp}"/blocktools-* "${TMPDIR:-/tmp}"/ci-gate.*; do [ "$d" = "${TMPDIR:-/tmp}/blocktools-wasm-build" ] || rm -rf "$d"; done
 
-  # macOS e2e on a GitHub-hosted runner. claims-check K-macos only accepts a macos claim as measured when
-  # this job ("macos") succeeded at the claim's commit. continue-on-error: the known Mac pin-tty failure is
-  # still open, and the Linux gate's status must stay meaningful meanwhile.
+  # macOS e2e on a GitHub-hosted runner (macos-latest: arm64). claims-check K-macos only accepts a macos claim
+  # as measured when this job ("macos") succeeded at the claim's commit. Blocking since the pin-tty failure
+  # (FINDINGS R1-8) was fixed: of the 32 completed main runs before this, 28 macos jobs passed, 2 failed on
+  # fork-regtest (fixed), 1 on help-claims (fixed), 1 on rpc-decode "mock did not start" (mocks now skip the
+  # reverse-DNS bind and print state on failure).
   macos:
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
