@@ -593,24 +593,28 @@ doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "bloom filter passe
 
 [[claim]]
 id = "utxo-load-time"
-statement = "utxo-set loads a synthetic 20000000-coin Core-25 dumptxoutset in 5.8 seconds = 3470568 coins/s (one thread); runs on the same box ranged 3.2M to 3.9M coins/s"
+statement = "utxo-set loads a synthetic 20000000-coin Core-25 dumptxoutset in 9.1 seconds = 2199271 coins/s (one thread), measured 2026-10-27 13:43 on a lightly loaded box (load average 1.8) right after synth-dump wrote the file; earlier runs ranged 5.8 to 20.8 seconds, and an A/B on one pre-written file timed 751299a and cd93cd8 alike (6.2-7.9 s vs 6.5 s), so the spread is box load and page cache, not code (inferred)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/utxo-bench.sh"
 expect = "\"coins\":20000000,\"coins_per_sec\":"
-value = "5.8"
+value = "9.1"
 env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box), release build; synthetic Core-25 dump from crates/utxo/examples/synth-dump.rs (deterministic)"
 cheap = false
 depends = ["crates/utxo/src/lib.rs", "tools/utxo-set/src/main.rs", "scripts/utxo-bench.sh", "crates/utxo/examples/synth-dump.rs"]
-doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "dump in 5.8 seconds" }]
+doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "dump in 9.1 seconds" }]
 
 [[claim]]
 id = "utxo-ingest"
-statement = "utxo-set ingests a synthetic 20000000-coin Core-25 dumptxoutset in 5.8 seconds (3470568 coins/s, one thread) with peak RSS (VmHWM) 993370112 bytes = 0.99 GB: one 48-byte entry per distinct script plus a 12-bit/entry bloom filter. Runs on the same box ranged 3.2M to 3.9M coins/s"
+statement = "utxo-set ingests a synthetic 20000000-coin Core-25 dumptxoutset in 9.1 seconds (2199271 coins/s, one thread) with peak RSS (VmHWM) 994615296 bytes = 0.99 GB: one 48-byte entry per distinct script plus a 12-bit/entry bloom filter. Runs on the same box ranged 3.2M to 3.9M coins/s"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "cd93cd8"
+date = "2026-10-27"
 command = "sh scripts/utxo-bench.sh"
 expect = "\"coins\":20000000,\"coins_per_sec\":"
 value = "0.99 GB"

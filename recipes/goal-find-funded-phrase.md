@@ -43,8 +43,8 @@ copy of the whole UTXO set from your own node and test the candidates against it
 
 Measured (`sh scripts/utxo-bench.sh`, synthetic Core-25 dump, Intel Xeon 8 threads, Linux x86_64, at 751299a):
 
-* load: a 20,000,000-coin dump in 5.8 seconds (3.5M coins/s), one thread; (unmeasured)
-* memory: peak RSS of 0.99 GB, that is 48 bytes per distinct script plus the bloom filter; (unmeasured)
+* load: a 20,000,000-coin dump in 9.1 seconds (2.2M coins/s), one thread (box load and page cache move this 5.8-20.8 s);
+* memory: peak RSS of 0.99 GB, that is 48 bytes per distinct script plus the bloom filter;
 * bloom: over 1,000,000 never-funded queries the bloom filter passed 0.31%, and the exact set reported 0 funded;
 * `wallet-finder`, one thread: 20380 sha256 candidates/s, five addresses each;
 * WarpWallet: 200 candidates in 118.8 seconds.
