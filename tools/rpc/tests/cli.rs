@@ -6,24 +6,38 @@ use std::sync::{Arc, Mutex};
 
 type Log = Arc<Mutex<Vec<Vec<u8>>>>;
 /// Serve `replies` (status, body) in order; one request per connection. Returns base URL and the request log.
+/// The URL carries a per-mock random path token. A connection whose request line lacks it is a stray
+/// (any other process on the host's loopback that hit this ephemeral port: on the shared Battleaxe runners a
+/// stray once took the 302 reply and rpc got the fallback 500, failing redirect_not_followed_and_size_capped).
+/// Strays get 404, are reported on stderr, and neither consume a reply nor enter the log.
 fn mock(replies: Vec<(u16, String)>) -> (String, Log) {
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let l = TcpListener::bind("127.0.0.1:0").unwrap();
-    let url = format!("http://127.0.0.1:{}", l.local_addr().unwrap().port());
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as u64;
+    let token = format!("/m{:x}{:x}{:x}", std::process::id(), nanos, N.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    let url = format!("http://127.0.0.1:{}{token}", l.local_addr().unwrap().port());
     let log: Log = Arc::default();
     let lg = log.clone();
     std::thread::spawn(move || {
         let mut replies = replies.into_iter();
         for s in l.incoming() {
-            let mut s = s.unwrap();
+            let Ok(mut s) = s else { continue };  // a failed accept (e.g. ECONNABORTED) must not kill the server
             let mut buf = vec![]; let mut tmp = [0u8; 65536];
             loop {
-                let n = s.read(&mut tmp).unwrap_or(0); if n == 0 { break }
+                let n = match s.read(&mut tmp) { Ok(n) => n, Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue, Err(_) => 0 };
+                if n == 0 { break }
                 buf.extend_from_slice(&tmp[..n]);
                 if let Some(h) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
                     let head = String::from_utf8_lossy(&buf[..h]).to_ascii_lowercase();
-                    let cl = head.lines().find_map(|l| l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap())).unwrap_or(0);
+                    let cl = head.lines().find_map(|l| l.strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok())).unwrap_or(0);
                     if buf.len() >= h + 4 + cl { break }
                 }
+            }
+            let line = String::from_utf8_lossy(&buf[..buf.iter().position(|&b| b == b'\n').unwrap_or(buf.len())]).into_owned();
+            if !line.split(' ').nth(1).is_some_and(|t| t == token || t.starts_with(&format!("{token}/")) || t.starts_with(&format!("{token}?"))) {
+                eprintln!("mock {token}: stray connection ignored (request line {line:?})");
+                let _ = write!(s, "HTTP/1.1 404 X\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                continue;
             }
             lg.lock().unwrap().push(buf);
             let (code, body) = replies.next().unwrap_or((500, "{}".into()));
@@ -166,10 +180,16 @@ fn credentials_on_command_line_refused() {
 #[test]
 fn redirect_not_followed_and_size_capped() {
     let (url, log) = mock(vec![(302, "{}".into())]);
-    let (c, _, err) = run(&[&url, "eth_blockNumber"], ""); assert_eq!(c, 1); assert!(err.contains("redirect"), "{err}"); assert_eq!(log.lock().unwrap().len(), 1);
+    // A foreign connection to the mock's port first (no path token): it must get 404 and not take rpc's 302.
+    // This is the one CI failure of this test (run 40432303201): a stray took the 302, rpc got the fallback 500.
+    let port = url.trim_start_matches("http://127.0.0.1:").split('/').next().unwrap();
+    let mut s = std::net::TcpStream::connect(format!("127.0.0.1:{port}")).unwrap();
+    s.write_all(b"POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n").unwrap();
+    let mut r = String::new(); s.read_to_string(&mut r).unwrap(); assert!(r.starts_with("HTTP/1.1 404"), "stray got: {r}");
+    let (c, _, err) = run(&[&url, "eth_blockNumber"], ""); assert_eq!(c, 1, "302 case: {err}"); assert!(err.contains("redirect"), "302 case: {err}"); assert_eq!(log.lock().unwrap().len(), 1, "302 case: {err}");
     let big = format!(r#"{{"id":1,"result":"{}"}}"#, "a".repeat(9 << 20));
     let (url, _) = mock(vec![(200, big)]);
-    let (c, out, err) = run(&[&url, "eth_blockNumber"], ""); assert_eq!(c, 1); assert!(out.is_empty()); assert!(err.contains("http_error"), "{err}");
+    let (c, out, err) = run(&[&url, "eth_blockNumber"], ""); assert_eq!(c, 1, "9 MiB case: {err}"); assert!(out.is_empty(), "9 MiB case: {out}"); assert!(err.contains("http_error") && err.contains("too large"), "9 MiB case: {err}");
 }
 #[test]
 fn response_with_private_key_withheld() {
