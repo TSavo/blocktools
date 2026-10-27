@@ -7,8 +7,23 @@ use blocktools_core::chains;
 use blocktools_tx::build::{self, BtcPlan};
 use serde_json::{json, Value};
 
-pub fn op_return(memo: &[u8]) -> Result<Vec<u8>, &'static str> {
-    if memo.len() > 80 { return Err("memo_length") }
+/// Smallest P2PKH output the chain's reference node relays, in base units. Measured on the pinned
+/// regtest nodes by memo-regtest.sh (raw tx, wallet bypassed): LTC 0.21.4 rejects 5459 "dust",
+/// accepts 5460; BCHN 28.0.1 rejects 545, accepts 546; Dogecoin 1.14.9 (-acceptnonstdtxn=0) rejects
+/// 99999 "dust", accepts 100000, and its wallet refuses below 1_000_000 ("amount too small"), so the
+/// builder uses 1_000_000 for DOGE. Unmeasured chains keep Bitcoin's 546.
+pub fn dust(name: &str) -> u64 { match name { "ltc" => 5460, "doge" => 1_000_000, _ => 546 } }
+/// Largest OP_RETURN data push the reference node relays (bytes). Measured by memo-regtest.sh:
+/// LTC 0.21.4 and Dogecoin 1.14.9 (-acceptnonstdtxn=0) accept 80, reject 81 "scriptpubkey";
+/// BCHN 28.0.1 accepts 220, rejects 221 "oversize-op-return". Others keep Bitcoin's 80.
+pub fn op_return_limit(name: &str) -> usize { match name { "bch" => 220, _ => 80 } }
+
+/// OP_RETURN script for `memo` (Bitcoin's 80-byte relay limit). See [`op_return_for`].
+pub fn op_return(memo: &[u8]) -> Result<Vec<u8>, &'static str> { op_return_max(memo, 80) }
+/// OP_RETURN script under `chain`'s measured relay limit ([`op_return_limit`]).
+pub fn op_return_for(chain: &str, memo: &[u8]) -> Result<Vec<u8>, &'static str> { op_return_max(memo, op_return_limit(chain)) }
+fn op_return_max(memo: &[u8], max: usize) -> Result<Vec<u8>, &'static str> {
+    if memo.len() > max.min(255) { return Err("memo_length") }
     let mut s = vec![0x6a]; if memo.len() <= 75 { s.push(memo.len() as u8) } else { s.extend([0x4c, memo.len() as u8]) } s.extend_from_slice(memo); Ok(s)
 }
 /// `send` None = sweep everything to `to`. Returns {psbt (base64), fee, vsize, rbf, outputs:[{address, script, value}]}.
@@ -21,12 +36,12 @@ pub fn build(chain: &str, utxos_jsonl: &str, to: &str, send: Option<u64>, change
 pub fn build_with(chain: &str, utxos_jsonl: &str, to: &str, send: Option<u64>, change: Option<&str>, fee_rate: u64, memo: &[u8], rbf: bool) -> Result<Value, String> {
     let c = chains::supported(chain).ok_or("unknown_or_unverified_chain")?;
     if !matches!(c.enc, chains::Enc::Utxo { .. }) { return Err("not_utxo_chain".into()) }
-    let opr = if memo.is_empty() { None } else { Some(op_return(memo)?) };
+    let opr = if memo.is_empty() { None } else { Some(op_return_for(c.name, memo)?) };
     let utxos = build::parse_utxos(c, utxos_jsonl)?;
     // The memo output is part of coin selection (build_btc counts its vbytes), so change is computed
     // after the memo fee: sub-dust change folds into the fee, like btc.ts. (Was: select without the memo,
     // then take its fee from change afterwards, which failed with "memo fee leaves dust" or under-selected.)
-    let p = build::build_btc(c, utxos, &BtcPlan { to: to.into(), send, change: change.map(String::from), fee_rate, rbf, dust: 546, op_return: opr, locktime: 0 })?;
+    let p = build::build_btc(c, utxos, &BtcPlan { to: to.into(), send, change: change.map(String::from), fee_rate, rbf, dust: dust(c.name), op_return: opr, locktime: 0 })?;
     let kinds: Vec<&str> = p.inputs.iter().map(|i| i.witness_utxo.as_ref().and_then(|o| chains::script_to_address(c, o.script_pubkey.as_bytes())).map(|x| x.0).unwrap_or("unknown")).collect();
     let vsize = 11 + kinds.iter().map(|k| build::in_vb(k)).sum::<u64>() + p.unsigned_tx.output.iter().map(|o| build::out_vb(o.script_pubkey.as_bytes())).sum::<u64>();
     let total_in: u64 = p.inputs.iter().map(|i| i.witness_utxo.as_ref().map(|o| o.value.to_sat()).unwrap_or(0)).sum();

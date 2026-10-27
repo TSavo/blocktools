@@ -32,5 +32,8 @@ required-features = ["secrets"]
 name = "twc_ed25519"
 required-features = ["secrets", "ed25519"]
 [[test]]
+name = "memo_utxo_size"
+required-features = ["secrets"]
+[[test]]
 name = "chain_caps"
 required-features = ["ed25519"]
