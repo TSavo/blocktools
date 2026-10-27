@@ -1,0 +1,61 @@
+.TH UTXO\-SET 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+utxo\-set \- load a Bitcoin Core `dumptxoutset` file into RAM (exact set of funded output scripts,
+.SH SYNOPSIS
+.nf
+utxo\-set \-\-dump FILE [\-\-chain NAME] [\-\-bits N] [\-\-stats]
+stdin: one address or scriptPubKey per line (hex, or script:HEX). Blank lines and # comments are skipped.
+stdout: one JSON line per query {query, chain, script, status: funded|empty|bad_input, value_sat, outputs, bloom}.
+stderr: one ingest line {coins, scripts, base_blockhash, network, format, ingest_secs, coins_per_sec,
+or argument, 1 when any query line could not be read as an address or script.
+.fi
+.SH DESCRIPTION
+bloom filter in front) and answer, for each address or scriptPubKey on stdin, whether it holds
+unspent coins and how much. Offline; the dump is public data.
+.nf
+.RS 2
+  bitcoin\-cli dumptxoutset /data/utxo.dat      (on your node; Core 25+)
+  echo 1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T | utxo\-set \-\-dump utxo.dat
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-dump FILE   a Bitcoin Core dumptxoutset file (Core 25\-27 format, or the Core 28+ format with its
+                "utxo" magic header; detected from the first bytes)
+  \-\-chain NAME  decode addresses for this chain only (default: auto\-detect each address from its
+                prefix; scriptPubKeys are chain\-free)
+  \-\-bits N      bloom filter bits per funded script (default 12; 0 = no bloom, exact set only)
+  \-\-stats       print only the ingest line on stdout and exit (no queries read)
+  value_sat is the sum of the unspent outputs paying exactly this script; bloom is pass or reject
+  (a pass that the exact set then refuses is a bloom false positive, reported as empty).
+  resident_bytes, peak_rss_bytes}. Exit 0 when every query was read (funded or empty), 2 on a bad dump
+.fi
+.SH INPUT/OUTPUT
+utxo\-set: load a Bitcoin Core `dumptxoutset` file into RAM (exact set of funded output scripts,
+bloom filter in front) and answer, for each address or scriptPubKey on stdin, whether it holds
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ echo 1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T | utxo\-set \-\-dump utxo.dat
+# exit 0, last status: ok
+$ utxo\-set \-\-dump utxo.dat \-\-stats
+# exit 0, last status: ok
+$ utxo\-set \-\-dump /dev/null < /dev/null
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+UNCLASSIFIED: utxo\-set is in neither crates/io/sealed\-tools.txt nor crates/io/host\-tools.txt.
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

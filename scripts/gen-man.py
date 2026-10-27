@@ -97,7 +97,7 @@ def load_cases():
 
 # D1-14: one exit-code rule for every tool (docs/EXIT-CODES.md).
 EXIT_RULE = {**{k: 0 for k in ("ok", "done", "checksum_ok", "valid")},
-             **{k: 1 for k in ("failed", "refused", "aborted", "wrong_password", "checksum_fail", "no_candidates", "too_many_candidates", "error", "http_error", "rpc_error", "signer_mismatch")},
+             **{k: 1 for k in ("failed", "refused", "aborted", "wrong_password", "checksum_fail", "no_candidates", "not_found", "too_many_candidates", "error", "http_error", "rpc_error", "signer_mismatch")},
              **{k: 2 for k in ("bad_input", "unsupported")}}
 
 def run_cases(cases):
@@ -109,6 +109,8 @@ def run_cases(cases):
         for want, cmd in cs:
             if want == "-": out.setdefault(t, []).append((cmd, None, None)); continue
             d = tempfile.mkdtemp()
+            if "utxo.dat" in cmd:  # binary fixtures are not tracked: decode the committed hex (utxo-set/wallet-finder examples)
+                open(os.path.join(d, "utxo.dat"), "wb").write(bytes.fromhex("".join(open(os.path.join(ROOT, "fixtures/utxo/brainwallet-5.utxo-hex.txt")).read().split())))
             p = subprocess.run(["sh", "-c", cmd], cwd=d, env=env, capture_output=True, text=True,
                                stdin=subprocess.DEVNULL, start_new_session=True, timeout=60)
             shutil.rmtree(d)

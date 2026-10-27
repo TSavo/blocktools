@@ -16,7 +16,7 @@ read\-file: concatenate files to stdout (like cat), std only. Exists so the
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
 0
-no status field
+last status ok
 .TP
 2
 last status bad_input
@@ -25,7 +25,7 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 .SH EXAMPLES
 .nf
 $ read\-file "$R/README.md"
-# exit 0, no status field
+# exit 0, last status: ok
 $ read\-file /nonexistent
 # exit 2, last status: bad_input
 .fi

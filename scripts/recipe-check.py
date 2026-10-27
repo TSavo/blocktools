@@ -27,6 +27,10 @@ w(IN, "electrum-seed.txt", "cycle rocket west magnet parrot shuffle foot correct
 # Electrum 1.x old seed (Electrum tests test_electrum_seed_old), the xkcd brainwallet, keybase/warpwallet spec.json #1
 w(IN, "electrum-old-seed.txt", "powerful random nobody notice nothing important anyway look away hidden message over")
 w(IN, "brainwallet.txt", "correct horse battery staple")
+# utxo-set / wallet-finder: the committed Core-format dump of the five public test-vector scripts, and text hiding the phrase
+open(os.path.join(IN, "utxo.dat"), "wb").write(bytes.fromhex("".join(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "fixtures", "utxo", "brainwallet-5.utxo-hex.txt")).read().split())))  # tracked as hex: no binary files in git
+w(IN, "notes.txt", "Shopping: eggs, milk.\nMy old note: correct horse battery staple. Do not lose it")
+w(IN, "addresses.txt", "1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T\n1BoatSLRHtKNngkdXEeobR76b53LETtpyT")
 w(IN, "warpwallet.json", '{"phrase":"ER8FT+HFjk0","salt":"7DpniYifN6c"}')
 w(IN, "key.hex", "0" * 63 + "1")
 w(IN, "key.wif", "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn")
@@ -134,8 +138,8 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify) ", cmd):
-                # offline, secret-free EVM filters on recorded fixtures (contract-call: against the $ETH fixture mock): bash with BIN on PATH
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify|utxo-set|wallet-finder) ", cmd):
+                # offline, secret-free filters on recorded fixtures (contract-call: against the $ETH fixture mock; utxo-set/wallet-finder: public UTXO dump, no keys out): bash with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:
                 bad.append(f"{where}: untestable command form: {cmd}"); continue

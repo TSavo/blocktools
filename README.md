@@ -179,6 +179,11 @@ Never put a real wallet on a networked machine.
 <!-- e2e: expect=1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T -->
     ./blocktools run 'phrase-to-key < /in/brainwallet.txt | key-to-addresses --chain btc'
 
+**Which of your phrases is funded, offline** (`utxo-set`, `wallet-finder`): load a Bitcoin Core `dumptxoutset` file into RAM and test addresses, or every sentence and word run of your own text, against it without asking any server. Hits print phrase, scheme, address and balance, never a key. Recipe: [recipes/goal-find-funded-phrase.md](recipes/goal-find-funded-phrase.md).
+
+<!-- e2e: expect="hits":5 ; expect="status":"ok" -->
+    wallet-finder --dump /in/utxo.dat < /in/notes.txt > /secrets/hits.jsonl
+
 **Electrum** (btcrecover's Electrum 4.4.3 wallet):
 
 <!-- e2e: expect=bc1qsz0dhew357cj6eznmcawgyf44jzpgcax2lvfvm ; needs=electrum-wallet -->

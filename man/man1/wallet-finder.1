@@ -1,0 +1,70 @@
+.TH WALLET\-FINDER 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+wallet\-finder \- turn text you own (old notes, a diary, a password list) into brainwallet candidates,
+.SH SYNOPSIS
+.nf
+wallet\-finder \-\-dump FILE [\-\-window N] [\-\-rules LIST] [\-\-max N] [\-\-scheme sha256|warpwallet]
+              [\-\-salt EMAIL] [\-\-chain NAME] [\-\-limit N]
+Each candidate key gives five addresses: p2pkh, p2pkh\-uncompressed, p2sh\-p2wpkh, p2wpkh, p2tr.
+stdin: your text (UTF\-8). Lines are used byte\-for\-byte as well as trimmed.
+stdout: one JSON line per funded address {status: funded, scheme, passphrase, kind, address, value_sat,
+stderr: the ingest line, then a summary {candidates, addresses_tested, hits, secs, candidates_per_sec,
+Exit 0 when at least one funded address was found, 1 when none (like grep), 2 on bad input.
+.fi
+.SH DESCRIPTION
+derive each candidate's addresses, and test them against a UTXO set loaded from a Bitcoin Core
+`dumptxoutset` file. Offline. On a hit it prints the phrase, scheme, address and balance; it never
+prints a key and never signs. Turn a hit into a key yourself, sealed: phrase\-to\-key.
+.nf
+.RS 2
+  wallet\-finder \-\-dump utxo.dat < notes.txt
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-dump FILE     a Bitcoin Core dumptxoutset file (Core 25\-27, or 28+ with the "utxo" header)
+  \-\-window N      word windows of 1..N consecutive words per line, words as written and with edge
+                  punctuation trimmed (default 6; 0 = lines and sentences only)
+  \-\-rules LIST    comma list of pw\-candidates rules applied to every candidate: case,swap,typo,digit
+                  (default none)
+  \-\-max N         variants per candidate from \-\-rules (default 1000)
+  \-\-scheme S      sha256 (default: brainwallet.org / bitaddress.org) or warpwallet (scrypt, seconds each)
+  \-\-salt EMAIL    WarpWallet salt (default empty)
+  \-\-chain NAME    address encoding for hits (default: from the dump's network magic, else btc)
+  \-\-limit N       stop after N candidates
+  outputs}. Never a key; the passphrase is printed, treat the output like the input text.
+  bloom_passes, bloom_false_positives}.
+.fi
+.SH INPUT/OUTPUT
+One JSON object per line on stdin and/or stdout (JSONL).
+Secrets travel only on stdin/stdout pipes inside ./blocktools run; flags are public parameters.
+Public status lines include tool and status fields; secret\-bearing fields are redacted at the sealed boundary.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+1
+last status not_found
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ echo "My old note: correct horse battery staple." | wallet\-finder \-\-dump utxo.dat
+# exit 0, last status: ok
+$ echo "nothing funded here" | wallet\-finder \-\-dump utxo.dat
+# exit 1, last status: not_found
+$ wallet\-finder \-\-dump utxo.dat \-\-rules bogus < /dev/null
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+UNCLASSIFIED: wallet\-finder is in neither crates/io/sealed\-tools.txt nor crates/io/host\-tools.txt.
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

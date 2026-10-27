@@ -21,6 +21,7 @@ grep -rInE "/Users/|/home/[a-z]+/|@gmail|\.local\b" $(git ls-files -co --exclude
 # No wallet-like files in the repo (fixtures are generated at test time; see docs/FIXTURES.md).  # rule:S-walletname
 for f in $(git ls-files -co --exclude-standard); do
   case "${f##*/}" in
+    wallet-finder.1|wallet-finder.allow) ;;  # the wallet-finder tool's own man page and deps allowlist, not wallet data
     *.dat|*.sqlite|*.sqlite3|*.db|*.wallet|*.key|*.keys|*.aes.json|UTC--*|wallet*|*keystore*.json|*.bdb) echo "wallet-like file name: $f"; rc=1; continue ;;  # rule:S-walletname
   esac
   [ -f "$f" ] || continue

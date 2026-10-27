@@ -25,6 +25,7 @@ and see addresses and signed transactions only.
 | Offline guide: seed/key → EVM, Tron, BTC, LTC, DOGE | [offline-recovery-guide.md](offline-recovery-guide.md) | built, tested |
 | Electrum seed / wallet file (2.x+, and 1.x old 12-word seed) | [input-electrum.md](input-electrum.md) | built, tested; old seed btc only |
 | Brainwallet phrase (brainwallet.org / bitaddress.org sha256, WarpWallet) | [input-brainwallet.md](input-brainwallet.md) | built, tested on public vectors |
+| Which of my phrases is funded? (offline UTXO set from `dumptxoutset`: utxo-set, wallet-finder) | [goal-find-funded-phrase.md](goal-find-funded-phrase.md) | built, tested on a real Core 25.2 dump (regtest) |
 | Bitcoin Core / old-client `wallet.dat` | [input-wallet-dat.md](input-wallet-dat.md) | built, tested; real altcoin-client file untested |
 | Armory `.wallet` | [input-armory.md](input-armory.md) | built, tested on one public test wallet |
 | MultiBit Classic `.key` | [input-multibit.md](input-multibit.md) | built, tested; MultiBit HD / bitcoinj `.wallet` built, tested on public test wallets |

@@ -1,0 +1,17 @@
+[package]
+name = "wallet-finder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools wallet-finder. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+blocktools-utxo = { version = "0.1.1", path = "../../crates/utxo" }
+blocktools-core = { version = "0.1.1", path = "../../crates/core" }
+blocktools-io = { version = "0.1.1", path = "../../crates/io" }
+serde_json.workspace = true
+bitcoin.workspace = true
+blocktools-secrets = { version = "0.1.1", path = "../../crates/secrets", features = ["brain"] }
+[dev-dependencies]
+blocktools-utxo = { version = "0.1.1", path = "../../crates/utxo" }
+blocktools-core = { version = "0.1.1", path = "../../crates/core" }
+serde_json.workspace = true

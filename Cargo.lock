@@ -402,6 +402,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-utxo"
+version = "0.1.1"
+dependencies = [
+ "bitcoin",
+]
+
+[[package]]
 name = "blocktools-xrp"
 version = "0.1.1"
 dependencies = [
@@ -1925,6 +1932,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "utxo-set"
+version = "0.1.1"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-utxo",
+ "serde_json",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1939,6 +1957,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "wallet-finder"
+version = "0.1.1"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-secrets",
+ "blocktools-utxo",
+ "serde_json",
 ]
 
 [[package]]

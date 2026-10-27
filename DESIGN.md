@@ -89,6 +89,8 @@ BIP39 words. Txids (64 hex) are blocked on purpose until phase 2 adds a typed
 `pw-candidates` expands a token list into a bounded set of password guesses (case/swap/digit/typo) for piping into the existing openers; see docs/ROADMAP-PARITY.md.
 | `seed-to-master` | stdin JSON lines: optional `{passphrase}`, then `{mnemonic, candidate}` | `{candidate, scheme, xprv, seed}`; old Electrum 1.x seed: `{scheme:electrum-old, seed}` (no xprv) | ✅ |
 | `phrase-to-key` | stdin phrase lines or `{phrase, salt}` | `{line, scheme, private_key}`: sha256 brainwallet (brainwallet.org, bitaddress.org) and WarpWallet (scrypt+PBKDF2); pipe into `key-to-addresses` | ✅ |
+| `utxo-set` | `--dump` a Core `dumptxoutset` file; stdin addresses or scriptPubKeys | `{query, chain, script, status: funded/empty, value_sat, outputs, bloom}`; crate `blocktools-utxo` (dump parser for Core 25-27 and 28+, exact sorted set, bloom filter in front) |
+| `wallet-finder` | `--dump` as utxo-set; stdin free text | per funded address `{status, scheme, passphrase, kind, address, value_sat, outputs}`: lines, sentences and word windows (plus pw-candidates rules) as brainwallet candidates, five shapes each; never a key, never signs |
 | `derive` | stdin JSON lines `{xprv, seed?, candidate}`; public flags (see `--help`) | `{chain, kind, path, address, wif / private_key}`; `--explain` plan only | ✅ |
 | `read-file` | file names in argv (public paths) | file bytes (like `cat`, 64 MiB cap, boundary test) | ✅ |
 | `sealed-run` | `agent`/`human` + pipeline | redacted lines / raw to `/dev/tty` | ✅ |

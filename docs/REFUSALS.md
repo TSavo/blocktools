@@ -46,6 +46,11 @@ only candidates that pass. A phrase with no passing candidate ends with `done` a
 `seed-repair` and the address planner: no candidate fits the input. Check the words or the address
 for typos. Allowing more changed words widens the search. Not run here.
 
+### `not_found`
+`wallet-finder`: no candidate from your text derives a funded address in the UTXO set you gave it
+(exit 1, like `grep`). Try `--rules`, a wider `--window`, or the other `--scheme`. Run in the man page
+example and in scripts/e2e.d/utxo-real.sh.
+
 ### `too_many_candidates`
 The search space is larger than the cap. Narrow it down: fix the words you are sure of, give the
 known address, or reduce the number of edits allowed. Not run here.
