@@ -39,3 +39,4 @@ create-address
 typed-data-verify
 phrase-to-key
 log-decode
+chainstate-dump

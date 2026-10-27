@@ -1,0 +1,64 @@
+.TH CHAINSTATE\-DUMP 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+chainstate\-dump \- stream the UTXO set straight out of a Core\-family node's `chainstate/` LevelDB
+.SH SYNOPSIS
+.nf
+chainstate\-dump \-\-chain NAME [\-\-addresses\-only | \-\-census] [\-\-era C|c] [\-\-obfuscate\-key HEX|none] DIR
+  DIR           a Core\-family node's chainstate/ LevelDB directory. Read\-only: nothing in DIR is opened
+                for writing and no lock is taken. STOP the node first, or copy the directory while it is
+                stopped; a directory whose LOCK a running process holds is refused (Linux, /proc/locks).
+stdout: one JSON line per unspent output {txid, vout, height, coinbase, amount, script_type, scriptpubkey_hex,
+stderr: a start line {era_forced, obfuscate_key_forced} and a final line {status, coins, total, era ('C', 'c'
+.fi
+.SH DESCRIPTION
+directory (a stopped node's, or a copy), with no node, RPC or dumptxoutset. Pure\-Rust port of the
+LevelDB read path (crates/utxo/src/leveldb.rs) and both coin layouts (crates/utxo/src/chainstate.rs).
+.nf
+.RS 2
+  chainstate\-dump \-\-chain doge ~/.dogecoin/chainstate > coins.jsonl
+.RE
+.fi
+.SH OPTIONS
+.nf
+  \-\-chain NAME  the coin whose base58 prefixes / bech32 HRP encode the address field (btc, ltc, doge, ...;
+                mainnet encodings: on a testnet/regtest chainstate use scriptpubkey_hex)
+  \-\-addresses\-only  one line per coin: the address, or script:HEX when the script has no address
+                (feeds utxo\-set / a membership set directly)
+  \-\-census      no per\-coin lines: one JSON summary (coins, total, per script_type counts)
+  \-\-era C|c     force the record layout ('C' per output, Core 0.15+; 'c' per transaction, 0.8\-0.14).
+                Default: detected. A record of the other layout is then an error, never reinterpreted.
+  \-\-obfuscate\-key HEX|none  use this XOR key instead of the stored one (discrimination checks). A wrong
+                key or era fails loudly (exit 2), it does not print garbage.
+  address}; amount in base units (satoshi), txid in the usual reversed display hex, address null when the
+  script has none (script_type nonstandard), p2pk shown as its key's p2pkh address.
+  or none), per_output_keys, per_tx_keys, obfuscated, best_block, table_files, log_files, snappy_blocks, secs,
+  coins_per_sec, peak_rss_bytes}. Exit 0 when the whole directory was read, 2 on a bad, locked or
+  undecodable directory or argument (no partial set is presented as complete).
+.fi
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  chainstate\-dump \-\-chain doge ~/.dogecoin/chainstate > coins.jsonl
+.RE
+.fi
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ chainstate\-dump \-\-chain doge /nonexistent
+# exit 2, last status: bad_input
+$ chainstate\-dump \-\-chain eth /nonexistent
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It may open hostile wallet files and handle secrets: run it sealed and offline (./blocktools run; sealed\-run allows it).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
