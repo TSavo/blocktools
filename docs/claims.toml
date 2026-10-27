@@ -134,7 +134,7 @@ id = "net-8mib"
 statement = "Network body cap 8 MiB (in-process mock serving more than 8 MiB; the 30 s timeout on the same line is untested)"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
 value = "8"
@@ -150,7 +150,7 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
 value = "4"
@@ -159,7 +159,7 @@ commit = "977b94a"
 date = "2026-10-26"
 cheap = true
 depends = ["crates/tx/src/lib.rs", "crates/tx/tests/input_cap.rs"]
-doc = [{ file = "DESIGN.md", text = "4 MiB" }]
+doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
@@ -259,7 +259,7 @@ id = "rpc-response-size-cap"
 statement = "rpc reads at most 8 MiB of any response and refuses a 3xx instead of following it (in-process mock, Linux box)"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
 commit = "1f1fa71"
@@ -286,10 +286,10 @@ doc = [{ file = "docs/RPC.md", text = "68 bytes" }]
 
 [[claim]]
 id = "rpc-deny-list"
-statement = "Secret export/import/unlock and wallet-signing methods exit 3 with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box); fail closed: methods and paths outside the per-protocol read allowlist are refused with zero connections to a recording mock (17 unlisted methods, 3 REST paths, a mixed batch)"
+statement = "Secret export/import/unlock and wallet-signing methods exit 1 (status refused) with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box); fail closed: methods and paths outside the per-protocol read allowlist are refused with zero connections to a recording mock (17 unlisted methods, 3 REST paths, a mixed batch)"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
 command = "cargo test -q -p rpc"
 expect = "test result: ok. 18 passed"
 commit = "1f1fa71"
@@ -303,7 +303,7 @@ id = "rpc-publicnode-read-linux"
 statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at e85721e); no broadcast was made"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
 commit = "9c9cae0"
@@ -451,3 +451,12 @@ date = "2026-10-26"
 cheap = false
 depends = []
 doc = [{ file = "README.md", text = "41 tools" }, { file = "docs/getting-started.md", text = "41 tools" }, { file = "docs/troubleshooting.md", text = "41 tools" }]
+
+[[claim]]
+id = "rpc-decode-mock-fee"
+statement = "recipes/rpc-decode.md pipeline (rpc blockinfo/block/rawtx/prevtxs | tx-decode --prevtxs) against scripts/mock-bitcoind.py, a deterministic fake pruned regtest bitcoind (not a real node): the mock spend of 50000 sat in, 49000 sat out decodes with fee 1000 sat; pruned mode needs the block hash and prevtxs fails with -5; rpc dumpprivkey | cat exits 0 with PIPESTATUS 1 0 (Linux box)"
+kind = "number"
+platform = "linux"
+status = "untested"
+reason = "stamp after a green ci run at the commit adding it"
+doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]

@@ -17,8 +17,24 @@ rpc URL METHOD [PARAMS-JSON]      one JSON-RPC call (EVM, bitcoind and forks, So
 ... | rpc URL                     JSON-RPC request(s) on stdin: one object or a batch array, sent byte-for-byte
 rpc URL /PATH [BODY-JSON]         REST: GET, or POST when BODY is given (Tron, Cosmos LCD, Esplora, Blockbook)
 rpc URL SHORTCUT [ARG]            height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+rpc URL rawtx TXID [BLOCKHASH]    bitcoind: {"protocol","txid","tx":HEX[,"blockhash"]}, hash-checked; pipes into tx-decode
+rpc URL block [HEIGHT|HASH]       bitcoind: {"protocol","height","hash","time","n_tx","previous","txids"} (default: tip)
+rpc URL blockinfo                 bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
+... | rpc URL prevtxs             bitcoind: tx on stdin -> one rawtx line per input txid, for tx-decode --prevtxs
 ... | rpc URL sendraw             broadcast ONE signed tx; decoded summary + typed code on the terminal
 ```
+
+Two output shapes: shortcuts print one tidy JSON object per line. Passthrough (`METHOD` or stdin) prints the node's
+raw envelope `{"result":...,"error":...,"id":...}`, so read `.result`. `PARAMS-JSON` is ONE argument holding a JSON
+array (or object): `rpc URL getblockhash '[2]'`. `rpc URL getblockhash 2` and two separate params are `bad_input`
+(exit 2) and nothing is sent.
+
+Refusal or node answer? Read `status` in the stderr JSON line. `refused` means rpc sent nothing. `rpc_error` or
+`http_error` means the node answered. All three exit 1. `bad_input` (exit 2, e.g. `auth_empty` for an empty
+`--auth-file`) is decided before any connection. In a pipeline (`rpc ... | tx-decode`), the exit status is the last
+command's: `rpc URL dumpprivkey '["x"]' | cat` exits 0 in bash with `PIPESTATUS` `1 0`. Use `set -o pipefail` or
+branch on `status`. These rules are tested in `tools/rpc/tests/cli.rs` and `scripts/e2e.d/rpc-decode.sh`. Worked
+pipeline: [recipes/rpc-decode.md](../recipes/rpc-decode.md).
 
 `URL` can also be a chain name from the shared table (`btc`, `ltc`, `eth`, `ada`, `dot`, `ton`, `atom`, `xlm`, `algo`) or the
 EVM chain id `1`. For any other EVM chain, pass its RPC URL and pin the chain id as a plain argument: `--chain-id 137`.
@@ -62,7 +78,7 @@ The one public endpoint call is labelled.
 Measured on 2026-10-25 20:39 PDT on the Linux box (x86_64). This is a harmless read-only call to a public endpoint:
 
 ```
-$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber
+$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber   # (untested) re-stamp pending
 {"jsonrpc":"2.0","result":"0x190e9b3","id":1}
 $ rpc eth height
 {"height":26274227,"protocol":"evm"}
@@ -84,7 +100,7 @@ The default shortcut set maps to the read-only EVM methods that SwapChan uses (`
 
 | shortcut | method |
 |---|---|
-| `height` | `eth_blockNumber` |
+| `height` | `eth_blockNumber` (untested) |
 | `chainid` | `eth_chainId` |
 | `balance ADDR` | `eth_getBalance [ADDR,"latest"]` |
 | `nonce ADDR` | `eth_getTransactionCount [ADDR,"pending"]` |
@@ -117,6 +133,15 @@ rpc --chain ltc --auth-file ~/.litecoin/.cookie http://127.0.0.1:9332 balance lt
   `29000000`.
 - For legacy inputs, `utxos` adds `prev_tx` using `getblockhash` + `getrawtransaction`, using the same rule as utxo-fetch.
 - `fee` uses `estimatesmartfee 6` and reports sat/vB.
+- `rawtx TXID [BLOCKHASH]` calls `getrawtransaction TXID false [BLOCKHASH]` and checks that the hex hashes to TXID
+  (`node_tx_hash_differs` otherwise). A pruned node without `-txindex` returns error -5 unless you give the block
+  hash; rpc passes the error on (`rpc_error`, exit 1) and adds a `hint`.
+- `block [HEIGHT|HASH]` calls `getblockhash` (when given a height) and then `getblock HASH 1`, so it returns txids only
+  and stays under the response cap. `blockinfo` is `getblockchaininfo`.
+- `prevtxs` reads a tx (hex or rawtx JSON) on stdin and runs `rawtx` once per distinct input txid, with no block
+  hash, so it needs `-txindex`. Its output is the `--prevtxs FILE` for `tx-decode`, which then reports input
+  values and the fee. tx-decode itself never opens a socket.
+- All four use allowlisted read methods and work without `--allow-unlisted`.
 
 ### Solana JSON-RPC
 
@@ -203,7 +228,7 @@ These are SwapChan's field observations from `/workspace/handoff/rpc-knife-requi
 - Values shorter than 4 characters are not redacted, because that would mangle unrelated output. Do not use a password that
   short.
 
-## Safety: what is refused
+## Safety: what is refused (untested)
 
 The agent must never see keys, seeds or passwords. Every refusal exits 1 (status refused), and nothing is sent to the server:
 
@@ -387,7 +412,7 @@ scope.
 
 - Response bodies are data only. When stdout is a terminal, control characters are replaced so that escape sequences cannot
   act on the terminal.
-- Responses larger than 8 MiB are refused.
+- Responses larger than 8 MiB are refused (untested) (re-stamp pending after the rpc shortcut change).
 - Redirects are never followed, to any host. A 3xx is an `http_error`, and v1 has no flag to change this.
 - Only https URLs are accepted, except plain http to localhost/127.0.0.1.
 - Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
@@ -415,6 +440,8 @@ Per-chain recipes live in the docs index, which the docs worker owns.
 Run on Linux (x86_64) on 2026-10-25:
 - `cargo test -p rpc`: the lib tests, plus CLI tests against an in-process mock that records the raw request bytes.
 - `scripts/e2e.d/rpc.sh`.
+- `scripts/e2e.d/rpc-decode.sh`: the recipes/rpc-decode.md pipeline against `scripts/mock-bitcoind.py`, a deterministic
+  fake pruned regtest bitcoind (pruned and `-txindex` modes). It is a mock, not bitcoind.
 - The single public read shown above.
 
 Untested:

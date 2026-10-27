@@ -974,3 +974,7 @@ da009602a5781a8795d55c6e68a4b4d52969a75955ea70255869dd17c3398592
 315046739a513a70e03a4a55a8afda8cf979f30852e576075c340084e3f8ac0f
 # docs/CHAINS.md chain-caps table: public addresses (aptos/sui/near...) derived from the BIP-39 public test phrase abandon x11 about
 5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412
+# rpc-decode mock (scripts/mock-bitcoind.py) synthetic regtest txids/block hashes, throwaway
+2b0f0ff0a26858683b89e4fc2a0763466f07f43eb76a998a8021f52c36f03070
+9a899cc8663fa6ed4ba6db5adbfab9e5d3c9484e96b82b0e6013c95b6ef8a162
+c35d282f39674135af5a29d3b5e0365813cca977f83a09e06e8b74c31a8e8282
