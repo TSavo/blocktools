@@ -14,7 +14,7 @@ T=${T:-$(mktemp -d)}; W="$T/fork-regtest"; mkdir -p "$W"
 CACHE=${BLOCKTOOLS_RECOVERY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/blocktools-recovery}; mkdir -p "$CACHE"
 f() { echo "FAIL fork-regtest $1"; exit 1; }
 skip() { if [ "${BLOCKTOOLS_REQUIRE_FIXTURES:-}" = 1 ] || [ "${CI:-}" = true ]; then f "$1"; fi; echo "skip fork-regtest ($1)"; exit 0; }
-[ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || skip "release tarballs pinned for Linux x86_64 only"
+[ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || { echo "SKIP fork-regtest: release tarballs pinned for Linux x86_64 only (this host: $(uname -s)-$(uname -m)); real-node property not measured here"; exit 0; }
 # chain tarball-url sha256 dir daemon cli fee-rate(sat/vB, >= the node's min relay) (sha256 = the project's signed SHA256SUMS line)
 pins() { cat <<'P'
 ltc https://download.litecoin.org/litecoin-0.21.4/linux/litecoin-0.21.4-x86_64-linux-gnu.tar.gz 857fc41091f2bae65c3bf0fd4d388fca915fc93a03f16dd2578ac3cc92898390 litecoin-0.21.4 litecoind litecoin-cli 10
