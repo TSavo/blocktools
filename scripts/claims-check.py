@@ -30,7 +30,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 REG = os.environ.get("CLAIMS_TOML", "docs/claims.toml")
 DOCS = ["README.md", "DESIGN.md", "EXPORTS.md", "bindings/wasm/README.md"] + \
-    sorted("docs/" + f for f in os.listdir("docs") if f.endswith(".md") and f not in ("CLAIMS.md", "FINDINGS.md")) + \
+    ["CHANGELOG.md"] + sorted("docs/" + f for f in os.listdir("docs") if f.endswith(".md") and f not in ("CLAIMS.md", "FINDINGS.md")) + \
     sorted("recipes/" + f for f in os.listdir("recipes") if f.endswith(".md"))
 UNITS = r"(?:[KMG]i?B|bytes?|ms|seconds?|sats?|sat/vB|gwei|ETH|tools|tests|chains|CLIs|crates|man pages|checks|wallet formats)"
 PAT = re.compile(r"(?<![-\w])\d+(?:[.,]\d+)*(?:\.\.\d+)?\s?" + UNITS + r"\b|\b(?:verified|tested|works|runs) on (?:Linux|macOS|Mac|Windows|Docker|Battleaxe|[A-Z][a-z]+)\b")
