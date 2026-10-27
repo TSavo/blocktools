@@ -24,3 +24,12 @@ generated at test time.
 
 The JSON corpora under `crates/blocktools/tests/data/` that come from Node reference scripts in
 `tools/*-parity` and `tools/sol-v1` are described in [PARITY-GENERATORS.md](PARITY-GENERATORS.md).
+
+## Third-party recovery wallets (scripts/recovery-gen.sh)
+
+`scripts/e2e.d/recovery-real.sh` calls `scripts/recovery-gen.sh OUTDIR` at test time. It downloads pinned,
+sha256-checked Bitcoin Core 25.2 and Electrum 4.5.8 into `${XDG_CACHE_HOME:-~/.cache}/blocktools-recovery/`, outside the repo
+(override with `BLOCKTOOLS_RECOVERY_CACHE`), builds a venv (eth-account 0.13.4, mnemonic 0.21, coincurve
+21.0.0), and has those programs write fresh throwaway wallets plus the addresses they report. Nothing is
+committed. Exit 3 = prerequisite missing (the test skips unless `BLOCKTOOLS_REQUIRE_FIXTURES=1`).
+Measured on Linux x86_64 only.
