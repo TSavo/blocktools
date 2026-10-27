@@ -627,3 +627,101 @@ date = "2026-10-26"
 cheap = false
 depends = ["crates/utxo/src/lib.rs", "tools/wallet-finder/src/main.rs", "scripts/utxo-bench.sh"]
 doc = [{ file = "recipes/goal-find-funded-phrase.md", text = "WarpWallet: 200 candidates in 113.5 seconds" }]
+
+[[claim]]
+id = "fork-regtest-ltc"
+statement = "A ltc P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned litecoin-0.21.4 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=ltc CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest ltc (litecoin-0.21.4)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest litecoin-0.21.4" }]
+
+[[claim]]
+id = "fork-regtest-doge"
+statement = "A doge P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned dogecoin-1.14.9 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=doge CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest doge (dogecoin-1.14.9)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest dogecoin-1.14.9" }]
+
+[[claim]]
+id = "fork-regtest-dash"
+statement = "A dash P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned dashcore-23.1.8 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=dash CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest dash (dashcore-23.1.8)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest dashcore-23.1.8" }]
+
+[[claim]]
+id = "fork-regtest-dgb"
+statement = "A dgb P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned digibyte-9.26.7 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=dgb CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest dgb (digibyte-9.26.7)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest digibyte-9.26.7" }]
+
+[[claim]]
+id = "fork-regtest-grs"
+statement = "A grs P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned groestlcoin-31.0 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=grs CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest grs (groestlcoin-31.0)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest groestlcoin-31.0" }]
+
+[[claim]]
+id = "fork-regtest-btg"
+statement = "A btg P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned bitcoin-gold-0.17.3 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=btg CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest btg (bitcoin-gold-0.17.3)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-gold-0.17.3" }]
+
+[[claim]]
+id = "fork-regtest-bch"
+statement = "A bch P2PKH sweep built by tx-build, checked by tx-verify, signed by tx-sign (pty) and sent by rpc sendraw is accepted, mined and spent by a real pinned bitcoin-cash-node-28.0.1 regtest node, key 2 receiving exactly the input minus the node-computed fee; the same tx with one signature digit changed is refused by the node"
+kind = "platform"
+platform = "linux"
+status = "measured"
+command = "FORK_CHAINS=bch CI=true sh scripts/e2e.d/fork-regtest.sh"
+expect = "ok   fork-regtest bch (bitcoin-cash-node-28.0.1)"
+commit = "1805950"
+date = "2026-10-26"
+cheap = false
+depends = ["scripts/e2e.d/fork-regtest.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-cash-node-28.0.1" }]
