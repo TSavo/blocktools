@@ -7,7 +7,21 @@ rpc URL METHOD [PARAMS\-JSON]       one JSON\-RPC call (EVM, bitcoind and forks,
 \&... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
 rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
 rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+rpc URL rawtx TXID [BLOCKHASH]     bitcoind: {"protocol","txid","tx":HEX[,"blockhash"]}, hash\-checked; pipes into tx\-decode
+rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
+rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
+\&... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
 \&... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
+ Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell\-quote
+ Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
+ node's raw JSON\-RPC envelope, so read .result. A pruned node without \-txindex answers getrawtransaction
+ only with the block hash (rawtx TXID BLOCKHASH; prevtxs needs \-txindex). getblock at verbosity 2 can
+ exceed the 8 MiB cap: use block (verbosity 1) and fetch txs one at a time.
+ Telling a refusal from a node answer: stderr {"status":"refused","code":...} means rpc sent NOTHING
+ (allowlist, deny\-list, secret field, credential flag); "rpc_error" or "http_error" means the node or server
+ answered with an error. All three exit 1. "bad_input" (exit 2) is decided locally before any connection.
+ Scripts: in `rpc ... | tx\-decode` the pipe's exit status is tx\-decode's, so use `set \-o pipefail` or
+ branch on the "status" field (`rpc URL dumpprivkey '["x"]' | cat` exits 0 in bash, PIPESTATUS 1 0).
 .fi
 .SH DESCRIPTION
 .nf
@@ -16,6 +30,10 @@ rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR 
   ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
   rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
   rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+  rpc URL rawtx TXID [BLOCKHASH]     bitcoind: {"protocol","txid","tx":HEX[,"blockhash"]}, hash\-checked; pipes into tx\-decode
+  rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
+  rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
+  ... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
   ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
 .RE
 .fi
@@ -37,6 +55,19 @@ Options:
   \-\-timeout SECONDS     per request, 1..300 (default 30)
 .RE
 .fi
+Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell\-quote
+it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
+Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
+node's raw JSON\-RPC envelope, so read .result. A pruned node without \-txindex answers getrawtransaction
+only with the block hash (rawtx TXID BLOCKHASH; prevtxs needs \-txindex). getblock at verbosity 2 can
+exceed the 8 MiB cap: use block (verbosity 1) and fetch txs one at a time.
+Telling a refusal from a node answer: stderr {"status":"refused","code":...} means rpc sent NOTHING
+(allowlist, deny\-list, secret field, credential flag); "rpc_error" or "http_error" means the node or server
+answered with an error. All three exit 1. "bad_input" (exit 2) is decided locally before any connection.
+Auth fails closed: an empty \-\-auth\-file is auth_empty (exit 2) and the secret is never echoed anywhere.
+\-\-allow\-unlisted lifts only the allowlist: dumpprivkey and the rest of the deny\-list stay refused.
+Scripts: in `rpc ... | tx\-decode` the pipe's exit status is tx\-decode's, so use `set \-o pipefail` or
+branch on the "status" field (`rpc URL dumpprivkey '["x"]' | cat` exits 0 in bash, PIPESTATUS 1 0).
 stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
 (tx\-build \-\-utxos FILE) and account prints the utxo\-fetch eth account object (tx\-build \-\-account FILE).
 stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT\-CODES.md.
@@ -58,6 +89,9 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
 \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                       method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 \-\-timeout SECONDS     per request, 1..300 (default 30)
+  it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
+  Auth fails closed: an empty \-\-auth\-file is auth_empty (exit 2) and the secret is never echoed anywhere.
+  \-\-allow\-unlisted lifts only the allowlist: dumpprivkey and the rest of the deny\-list stay refused.
 .fi
 .SH INPUT/OUTPUT
 .nf
@@ -65,14 +99,17 @@ Bounds: 30 s timeout, redirects never followed, 8 MiB response cap, https only (
   rpc URL METHOD [PARAMS\-JSON]       one JSON\-RPC call (EVM, bitcoind and forks, Solana); raw response on stdout
   ... | rpc URL                      JSON\-RPC request(s) on stdin, single object or batch array, sent byte\-for\-byte
   rpc URL /PATH [BODY\-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
+  ... | rpc URL prevtxs              bitcoind: tx on stdin \-> one rawtx line per distinct input txid (tx\-decode \-\-prevtxs)
   ... | rpc URL sendraw              broadcast ONE signed tx (tx\-sign output or hex): decoded summary + typed code on the terminal
                         method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 .RE
 .fi
-stdout: the response body (JSON\-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo\-fetch lines
-stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT\-CODES.md.
-signing and wallet spending, requests carrying secret fields, responses carrying keys, broadcasts outside sendraw.
-Credentials are never accepted as arguments or in the URL, and every credential string is redacted from stdout and stderr.
+Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell\-quote
+it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
+Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
+node's raw JSON\-RPC envelope, so read .result. A pruned node without \-txindex answers getrawtransaction
+(allowlist, deny\-list, secret field, credential flag); "rpc_error" or "http_error" means the node or server
+answered with an error. All three exit 1. "bad_input" (exit 2) is decided locally before any connection.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP

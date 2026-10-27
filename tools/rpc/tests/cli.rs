@@ -247,3 +247,96 @@ fn allow_unlisted_opt_in() {
     std::thread::sleep(std::time::Duration::from_millis(20)); assert!(log.lock().unwrap().is_empty());
     let (c, _, err) = run(&["--allow-unlisted", "--protocol", "evm", &url, "eth_sendRawTransaction", "[\"0x00\"]"], ""); assert_eq!(c, 1); assert!(err.contains("broadcast_needs_sendraw"));
 }
+
+// bitcoind shortcuts (rawtx, block, blockinfo, prevtxs). Txs are scripts/mock-bitcoind.py's synthetic regtest pair.
+const SPEND_HEX: &str = "020000000182828e1ac3748b6ee0093af877a9cc135836e0b5d3295aaf354167392f285dc30000000000fdffffff0168bf000000000000160014751e76e8199196d454941c45d1b3a323f1433bd600000000";
+const PREV_HEX: &str = "0200000001356519a1005d3d7d0e493977e362d17d6655ac57a3acd2ab5c2ec528206786e00000000000fdffffff0150c3000000000000160014751e76e8199196d454941c45d1b3a323f1433bd600000000";
+const SPEND_ID: &str = "9a899cc8663fa6ed4ba6db5adbfab9e5d3c9484e96b82b0e6013c95b6ef8a162";
+const PREV_ID: &str = "c35d282f39674135af5a29d3b5e0365813cca977f83a09e06e8b74c31a8e8282";
+const BH: &str = "2b0f0ff0a26858683b89e4fc2a0763466f07f43eb76a998a8021f52c36f03070";
+fn res(v: serde_json::Value) -> (u16, String) { (200, serde_json::json!({"id":1,"result":v,"error":null}).to_string()) }
+#[test]
+fn btc_rawtx_tidy_object_hash_checked_no_allow_unlisted() {
+    let (url, log) = mock(vec![res(SPEND_HEX.into())]);
+    let (c, out, err) = run(&["--protocol", "btc", &url, "rawtx", SPEND_ID, BH], "");
+    assert_eq!(c, 0, "{err}");
+    let v: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!(v, serde_json::json!({"protocol":"btc","txid":SPEND_ID,"tx":SPEND_HEX,"blockhash":BH}));
+    let b: serde_json::Value = serde_json::from_slice(body(&log.lock().unwrap()[0])).unwrap();
+    assert_eq!(b["method"], "getrawtransaction"); assert_eq!(b["params"], serde_json::json!([SPEND_ID, false, BH]));
+    // a node answering with some other tx is caught: the hex must hash to the txid asked for
+    let (url, _) = mock(vec![res(PREV_HEX.into())]);
+    let (c, out, err) = run(&["--protocol", "btc", &url, "rawtx", SPEND_ID], "");
+    assert_eq!(c, 1); assert!(out.is_empty()); assert!(err.contains("node_tx_hash_differs"), "{err}");
+    // pruned node without -txindex: the node's error is passed on with a hint; status rpc_error, exit 1
+    let (url, _) = mock(vec![(200, r#"{"id":1,"result":null,"error":{"code":-5,"message":"No such mempool transaction. Use -txindex or provide a block hash to enable blockchain transaction queries."}}"#.into())]);
+    let (c, _, err) = run(&["--protocol", "btc", &url, "rawtx", SPEND_ID], "");
+    assert_eq!(c, 1); assert!(err.contains(r#""status":"rpc_error""#) && err.contains("rawtx TXID BLOCKHASH"), "{err}");
+    let (c, _, err) = run(&["--protocol", "btc", &url, "rawtx", "nothex"], "");
+    assert_eq!(c, 2); assert!(err.contains("bad_input"));
+}
+#[test]
+fn btc_block_and_blockinfo_shapes() {
+    let blk = serde_json::json!({"hash":BH,"height":2,"time":1700000002,"nTx":1,"previousblockhash":"b7","tx":[SPEND_ID]});
+    let (url, log) = mock(vec![res(BH.into()), res(blk.clone())]);
+    let (c, out, err) = run(&["--protocol", "btc", &url, "block", "2"], "");
+    assert_eq!(c, 0, "{err}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(out.trim()).unwrap(), serde_json::json!({"protocol":"btc","height":2,"hash":BH,"time":1700000002,"n_tx":1,"previous":"b7","txids":[SPEND_ID]}));
+    let l = log.lock().unwrap();
+    assert!(String::from_utf8_lossy(body(&l[0])).contains("getblockhash") && String::from_utf8_lossy(body(&l[1])).contains(r#""params":[""#));
+    let info = serde_json::json!({"chain":"regtest","blocks":2,"headers":2,"bestblockhash":BH,"verificationprogress":1,"pruned":true});
+    let (url, _) = mock(vec![res(info)]);
+    let (c, out, _) = run(&["--protocol", "btc", &url, "blockinfo"], "");
+    assert_eq!(c, 0);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(out.trim()).unwrap(), serde_json::json!({"protocol":"btc","chain":"regtest","blocks":2,"headers":2,"best":BH,"progress":1,"pruned":true}));
+}
+#[test]
+fn btc_prevtxs_fetches_each_input_tx() {
+    let (url, log) = mock(vec![res(PREV_HEX.into())]);
+    let (c, out, err) = run(&["--protocol", "btc", &url, "prevtxs"], &format!("{{\"tx\":\"{SPEND_HEX}\"}}"));
+    assert_eq!(c, 0, "{err}");
+    assert_eq!(out.lines().count(), 1); assert!(out.contains(PREV_ID) && out.contains(PREV_HEX));
+    assert_eq!(log.lock().unwrap().len(), 1);
+}
+#[test]
+fn passthrough_is_raw_envelope_and_params_are_one_json_array() {
+    let (url, log) = mock(vec![res(BH.into())]);
+    let (c, out, _) = run(&["--protocol", "btc", &url, "getblockhash", "[2]"], "");
+    assert_eq!(c, 0); assert!(out.contains(r#""result""#) && out.contains(BH));
+    assert!(String::from_utf8_lossy(body(&log.lock().unwrap()[0])).contains(r#""params":[2]"#));
+    // `getblockhash 2` (bare number) and two separate params are refused locally, exit 2, nothing sent
+    let (url, log) = mock(vec![]);
+    let (c, _, err) = run(&["--protocol", "btc", &url, "getblockhash", "2"], ""); assert_eq!(c, 2); assert!(err.contains("one JSON array"), "{err}");
+    let (c, _, err) = run(&["--protocol", "btc", &url, "getblockhash", "2", "3"], ""); assert_eq!(c, 2); assert!(err.contains("bad_input"));
+    assert!(log.lock().unwrap().is_empty());
+}
+#[test]
+fn btc_secret_methods_refused_even_with_allow_unlisted_nothing_sent() {
+    let (url, log) = mock(vec![]);
+    for m in ["dumpprivkey", "dumpwallet", "backupwallet", "dumpmasterprivkey", "importprivkey", "sethdseed", "walletpassphrase", "encryptwallet", "signrawtransactionwithwallet", "walletprocesspsbt", "signmessage", "signrawtransactionwithkey"] {
+        for extra in [&[][..], &["--allow-unlisted"][..]] {
+            let mut a: Vec<&str> = extra.to_vec(); a.extend(["--protocol", "btc", &url, m, "[\"x\"]"]);
+            let (c, out, err) = run(&a, "");
+            assert_eq!(c, 1, "{m}"); assert!(out.is_empty()); assert!(err.contains(r#""status":"refused""#), "{m}: {err}");
+        }
+    }
+    // the shortcut positions cannot smuggle a method either
+    let (c, _, _) = run(&["--protocol", "btc", &url, "rawtx", "dumpprivkey"], ""); assert_eq!(c, 2);
+    assert!(log.lock().unwrap().is_empty(), "a refused method reached the server");
+    let (c, _, err) = run(&["--protocol", "btc", &url, "listwallets"], "");
+    assert_eq!(c, 1); assert!(err.contains("method_not_allowlisted"));
+}
+#[test]
+fn empty_auth_file_fails_closed_exit_2() {
+    let (url, log) = mock(vec![]);
+    let d = std::env::temp_dir().join(format!("rpc-auth-empty-{}", std::process::id()));
+    std::fs::write(&d, "").unwrap();
+    let (c, out, err) = run(&["--protocol", "btc", "--auth-file", d.to_str().unwrap(), &url, "blockinfo"], "");
+    assert_eq!(c, 2); assert!(out.is_empty()); assert!(err.contains("auth_empty") && err.contains(r#""status":"bad_input""#));
+    std::fs::write(&d, "user:hunter2-not-a-real-secret\n").unwrap();
+    let (url2, _) = mock(vec![(200, "{\"id\":1,\"result\":null,\"error\":{\"code\":-1,\"message\":\"x\"}}".into())]);
+    let (_, out, err) = run(&["--protocol", "btc", "--auth-file", d.to_str().unwrap(), &url2, "blockinfo"], "");
+    assert!(!out.contains("hunter2") && !err.contains("hunter2"));
+    let _ = std::fs::remove_file(&d);
+    assert!(log.lock().unwrap().is_empty());
+}

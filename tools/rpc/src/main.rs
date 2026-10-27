@@ -3,6 +3,10 @@
 //!   ... | rpc URL                      JSON-RPC request(s) on stdin, single object or batch array, sent byte-for-byte
 //!   rpc URL /PATH [BODY-JSON]          REST call (Tron, Cosmos LCD, Esplora, Blockbook): GET, or POST when BODY is given
 //!   rpc URL SHORTCUT [ARG]             height | chainid | balance ADDR | nonce ADDR | account ADDR | utxos ADDR | tx ID | receipt ID | fee | blockhash
+//!   rpc URL rawtx TXID [BLOCKHASH]     bitcoind: {"protocol","txid","tx":HEX[,"blockhash"]}, hash-checked; pipes into tx-decode
+//!   rpc URL block [HEIGHT|HASH]        bitcoind: {"protocol","height","hash","time","n_tx","previous","txids":[...]} (default: tip)
+//!   rpc URL blockinfo                  bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
+//!   ... | rpc URL prevtxs              bitcoind: tx on stdin -> one rawtx line per distinct input txid (tx-decode --prevtxs)
 //!   ... | rpc URL sendraw              broadcast ONE signed tx (tx-sign output or hex): decoded summary + typed code on the terminal
 //! URL may also be a chain name from the shared endpoint table (btc, ltc, eth, atom, ...) or an EVM chain id with a default (1).
 //! The protocol is detected from the URL, then the method name, then (shortcuts only) read-only probes; --protocol overrides.
@@ -18,6 +22,19 @@
 //!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
 //!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
 //!   --timeout SECONDS     per request, 1..300 (default 30)
+//! Params are ONE JSON array argument, e.g. rpc URL getrawtransaction '["TXID",false,"BLOCKHASH"]' (shell-quote
+//!  it); `getblockhash 2` or two separate params are bad_input (exit 2), nothing sent: write '[2]'.
+//! Two output shapes: shortcuts print one tidy JSON line (fields above); METHOD/stdin passthrough prints the
+//! node's raw JSON-RPC envelope, so read .result. A pruned node without -txindex answers getrawtransaction
+//! only with the block hash (rawtx TXID BLOCKHASH; prevtxs needs -txindex). getblock at verbosity 2 can
+//! exceed the 8 MiB cap: use block (verbosity 1) and fetch txs one at a time.
+//! Telling a refusal from a node answer: stderr {"status":"refused","code":...} means rpc sent NOTHING
+//! (allowlist, deny-list, secret field, credential flag); "rpc_error" or "http_error" means the node or server
+//! answered with an error. All three exit 1. "bad_input" (exit 2) is decided locally before any connection.
+//!  Auth fails closed: an empty --auth-file is auth_empty (exit 2) and the secret is never echoed anywhere.
+//!  --allow-unlisted lifts only the allowlist: dumpprivkey and the rest of the deny-list stay refused.
+//! Scripts: in `rpc ... | tx-decode` the pipe's exit status is tx-decode's, so use `set -o pipefail` or
+//! branch on the "status" field (`rpc URL dumpprivkey '["x"]' | cat` exits 0 in bash, PIPESTATUS 1 0).
 //! stdout: the response body (JSON-RPC: the raw response) or one JSON line per shortcut result; utxos prints utxo-fetch lines
 //! (tx-build --utxos FILE) and account prints the utxo-fetch eth account object (tx-build --account FILE).
 //! stderr: one JSON line {"tool":"rpc","status":...} on error or refusal. Exit 0 ok, 2 bad input, 1 everything else (RPC/HTTP error, refused, aborted): docs/EXIT-CODES.md.
@@ -112,7 +129,7 @@ fn check_addr(cx: &Cx, p: Proto, a: &str) {
 }
 fn check_id(cx: &Cx, id: &str) { if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric()) { bad(Some(cx), "id must be hex or base58") } }
 
-fn shortcut(cx: &Cx, name: &str, arg: Option<&str>) {
+fn shortcut(cx: &Cx, name: &str, arg: Option<&str>, arg2: Option<&str>) {
     let p = proto_for_shortcut(cx);
     if p == Proto::Evm { pin_chain(cx) }
     let need = |what: &str| -> String { let a = arg.unwrap_or_else(|| bad(Some(cx), &format!("{name} needs {what}"))).to_string(); a };
@@ -208,11 +225,61 @@ fn shortcut(cx: &Cx, name: &str, arg: Option<&str>) {
         ("fee", Proto::Esplora) => out(cx, json!({"protocol":pn,"sat_per_vb_by_target":rest(cx, "fee-estimates", None)})),
         ("fee", Proto::Blockbook) => out(cx, json!({"protocol":pn,"per_kb_coin":rest(cx, "api/v2/estimatefee/6", None)["result"]})),
         ("fee", Proto::Sol) => out(cx, json!({"protocol":pn,"recent_prioritization_fees":jr(cx, "getRecentPrioritizationFees", json!([]))})),
+        ("rawtx", Proto::Btc) => {
+            let id = need("a transaction id"); check_hex32(cx, &id);
+            let bh = arg2; if let Some(h) = bh { check_hex32(cx, h) }
+            out(cx, rawtx(cx, &id, bh))
+        }
+        ("prevtxs", Proto::Btc) => {
+            let mut s = String::new();
+            if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad(Some(cx), "stdin") }
+            let raw = blocktools_tx::input_bytes(&s).unwrap_or_else(|e| bad(Some(cx), e));
+            let d = blocktools_tx::decode_bytes(&raw, &cx.chain).unwrap_or_else(|e| bad(Some(cx), e));
+            if d.ty != "btc-tx" { bad(Some(cx), "prevtxs takes a raw UTXO transaction") }
+            let mut seen = vec![];
+            for i in &d.inputs { if let Some(t) = &i.txid { if !seen.contains(t) { seen.push(t.clone()) } } }
+            if seen.len() > 2000 { bad(Some(cx), "too many inputs") }
+            for t in seen { out(cx, rawtx(cx, &t, None)) }
+        }
+        ("block", Proto::Btc) => {
+            let h = match arg {
+                None => jr(cx, "getbestblockhash", json!([])),
+                Some(a) if !a.is_empty() && a.len() <= 10 && a.bytes().all(|b| b.is_ascii_digit()) => jr(cx, "getblockhash", json!([a.parse::<u64>().unwrap_or_else(|_| bad(Some(cx), "height"))])),
+                Some(a) => { check_hex32(cx, a); json!(a) }
+            };
+            let b = jr(cx, "getblock", json!([h, 1]));
+            out(cx, json!({"protocol":pn,"height":b["height"],"hash":b["hash"],"time":b["time"],"n_tx":b["nTx"],"previous":b["previousblockhash"],"txids":b["tx"]}))
+        }
+        ("blockinfo", Proto::Btc) => {
+            let v = jr(cx, "getblockchaininfo", json!([]));
+            out(cx, json!({"protocol":pn,"chain":v["chain"],"blocks":v["blocks"],"headers":v["headers"],"best":v["bestblockhash"],"progress":v["verificationprogress"],"pruned":v["pruned"]}))
+        }
         ("blockhash", Proto::Sol) => { let v = jr(cx, "getLatestBlockhash", json!([{"commitment":"finalized"}])); out(cx, json!({"protocol":pn,"blockhash":v["value"]["blockhash"],"last_valid_block_height":v["value"]["lastValidBlockHeight"]})) }
         _ => unsupported(cx, p, name),
     }
 }
 
+fn check_hex32(cx: &Cx, h: &str) { if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) { bad(Some(cx), "expected a 64-hex txid / block hash") } }
+/// getrawtransaction [txid, false(, blockhash)] -> {"protocol","txid","tx"(,"blockhash")}; the hex must hash to txid.
+fn rawtx(cx: &Cx, id: &str, bh: Option<&str>) -> Value {
+    let params = match bh { Some(h) => json!([id, false, h]), None => json!([id, false]) };
+    if let Err(r) = check_call_in(cx.proto, cx.allow_unlisted, "getrawtransaction", &params, &cx.deny, false, false) { refused(cx, r) }
+    let req = json!({"jsonrpc":"2.0","id":1,"method":"getrawtransaction","params":params}).to_string();
+    let (code, b) = http(cx, "POST", &cx.url, Some(req.as_bytes()));
+    let v: Value = serde_json::from_slice(&b).unwrap_or_else(|_| fail(Some(cx), "http_error", json!({"http_status":code,"error":"response is not JSON","body":snippet(&b)})));
+    if !v["error"].is_null() {
+        let hint = if bh.is_none() { "pruned node or no -txindex: give the block hash (rpc URL rawtx TXID BLOCKHASH)" } else { "transaction not in that block" };
+        fail(Some(cx), "rpc_error", json!({"method":"getrawtransaction","error":v["error"],"hint":hint}))
+    }
+    withhold_secrets(cx, &v);
+    let hex = v["result"].as_str().filter(|h| h.len() % 2 == 0 && h.bytes().all(|b| b.is_ascii_hexdigit())).unwrap_or_else(|| bad(Some(cx), "bad tx hex from node")).to_ascii_lowercase();
+    let raw = blocktools_core::hex_dec(&hex).unwrap_or_else(|| bad(Some(cx), "bad tx hex from node"));
+    let got = blocktools_tx::decode_bytes(&raw, &cx.chain).ok().and_then(|d| d.txid).unwrap_or_default();
+    if !got.eq_ignore_ascii_case(id) { fail(Some(cx), "error", json!({"error":"node_tx_hash_differs","txid":id})) }
+    let mut o = json!({"protocol":"btc","txid":id.to_ascii_lowercase(),"tx":hex});
+    if let Some(h) = bh { o["blockhash"] = json!(h.to_ascii_lowercase()) }
+    o
+}
 /// Broadcast one signed tx after the human types the code (same check and prompt as tx-broadcast).
 fn sendraw(cx: &Cx) {
     let mut s = String::new();
@@ -304,7 +371,7 @@ fn rest_call(cx: &Cx, path: &str, body: Option<&str>) {
     emit(cx, &String::from_utf8_lossy(&resp));
 }
 
-const SHORTCUTS: &[&str] = &["height", "chainid", "balance", "nonce", "account", "utxos", "tx", "receipt", "fee", "blockhash", "sendraw"];
+const SHORTCUTS: &[&str] = &["height", "chainid", "balance", "nonce", "account", "utxos", "tx", "receipt", "fee", "blockhash", "sendraw", "rawtx", "block", "blockinfo", "prevtxs"];
 fn main() {
     let usage = header();
     blocktools_io::help(&usage);
@@ -341,7 +408,7 @@ fn main() {
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
     let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout };
-    if pos.len() > 3 { bad(Some(&cx), "too many arguments") }
+    if pos.len() > 4 || (pos.len() == 4 && pos[1] != "rawtx") { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {
             let mut b = Vec::new();
@@ -349,10 +416,12 @@ fn main() {
             passthrough(&cx, b)
         }
         Some("sendraw") => sendraw(&cx),
-        Some(m) if SHORTCUTS.contains(&m) => shortcut(&cx, m, pos.get(2).map(String::as_str)),
+        Some(m) if SHORTCUTS.contains(&m) => shortcut(&cx, m, pos.get(2).map(String::as_str), pos.get(3).map(String::as_str)),
         Some(m) if m.starts_with('/') => rest_call(&cx, m, pos.get(2).map(String::as_str)),
         Some(m) => {
             let params: Value = match pos.get(2) { Some(p) => serde_json::from_str(p).unwrap_or_else(|_| bad(Some(&cx), "PARAMS must be JSON")), None => json!([]) };
+            // JSON-RPC 2.0: params is one structured value. `getblockhash 1` would send params:1, which nodes reject.
+            if !(params.is_array() || params.is_object()) { bad(Some(&cx), "PARAMS must be one JSON array (or object) argument, e.g. '[1]'") }
             let body = json!({"jsonrpc":"2.0","id":1,"method":m,"params":params}).to_string().into_bytes();
             passthrough(&cx, body)
         }
