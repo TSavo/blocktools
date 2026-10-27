@@ -6,7 +6,7 @@ B=${BIN:-target/release}; Bab=$(cd "$B" && pwd)
 W=$(mktemp -d); trap 'kill $M1 $M2 2>/dev/null; rm -rf "$W"' EXIT
 python3 scripts/mock-bitcoind.py "$W/p1" "$W/log1" & M1=$!
 python3 scripts/mock-bitcoind.py "$W/p2" "$W/log2" --txindex & M2=$!
-i=0; while [ ! -s "$W/p1" ] || [ ! -s "$W/p2" ]; do i=$((i+1)); [ $i -lt 100 ] || { echo "FAIL rpc-decode: mock did not start"; exit 1; }; sleep 0.05; done
+i=0; while [ ! -s "$W/p1" ] || [ ! -s "$W/p2" ]; do i=$((i+1)); [ $i -lt 600 ] || { echo "FAIL rpc-decode: mock did not start"; exit 1; }; sleep 0.05; done
 U1=http://127.0.0.1:$(cat "$W/p1"); U2=http://127.0.0.1:$(cat "$W/p2")
 python3 - recipes/rpc-decode.md > "$W/script.sh" <<'PY'
 import re, sys
