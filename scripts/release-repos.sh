@@ -25,8 +25,15 @@ build)
   # Every shipped CLI must be in the package list (phrase-to-key was missing before 0.1.1's repos).
   clis=$(sed -n 's/^CLIS="\(.*\)"/\1/p' scripts/package-native.sh)
   for f in "$bindir"/*; do b=$(basename "$f"); case " $clis " in *" $b "*) ;; *) echo "release-repos: $b ships in the tarball but is not in package-native.sh CLIS" >&2; exit 1;; esac; done
-  $DOCKER run --rm -v "$root":/src -w /src -u "$(id -u):$(id -g)" -e CARGO_HOME=/src/.cargo-home rust:alpine \
-    cargo build --release --locked --target x86_64-unknown-linux-musl >&2
+  # No host bind mounts: on Battleaxe the daemon is Docker Desktop, whose VM does not see the WSL2 distro's
+  # paths (a -v mount of the checkout arrives empty: "could not find Cargo.toml in /src", release run
+  # 40591364666). The sources go in as a tar stream on stdin; the musl binaries come back as a tar on stdout.
+  mb=target/x86_64-unknown-linux-musl/release; mkdir -p "$mb"
+  git ls-files -z --cached --others --exclude-standard | tar --null -T - --owner=0 --group=0 -cf - \
+    | $DOCKER run -i --rm rust:alpine sh -euc 'exec 3>&1 1>&2
+      mkdir /src && cd /src && tar -xf - && cargo build --release --locked --target x86_64-unknown-linux-musl >&2
+      cd target/x86_64-unknown-linux-musl/release && tar -cf - >&3 $(for t in '"$clis"'; do [ -f "$t" ] && echo "$t"; done)' \
+    | tar -C "$mb" -xf -
   rm -rf "$out"; mkdir -p "$out/alpine" "$out/rpm"
   BINDIR=$bindir DEB_DEPENDS="libc6 (>= 2.34)" PKG_VERSION=$ver sh scripts/package-native.sh deb >&2
   BINDIR=$bindir PKG_VERSION=$ver sh scripts/package-native.sh rpm >&2

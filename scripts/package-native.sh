@@ -66,10 +66,15 @@ cp -a /stage/. %{buildroot}/
 /usr/share/man/man7/*
 /usr/share/doc/blocktools
 EOF
-  ${DOCKER:-docker} run --rm -v /tmp/blocktools-rpm-root:/stage:ro -v /tmp/blocktools-rpmbuild:/out fedora:40 sh -euc '
-    dnf -q -y install rpm-build >/dev/null
-    rpmbuild -bb --define "_topdir /tmp/rb" --define "__strip /bin/true" --define "debug_package %{nil}" /out/SPECS/blocktools.spec >/dev/null
-    cp /tmp/rb/RPMS/x86_64/*.rpm /out/'
+  # Inputs as a tar on stdin, the .rpm as a tar on stdout: no host bind mounts (a Docker Desktop daemon
+  # does not see WSL2 distro paths; see release-repos.sh).
+  tar -C /tmp --owner=0 --group=0 -cf - blocktools-rpm-root blocktools-rpmbuild \
+    | ${DOCKER:-docker} run -i --rm fedora:40 sh -euc 'exec 3>&1 1>&2
+    mkdir /x && tar -C /x -xf - && ln -s /x/blocktools-rpm-root /stage && ln -s /x/blocktools-rpmbuild /out
+    dnf -q -y install rpm-build >&2
+    rpmbuild -bb --define "_topdir /tmp/rb" --define "__strip /bin/true" --define "debug_package %{nil}" /out/SPECS/blocktools.spec >&2
+    cd /tmp/rb/RPMS/x86_64 && tar -cf - *.rpm >&3' \
+    | tar -C /tmp/blocktools-rpmbuild -xf -
   cp /tmp/blocktools-rpmbuild/blocktools-${ver}-1.x86_64.rpm /tmp/
   echo "wrote /tmp/blocktools-${ver}-1.x86_64.rpm"
   ;;
@@ -90,14 +95,18 @@ options="!check !strip !tracedeps"
 source=""
 package() { mkdir -p "\$pkgdir"; cp -a /stage/. "\$pkgdir"/; }
 EOF
-  ${DOCKER:-docker} run --rm -v /tmp/bt-apk:/stage:ro -v /tmp/bt-apkbuild:/out alpine:3.20 sh -euc '
-    apk add -q abuild >/dev/null
+  # Inputs as a tar on stdin, the .apk as a tar on stdout: no host bind mounts (see the rpm step).
+  tar -C /tmp --owner=0 --group=0 -cf - bt-apk bt-apkbuild \
+    | ${DOCKER:-docker} run -i --rm alpine:3.20 sh -euc 'exec 3>&1 1>&2
+    mkdir /x && tar -C /x -xf - && ln -s /x/bt-apk /stage && ln -s /x/bt-apkbuild /out
+    apk add -q abuild >&2
     adduser -D -h /work b; addgroup b abuild
     cp /out/APKBUILD /work/; chown -R b /work
     # THROWAWAY build key: abuild always signs. Release signing is scripts/apk-sign-host.sh (docs/APK-SIGNING.md).
     su b -c "abuild-keygen -a -n >/dev/null 2>&1"; cp /work/.abuild/*.pub /etc/apk/keys/
     su b -c "cd /work && abuild -d -P /work/pkgs >/dev/null 2>&1"
-    find /work/pkgs -name "*.apk" -exec cp {} /out/ \;'
+    cd "$(dirname "$(find /work/pkgs -name "*.apk" | head -1)")" && tar -cf - *.apk >&3' \
+    | tar -C /tmp/bt-apkbuild -xf -
   cp -f /tmp/bt-apkbuild/blocktools-${ver}-r0.apk /tmp/ && chmod 644 /tmp/blocktools-${ver}-r0.apk
   echo "wrote /tmp/blocktools-${ver}-r0.apk"
   if [ "${APK_SIGN_HOST:-0}" = 1 ]; then scripts/apk-sign-host.sh /tmp/blocktools-${ver}-r0.apk; fi  # host only, see docs/APK-SIGNING.md
