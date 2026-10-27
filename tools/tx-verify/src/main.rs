@@ -62,13 +62,8 @@ fn approve(d: &blocktools_tx::Decoded, f: &mut Vec<String>, a: &[String]) -> Opt
         <[u8; 32]>::try_from(b.as_slice()).unwrap_or_else(|_| bad("--create-hash: 32-byte keccak256 hex"))
     });
     let o = blocktools_evm::api::approve_call(t.to.as_ref().map(|x| &x[..]), &t.data, &sigs, ch.as_ref());
-    if o["status"] == "ok" {
-        f.retain(|x| x != "unknown_contract_call");
-        // The destination of an approved call is the contract itself.
-        if let Some(to) = t.to.map(|x| blocktools_tx::addr(&x)) {
-            if a.windows(2).any(|w| w[0] == "--expect-to" && w[1].eq_ignore_ascii_case(&to)) { f.retain(|x| x != "destination_not_expected") }
-        }
-        if d.warnings.iter().all(|w| ["unsigned", "unknown_calldata", "contract_creation"].contains(w)) { f.retain(|x| x != "has_warnings") }
-    }
+    let expect: Vec<String> = a.windows(2).filter(|w| w[0] == "--expect-to").map(|w| w[1].clone()).collect();
+    let warn: Vec<String> = d.warnings.iter().map(|w| w.to_string()).collect();
+    blocktools_evm::api::lift_approved(&o, t.to.map(|x| blocktools_tx::addr(&x)).as_deref(), &expect, &warn, f);
     Some(o)
 }

@@ -175,9 +175,74 @@ pub fn decode_with(input: &str, sigs: &[Sig], types: Option<&str>, output: bool)
 
 /// Facade: `{sig, args:[...]}` -> `{status, signature, selector, data}`. `sig` without a name (`(uint256,address)`) encodes bare args.
 pub fn encode_json(req: &Value) -> Result<Value, String> {
-    let s = req.get("sig").and_then(Value::as_str).ok_or("missing_sig")?;
     let args = req.get("args").and_then(Value::as_array).ok_or("missing_args")?;
+    if req.get("abi").is_some_and(|a| !a.is_null()) { return encode_abi_fn(req, args) }
+    let s = req.get("sig").and_then(Value::as_str).ok_or("missing_sig")?;
     encode_call(s, args)
+}
+
+/// Signatures a request names: `sigs` (array of signature strings) plus `abi` (Solidity JSON ABI as text, array or object).
+pub fn sigs_from_req(req: &Value) -> Result<Vec<Sig>, String> {
+    let mut out = vec![];
+    match req.get("sigs") {
+        None | Some(Value::Null) => {}
+        Some(Value::Array(a)) => for x in a { out.push(Sig::parse(x.as_str().ok_or("bad_sigs")?)?) },
+        Some(_) => return Err("bad_sigs".into()),
+    }
+    match req.get("abi") {
+        None | Some(Value::Null) => {}
+        Some(Value::String(t)) => out.extend(sig::parse_abi_json(t)?),
+        Some(v) => out.extend(sig::parse_abi_json(&v.to_string())?),
+    }
+    Ok(out)
+}
+
+/// `{abi, name, args, signature?}`: encode a call to the function `name` of a JSON ABI. Overloads are told
+/// apart by argument count, then by `signature` (e.g. "transfer(address,uint256)"); anything still
+/// ambiguous is refused (`ambiguous_overload`, with `candidates` in the message), never guessed.
+pub fn encode_abi_fn(req: &Value, args: &[Value]) -> Result<Value, String> {
+    let name = req.get("name").and_then(Value::as_str).ok_or("missing_name")?;
+    let all = sigs_from_req(&json!({"abi": req["abi"]}))?;
+    let named: Vec<&Sig> = all.iter().filter(|s| s.kind == Kind::Function && s.name == name).collect();
+    if named.is_empty() { return Err("no_such_function".into()) }
+    let mut c: Vec<&Sig> = named.iter().copied().filter(|s| s.inputs.len() == args.len()).collect();
+    if let Some(want) = req.get("signature").and_then(Value::as_str) {
+        let w = Sig::parse(want)?.canonical();
+        c.retain(|s| s.canonical() == w);
+    }
+    match c.len() {
+        0 => Err("no_overload_matches".into()),
+        1 => { let mut o = encode_call(&c[0].canonical(), args)?; o["name"] = json!(name); Ok(o) }
+        _ => Err(format!("ambiguous_overload: {}", c.iter().map(|s| s.canonical()).collect::<Vec<_>>().join(" | "))),
+    }
+}
+
+/// Facade for `approve_call`: `{to: "0x..20 bytes" | null, data: "0x..", sigs?: [..], abi?, createHash?: "0x..32 bytes"}`.
+/// `to` null (or absent) = contract creation. Same check as `tx-verify --call/--abi/--create-hash`.
+pub fn approve_json(req: &Value) -> Result<Value, String> {
+    let to = match req.get("to") { None | Some(Value::Null) => None, Some(Value::String(t)) => Some(parse_address(t)?), _ => return Err("bad_to".into()) };
+    let data = unhex(req.get("data").and_then(Value::as_str).ok_or("missing_data")?)?;
+    let ch = create_hash_from_req(req)?;
+    Ok(approve_call(to.as_ref().map(|x| &x[..]), &data, &sigs_from_req(req)?, ch.as_ref()))
+}
+
+/// `createHash` of a request: 32-byte keccak256 hex, or none.
+pub fn create_hash_from_req(req: &Value) -> Result<Option<[u8; 32]>, String> {
+    match req.get("createHash") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(h)) => Ok(Some(<[u8; 32]>::try_from(unhex(h)?.as_slice()).map_err(|_| "bad_createHash")?)),
+        _ => Err("bad_createHash".into()),
+    }
+}
+
+/// What an approved call lifts in a policy verdict (shared by tx-verify and the wasm verifyTx):
+/// `unknown_contract_call`; `destination_not_expected` when the contract itself is in `expect_to`;
+/// `has_warnings` when the only warnings are the ones a decoded call explains. Nothing else changes.
+pub fn lift_approved(o: &Value, to: Option<&str>, expect_to: &[String], warnings: &[String], f: &mut Vec<String>) {
+    if o["status"] != "ok" { return }
+    f.retain(|x| x != "unknown_contract_call");
+    if let Some(to) = to { if expect_to.iter().any(|e| e.eq_ignore_ascii_case(to)) { f.retain(|x| x != "destination_not_expected") } }
+    if warnings.iter().all(|w| ["unsigned", "unknown_calldata", "contract_creation"].contains(&w.as_str())) { f.retain(|x| x != "has_warnings") }
 }
 
 /// Facade: `{types: "(int16,bytes1,...)", args:[..]}` -> Solidity `abi.encodePacked` bytes.
@@ -325,5 +390,25 @@ mod approve_tests {
         assert_eq!(approve_call(None, &[0x60, 0x2a], &[], Some(&h))["status"], "ok");
         assert_eq!(approve_call(None, &[0x60, 0x2b], &[], Some(&h))["status"], "initcode_mismatch");
         assert_eq!(approve_call(None, &[0x60, 0x2a], &[], None)["status"], "not_approved");
+        let j = |v: Value| approve_json(&v).unwrap()["status"].clone();
+        let data = "0x55241077000000000000000000000000000000000000000000000000000000000000002a";
+        assert_eq!(j(json!({"to": format!("0x{}", "aa".repeat(20)), "data": data, "sigs": ["setValue(uint256)"]})), "ok");
+        let abi = r#"[{"type":"function","name":"setValue","inputs":[{"name":"v","type":"uint256"}]}]"#;
+        assert_eq!(j(json!({"to": format!("0x{}", "aa".repeat(20)), "data": data, "abi": abi})), "ok");
+        assert_eq!(j(json!({"to": format!("0x{}", "aa".repeat(20)), "data": data})), "unknown_selector");
+        assert_eq!(j(json!({"to": null, "data": "0x602a", "createHash": hex(&h)})), "ok");
+        assert!(approve_json(&json!({"to": null, "data": "0x602a", "createHash": "0x12"})).is_err());
+    }
+    #[test]
+    fn encode_from_abi_overloads() {
+        let abi = json!([{"type":"function","name":"f","inputs":[{"type":"uint256"}]},{"type":"function","name":"f","inputs":[{"type":"address"}]},
+            {"type":"function","name":"f","inputs":[{"type":"uint256"},{"type":"uint256"}]}]);
+        let e = |v: Value| encode_json(&v);
+        assert_eq!(e(json!({"abi": abi, "name": "f", "args": ["1", "2"]})).unwrap()["signature"], "f(uint256,uint256)");
+        assert!(e(json!({"abi": abi, "name": "f", "args": ["1"]})).unwrap_err().starts_with("ambiguous_overload: f(uint256) | f(address)"));
+        let o = e(json!({"abi": abi, "name": "f", "args": ["1"], "signature": "f(uint256)"})).unwrap();
+        assert_eq!(o, { let mut x = encode_call("f(uint256)", &[json!("1")]).unwrap(); x["name"] = json!("f"); x });
+        assert_eq!(e(json!({"abi": abi, "name": "g", "args": []})).unwrap_err(), "no_such_function");
+        assert_eq!(e(json!({"abi": abi, "name": "f", "args": []})).unwrap_err(), "no_overload_matches");
     }
 }
