@@ -65,7 +65,9 @@ def legacy(skip):
     a = Acc(); f = open(sys.argv[2], "rb", buffering=1 << 20); h = f.read(40 + skip)
     base = h[:32][::-1].hex(); count = struct.unpack("<Q", h[32:40])[0]
     for _ in range(count):
-        txid = f.read(32)[::-1].hex(); vout = struct.unpack("<I", f.read(4))[0]; coin(f, a, txid, vout)
+        txid = f.read(32)[::-1].hex(); vout = struct.unpack("<I", f.read(4))[0]
+        if vout >= 1 << 20: raise ValueError("vout out of range")  # same bound as crates/utxo
+        coin(f, a, txid, vout)
     if f.read(1): raise ValueError("trailing bytes after the last coin")
     return a, base, count
 if sys.argv[1] == "dump":
@@ -78,8 +80,14 @@ if sys.argv[1] == "dump":
         if f.read(1): raise SystemExit("trailing bytes after the last coin")
         a.out(base_blockhash=base, coins_count_header=count, header="28+")
     else:
-        try: a, base, count = legacy(0); hdr = "25-27"
-        except (ValueError, EOFError, struct.error, IndexError): a, base, count = legacy(4); hdr = "0.21-24 (nChainTx u32)"
+        # Never guess: a 0.21 file can also parse to EOF as 25-27 shifted by 4 bytes (seen in CI run
+        # 40577089163: same count, wrong amounts). Parse both; accept only if exactly one succeeds.
+        ok = []
+        for skip, name in ((0, "25-27"), (4, "0.21-24 (nChainTx u32)")):
+            try: ok.append(legacy(skip) + (name,))
+            except (ValueError, EOFError, struct.error, IndexError, KeyError): pass
+        if len(ok) != 1: raise SystemExit(f"dump layout ambiguous or unparseable: {len(ok)} of 2 layouts parse")
+        a, base, count, hdr = ok[0]
         a.out(base_blockhash=base, coins_count_header=count, header=hdr)
 else:
     for l in sys.stdin:
