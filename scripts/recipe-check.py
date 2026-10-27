@@ -7,7 +7,7 @@
 
 `./blocktools run '<pipeline>'` runs through the real agent boundary (target/release/sealed-run
 agent). `recipes/recover.sh ...` runs the front door (fund= funds one address on the mock chain and
-appends --url). A command starting with jq/sig-hash/abi-decode/abi-encode/create-address/log-decode is an
+appends --url). A command starting with jq/sig-hash/abi-decode/abi-encode/create-address/log-decode/tx-build/tx-verify is an
 offline EVM pipeline on recipes/fixtures/ run by bash with BIN first on PATH; contract-call $ETH/<prefix> ...
 talks to a 127.0.0.1 mock node that answers with the recorded fixture <prefix>-*.json.
 /in/ and /secrets/ map to a temp dir of vectors made here. Checks: exit code,
@@ -134,7 +134,7 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call) ", cmd):
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|tx-build|tx-verify) ", cmd):
                 # offline, secret-free EVM filters on recorded fixtures (contract-call: against the $ETH fixture mock): bash with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:

@@ -26,6 +26,11 @@ policy made each decision.
 | `allow_tokens` | ERC-20 contracts allowed for `transfer()` | `policy:allow_tokens` |
 | `allow_calls` | any other contract call needs a matching (`to`, 4-byte `selector`) pair. A listed `approve` also accepts its `token_approve` warning | `policy:allow_calls` |
 
+The flag checks still refuse any contract call they cannot read (`unknown_contract_call`), so a file-allowed
+call also needs `--call SIGNATURE` (or `--abi FILE`) on tx-verify/tx-sign: the calldata must decode exactly and is
+shown as function + arguments. Contract creation is approved with `--create-hash KECCAK` (keccak256 of the init
+code), not by the file. See [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md).
+
 Numbers can be JSON integers or decimal strings (needed above 2^53). Unknown keys are errors
 (`policy_unknown_key`), so a typo cannot silently drop a rule. The base checks always apply and
 cannot be turned off by the file: `legacy_input_amount_unproven`, `has_warnings`,

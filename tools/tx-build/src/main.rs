@@ -10,7 +10,11 @@
 //!            -> {"unsigned_tx": hex, "zec_prevouts": [...], "branch_id"} (transparent v5, ZIP-244; fee >= ZIP-317)
 //!   tx-build --chain eth --chain-id N [--account FILE] [--nonce N] [--gas N] --max-fee-per-gas WEI
 //!            [--priority-fee WEI | --legacy] --to ADDR (--send WEI | --sweep [--balance WEI] | --topup GAS_UNITS
-//!            | --token CONTRACT --token-amount UNITS)
+//!            | --token CONTRACT --token-amount UNITS | --data HEX [--send WEI]) --gas N
+//!   tx-build --chain eth ... --gas N --create INITCODE_HEX [--send WEI]
+//!            -> {"unsigned_tx", "initcode_keccak256"} (contract creation: no "to")
+//! --data HEX / --create HEX also take @FILE (a file of hex, e.g. abi-encode output's calldata or compiler output).
+//! Build calldata with abi-encode; check it with tx-verify --call SIGNATURE (or --create-hash for creation).
 //! --account FILE is one JSON object with chain_id (required, must equal --chain-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 //! (utxo-fetch writes it); flags override it. ERC-20 sends need native gas at the old address:
 //! build the gas top-up first with --topup GAS_UNITS from a funded address.
@@ -95,6 +99,28 @@ fn evm_build(a: &A) {
     let max_fee = pick("--max-fee-per-gas", "max_fee_per_gas").unwrap_or_else(|| fail("--max-fee-per-gas required"));
     let legacy = a.has("--legacy");
     let prio = if legacy { None } else { Some(pick("--priority-fee", "max_priority_fee_per_gas").unwrap_or(1_000_000_000).min(max_fee)) };
+    // Contract call (--to CONTRACT --data HEX) or creation (--create INITCODE, no --to); value from --send (default 0).
+    let hexarg = |v: &str| -> Vec<u8> {
+        let t = if let Some(f) = v.strip_prefix('@') { file(f, 1 << 22) } else { v.to_string() };
+        blocktools_core::hex_dec(t.trim().trim_start_matches("0x")).unwrap_or_else(|| fail("--data/--create: hex (or @FILE of hex)"))
+    };
+    let create = a.get("--create").map(hexarg);
+    let data = a.get("--data").map(hexarg);
+    if create.is_some() || data.is_some() {
+        if create.is_some() && (data.is_some() || a.has("--to")) { fail("--create takes no --to or --data") }
+        if create.is_some() && create.as_ref().is_some_and(|c| c.is_empty()) { fail("--create: empty init code") }
+        if data.is_some() && data.as_ref().is_some_and(|d| d.len() < 4) { fail("--data: needs at least a 4-byte selector") }
+        if a.has("--token") || a.has("--sweep") || a.has("--topup") { fail("--data/--create combine only with --send") }
+        let gas = num(a.get("--gas"), "--gas").map(|g| g as u64).unwrap_or_else(|| fail("--data/--create need --gas (estimate it with your node; no guess is made)"));
+        let to = if create.is_some() { [0u8; 20] } else { eaddr(a.get("--to").unwrap_or_else(|| fail("--to required"))) };
+        let value = num(a.get("--send"), "--send").unwrap_or(0);
+        let mut tx = build::build_evm(&build::EvmPlan { chain_id, nonce, max_fee, priority_fee: prio, gas: Some(gas), to, amount: build::EvmAmount::Send(value) }).unwrap_or_else(|e| fail(e));
+        if let Some(c) = create { tx.to = None; tx.data = c } else { tx.data = data.unwrap_or_default() }
+        let mut o = json!({"tool":"tx-build","status":"ok","chain":"eth","type":if legacy {"evm-legacy"} else {"evm-1559"},"unsigned_tx":blocktools_core::hex_enc(tx.encode_unsigned())});
+        if tx.to.is_none() { o["initcode_keccak256"] = json!(format!("0x{}", blocktools_core::hex_enc(blocktools_evm::keccak(&tx.data)))) }
+        blocktools_io::outln!("{o}");
+        return
+    }
     let to = eaddr(a.get("--to").unwrap_or_else(|| fail("--to required")));
     let amount = if let Some(t) = a.get("--token").map(eaddr) {
         build::EvmAmount::Token { token: t, amount: num(a.get("--token-amount"), "--token-amount").unwrap_or_else(|| fail("--token-amount required")) }

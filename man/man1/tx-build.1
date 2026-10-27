@@ -19,9 +19,13 @@ UTXO chains \-> {"psbt": base64}; EVM \-> {"unsigned_tx": hex}. Pipe the result 
            \-> {"unsigned_tx": hex, "zec_prevouts": [...], "branch_id"} (transparent v5, ZIP\-244; fee >= ZIP\-317)
   tx\-build \-\-chain eth \-\-chain\-id N [\-\-account FILE] [\-\-nonce N] [\-\-gas N] \-\-max\-fee\-per\-gas WEI
            [\-\-priority\-fee WEI | \-\-legacy] \-\-to ADDR (\-\-send WEI | \-\-sweep [\-\-balance WEI] | \-\-topup GAS_UNITS
-           | \-\-token CONTRACT \-\-token\-amount UNITS)
+           | \-\-token CONTRACT \-\-token\-amount UNITS | \-\-data HEX [\-\-send WEI]) \-\-gas N
+  tx\-build \-\-chain eth ... \-\-gas N \-\-create INITCODE_HEX [\-\-send WEI]
+           \-> {"unsigned_tx", "initcode_keccak256"} (contract creation: no "to")
 .RE
 .fi
+\-\-data HEX / \-\-create HEX also take @FILE (a file of hex, e.g. abi\-encode output's calldata or compiler output).
+Build calldata with abi\-encode; check it with tx\-verify \-\-call SIGNATURE (or \-\-create\-hash for creation).
 \-\-account FILE is one JSON object with chain_id (required, must equal \-\-chain\-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 (utxo\-fetch writes it); flags override it. ERC\-20 sends need native gas at the old address:
 build the gas top\-up first with \-\-topup GAS_UNITS from a funded address.
@@ -39,6 +43,7 @@ Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help)
            \-> {"unsigned_tx": hex, "pos_prevouts": [...]} (PoS nTime format; P2PKH inputs only)
 .RE
 .fi
+\-\-data HEX / \-\-create HEX also take @FILE (a file of hex, e.g. abi\-encode output's calldata or compiler output).
 \-\-account FILE is one JSON object with chain_id (required, must equal \-\-chain\-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
@@ -55,6 +60,8 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 $ tx\-build \-\-chain eth
 # exit 2, last status: bad_input
 $ printf '{"address":"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4","amount":50000,"txid":"%s","vout":0}\en' $(printf 'c%.0s' $(seq 64)) > u; tx\-build \-\-chain btc \-\-utxos u \-\-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 \-\-sweep \-\-fee\-rate 5
+# exit 0, last status: ok
+$ tx\-build \-\-chain eth \-\-chain\-id 1 \-\-nonce 0 \-\-max\-fee\-per\-gas 2000000000 \-\-gas 60000 \-\-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF \-\-data 0x55241077000000000000000000000000000000000000000000000000000000000000002a
 # exit 0, last status: ok
 .fi
 .SH SECURITY NOTES

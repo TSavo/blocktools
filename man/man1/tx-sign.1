@@ -3,7 +3,7 @@
 tx\-sign \- sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-tx\-sign \-\-tx FILE \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE] < keys   (asks for a code on the terminal)
+tx\-sign \-\-tx FILE \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
@@ -23,9 +23,24 @@ Keys come ONLY on stdin: one per line, WIF or 64\-hex, or JSON lines with wif/pr
 Order: policy checks (destination, fee cap, chain id, no warnings) \-> sign in memory \-> print the
 tx\-decode summary on the terminal \-> human types the code \-> re\-decode + re\-check \-> print
 {"signed_tx": hex[, "psbt": finalized base64]}. Without a terminal, or with the wrong code, nothing is printed except "aborted".
+EVM contract call: \-\-call SIGNATURE (repeatable) / \-\-abi FILE; the calldata must decode exactly and the
+.nf
+.RS 2
+  decoded function and args are shown in the summary. Unknown selectors are refused (unknown_contract_call).
+.RE
+.fi
+EVM contract creation: \-\-create\-hash KECCAK (keccak256 of the init code) instead of \-\-expect\-to; the summary
+.nf
+.RS 2
+  shows the init code hash and the new contract address (CREATE from the signer and nonce).
+.RE
+.fi
 Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with \-\-max\-fee.
 .SH OPTIONS
 .nf
+\-\-abi
+\-\-call
+\-\-create\-hash
 \-\-expect\-to
 \-\-max\-fee
 \-\-policy

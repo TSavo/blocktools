@@ -50,5 +50,7 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | ABI → selectors, collisions, ERC-165/ERC-20 interfaces | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (h), `abi-inspect` |
 | `eth_getCode` → proxy / delegation / EOF, compiler version, size limit, selector candidates | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (i), `bytecode-inspect` |
 | `eth_signTypedData_v4` request or signed typed data → digest, recovered signer, verdict | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (j), `typed-data-verify` |
+| Contract call tx: signature + args → calldata → unsigned tx → decoded re-verify → sign → broadcast (any chain id) | [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md), `abi-encode`, `tx-build --data`, `tx-verify --call`, `tx-sign --call` |
+| Contract creation tx: init code → unsigned tx → approve by init-code hash → sign (shows new address) | [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md), `tx-build --create`, `--create-hash` |
 | Solana or Tron transfer: build unsigned from a plan, decode, verify (chain auto-detected, `--chain` overrides) | `sol-tron-tx` |
 | Prove control of an address: sign a text message (Bitcoin `signmessage` P2PKH, Ethereum `personal_sign`), or verify one (chain detected from the address) | `msg-sign`, `msg-verify` |

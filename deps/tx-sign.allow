@@ -7,6 +7,7 @@ bitcoin-units
 bitcoin_hashes
 block-buffer
 blocktools-core
+blocktools-evm
 blocktools-io
 blocktools-monero
 blocktools-secrets

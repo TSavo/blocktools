@@ -3,7 +3,7 @@
 tx\-verify \- check a transaction (stdin; any format tx\-decode reads) against what you expect
 .SH SYNOPSIS
 .nf
-tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)] [\-\-max\-fee N] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-policy FILE] < tx
+tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)] [\-\-max\-fee N] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
 .fi
 .SH DESCRIPTION
 .nf
@@ -13,15 +13,26 @@ tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chai
 .RE
 .fi
 \-\-policy FILE: offline policy file (docs/POLICY.md); its findings are added and its sha256 is reported.
+\-\-call SIGNATURE (repeatable) / \-\-abi FILE: EVM contract call. The calldata is decoded strictly against these
+.nf
+.RS 2
+  function signatures (it must re\-encode byte\-for\-byte) and reported as "call" {signature, selector, args};
+  only an exact match lifts unknown_contract_call. Unknown selectors are reported as "unknown_selector".
+.RE
+.fi
+\-\-create\-hash KECCAK: EVM contract creation (no "to"): approved only when keccak256(init code) equals KECCAK.
 EVM default fee cap: 0.01 ETH (same as tx\-sign); UTXO: no cap unless \-\-max\-fee.
 Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
 .SH OPTIONS
 .nf
+\-\-abi
 \-\-allow\-value\-with\-token
 \-\-allow\-warnings
+\-\-call
 \-\-chain
 \-\-chain\-id
 \-\-change
+\-\-create\-hash
 \-\-expect\-to
 \-\-max\-fee
 \-\-policy
@@ -31,6 +42,9 @@ Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help)
 tx\-verify: check a transaction (stdin; any format tx\-decode reads) against what you expect.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
 .TP
 1
 last status failed
@@ -45,6 +59,10 @@ $ echo zz | tx\-verify
 # exit 2, last status: bad_input
 $ python3 "$R/scripts/e2e\-only/evm\-fixture.py" approve | tx\-verify \-\-chain\-id 1 \-\-expect\-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF
 # exit 1, last status: failed
+$ tx\-build \-\-chain eth \-\-chain\-id 1 \-\-nonce 0 \-\-max\-fee\-per\-gas 2000000000 \-\-gas 60000 \-\-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF \-\-data 0x55241077000000000000000000000000000000000000000000000000000000000000002a | tx\-verify \-\-chain\-id 1 \-\-expect\-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF \-\-call 'setValue(uint256)'
+# exit 0, last status: ok
+$ tx\-build \-\-chain eth \-\-chain\-id 1 \-\-nonce 0 \-\-max\-fee\-per\-gas 2000000000 \-\-gas 100000 \-\-create 0x602a | tx\-verify \-\-chain\-id 1 \-\-create\-hash $(sig\-hash \-\-keccak 602a | sed 's/.*"keccak256":"\e([0\-9a\-fx]*\e)".*/\e1/')
+# exit 0, last status: ok
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.

@@ -263,3 +263,67 @@ pub fn decode_log_object(log: &Value, sigs: &[Sig]) -> Result<Value, String> {
     }
     Ok(o)
 }
+
+/// Signing-time check of an EVM tx's calldata. `to: None` = contract creation.
+/// Calls: strict decode against `sigs` (function signatures only; the calldata must
+/// re-encode byte-for-byte, so trailing or non-canonical bytes are refused).
+/// Creation: approved only when keccak256(init code) equals `create_hash`.
+/// Returns {"status": "ok"|"unknown_selector"|"bad_calldata"|"initcode_mismatch"|"not_approved", ...}.
+pub fn approve_call(to: Option<&[u8]>, data: &[u8], sigs: &[Sig], create_hash: Option<&[u8; 32]>) -> Value {
+    if to.is_none() {
+        let h = keccak(data);
+        let mut o = json!({"kind": "create", "initcode_len": data.len(), "initcode_keccak256": hex(&h)});
+        o["status"] = json!(match create_hash { Some(x) if *x == h => "ok", Some(_) => "initcode_mismatch", None => "not_approved" });
+        return o;
+    }
+    if data.len() < 4 { return json!({"kind": "call", "status": "bad_calldata", "data_len": data.len()}) }
+    let sel = hex(&data[..4]);
+    for s in sigs.iter().filter(|s| s.kind == Kind::Function && s.selector()[..] == data[..4]) {
+        let Ok(vals) = abi::decode(&s.inputs, &data[4..]) else { continue };
+        if abi::encode(&s.inputs, &vals).ok().as_deref() != Some(&data[4..]) { continue }
+        let mut o = sig_info(s);
+        o["kind"] = json!("call");
+        o["args"] = abi::labelled(&s.inputs, vals);
+        o["status"] = json!("ok");
+        return o;
+    }
+    let known = sigs.iter().any(|s| s.selector()[..] == data[..4]);
+    json!({"kind": "call", "selector": sel, "status": if known { "bad_calldata" } else { "unknown_selector" }})
+}
+
+/// Human lines for `approve_call` output (shown in the signing summary).
+pub fn approve_text(o: &Value) -> String {
+    let st = o["status"].as_str().unwrap_or("");
+    if o["kind"] == "create" {
+        return format!("Contract creation: init code {} bytes, keccak256 {} ({st})\n", o["initcode_len"], o["initcode_keccak256"].as_str().unwrap_or(""));
+    }
+    if st != "ok" { return format!("Contract call: selector {} ({st})\n", o["selector"].as_str().unwrap_or("?")) }
+    let mut s = format!("Contract call: {}\n", o["signature"].as_str().or(o["name"].as_str()).unwrap_or("?"));
+    for (i, a) in o["args"].as_array().into_iter().flatten().enumerate() {
+        let n = a["name"].as_str().map(String::from).unwrap_or(format!("arg{i}"));
+        let v = match &a["value"] { Value::String(x) => x.clone(), x => x.to_string() };
+        s += &format!("  {n} ({}): {v}\n", a["type"].as_str().unwrap_or("?"));
+    }
+    s
+}
+
+#[cfg(test)]
+mod approve_tests {
+    use super::*;
+    #[test]
+    fn strict_call_and_create() {
+        let s = vec![Sig::parse("setValue(uint256)").unwrap()];
+        let mut d = unhex("0x55241077000000000000000000000000000000000000000000000000000000000000002a").unwrap();
+        let to = [0xaa_u8; 20];
+        let o = approve_call(Some(&to), &d, &s, None);
+        assert_eq!(o["status"], "ok"); assert_eq!(o["args"][0]["value"], "42");
+        assert!(approve_text(&o).contains("setValue(uint256)"));
+        assert_eq!(approve_call(Some(&to), &d, &[], None)["status"], "unknown_selector");
+        d.push(0);
+        assert_eq!(approve_call(Some(&to), &d, &s, None)["status"], "bad_calldata");
+        let h = keccak(&[0x60, 0x2a]);
+        assert_eq!(approve_call(None, &[0x60, 0x2a], &[], Some(&h))["status"], "ok");
+        assert_eq!(approve_call(None, &[0x60, 0x2b], &[], Some(&h))["status"], "initcode_mismatch");
+        assert_eq!(approve_call(None, &[0x60, 0x2a], &[], None)["status"], "not_approved");
+    }
+}

@@ -84,3 +84,6 @@ log-decode | 0 | log-decode --sig 'Transfer(address indexed from, address indexe
 log-decode | 2 | echo '{"topics":["0x12"],"data":"0x"}' | log-decode --sig 'Transfer(address indexed from, address indexed to, uint256 value)'
 contract-call | 1 | contract-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals() returns (uint8)'
 contract-call | 2 | contract-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'balanceOf(address) returns (uint256)'
+tx-build | 0 | tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 2000000000 --gas 60000 --to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --data 0x55241077000000000000000000000000000000000000000000000000000000000000002a
+tx-verify | 0 | tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 2000000000 --gas 60000 --to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --data 0x55241077000000000000000000000000000000000000000000000000000000000000002a | tx-verify --chain-id 1 --expect-to 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF --call 'setValue(uint256)'
+tx-verify | 0 | tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 2000000000 --gas 100000 --create 0x602a | tx-verify --chain-id 1 --create-hash $(sig-hash --keccak 602a | sed 's/.*"keccak256":"\([0-9a-fx]*\)".*/\1/')

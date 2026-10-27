@@ -1807,6 +1807,7 @@ name = "tx-build"
 version = "0.1.1"
 dependencies = [
  "blocktools-core",
+ "blocktools-evm",
  "blocktools-io",
  "blocktools-tx",
  "serde_json",
@@ -1836,6 +1837,7 @@ version = "0.1.1"
 dependencies = [
  "bitcoin",
  "blocktools-core",
+ "blocktools-evm",
  "blocktools-io",
  "blocktools-secrets",
  "blocktools-tty",
@@ -1849,6 +1851,7 @@ name = "tx-verify"
 version = "0.1.1"
 dependencies = [
  "blocktools-core",
+ "blocktools-evm",
  "blocktools-io",
  "blocktools-tx",
  "serde_json",
