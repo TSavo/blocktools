@@ -3,6 +3,7 @@
 pub mod xlm;
 pub mod algo;
 pub mod atom;
+pub mod thor;
 pub mod ton;
 pub mod ada;
 pub mod dot;
