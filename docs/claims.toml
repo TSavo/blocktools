@@ -62,7 +62,7 @@ id = "image-size-readme"
 statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.1 MB = 46138880 bytes, measured on the image built from 1f35e54 (a commit with a green ci run). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 77731427 bytes (store-dependent, reference only). Earlier measurements: the same 46138880 bytes at 30489d3; 46134784 bytes at 727537d (cancelled ci run; Dockerfile and image scripts unchanged since, so the 4096-byte difference is build-to-build variation, not explained); 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store); the step to 38 binaries is phrase-to-key (PR 1). Compare sizes only with the same instrument and store."
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: blocktools changed by the remote-engine refusal commit
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh --build"
 expect = "image blocktools:local; commit 1f35e54afe10ca3864cb2a149790f8bbc423915f; 46138880 bytes"
 value = "46.1"
@@ -232,7 +232,7 @@ id = "sealed-run-linux"
 statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on Battleaxe, docker 29.8.2)"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"  # re-stamp pending: blocktools changed by the remote-engine refusal commit
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
 commit = "727537d"
@@ -460,6 +460,8 @@ platform = "linux"
 status = "untested"
 reason = "stamp after a green ci run at the commit adding it"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
+
+[[claim]]
 id = "recovery-synthetic-thirdparty"
 statement = "Wallet files written by Bitcoin Core 25.2 (legacy BDB, descriptor SQLite), Electrum 4.5.8 (file-encrypted, keystore-encrypted) and eth-account 0.13.4 (scrypt keystore), plus a python-mnemonic BIP39 phrase with Bitcoin Core deriveaddresses addresses: seed typo/swap/missing/unknown word and a password from a token list recover the generator's own address"
 kind = "security"
