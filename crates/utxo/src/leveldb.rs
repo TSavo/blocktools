@@ -211,13 +211,14 @@ pub fn log_records(path: &Path) -> io::Result<Vec<Vec<u8>>> {
 }
 
 /// The live files named by CURRENT's manifest.
-pub struct Live { pub tables: Vec<PathBuf>, pub logs: Vec<PathBuf>, pub manifest: PathBuf }
+/// `tables` in manifest order (number); `levels[i]` = (level, smallest internal key) of `tables[i]`.
+pub struct Live { pub tables: Vec<PathBuf>, pub levels: Vec<(u64, Vec<u8>)>, pub logs: Vec<PathBuf>, pub manifest: PathBuf }
 pub fn live_files(dir: &Path) -> io::Result<Live> {
     let cur = std::fs::read_to_string(dir.join("CURRENT")).map_err(|e| bad(format!("no_CURRENT:{e}")))?;
     let mname = cur.trim_end_matches('\n');
     if mname.contains('/') || !mname.starts_with("MANIFEST-") { return Err(bad("bad_CURRENT")) }
     let manifest = dir.join(mname);
-    let (mut files, mut log_no, mut prev_log) = (std::collections::BTreeSet::new(), 0u64, 0u64);
+    let (mut files, mut log_no, mut prev_log) = (BTreeMap::<u64, (u64, Vec<u8>)>::new(), 0u64, 0u64);
     for r in log_records(&manifest)? {
         let mut p = 0;
         while p < r.len() {
@@ -226,15 +227,16 @@ pub fn live_files(dir: &Path) -> io::Result<Live> {
                 2 => log_no = uvarint(&r, &mut p)?,
                 3 | 4 => { uvarint(&r, &mut p)?; }
                 5 => { uvarint(&r, &mut p)?; slice(&r, &mut p)?; }
-                6 => { uvarint(&r, &mut p)?; let n = uvarint(&r, &mut p)?; files.retain(|x| *x != n); }
-                7 => { uvarint(&r, &mut p)?; let n = uvarint(&r, &mut p)?; uvarint(&r, &mut p)?; slice(&r, &mut p)?; slice(&r, &mut p)?; files.insert(n); }
+                6 => { uvarint(&r, &mut p)?; let n = uvarint(&r, &mut p)?; files.remove(&n); }
+                7 => { let lv = uvarint(&r, &mut p)?; let n = uvarint(&r, &mut p)?; uvarint(&r, &mut p)?; let lo = slice(&r, &mut p)?.to_vec(); slice(&r, &mut p)?; files.insert(n, (lv, lo)); }
                 9 => prev_log = uvarint(&r, &mut p)?,
                 t => return Err(bad(format!("manifest_tag_{t}"))),
             }
         }
     }
-    let mut tables = Vec::new();
-    for n in files {
+    let (mut tables, mut levels) = (Vec::new(), Vec::new());
+    for (n, lv) in files {
+        levels.push(lv);
         let a = dir.join(format!("{n:06}.ldb")); let b = dir.join(format!("{n:06}.sst"));
         tables.push(if a.exists() { a } else if b.exists() { b } else { return Err(bad(format!("missing_table_{n:06}"))) });
     }
@@ -246,12 +248,15 @@ pub fn live_files(dir: &Path) -> io::Result<Live> {
         }
     }
     logs.sort();
-    Ok(Live { tables, logs: logs.into_iter().map(|x| x.1).collect(), manifest })
+    Ok(Live { tables, levels, logs: logs.into_iter().map(|x| x.1).collect(), manifest })
 }
 
 /// Newest live value per user key, ascending key order, streamed by a k-way merge over the tables
 /// (each one block in memory) and the logs (decoded in memory: bounded by the node's write buffer).
-pub struct Db { tables: Vec<Table>, heap: BinaryHeap<Reverse<Head>>, log: std::vec::IntoIter<Entry>, pub live: Live, pub entries: u64 }
+/// A merge source: one level-0 table, or every table of one level >= 1 (non-overlapping, ascending),
+/// opened one at a time so a mainnet chainstate (thousands of tables) holds few file descriptors.
+struct Src { files: Vec<PathBuf>, next: usize, cur: Option<Table> }
+pub struct Db { tables: Vec<Src>, done_snappy: u64, done_bytes: u64, heap: BinaryHeap<Reverse<Head>>, log: std::vec::IntoIter<Entry>, pub live: Live, pub entries: u64 }
 #[derive(Eq, PartialEq)]
 struct Head { key: Vec<u8>, seq: u64, src: usize, value: Option<Vec<u8>> }
 impl Ord for Head { fn cmp(&self, o: &Self) -> Ordering { self.key.cmp(&o.key).then(o.seq.cmp(&self.seq)) } }
@@ -278,19 +283,36 @@ impl Db {
             }
         }
         let log: Vec<Entry> = m.into_iter().map(|(key, (seq, value))| Entry { key, seq, value }).collect();
-        let mut db = Db { tables: Vec::new(), heap: BinaryHeap::new(), log: log.into_iter(), live, entries: 0 };
-        for t in db.live.tables.clone() { db.tables.push(Table::open(&t)?) }
+        let mut db = Db { tables: Vec::new(), done_snappy: 0, done_bytes: 0, heap: BinaryHeap::new(), log: log.into_iter(), live, entries: 0 };
+        let mut by_level: BTreeMap<u64, Vec<(Vec<u8>, PathBuf)>> = BTreeMap::new();
+        for (t, (lv, lo)) in db.live.tables.iter().zip(&db.live.levels) {
+            if *lv == 0 { db.tables.push(Src { files: vec![t.clone()], next: 0, cur: None }) } else { by_level.entry(*lv).or_default().push((lo.clone(), t.clone())) }
+        }
+        for (_, mut v) in by_level {
+            v.sort_by(|a, b| a.0.get(..a.0.len().saturating_sub(8)).cmp(&b.0.get(..b.0.len().saturating_sub(8))));
+            db.tables.push(Src { files: v.into_iter().map(|x| x.1).collect(), next: 0, cur: None });
+        }
         for i in 0..=db.tables.len() { db.refill(i)? }
         Ok(db)
     }
     fn refill(&mut self, src: usize) -> io::Result<()> {
-        let e = if src == self.tables.len() { self.log.next() } else { self.tables[src].next_entry()? };
+        let e = if src == self.tables.len() { self.log.next() } else {
+            let s = &mut self.tables[src];
+            loop {
+                if let Some(t) = s.cur.as_mut() {
+                    if let Some(e) = t.next_entry()? { break Some(e) }
+                    self.done_snappy += t.snappy_blocks; self.done_bytes += t.bytes_read; s.cur = None;
+                }
+                let Some(f) = s.files.get(s.next) else { break None };
+                s.cur = Some(Table::open(f)?); s.next += 1;
+            }
+        };
         if let Some(e) = e { self.heap.push(Reverse(Head { key: e.key, seq: e.seq, src, value: e.value })) }
         Ok(())
     }
     /// Bytes of table blocks read so far.
-    pub fn snappy_blocks(&self) -> u64 { self.tables.iter().map(|t| t.snappy_blocks).sum() }
-    pub fn table_bytes(&self) -> u64 { self.tables.iter().map(|t| t.bytes_read).sum() }
+    pub fn snappy_blocks(&self) -> u64 { self.done_snappy + self.tables.iter().filter_map(|s| s.cur.as_ref()).map(|t| t.snappy_blocks).sum::<u64>() }
+    pub fn table_bytes(&self) -> u64 { self.done_bytes + self.tables.iter().filter_map(|s| s.cur.as_ref()).map(|t| t.bytes_read).sum::<u64>() }
     /// Next live (key, value), or None at the end.
     pub fn next_live(&mut self) -> io::Result<Option<(Vec<u8>, Vec<u8>)>> {
         loop {
