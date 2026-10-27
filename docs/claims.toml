@@ -59,19 +59,19 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.2 MB = 46163456 bytes, measured on the image built from 62027dc (a commit with a green ci run, 40430463509). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 77762625 bytes (store-dependent, reference only). Earlier measurements: 46163456 bytes at 57492bd; 46138880 bytes at 1f35e54 and 30489d3 (the +24576 bytes since then follow the rpc/tx-decode and wrapper changes; not attributed per file); 46134784 bytes at 727537d; 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store). Compare sizes only with the same instrument and store."
+statement = "Sealed runtime image (Dockerfile build, blocktools:local, 39 binaries: the 38 entries of crates/io/sealed-tools.txt, log-decode included, plus sealed-run; contract-call is a host tool and is not in the image) is 47.0 MB = 46998016 bytes, measured on the image built from f2e066a (a commit with a green ci run, 40443378362). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 79029220 bytes (store-dependent, reference only). Earlier measurements: 46163456 bytes at 62027dc and 57492bd (38 binaries); 46138880 bytes at 1f35e54 and 30489d3 (the +24576 bytes since then follow the rpc/tx-decode and wrapper changes; not attributed per file); 46134784 bytes at 727537d; 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store). Compare sizes only with the same instrument and store."
 kind = "number"
 platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh --build"
-expect = "image blocktools:local; commit 62027dcaac6102696306f6afe2363ab2129b5656; 46163456 bytes"
-value = "46.2"
+expect = "image blocktools:local; commit f2e066ac83f9ee33f30faaf33836df933335668f; 46998016 bytes"
+value = "47.0"
 env = "docker 29.8.2, driver overlayfs (driver-type io.containerd.snapshotter.v1), Linux (Battleaxe, WSL2 6.6.87.2)"
-commit = "62027dc"
+commit = "f2e066a"
 date = "2026-10-26"
 cheap = false
-depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
-doc = [{ file = "README.md", text = "46.2 MB" }]
+depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-layer-bytes.py", "crates/io/sealed-tools.txt"]
+doc = [{ file = "README.md", text = "47.0 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
@@ -235,10 +235,10 @@ platform = "linux"
 status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "62027dc"
+commit = "f2e066a"
 date = "2026-10-26"
 cheap = false
-depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
+depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile", "crates/io/sealed-tools.txt"]
 doc = [{ file = "README.md", text = "checks the sealed run on a real container" }]
 
 [[claim]]
