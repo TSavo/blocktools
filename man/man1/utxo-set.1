@@ -20,8 +20,10 @@ unspent coins and how much. Offline; the dump is public data.
 .fi
 .SH OPTIONS
 .nf
-  \-\-dump FILE   a Bitcoin Core dumptxoutset file (Core 25\-27 format, or the Core 28+ format with its
-                "utxo" magic header; detected from the first bytes)
+  \-\-dump FILE   a Bitcoin Core dumptxoutset file (Core 25\-27 format, the 0.21\-24 format with a u32
+                nChainTx after the count (Litecoin 0.21.x), or the Core 28+ format with its "utxo"
+                magic header; detected from the first bytes, the two legacy layouts by trial\-decoding
+                the first coins: exactly one must parse, else refused. stderr names the layout)
   \-\-chainstate DIR  a Core\-family node's chainstate/ LevelDB directory, read directly (forks with no
                 dumptxoutset: Dogecoin 1.14, ...). Read\-only; STOP the node first, or copy the
                 directory while it is stopped. Both record layouts ('C' per output, 0.15+; 'c' per

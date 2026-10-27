@@ -4,6 +4,9 @@
 //!
 //! File formats (both detected from the first bytes):
 //! - Core 25.x .. 27.x: `base_blockhash[32] coins_count:u64le`, then per coin `txid[32] vout:u32le Coin`.
+//! - Core 0.21 .. 24 (Litecoin 0.21.x): `base_blockhash[32] coins_count:u64le nChainTx:u32le`, then the
+//!   25 per-coin layout (format 21). Not marked in the file: the first coins are trial-decoded in both
+//!   legacy layouts and exactly one must parse, otherwise the file is refused (never guessed).
 //! - Core 28+: `"utxo" 0xff version:u16le network_magic[4] base_blockhash[32] coins_count:u64le`, then per
 //!   txid `txid[32] CompactSize(n)` and n times `CompactSize(vout) Coin`.
 //!
@@ -26,9 +29,15 @@ pub struct Header {
     /// Base block hash, display byte order (reversed), hex.
     pub base_blockhash: String,
     pub coins_count: u64,
+    /// Chain tx count from the 0.21-24 legacy header (format 21) only.
+    pub nchaintx: Option<u32>,
 }
 
 impl Header {
+    /// Detected file layout, named for the report line.
+    pub fn layout(&self) -> &'static str {
+        match self.format { 21 => "core-0.21-24 (u32 nChainTx in header)", 25 => "core-25-27", 0 => "chainstate", _ => "core-28+" }
+    }
     /// Chain name from the network magic, when the header has one.
     pub fn network(&self) -> Option<&'static str> {
         match self.network_magic? {
@@ -134,7 +143,28 @@ fn read_coin_body<R: Read>(r: &mut R, txid: [u8; 32], vout: u32) -> io::Result<C
 }
 
 /// Streaming reader over a dumptxoutset file.
-pub struct Dump<R: Read> { r: R, pub header: Header, left: u64, group: Option<([u8; 32], u64)> }
+pub struct Dump<R: Read> { r: io::Chain<io::Cursor<Vec<u8>>, R>, pub header: Header, left: u64, group: Option<([u8; 32], u64)> }
+
+const PROBE_BYTES: usize = 1 << 20;
+const PROBE_COINS: u64 = 1000;
+/// True when `b` (bytes after the legacy header) decodes as `min(n, PROBE_COINS)` legacy coins with
+/// vout < 2^20; when the whole file is in `b` and all n coins fit, they must end exactly at its end.
+fn probe_legacy(b: &[u8], n: u64, eof: bool) -> bool {
+    let mut r = b;
+    for _ in 0..n.min(PROBE_COINS) {
+        let ok = (|| -> io::Result<bool> {
+            let txid: [u8; 32] = rd(&mut r)?; let vout = u32::from_le_bytes(rd(&mut r)?);
+            read_coin_body(&mut r, txid, vout)?; Ok(vout < 1 << 20)
+        })();
+        match ok {
+            Ok(true) => {}
+            Ok(false) => return false,
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof && !eof => return true,
+            Err(_) => return false,
+        }
+    }
+    !(eof && n <= PROBE_COINS) || r.is_empty()
+}
 
 impl<R: Read> Dump<R> {
     pub fn new(mut r: R) -> io::Result<Self> {
@@ -145,21 +175,35 @@ impl<R: Read> Dump<R> {
             let magic: [u8; 4] = rd(&mut r)?;
             let h: [u8; 32] = rd(&mut r)?;
             let n = u64::from_le_bytes(rd(&mut r)?);
-            Header { format: ver, network_magic: Some(magic), base_blockhash: hex_rev(&h), coins_count: n }
+            Header { format: ver, network_magic: Some(magic), base_blockhash: hex_rev(&h), coins_count: n, nchaintx: None }
         } else {
             let rest: [u8; 27] = rd(&mut r)?;
             let mut h = [0u8; 32]; h[..5].copy_from_slice(&first); h[5..].copy_from_slice(&rest);
             let n = u64::from_le_bytes(rd(&mut r)?);
-            Header { format: 25, network_magic: None, base_blockhash: hex_rev(&h), coins_count: n }
+            // buffer a prefix and trial-decode it as 25-27 (coins follow) and 0.21-24 (u32 nChainTx first)
+            let mut buf = Vec::new();
+            (&mut r).take(PROBE_BYTES as u64).read_to_end(&mut buf)?;
+            let eof = buf.len() < PROBE_BYTES;
+            let (a, b) = (probe_legacy(&buf, n, eof), buf.len() >= 4 && probe_legacy(&buf[4..], n, eof));
+            let (format, nchaintx, skip) = match (a, b) {
+                (true, false) => (25, None, 0),
+                (false, true) => (21, Some(u32::from_le_bytes(buf[..4].try_into().unwrap())), 4),
+                (true, true) => return Err(bad("ambiguous_legacy_header:both_25-27_and_0.21-24_layouts_parse")),
+                (false, false) => return Err(bad("bad_legacy_dump:neither_25-27_nor_0.21-24_layout_parses")),
+            };
+            buf.drain(..skip);
+            let header = Header { format, network_magic: None, base_blockhash: hex_rev(&h), coins_count: n, nchaintx };
+            let left = header.coins_count;
+            return Ok(Dump { r: io::Cursor::new(buf).chain(r), header, left, group: None });
         };
         let left = header.coins_count;
-        Ok(Dump { r, header, left, group: None })
+        Ok(Dump { r: io::Cursor::new(Vec::new()).chain(r), header, left, group: None })
     }
     /// Next coin, None at the end (exactly coins_count coins).
     pub fn next_coin(&mut self) -> io::Result<Option<Coin>> {
         if self.left == 0 { return Ok(None) }
         self.left -= 1;
-        if self.header.format == 25 {
+        if matches!(self.header.format, 21 | 25) {
             let txid: [u8; 32] = rd(&mut self.r)?;
             let vout = u32::from_le_bytes(rd(&mut self.r)?);
             return read_coin_body(&mut self.r, txid, vout).map(Some);
@@ -261,7 +305,7 @@ impl UtxoSet {
         let mut v: Vec<Entry> = Vec::new();
         while let Some(c) = cs.next_coin()? { v.push(Entry { value: c.value, outputs: 1, key: script_key(&c.script) }) }
         let st = cs.stats.clone();
-        let h = Header { format: 0, network_magic: None, base_blockhash: st.best_block.clone().unwrap_or_default(), coins_count: v.len() as u64 };
+        let h = Header { format: 0, network_magic: None, base_blockhash: st.best_block.clone().unwrap_or_default(), coins_count: v.len() as u64, nchaintx: None };
         Ok((Self::build(v, bits_per_entry, h), st))
     }
     fn build(mut v: Vec<Entry>, bits_per_entry: u32, header: Header) -> UtxoSet {

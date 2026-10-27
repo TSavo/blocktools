@@ -35,8 +35,10 @@ fn hex(h: &str) -> Option<Vec<u8>> {
 
 fn main() {
     blocktools_io::help("utxo-set (--dump FILE | --chainstate DIR [--write-dump OUT]) [--chain NAME] [--bits N] [--stats]
-  --dump FILE   a Bitcoin Core dumptxoutset file (Core 25-27 format, or the Core 28+ format with its
-                \"utxo\" magic header; detected from the first bytes)
+  --dump FILE   a Bitcoin Core dumptxoutset file (Core 25-27 format, the 0.21-24 format with a u32
+                nChainTx after the count (Litecoin 0.21.x), or the Core 28+ format with its \"utxo\"
+                magic header; detected from the first bytes, the two legacy layouts by trial-decoding
+                the first coins: exactly one must parse, else refused. stderr names the layout)
   --chainstate DIR  a Core-family node's chainstate/ LevelDB directory, read directly (forks with no
                 dumptxoutset: Dogecoin 1.14, ...). Read-only; STOP the node first, or copy the
                 directory while it is stopped. Both record layouts ('C' per output, 0.15+; 'c' per
@@ -87,7 +89,7 @@ or argument, 1 when any query line could not be read as an address or script.");
     let secs = t.elapsed().as_secs_f64();
     let h = &set.header;
     let mut line = json!({"tool": "utxo-set", "status": "ok", "coins": set.coins, "scripts": set.scripts(), "base_blockhash": h.base_blockhash,
-        "network": h.network(), "format": h.format, "bloom_bits": bits, "bloom_k": set.bloom().k(), "ingest_secs": secs,
+        "network": h.network(), "format": h.format, "layout": h.layout(), "nchaintx": h.nchaintx, "bloom_bits": bits, "bloom_k": set.bloom().k(), "ingest_secs": secs,
         "coins_per_sec": (set.coins as f64 / secs.max(1e-9)).round(), "resident_bytes": set.resident_bytes(), "peak_rss_bytes": peak_rss()});
     for (k, v) in extra.as_object().unwrap() { line[k] = v.clone() }
     if stats { outln!("{line}"); return }

@@ -47,7 +47,7 @@ pub fn candidates(text: &str, window: usize, rules: &[&str], max: usize) -> Vec<
 fn main() {
     blocktools_io::help("wallet-finder --dump FILE [--window N] [--rules LIST] [--max N] [--scheme sha256|warpwallet]
               [--salt EMAIL] [--chain NAME] [--limit N]
-  --dump FILE     a Bitcoin Core dumptxoutset file (Core 25-27, or 28+ with the \"utxo\" header)
+  --dump FILE     a Bitcoin Core dumptxoutset file (Core 25-27, 0.21-24 / Litecoin 0.21.x, or 28+ with the \"utxo\" header)
   --window N      word windows of 1..N consecutive words per line, words as written and with edge
                   punctuation trimmed (default 6; 0 = lines and sentences only)
   --rules LIST    comma list of pw-candidates rules applied to every candidate: case,swap,typo,digit
@@ -95,7 +95,7 @@ Exit 0 when at least one funded address was found, 1 when none (like grep), 2 on
     let set = UtxoSet::ingest(std::io::BufReader::with_capacity(1 << 20, f), 12).unwrap_or_else(|e| die(&format!("bad_dump:{e}")));
     let h = &set.header;
     eprintln!("{}", json!({"tool": "wallet-finder", "status": "ok", "coins": set.coins, "scripts": set.scripts(), "base_blockhash": h.base_blockhash,
-        "network": h.network(), "format": h.format, "ingest_secs": t.elapsed().as_secs_f64()}));
+        "network": h.network(), "format": h.format, "layout": h.layout(), "nchaintx": h.nchaintx, "ingest_secs": t.elapsed().as_secs_f64()}));
     let chain = chain.unwrap_or_else(|| chains::chain("btc").expect("btc"));
     let cands = candidates(&text, window, &rules, max);
     let secp = bitcoin::secp256k1::Secp256k1::new();

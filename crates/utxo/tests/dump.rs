@@ -74,3 +74,29 @@ fn bloom_no_false_negatives_fpr_near_design_exact_set_eliminates() {
     let rate = f64::from(fp) / f64::from(n);
     assert!(rate < 0.006 && rate > 0.0005, "fpr {rate}"); // design (1-e^(-8/12))^8 = 0.31%
 }
+fn ltc021() -> Vec<u8> {
+    let t = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/utxo/ltc-0.21.4-regtest.dump.hex.txt")).unwrap();
+    let h: String = t.lines().filter(|l| !l.starts_with('#')).collect();
+    (0..h.len()).step_by(2).map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap()).collect()
+}
+#[test]
+fn litecoin_021_dump_header_with_nchaintx() {
+    // real litecoin-0.21.4 regtest dumptxoutset; node gettxoutsetinfo: txouts 124, total_amount 5100
+    let b = ltc021();
+    let mut d = Dump::new(b.as_slice()).unwrap();
+    assert_eq!(d.header.format, 21);
+    assert_eq!(d.header.nchaintx, Some(106));
+    assert_eq!(d.header.coins_count, 124);
+    assert_eq!(d.header.base_blockhash, "74131660c8eb15c913d1c0de3f4a4e9039d1b9d13f74d5fc1926f1760b0b6941");
+    let (mut n, mut tot) = (0u64, 0u64);
+    while let Some(c) = d.next_coin().unwrap() { n += 1; tot += c.value }
+    assert_eq!((n, tot), (124, 510_000_000_000));
+    assert!(d.at_eof());
+    // the same coins re-written in the 25 layout still read as 25 (no nChainTx)
+    let mut d = Dump::new(b.as_slice()).unwrap(); let mut v = Vec::new();
+    while let Some(c) = d.next_coin().unwrap() { v.push(c) }
+    let w = write_dump(25, [0; 4], [7; 32], &v);
+    let mut d = Dump::new(w.as_slice()).unwrap();
+    assert_eq!((d.header.format, d.header.nchaintx), (25, None));
+    let mut m = 0; while d.next_coin().unwrap().is_some() { m += 1 } assert_eq!(m, 124); assert!(d.at_eof());
+}
