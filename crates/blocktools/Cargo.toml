@@ -37,3 +37,6 @@ required-features = ["secrets"]
 [[test]]
 name = "chain_caps"
 required-features = ["ed25519"]
+[[example]]
+name = "memo-sign"
+required-features = ["secrets"]
