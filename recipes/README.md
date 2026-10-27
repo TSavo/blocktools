@@ -53,6 +53,7 @@ and see addresses and signed transactions only.
 | Tron | ✅ | ✗ | ✗ | [chain-tron.md](chain-tron.md) |
 | Solana | ✅ | ✗ | ✗ | [chain-solana.md](chain-solana.md) |
 | Cosmos Hub | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ MsgSend (acct-tx, TTY confirm) | [chain-cosmos.md](chain-cosmos.md) |
+| THORChain (RUNE) | ✅ thor1 | ✅ rpc (host-side) | ✅ MsgDeposit (acct-tx, TTY confirm) | [chain-thorchain.md](chain-thorchain.md) |
 | Algorand | ✅ (own mnemonic) | ✅ utxo-fetch (host-side, manual) | ✅ pay / close-to (acct-tx, TTY confirm) | [chain-algorand.md](chain-algorand.md) |
 | Cardano | ✅ (Shelley base, Icarus) | ✅ utxo-fetch (Koios, host-side) | ✅ ADA-only payment/sweep (acct-tx, TTY confirm) | [chain-cardano.md](chain-cardano.md) |
 | Zcash shielded (Sapling, unified u1) | ✅ (address + Sapling viewing key) | ✗ | ✗ | [zcash-shielded.md](zcash-shielded.md) |
@@ -60,6 +61,13 @@ and see addresses and signed transactions only.
 | Polkadot | ✅ (root sr25519) | ✅ utxo-fetch (Asset Hub RPC, host-side) | ⚠️ UNVERIFIED Asset Hub transfer/sweep (acct-tx, TTY confirm) | [chain-polkadot.md](chain-polkadot.md) |
 | Stellar | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ Payment / AccountMerge (acct-tx, TTY confirm) | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | ✅ xmr-wallet scan (stagenet) | ✅ xmr-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
+
+## Cross-chain swaps (THORChain)
+
+| Goal | Recipe | Status |
+|---|---|---|
+| Register / manage an affiliate THORName | [thorchain-thorname.md](thorchain-thorname.md) | built, tested; measured on mainnet |
+| Swap an EVM token into another chain (router depositWithExpiry) | [thorchain-swap-evm.md](thorchain-swap-evm.md) | built (shipped EVM tx tools + allow_calls); measured on mainnet |
 
 ## By goal
 | Goal | Recipe |

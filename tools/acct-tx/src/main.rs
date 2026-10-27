@@ -23,7 +23,7 @@
 //!   shows the decoded payment on /dev/tty and signs only after the typed code. Prints {"signed":B64,"txid"}.
 //! --sweep: xlm = AccountMerge (moves the whole balance incl. reserve, deletes the account; fails while trustlines/offers exist);
 //!          algo = amount 0 + close-to (sends everything and closes the account; fails while ASAs are opted in).
-use blocktools_acct::{ada, algo, dot, atom, fmt_units, ton, xlm};
+use blocktools_acct::{ada, algo, dot, atom, thor, fmt_units, ton, xlm};
 use blocktools_core::b64;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -107,6 +107,28 @@ fn atom_read(s: &str) -> (atom::Send, Option<[u8; 64]>) {
     }
 }
 
+fn thor_describe(t: &thor::Deposit, sig: Option<&[u8; 64]>) -> Value {
+    let mut w = vec![];
+    if t.memo.is_empty() { w.push("memo_empty: a deposit with no memo performs no action; the RUNE is added to the network reserve") }
+    if t.chain_id != thor::CHAIN_ID { w.push("chain_id_not_mainnet: chain_id is not thorchain-1") }
+    let raw = sig.map(|s| t.tx_raw(s));
+    json!({"chain":"rune","type":"MsgDeposit","asset":format!("{}.{}", t.asset_chain, t.asset_ticker),
+        "amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 8),"fee_base":"0","fee_str":"0 (RfRune, deducted by the chain)",
+        "gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,
+        "from":t.thor_address(),"to":t.memo,"memo":t.memo,"network":t.chain_id,"signed":sig.is_some(),
+        "signature_valid":sig.map(|s| t.verify(s)),"txid":raw.map(|r| thor::Deposit::txid(&r)),"warnings":w})
+}
+fn thor_read(s: &str) -> (thor::Deposit, Option<[u8; 64]>) {
+    let v: Value = serde_json::from_str(s).unwrap_or_else(|_| fail("rune input must be the JSON from build/sign"));
+    let doc = b64::decode(v["unsigned"].as_str().unwrap_or_else(|| fail("missing unsigned SignDoc"))).unwrap_or_else(|| fail("bad_base64"));
+    let t = thor::Deposit::decode_sign_doc(&doc).unwrap_or_else(|e| fail(&e));
+    match v["signed"].as_str() {
+        None => (t, None),
+        Some(r) => { let (d, sig) = thor::Deposit::decode_tx_raw(&b64::decode(r).unwrap_or_else(|| fail("bad_base64")), &t.chain_id, t.account_number).unwrap_or_else(|e| fail(&e));
+            if d != t { fail("signed_tx_differs_from_sign_doc") } (t, Some(sig)) }
+    }
+}
+
 fn ton_describe(t: &ton::Transfer, pk: Option<&[u8; 32]>) -> Value {
     let mut w = vec![];
     if t.comment.is_none() && t.mode != ton::MODE_SWEEP { w.push("comment_missing: exchanges credit deposits by comment (memo); without one the funds may not be credited") }
@@ -181,6 +203,10 @@ const HELP: &str = " acct-tx: account-model payments for xlm, algo and atom. Enc
  acct-tx keys    --chain atom < hex-private-key                    -> {\"address\",\"pubkey\"} (public only; build needs --pubkey)
  acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
                  --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
+ acct-tx keys    --chain rune < hex-private-key                    -> {\"address\" (thor1..),\"pubkey\"}
+ acct-tx build   --chain rune --from thor1.. --pubkey HEX33 --amount RUNE_1E8 --memo \"~:name:..\"|\"=:ASSET:DEST:LIM\" --sequence N --account-number N [--gas 20000000] [--chain-id thorchain-1]
+                 (THORChain MsgDeposit of THOR.RUNE; the action is the memo; native fee deducted by the chain)
+ acct-tx sign    --chain rune --tx FILE --expect-memo \"~:name:..\" < hex-private-key   (shows memo + amount on /dev/tty, signs after the code)
  acct-tx build   --chain ton  --from UQ.. --to EQ..|UQ.. (--amount NANOTON | --sweep) --seqno N --valid-until UNIX [--comment T]
                  (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the --to form)
  acct-tx build   --chain ada  --from addr1.. --to addr1.. --utxo TXID#IX:LOVELACE [--utxo ..] (--amount LOVELACE | --sweep) --fee LOVELACE --ttl SLOT
@@ -318,6 +344,25 @@ fn main() {
             blocktools_io::outln!("{}", json!({"chain":"atom","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
         }
         (Some("decode"), "atom") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = atom_read(&s); emit(atom_describe(&t, sig.as_ref())) }
+        (Some("keys"), "rune") => {
+            let mut sec = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut sec).ok();
+            let pk = atom::pubkey_of(&hex32(&sec)).unwrap_or_else(|e| fail(e));
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"rune","address":atom::address_hrp("thor", &pk),"pubkey":hex(&pk)}));
+        }
+        (Some("build"), "rune") => {
+            let pubkey: [u8; 33] = unhex(req(&a, "--pubkey")).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"));
+            let from = req(&a, "--from").to_string();
+            if atom::address_hrp("thor", &pubkey) != from { fail("pubkey_does_not_match_from") }
+            let amount: u128 = num(&a, "--amount").unwrap_or_else(|| fail("missing --amount (RUNE base units, 1 RUNE = 1e8)"));
+            let memo = req(&a, "--memo").to_string();
+            let t = thor::Deposit { asset_chain: "THOR".into(), asset_symbol: "RUNE".into(), asset_ticker: "RUNE".into(), amount, memo, pubkey,
+                sequence: num(&a, "--sequence").unwrap_or_else(|| fail("missing --sequence")), gas: num(&a, "--gas").unwrap_or(20000000),
+                chain_id: opt(&a, "--chain-id").unwrap_or(thor::CHAIN_ID).into(), account_number: num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number")) };
+            let d = thor_describe(&t, None);
+            for wn in d["warnings"].as_array().unwrap() { eprintln!("acct-tx: WARNING {}", wn.as_str().unwrap()) }
+            blocktools_io::outln!("{}", json!({"chain":"rune","unsigned":b64::encode(&t.sign_doc()),"summary":d}));
+        }
+        (Some("decode"), "rune") => { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok(); let (t, sig) = thor_read(&s); emit(thor_describe(&t, sig.as_ref())) }
         (Some("decode"), c) => {
             let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok();
             let b = read_tx(&s);
@@ -326,7 +371,7 @@ fn main() {
         }
         (Some("sign"), c) => {
             let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
-            let b = if c == "atom" || c == "ton" || c == "ada" || c == "dot" { vec![] } else { read_tx(&raw) }; let want = req(&a, "--expect-to");
+            let b = if c == "atom" || c == "rune" || c == "ton" || c == "ada" || c == "dot" { vec![] } else { read_tx(&raw) }; let want = opt(&a, "--expect-to").or_else(|| opt(&a, "--expect-memo")).unwrap_or_else(|| fail("missing --expect-to or --expect-memo"));
             let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
             let (d, out): (Value, Box<dyn FnOnce() -> Value>) = match c {
                 "xlm" => {
@@ -378,6 +423,14 @@ fn main() {
                     (d, Box::new(move || { let pk = t.sign(&k).unwrap_or_else(|e| fail(e));
                         json!({"status":"ok","chain":"ton","signed":b64::encode(&t.encode()),"pubkey":hex(&pk),"msg_hash":hex(&t.msg_hash())}) }))
                 }
+                "rune" => {
+                    let (t, sig) = thor_read(&raw);
+                    if sig.is_some() { fail("already_signed") }
+                    let d = thor_describe(&t, None); if d["to"] != want { fail("memo_mismatch (pass the exact --expect-memo)") }
+                    let k = hex32(&secret);
+                    (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
+                        json!({"status":"ok","chain":"rune","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":thor::Deposit::txid(&r)}) }))
+                }
                 _ => fail("unsupported --chain"),
             };
             let summary = format!("{} {} {}\n  amount {}  fee {}\n  from {}\n  to   {}{}\n{}", c.to_uppercase(), d["type"].as_str().unwrap(),
@@ -388,6 +441,6 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             blocktools_io::outln!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|ton|ada|dot (see source header)"); std::process::exit(2) }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|rune|ton|ada|dot (see source header)"); std::process::exit(2) }
     }
 }

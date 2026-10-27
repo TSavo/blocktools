@@ -14,6 +14,16 @@ Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm expo
 existing scripts are listed under "Changed".
 
 ### Added
+- THORChain (`rune`) account support: `acct-tx keys|build|decode|sign --chain rune` signs a
+  THORChain `MsgDeposit` (chain_id `thorchain-1`, SIGN_MODE_DIRECT, `/cosmos.crypto.secp256k1.PubKey`) —
+  the transaction behind every THORChain swap-from-RUNE and THORName action; the action rides in the
+  deposit memo, and the native fee (RfRune) is deducted by the chain (gas limit only, no fee coin).
+  `crates/acct/src/thor.rs`. Unsigned = SignDoc, signed = TxRaw; `decode` verifies the signature and
+  refuses a TxBody memo, a fee coin, extra coins or a signer that does not match the pubkey. KAT: body,
+  auth_info and signed TxRaw byte-equal to the real mainnet `swapchan` THORName register/alias txs
+  (`crates/acct/tests/thorchain.rs`); `scripts/e2e.d/thorchain.sh` drives keys/build/decode, the pty sign
+  (wrong code aborts), and the `--expect-memo` guard. Recipes `recipes/chain-thorchain.md`,
+  `recipes/thorchain-thorname.md`, `recipes/thorchain-swap-evm.md`; `rune` sign in `docs/CHAINS.md`.
 - Contract tools. `log-decode` (offline event-log decoding) and `contract-call` (host tool: `eth_call`
   with return/revert decoding, `--read` state reads, chain id from the endpoint) (9bce34a).
   `contract-trace` (host tool: `eth_call` with checked state overrides, `debug_traceCall` passthrough as

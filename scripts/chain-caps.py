@@ -39,6 +39,7 @@ def sign(c, addr):
     if c in ACCT and "unsupported" not in (o := run(["acct-tx", "build", "--chain", c])) and "usage" not in o: return "acct-tx"
     if c == "xrp" and "missing --account" in run(["xrp-tx", "build"]): return "xrp-tx"
     if c in ("sol", "tron") and "build_needs_--plan" in run(["sol-tron-tx", "build", "--chain", c]): return "sol-tron-tx"
+    if c == "rune" and "pubkey_does_not_match_from" in run(["acct-tx", "build", "--chain", "rune", "--from", addr or "thor1gm00vwsfcp48enm4uv9e5dhm37jtd0ye27wrx0", "--pubkey", G]): return "acct-tx"
     if addr:  # Cosmos: the hrp check comes first; a vectorless hrp is refused (cosmos_hrp_without_vector)
         o = run(["acct-tx", "build", "--chain", "atom", "--from", addr, "--pubkey", G, "--to", addr, "--amount", "1", "--fee", "1",
                  "--gas", "1", "--sequence", "0", "--account-number", "0"])
