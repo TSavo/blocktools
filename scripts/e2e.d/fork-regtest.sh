@@ -6,7 +6,7 @@
 # rpc sendraw (pty) to throwaway key 2. Requires: the node accepts the tx into its mempool (txid equal to
 # tx-sign's), it is mined, the key-1 coin is spent (gettxout null) and key 2's output holds exactly
 # amount minus the fee the node computed (fee within --fee-rate x (vsize + 4 B of signature-size estimate)). Negative: the same tx with one signature byte flipped is rejected by the node.
-# FORK_CHAINS="ltc doge bch" (default all). Prerequisite missing (network): skip, or fail with
+# FORK_CHAINS="ltc doge ..." (default all pinned). Prerequisite missing (network): skip, or fail with
 # BLOCKTOOLS_REQUIRE_FIXTURES=1 or in CI (CI=true; Linux x86_64), so a claim can never be stamped on a skip. Nothing committed; keys 1 and 2 are the public throwaway keys.
 set -eu
 B=${BIN:-${B:-target/release}}; Bab=$(cd "$B" && pwd)
@@ -19,8 +19,11 @@ skip() { if [ "${BLOCKTOOLS_REQUIRE_FIXTURES:-}" = 1 ] || [ "${CI:-}" = true ]; 
 pins() { cat <<'P'
 ltc https://download.litecoin.org/litecoin-0.21.4/linux/litecoin-0.21.4-x86_64-linux-gnu.tar.gz 857fc41091f2bae65c3bf0fd4d388fca915fc93a03f16dd2578ac3cc92898390 litecoin-0.21.4 litecoind litecoin-cli 10
 doge https://github.com/dogecoin/dogecoin/releases/download/v1.14.9/dogecoin-1.14.9-x86_64-linux-gnu.tar.gz 4f227117b411a7c98622c970986e27bcfc3f547a72bef65e7d9e82989175d4f8 dogecoin-1.14.9 dogecoind dogecoin-cli 1000
+dash https://github.com/dashpay/dash/releases/download/v23.1.8/dashcore-23.1.8-x86_64-linux-gnu.tar.gz e664cad0fe860afa3d005be0db1eb06da598f2f83421083afae77191e3115825 dashcore-23.1.8 dashd dash-cli 10
+dgb https://github.com/digibyte-core/digibyte/releases/download/v9.26.7/digibyte-9.26.7-x86_64-linux-gnu.tar.gz 85f1a587e7d45fc63ef65cbbd0e5fa56f6d94f2f5cd7657a8d02ba66638cd8d6 digibyte-9.26.7 digibyted digibyte-cli 100
+grs https://github.com/Groestlcoin/groestlcoin/releases/download/v31.0/groestlcoin-31.0-x86_64-linux-gnu.tar.gz 6f96ad11c7ebf67afda96d7ae299a0d2cb3c7366ed9f06dcf78536939d8b409a groestlcoin-31.0 groestlcoind groestlcoin-cli 10
+btg https://github.com/BTCGPU/BTCGPU/releases/download/v0.17.3/bitcoin-gold-0.17.3-x86_64-linux-gnu.tar.gz f8e206f8825f9a2857872d064cee0f630df6647eb6743b7233ab416f81449961 bitcoin-gold-0.17.3 bgoldd bgold-cli 10
 bch https://download.bitcoincashnode.org/releases/28.0.1/linux/bitcoin-cash-node-28.0.1-x86_64-linux-gnu.tar.gz d69ee632147f886ca540cecdff5b1b85512612b4c005e86b09083a63c35b64fa bitcoin-cash-node-28.0.1 bitcoind bitcoin-cli 2
-
 P
 }
 echo 0000000000000000000000000000000000000000000000000000000000000001 > "$W/k"
@@ -46,6 +49,7 @@ while x: x, r = divmod(x, 58); s = A[r] + s
 print("1" * (len(b) - len(b.lstrip(b"\0"))) + s, "76a914" + h.hex() + "88ac")
 PY
 }
+kaddr() { printf '%064x\n' "$1" | "$Bab/key-to-addresses" --chain "$2" | python3 -c 'import sys,json; print([d["address"] for d in map(json.loads,sys.stdin) if d.get("kind")=="p2pkh"][0])'; }
 jf() { python3 -c 'import sys,json; d=json.load(sys.stdin); [d:=d[int(k)] if isinstance(d,list) else d[k] for k in sys.argv[1:]]; print(d if not isinstance(d,(dict,list)) else json.dumps(d))' "$@"; }
 run_chain() { # chain url sha dir daemon cli rate
   RATE=$7; DMN=$5; c=$1; url=$2; sha=$3; dir=$4; tgz=${url##*/}
@@ -58,14 +62,22 @@ run_chain() { # chain url sha dir daemon cli rate
   printf 'regtest=1\nserver=1\ntxindex=1\nlisten=0\nrpcport=%s\nrpcallowip=127.0.0.1\n[regtest]\nrpcport=%s\nrpcbind=127.0.0.1\nrpcallowip=127.0.0.1\n' $port $port > "$D/conf"
   [ $c != bch ] || echo expire=0 >> "$D/conf"  # BCHN disables RPC on releases past their planned expiry; throwaway regtest only
   C="$CACHE/$dir/bin/$6 -conf=$D/conf -datadir=$D"
-  "$CACHE/$dir/bin/$5" -conf="$D/conf" -datadir="$D" -daemon >/dev/null || f "$c: $5 did not start"
-  STOP="$C stop"
-  i=0; until $C getblockcount >/dev/null 2>&1; do i=$((i + 1)); [ $i -lt 90 ] || f "$c: node RPC not up"; sleep 1; done
+  "$CACHE/$dir/bin/$5" -conf="$D/conf" -datadir="$D" -pid="$D/node.pid" -daemon >/dev/null || f "$c: $5 did not start"
+  STOP="$C stop || kill \$(cat $D/node.pid)"
+  i=0; until $C getblockcount >/dev/null 2>&1; do i=$((i + 1)); [ $i -lt 900 ] || f "$c: node RPC not up"; sleep 1; done
   $C getwalletinfo >/dev/null 2>&1 || $C createwallet w >/dev/null || f "$c: createwallet"  # doge 1.14 and BCHN load a default wallet; ltc 0.21 has none
-  $C generatetoaddress 101 "$($C getnewaddress)" >/dev/null 2>&1 || $C generate 101 >/dev/null || f "$c: mining"
+  $C generatetoaddress 101 "$($C getnewaddress)" >/dev/null 2>"$W/gen.$c" || { cat "$W/gen.$c"; false; } || $C generate 101 >/dev/null || f "$c: mining"
+  [ $c != btg ] || $C generate 2000 >/dev/null || f "$c: mining past the regtest fork height"  # measured: a FORKID-signed spend is refused at height ~102 and accepted after 2000 more blocks (regtest fork height)
+  n=0; while python3 -c 'import sys; sys.exit(float(sys.argv[1]) >= 3)' "$($C getbalance)"; do  # grs coinbase maturity > 100
+    n=$((n+1)); [ $n -le 30 ] || f "$c: no mature coinbase after 101+300 blocks"
+    $C generatetoaddress 10 "$($C getnewaddress)" >/dev/null 2>&1 || $C generate 10 >/dev/null || f "$c: mining"; done
   ver=$("$Bab/chain-table" | python3 -c 'import sys,json; [print(int(d["p2pkh"])) for d in map(json.loads,sys.stdin) if d["name"]==sys.argv[1]]' $c)
   set -- $(addr 1 "$ver"); A1=$1; S1=$2; set -- $(addr 1 111); R1=$1
+  # the node's own regtest address for key 1's script where it has raw() descriptors (grs: Groestl checksum)
+  if ck=$($C getdescriptorinfo "raw($S1)" 2>/dev/null | jf checksum 2>/dev/null); then R1=$($C deriveaddresses "raw($S1)#$ck" | jf 0); fi
   set -- $(addr 2 "$ver"); A2=$1; S2=$2
+  if [ $c = grs ]; then  # Groestl base58 checksum: take the CLI's address; the node checks it pays S1/S2 (computed here)
+    A1=$(kaddr 1 grs); A2=$(kaddr 2 grs); fi
   fund=$($C sendtoaddress "$R1" 2.5) || f "$c: fund"
   $C generatetoaddress 1 "$($C getnewaddress)" >/dev/null 2>&1 || $C generate 1 >/dev/null
   prev=$($C getrawtransaction "$fund") || f "$c: getrawtransaction"
@@ -79,7 +91,7 @@ run_chain() { # chain url sha dir daemon cli rate
   # negative first: one flipped byte inside the first signature must be refused by the real node
   python3 -c 'import sys; h=open(sys.argv[1]).read().strip(); i=82+4+4+4+10; assert h[82+4:82+6]=="30"; print(h[:i]+("0" if h[i]!="0" else "1")+h[i+1:])' "$W/raw.$c" > "$W/bad.$c" || f "$c: corrupt"  # one hex digit of r in input 0's signature
   if $C sendrawtransaction "$(cat "$W/bad.$c")" > "$W/badout.$c" 2>&1; then f "$c: node ACCEPTED a tx with a corrupted signature"; fi
-  grep -q "mandatory-script-verify-flag-failed" "$W/badout.$c" || f "$c: corrupted tx refused for another reason: $(cat "$W/badout.$c")"
+  grep -Eq "(mandatory|mempool)-script-verify-flag-failed" "$W/badout.$c" || f "$c: corrupted tx refused for another reason: $(cat "$W/badout.$c")"
   cookie="$D/regtest/.cookie"; [ -f "$cookie" ] || f "$c: no rpc cookie"
   python3 scripts/e2e-only/tty-drive.py right "$W/raw.$c" "$W/b.$c" "$Bab/rpc" --protocol btc --chain $c --auth-file "$cookie" "http://127.0.0.1:$port" sendraw > "$W/btty.$c" || { cat "$W/btty.$c" "$W/b.$c"; f "$c sendraw"; }
   grep -q '"status":"ok"' "$W/b.$c" && grep -q "$stxid" "$W/b.$c" || { cat "$W/b.$c"; f "$c: sendraw status/txid"; }
@@ -91,12 +103,12 @@ run_chain() { # chain url sha dir daemon cli rate
   [ -z "$($C gettxout "$fund" "$vout")" ] || f "$c: key-1 coin still unspent"
   got=$($C getrawtransaction "$stxid" 1 | python3 -c 'import sys,json; o=[o for o in json.load(sys.stdin)["vout"] if o["scriptPubKey"]["hex"]==sys.argv[1]]; print(round(float(o[0]["value"])*1e8) if len(o)==1 else -1)' "$S2")
   [ "$got" = $((250000000 - fee)) ] || f "$c: key-2 output $got sat, want $((250000000 - fee))"
-  pid=$(cat "$D/regtest/$DMN.pid"); $C stop >/dev/null || f "$c: stop"; STOP=true
+  pid=$(cat "$D/node.pid"); $C stop >/dev/null || f "$c: stop"; STOP=true
   i=0; while kill -0 "$pid" 2>/dev/null; do i=$((i + 1)); [ $i -lt 60 ] || f "$c: node did not shut down"; sleep 1; done
   echo "ok   fork-regtest $c ($dir): tx-build -> tx-verify -> tx-sign (pty) -> rpc sendraw (pty) accepted by the real node, mined, key-1 coin spent, key 2 holds $got sat (node fee $fee sat, $vs vB); corrupted signature rejected"
 }
 STOP=true; trap 'sh -c "$STOP" >/dev/null 2>&1 || true' EXIT  # allow-true: best-effort node stop
 pins > "$W/pins"
-while read -r c url sha dir d cli rate; do
-  case " ${FORK_CHAINS:-ltc doge bch} " in *" $c "*) run_chain "$c" "$url" "$sha" "$dir" "$d" "$cli" "$rate";; esac
+while read -r c url sha dir d cli rate; do [ -n "$c" ] || continue
+  case " ${FORK_CHAINS:-$(cut -d" " -f1 "$W/pins" | tr "\n" " ")} " in *" $c "*) run_chain "$c" "$url" "$sha" "$dir" "$d" "$cli" "$rate";; esac
 done < "$W/pins"
