@@ -7,7 +7,7 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [0.2.0] - Unreleased (release candidate; not tagged)
 
-Version 0.2.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check).
+Version 0.2.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check) (4212b19).
 Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm export or tool was removed
 (checked against v0.1.1: the pinned wasm export list in scripts/wasm-check.sh only gained names; no
 `tools/` crate was removed; no option was removed from any man page). Behaviour changes that can affect
@@ -102,7 +102,7 @@ existing scripts are listed under "Changed".
   mainnet and Sepolia taken by hand on 2026-10-27 (not a registered claim).
 - `tx-decode --chain xmr` (and any other chain-table name that is not a UTXO chain, zec, eth or a delegated
   chain) parsed the input as a Bitcoin-family transaction; it now refuses with `unsupported_chain`, exit 2,
-  before reading input (see the 0.2.0 batch commit; e2e tx-decode.sh).
+  before reading input (edf98c3; e2e tx-decode.sh).
 - Sealed image build: the Dockerfile also copies `fixtures/leveldb` and `recipes/fixtures/evm-sol` (189e40f).
 - recovery-real swap case picks a swap that fails the BIP39 checksum (62027dc).
 - `fork-regtest` prints a labelled SKIP on non-Linux-x86_64 hosts instead of failing (49e6527).
