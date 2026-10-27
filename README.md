@@ -23,7 +23,7 @@ threat model.
 
 blocktools has **not been tested against any real lost wallet (untested)**. Nobody has handed us a real
 corrupted wallet or a real forgotten password, so the headline promise rests on synthetic tests only.
-What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage; (untested) until its first green CI run is stamped):
+What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage):
 
 * Wallet files written by the real third-party software, with throwaway keys and passwords
   (generated fresh at test time by `scripts/recovery-gen.sh`, never committed; see docs/FIXTURES.md): Bitcoin Core 25.2 legacy BDB and descriptor (SQLite) wallet.dat,
@@ -141,7 +141,7 @@ human-only variant: it needs a real terminal and a typed code, then prints keys.
 (macOS 26.3.1 x86_64; Docker Desktop not running, so `docker` pointed at an `ssh://` context on a Linux host): the container
 ran on the remote host and saw an empty `/in`, because bind mounts resolve on the Docker host (hand-measured once, not re-run in CI) (untested).
 `./blocktools run`/`reveal` now refuse an `ssh://` or `tcp://` engine (`DOCKER_HOST` or the current context) before starting
-a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary; (untested) until stamped); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if the files are on that host.
+a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if the files are on that host.
 Without Docker, `sealed-run agent '<pipeline>'` gives the same redaction but none of the
 container isolation.
 
@@ -215,7 +215,7 @@ picks the pipeline for you:
 
 ## Status
 
-Status: the sealed image builds on Linux docker (46.1 MB of uncompressed layers via `docker save` on a containerd image store at 727537d, 38 binaries: the sealed-run allowlist plus sealed-run; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container: network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only). On Battleaxe at a15504d an external reviewer reports: build OK, 218 builder-stage tests pass, agent mode under `--network none --read-only --cap-drop ALL` prints seed and xprv as [REDACTED], image inspect 56.2 MB on a containerd image store (unmeasured) (reviewer report, not reproduced by us) (untested). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
+Status: the sealed image builds on Linux docker (46.2 MB of uncompressed layers via `docker save` on a containerd image store at 62027dc, 38 binaries: the sealed-run allowlist plus sealed-run; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container: network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only). On Battleaxe at a15504d an external reviewer reports: build OK, 218 builder-stage tests pass, agent mode under `--network none --read-only --cap-drop ALL` prints seed and xprv as [REDACTED], image inspect 56.2 MB on a containerd image store (unmeasured) (reviewer report, not reproduced by us) (untested). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
 
 Host-side network tools (`utxo-fetch`, `tx-broadcast`, `rpc`) never enter the sealed image, and `sealed-run` refuses them (status `unsupported`, exit 2, measured 2026-10-26): run them on the host, after the sealed steps. `rpc` is a pipe filter for node and wallet RPC endpoints (EVM, bitcoind and forks, Solana, Tron, Cosmos LCD, Esplora, Blockbook) that refuses key-export, unlock and wallet-signing methods by default; see `docs/RPC.md` (mock-tested; one measured public read).
 

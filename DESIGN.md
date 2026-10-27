@@ -269,7 +269,7 @@ HTTP crate chosen by measured `cargo tree -e normal` (unique crates, 2026-10):
 `minreq` is the smallest and is what BDK's esplora-client uses (rust-bitcoin maintains a
 fork, `bitreq`). Caveat: it pins the older rustls 0.21 line; `ureq` 3 (rustls 0.23) is the
 next-smallest and swapping is confined to `blocktools-net`. blocktools-net: https only (plain http only for
-localhost test servers), 30 s timeout, no redirects, 8 MiB body cap (net-8mib; re-measure pending after the rpc shortcut change), server data re-validated. 30 s timeout (unmeasured).
+localhost test servers), 30 s timeout, no redirects, 8 MiB body cap (net-8mib), server data re-validated. 30 s timeout (unmeasured).
 Tests use `scripts/mock-chain.py` on 127.0.0.1; nothing real is ever contacted or broadcast.
 
 ## 6. Transactions: build → decode → confirm → sign → decode → broadcast
@@ -326,7 +326,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
-`secp256k1`. Input is limited to 4 MiB (boundary test, tx-input-4mib; re-stamp pending) (unmeasured). In agent mode the line passes `redact`:
+`secp256k1`. Input is limited to 4 MiB (boundary test, tx-input-4mib). In agent mode the line passes `redact`:
 amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.

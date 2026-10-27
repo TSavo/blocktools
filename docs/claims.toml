@@ -59,19 +59,19 @@ doc = [{ file = "docs/SECURITY.md", text = "2 MB" }]
 
 [[claim]]
 id = "image-size-readme"
-statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.1 MB = 46138880 bytes, measured on the image built from 1f35e54 (a commit with a green ci run). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 77731427 bytes (store-dependent, reference only). Earlier measurements: the same 46138880 bytes at 30489d3; 46134784 bytes at 727537d (cancelled ci run; Dockerfile and image scripts unchanged since, so the 4096-byte difference is build-to-build variation, not explained); 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store); the step to 38 binaries is phrase-to-key (PR 1). Compare sizes only with the same instrument and store."
+statement = "Sealed runtime image (Dockerfile build, blocktools:local, 38 binaries: the 37 allowlisted tools plus sealed-run) is 46.2 MB = 46163456 bytes, measured on the image built from 62027dc (a commit with a green ci run, 40430463509). Instrument: sum of the uncompressed layer tar sizes from docker save. Store: docker 29.8.2, containerd image store (Battleaxe daemon, Linux). On the same image, docker image inspect .Size is 77762625 bytes (store-dependent, reference only). Earlier measurements: 46163456 bytes at 57492bd; 46138880 bytes at 1f35e54 and 30489d3 (the +24576 bytes since then follow the rpc/tx-decode and wrapper changes; not attributed per file); 46134784 bytes at 727537d; 45328896 bytes at 8513317 (37 binaries, docker 26.1.5, overlay2 store) and 45451776 bytes at 4431115 (37 binaries, this containerd store). Compare sizes only with the same instrument and store."
 kind = "number"
 platform = "linux"
-status = "untested"  # re-stamp pending: blocktools changed by the remote-engine refusal commit
+status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/image-size.sh --build"
-expect = "image blocktools:local; commit 1f35e54afe10ca3864cb2a149790f8bbc423915f; 46138880 bytes"
-value = "46.1"
+expect = "image blocktools:local; commit 62027dcaac6102696306f6afe2363ab2129b5656; 46163456 bytes"
+value = "46.2"
 env = "docker 29.8.2, driver overlayfs (driver-type io.containerd.snapshotter.v1), Linux (Battleaxe, WSL2 6.6.87.2)"
-commit = "1f35e54"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = false
 depends = ["Dockerfile", "blocktools", "scripts/image-size.sh", "scripts/image-layer-bytes.py"]
-doc = [{ file = "README.md", text = "46.1 MB" }]
+doc = [{ file = "README.md", text = "46.2 MB" }]
 
 [[claim]]
 id = "image-sealed-battleaxe"
@@ -134,12 +134,12 @@ id = "net-8mib"
 statement = "Network body cap 8 MiB (in-process mock serving more than 8 MiB; the 30 s timeout on the same line is untested)"
 kind = "number"
 platform = "linux"
-status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
+status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
 value = "8"
 env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
-commit = "1f1fa71"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
@@ -150,12 +150,12 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
+status = "measured"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
 value = "4"
 env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
-commit = "977b94a"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = true
 depends = ["crates/tx/src/lib.rs", "crates/tx/tests/input_cap.rs"]
@@ -232,10 +232,10 @@ id = "sealed-run-linux"
 statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on Battleaxe, docker 29.8.2)"
 kind = "security"
 platform = "linux"
-status = "untested"  # re-stamp pending: blocktools changed by the remote-engine refusal commit
+status = "measured"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
-commit = "727537d"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = false
 depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile"]
@@ -259,10 +259,10 @@ id = "rpc-response-size-cap"
 statement = "rpc reads at most 8 MiB of any response and refuses a 3xx instead of following it (in-process mock, Linux box)"
 kind = "security"
 platform = "linux"
-status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
+status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
-commit = "1f1fa71"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
@@ -289,10 +289,10 @@ id = "rpc-deny-list"
 statement = "Secret export/import/unlock and wallet-signing methods exit 1 (status refused) with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box); fail closed: methods and paths outside the per-protocol read allowlist are refused with zero connections to a recording mock (17 unlisted methods, 3 REST paths, a mixed batch)"
 kind = "security"
 platform = "linux"
-status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
+status = "measured"
 command = "cargo test -q -p rpc"
-expect = "test result: ok. 18 passed"
-commit = "1f1fa71"
+expect = "test result: ok. 24 passed"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
@@ -300,13 +300,13 @@ doc = [{ file = "docs/RPC.md", text = "Safety: what is refused" }]
 
 [[claim]]
 id = "rpc-publicnode-read-linux"
-statement = "Read-only eth_blockNumber and `rpc eth height` against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 00:18 PDT at e85721e); no broadcast was made"
+statement = "Read-only eth_blockNumber and `rpc URL height` (eth_blockNumber shortcut) against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 18:20 PDT at 62027dc, eth_blockNumber 0x19102ee, height 26280693); no broadcast was made"
 kind = "platform"
 platform = "linux"
-status = "untested"  # re-stamp pending: depends changed by the rpc shortcuts / tx-decode --prevtxs commit
+status = "measured"
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
-commit = "9c9cae0"
+commit = "62027dc"
 date = "2026-10-26"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
@@ -457,26 +457,44 @@ id = "rpc-decode-mock-fee"
 statement = "recipes/rpc-decode.md pipeline (rpc blockinfo/block/rawtx/prevtxs | tx-decode --prevtxs) against scripts/mock-bitcoind.py, a deterministic fake pruned regtest bitcoind (not a real node): the mock spend of 50000 sat in, 49000 sat out decodes with fee 1000 sat; pruned mode needs the block hash and prevtxs fails with -5; rpc dumpprivkey | cat exits 0 with PIPESTATUS 1 0 (Linux box)"
 kind = "number"
 platform = "linux"
-status = "untested"
-reason = "stamp after a green ci run at the commit adding it"
+status = "measured"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
+command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/rpc-decode.sh)"
+expect = "rpc-decode recipe script (-txindex mock): fee 1000"
+cheap = false
+env = "Linux, GitHub-hosted ubuntu runner, ci run 40430463509 e2e job"
+value = "1000"
+depends = ["recipes/rpc-decode.md", "scripts/e2e.d/rpc-decode.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
+commit = "62027dc"
+date = "2026-10-26"
 
 [[claim]]
 id = "sendraw-fee-shown"
 statement = "rpc sendraw against scripts/mock-bitcoind.py (fake regtest bitcoind, not a real node): with -txindex or --prevtxs the terminal confirmation shows fee 0.00001000 btc; pruned without --prevtxs it shows a FEE UNKNOWN banner, and answering the code but not ACK FEE-UNKNOWN aborts with no sendrawtransaction sent (scripts/e2e.d/sendraw-fee.sh, Linux box)"
 kind = "security"
 platform = "linux"
-status = "untested"
-reason = "stamp after a green ci run at the commit adding it"
+status = "measured"
 doc = [{ file = "docs/RPC.md", text = "refusing the ACK sends nothing" }]
+command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/sendraw-fee.sh)"
+expect = "rpc sendraw unknown fee: loud banner, refusing the ACK aborts, nothing sent"
+cheap = false
+depends = ["scripts/e2e.d/sendraw-fee.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
+commit = "62027dc"
+date = "2026-10-26"
 
 [[claim]]
 id = "recovery-synthetic-thirdparty"
 statement = "Wallet files written by Bitcoin Core 25.2 (legacy BDB, descriptor SQLite), Electrum 4.5.8 (file-encrypted, keystore-encrypted) and eth-account 0.13.4 (scrypt keystore), plus a python-mnemonic BIP39 phrase with Bitcoin Core deriveaddresses addresses: seed typo/swap/missing/unknown word and a password from a token list recover the generator's own address"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 doc = [{ file = "README.md", text = "`scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage" }]
+command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/recovery-real.sh)"
+expect = "recovery-real seed bip39-swap: generator's address reached"
+cheap = false
+depends = ["scripts/e2e.d/recovery-real.sh", "scripts/recovery-gen.sh"]
+commit = "62027dc"
+date = "2026-10-26"
 
 [[claim]]
 id = "recovery-real-lost-wallet"
@@ -507,5 +525,11 @@ id = "wrapper-remote-refusal"
 statement = "./blocktools run/reveal refuse an ssh:// or tcp:// docker engine (DOCKER_HOST or current context) before docker run; BLOCKTOOLS_ALLOW_REMOTE=1 overrides"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 doc = [{ file = "README.md", text = "scripts/e2e.d/wrapper-remote.sh" }]
+command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/wrapper-remote.sh)"
+expect = "wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run; local and explicit override run"
+cheap = false
+depends = ["blocktools", "scripts/e2e.d/wrapper-remote.sh"]
+commit = "62027dc"
+date = "2026-10-26"

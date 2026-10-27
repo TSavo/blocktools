@@ -79,7 +79,7 @@ The one public endpoint call is labelled.
 Measured on 2026-10-25 20:39 PDT on the Linux box (x86_64). This is a harmless read-only call to a public endpoint:
 
 ```
-$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber   # (untested) re-stamp pending
+$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber
 {"jsonrpc":"2.0","result":"0x190e9b3","id":1}
 $ rpc eth height
 {"height":26274227,"protocol":"evm"}
@@ -101,7 +101,7 @@ The default shortcut set maps to the read-only EVM methods that SwapChan uses (`
 
 | shortcut | method |
 |---|---|
-| `height` | `eth_blockNumber` (untested) |
+| `height` | `eth_blockNumber` |
 | `chainid` | `eth_chainId` |
 | `balance ADDR` | `eth_getBalance [ADDR,"latest"]` |
 | `nonce ADDR` | `eth_getTransactionCount [ADDR,"pending"]` |
@@ -240,10 +240,10 @@ previous tx must hash to the txid the input names. With them the summary shows e
 `FEE UNKNOWN` banner saying which txids were not found, and you must type `ACK FEE-UNKNOWN` before the usual code;
 anything else aborts and nothing is sent. On a pruned node, run `rpc URL rawtx TXID BLOCKHASH` for each input, then
 pass the lines to `--prevtxs`. Tested against scripts/mock-bitcoind.py (a fake regtest node, not bitcoind) by
-`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing (untested).
+`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing.
 `tx-broadcast` was not changed.
 
-## Safety: what is refused (untested)
+## Safety: what is refused
 
 The agent must never see keys, seeds or passwords. Every refusal exits 1 (status refused), and nothing is sent to the server:
 
@@ -427,7 +427,7 @@ scope.
 
 - Response bodies are data only. When stdout is a terminal, control characters are replaced so that escape sequences cannot
   act on the terminal.
-- Responses larger than 8 MiB are refused (untested) (re-stamp pending after the rpc shortcut change).
+- Responses larger than 8 MiB are refused.
 - Redirects are never followed, to any host. A 3xx is an `http_error`, and v1 has no flag to change this.
 - Only https URLs are accepted, except plain http to localhost/127.0.0.1.
 - Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
