@@ -16,16 +16,7 @@ f() { echo "FAIL fork-regtest $1"; exit 1; }
 skip() { if [ "${BLOCKTOOLS_REQUIRE_FIXTURES:-}" = 1 ] || [ "${CI:-}" = true ]; then f "$1"; fi; echo "skip fork-regtest ($1)"; exit 0; }
 [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || { echo "SKIP fork-regtest: release tarballs pinned for Linux x86_64 only (this host: $(uname -s)-$(uname -m)); real-node property not measured here"; exit 0; }
 # chain tarball-url sha256 dir daemon cli fee-rate(sat/vB, >= the node's min relay) (sha256 = the project's signed SHA256SUMS line)
-pins() { cat <<'P'
-ltc https://download.litecoin.org/litecoin-0.21.4/linux/litecoin-0.21.4-x86_64-linux-gnu.tar.gz 857fc41091f2bae65c3bf0fd4d388fca915fc93a03f16dd2578ac3cc92898390 litecoin-0.21.4 litecoind litecoin-cli 10
-doge https://github.com/dogecoin/dogecoin/releases/download/v1.14.9/dogecoin-1.14.9-x86_64-linux-gnu.tar.gz 4f227117b411a7c98622c970986e27bcfc3f547a72bef65e7d9e82989175d4f8 dogecoin-1.14.9 dogecoind dogecoin-cli 1000
-dash https://github.com/dashpay/dash/releases/download/v23.1.8/dashcore-23.1.8-x86_64-linux-gnu.tar.gz e664cad0fe860afa3d005be0db1eb06da598f2f83421083afae77191e3115825 dashcore-23.1.8 dashd dash-cli 10
-dgb https://github.com/digibyte-core/digibyte/releases/download/v9.26.7/digibyte-9.26.7-x86_64-linux-gnu.tar.gz 85f1a587e7d45fc63ef65cbbd0e5fa56f6d94f2f5cd7657a8d02ba66638cd8d6 digibyte-9.26.7 digibyted digibyte-cli 100
-grs https://github.com/Groestlcoin/groestlcoin/releases/download/v31.0/groestlcoin-31.0-x86_64-linux-gnu.tar.gz 6f96ad11c7ebf67afda96d7ae299a0d2cb3c7366ed9f06dcf78536939d8b409a groestlcoin-31.0 groestlcoind groestlcoin-cli 10
-btg https://github.com/BTCGPU/BTCGPU/releases/download/v0.17.3/bitcoin-gold-0.17.3-x86_64-linux-gnu.tar.gz f8e206f8825f9a2857872d064cee0f630df6647eb6743b7233ab416f81449961 bitcoin-gold-0.17.3 bgoldd bgold-cli 10
-bch https://download.bitcoincashnode.org/releases/28.0.1/linux/bitcoin-cash-node-28.0.1-x86_64-linux-gnu.tar.gz d69ee632147f886ca540cecdff5b1b85512612b4c005e86b09083a63c35b64fa bitcoin-cash-node-28.0.1 bitcoind bitcoin-cli 2
-P
-}
+pins() { cat scripts/fork-pins/*; }  # one file per chain (chain url sha256 dir daemon cli fee-rate), so a claim depends only on its own pin
 echo 0000000000000000000000000000000000000000000000000000000000000001 > "$W/k"
 # base58check P2PKH of throwaway key N (compressed) under version byte V; prints address and script hex
 addr() { python3 - "$1" "$2" <<'PY'
