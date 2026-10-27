@@ -462,6 +462,15 @@ reason = "stamp after a green ci run at the commit adding it"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
 
 [[claim]]
+id = "sendraw-fee-shown"
+statement = "rpc sendraw against scripts/mock-bitcoind.py (fake regtest bitcoind, not a real node): with -txindex or --prevtxs the terminal confirmation shows fee 0.00001000 btc; pruned without --prevtxs it shows a FEE UNKNOWN banner, and answering the code but not ACK FEE-UNKNOWN aborts with no sendrawtransaction sent (scripts/e2e.d/sendraw-fee.sh, Linux box)"
+kind = "security"
+platform = "linux"
+status = "untested"
+reason = "stamp after a green ci run at the commit adding it"
+doc = [{ file = "docs/RPC.md", text = "refusing the ACK sends nothing" }]
+
+[[claim]]
 id = "recovery-synthetic-thirdparty"
 statement = "Wallet files written by Bitcoin Core 25.2 (legacy BDB, descriptor SQLite), Electrum 4.5.8 (file-encrypted, keystore-encrypted) and eth-account 0.13.4 (scrypt keystore), plus a python-mnemonic BIP39 phrase with Bitcoin Core deriveaddresses addresses: seed typo/swap/missing/unknown word and a password from a token list recover the generator's own address"
 kind = "security"

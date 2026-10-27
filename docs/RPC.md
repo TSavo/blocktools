@@ -22,6 +22,7 @@ rpc URL block [HEIGHT|HASH]       bitcoind: {"protocol","height","hash","time","
 rpc URL blockinfo                 bitcoind: {"protocol","chain","blocks","headers","best","progress","pruned"}
 ... | rpc URL prevtxs             bitcoind: tx on stdin -> one rawtx line per input txid, for tx-decode --prevtxs
 ... | rpc URL sendraw             broadcast ONE signed tx; decoded summary + typed code on the terminal
+                                 (UTXO: input values and fee shown; unknown fee needs ACK FEE-UNKNOWN too)
 ```
 
 Two output shapes: shortcuts print one tidy JSON object per line. Passthrough (`METHOD` or stdin) prints the node's
@@ -227,6 +228,20 @@ These are SwapChan's field observations from `/workspace/handoff/rpc-knife-requi
   covers the case where a server echoes them back.
 - Values shorter than 4 characters are not redacted, because that would mangle unrelated output. Do not use a password that
   short.
+
+## sendraw shows the fee
+
+A signed UTXO transaction does not carry its input amounts, so on its own the confirmation could only say
+"fee: UNKNOWN". `sendraw` now fills them in before it prompts: from `--prevtxs FILE` (the output of
+`rpc URL prevtxs`, or one hex tx per line), or else by asking the endpoint it is about to broadcast to
+(bitcoind `getrawtransaction`, Esplora `GET tx/ID/hex`), through the same allowlist as every other call. Each
+previous tx must hash to the txid the input names. With them the summary shows each input's address and value and
+`fee : … (~N sat/vB)`. If any are missing (pruned node without `-txindex`, Blockbook, a 404), the summary starts with a
+`FEE UNKNOWN` banner saying which txids were not found, and you must type `ACK FEE-UNKNOWN` before the usual code;
+anything else aborts and nothing is sent. On a pruned node, run `rpc URL rawtx TXID BLOCKHASH` for each input, then
+pass the lines to `--prevtxs`. Tested against scripts/mock-bitcoind.py (a fake regtest node, not bitcoind) by
+`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing (untested).
+`tx-broadcast` was not changed.
 
 ## Safety: what is refused (untested)
 

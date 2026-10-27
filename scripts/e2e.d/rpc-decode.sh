@@ -30,7 +30,7 @@ r=$(bash -c "\"$B/rpc\" \"$U1\" dumpprivkey '[\"x\"]' | cat; echo \"rc=\$? ps=\$
 [ "$r" = "rc=0 ps=1 0" ] && grep -q '"status":"refused"' "$W/err" && echo "ok   rpc-decode: rpc dumpprivkey | cat exits 0, PIPESTATUS 1 0" || { echo "FAIL pipe mask: $r"; exit 1; }
 r=$(bash -o pipefail -c "\"$B/rpc\" --allow-unlisted \"$U1\" dumpprivkey '[\"x\"]' 2>/dev/null | cat; echo rc=\$?")
 [ "$r" = "rc=1" ] && echo "ok   rpc-decode: with pipefail (and --allow-unlisted) the pipeline exits 1" || { echo "FAIL pipefail: $r"; exit 1; }
-s=$("$B/rpc" "$U1" dumpprivkey '["x"]' 2>&1 >/dev/null | jq -r .status || true)
+s=$("$B/rpc" "$U1" dumpprivkey '["x"]' 2>&1 >/dev/null | jq -r .status || true)  # allow-true: rpc exits 1 by design here; status asserted next
 [ "$s" = refused ] && [ "$(wc -l < "$W/log1")" = "$n" ] && echo "ok   rpc-decode: status=refused, nothing sent" || { echo "FAIL refused status/sent: $s"; exit 1; }
-s=$("$B/rpc" "$U1" getblockhash '[9]' 2>&1 >/dev/null | jq -r .status || true)
+s=$("$B/rpc" "$U1" getblockhash '[9]' 2>&1 >/dev/null | jq -r .status || true)  # allow-true: rpc exits 1 by design here; status asserted next
 [ "$s" = rpc_error ] && [ "$(wc -l < "$W/log1")" -gt "$n" ] && echo "ok   rpc-decode: status=rpc_error is the node's answer" || { echo "FAIL rpc_error status: $s"; exit 1; }

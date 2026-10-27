@@ -74,3 +74,6 @@ Each item is checked by `cargo test -p rpc --test cli`, `cargo test -p blocktool
    (tx: `missing_unused_and_bad_prevtx`; cli: `btc_rawtx_tidy_object_hash_checked_no_allow_unlisted`)
 10. **Size cap.** rpc caps the response size (see docs/RPC.md, Safety), so a full `getblock HASH 2` on a big
     mainnet block can hit it. `block` uses verbosity 1 (txids only).
+11. **Broadcasting: see the fee first.** `rpc URL sendraw` looks the prevouts up the same way (or takes
+   `--prevtxs prevtxs.jsonl`) and prints the fee in the confirmation. On a pruned node with no `--prevtxs` it
+   prints a FEE UNKNOWN banner and wants `ACK FEE-UNKNOWN` before the code. Test: `scripts/e2e.d/sendraw-fee.sh`.
