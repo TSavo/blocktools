@@ -781,32 +781,26 @@ doc = [{ file = "docs/CHAINS.md", text = "regtest bitcoin-sv-1.2.3" }]
 
 [[claim]]
 id = "package-macos-arm64"
-statement = "On GitHub's macos-latest the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 47 Mach-O arm64 binaries (minos 11.0) whose packaged seed-to-master | derive reproduces the BIP84 vector; CI artifact only, never released"
+statement = "On GitHub's macos-latest the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 48 Mach-O arm64 binaries (minos 11.0) whose packaged seed-to-master | derive reproduces the BIP84 vector; CI artifact only, never released"
 kind = "platform"
 platform = "macos"
-status = "measured"
+status = "untested"
 command = "sh scripts/gate.sh package (CI job package-macos)"
-expect = "47 binaries, all Mach-O/aarch64, minos 11.0"
+expect = "48 binaries, all Mach-O/aarch64, minos 11.0"
 cheap = false
 depends = ["scripts/package.sh"]
-ci_run = "40464301446"
-ci_job = "package-macos"
-commit = "006d03b"
-date = "2026-10-27"
 doc = [{ file = "docs/CI.md", text = "macOS arm64 tarball" }]
 
 [[claim]]
 id = "package-linux-aarch64"
-statement = "On GitHub's ubuntu-24.04-arm the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 47 ELF aarch64 binaries (glibc >= 2.39) whose packaged derive reproduces the BIP84 vector; CI artifact only, never released"
+statement = "On GitHub's ubuntu-24.04-arm the workspace builds, `gate.sh test` passes, and the release-layout tarball holds 48 ELF aarch64 binaries (glibc >= 2.39) whose packaged derive reproduces the BIP84 vector; CI artifact only, never released"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "sh scripts/gate.sh package (CI job package-linux-arm)"
-expect = "47 binaries, all ELF/aarch64, glibc>=2.39"
+expect = "48 binaries, all ELF/aarch64, glibc>=2.39"
 cheap = false
 depends = ["scripts/package.sh"]
-commit = "006d03b"
-date = "2026-10-27"
 doc = [{ file = "docs/CI.md", text = "Linux aarch64 tarball" }]
 
 [[claim]]
@@ -858,3 +852,39 @@ env = "Intel(R) Xeon(R) Processor, 8 threads, 15 GB RAM, Linux x86_64 (agent box
 cheap = false
 depends = ["crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/utxo-set/src/main.rs", "scripts/chainstate-bench.sh", "scripts/e2e.d/chainstate-real.sh"]
 doc = [{ file = "docs/CHAINS.md", text = "in 0.56 seconds, peak RSS 50 MB" }]
+
+[[claim]]
+id = "chainstate-dump-btc"
+statement = "chainstate-dump on a real stopped Bitcoin Core 25.2 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
+kind = "platform"
+platform = "linux"
+status = "untested"
+command = "CHAINSTATE_CHAINS=btc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
+expect = "ok   chainstate-real btc pass 2 chainstate-dump: set ="
+cheap = false
+depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "Bitcoin Core 25.2 dumptxoutset (untested)" }]
+
+[[claim]]
+id = "chainstate-dump-ltc"
+statement = "chainstate-dump on a real stopped Litecoin 0.21.4 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as Core's own dumptxoutset at the same height; --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
+kind = "platform"
+platform = "linux"
+status = "untested"
+command = "CHAINSTATE_CHAINS=ltc BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
+expect = "ok   chainstate-real ltc pass 2 chainstate-dump: set ="
+cheap = false
+depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "Litecoin 0.21.4 dumptxoutset (untested" }]
+
+[[claim]]
+id = "chainstate-dump-doge"
+statement = "chainstate-dump on a real stopped Dogecoin 1.14.9 regtest chainstate prints the same coin set (txid, vout, height, coinbase, amount, script; and the scriptPubKey/amount multiset, digested by the independent scripts/utxo-multiset.py) as the utxo-set --write-dump file of the same chainstate (no dumptxoutset in 1.14); --census and --addresses-only count every coin; the running node's locked dir, --obfuscate-key none and the wrong --era exit 2"
+kind = "platform"
+platform = "linux"
+status = "untested"
+command = "CHAINSTATE_CHAINS=doge BLOCKTOOLS_REQUIRE_FIXTURES=1 sh scripts/e2e.d/chainstate-real.sh"
+expect = "ok   chainstate-real doge pass 2 chainstate-dump: set ="
+cheap = false
+depends = ["scripts/e2e.d/chainstate-real.sh", "scripts/utxo-multiset.py", "scripts/chainstate-vs-dump.sh", "crates/utxo/src/chainstate.rs", "crates/utxo/src/leveldb.rs", "tools/chainstate-dump/src/main.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file (untested)" }]
