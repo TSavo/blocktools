@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stage: [lint, test, negatives, e2e]
+        stage: [lint, test, negatives, e2e, package]
     # Self-hosted Battleaxe runner by default (docs/CI.md). Fallback to GitHub-hosted: set repo variable
     # RUNNER_LABELS to '"ubuntu-latest"' (JSON). Repo is public: outside-contributor runs need
     # maintainer approval and would run on this self-hosted runner (Docker socket); see docs/CI.md.
@@ -37,8 +37,8 @@ jobs:
         # job rebuilt the workspace (rust-cache used to put it back from GitHub's cache). The cleanup step
         # at the end of the job removes everything untracked except target/.
         with: { fetch-depth: 0, clean: false }
-      # One target/ per ref, shared by the four runner containers through the tool-cache volume: the four
-      # jobs of a run compile a commit once (cargo's build-directory lock makes the other three wait for
+      # One target/ per ref, shared by the five Linux gate containers through the tool-cache volume: the five
+      # jobs of a run compile a commit once (cargo's build-directory lock makes the other four wait for
       # the artifacts), and the next commit on the ref builds incrementally. Per ref, because one run per
       # ref (concurrency above) means no two commits ever build into the same dir at once. docs/CI.md 'Queue'.
       - run: d="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}/blocktools-target/$(printf '%s' "$GITHUB_REF" | tr -c 'A-Za-z0-9._-' _)" && mkdir -p "$d" && { [ -L target ] || rm -rf target; } && ln -sfn "$d" target
@@ -77,3 +77,42 @@ jobs:
       - run: (rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown) && (wasm-bindgen --version | grep -qx 'wasm-bindgen 0.2.100' || cargo install --locked --force wasm-bindgen-cli --version 0.2.100)
       - run: python3 -c 'import cryptography' 2>/dev/null || python3 -m pip install --user --break-system-packages cryptography
       - run: sh scripts/gate.sh e2e
+
+  # Native builds on GitHub-hosted arm64 runners (macOS arm64, Linux aarch64 glibc): unit tests plus the
+  # release-layout tarball, smoke-tested from the unpacked tarball (scripts/package.sh). The tarball is a CI
+  # artifact only; nothing here tags, releases or publishes (release.yml still ships linux-x86_64 only).
+  package-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: package
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: sh scripts/gate.sh test
+      - run: sh scripts/gate.sh package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-macos-arm64
+          path: dist/*.tar.gz
+
+  package-linux-arm:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: package
+      - run: rustup toolchain install 1.85.1 --profile minimal 2>/dev/null || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.85.1 && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH")
+      - run: rustup default 1.85.1 && rustc --version | grep -q '^rustc 1.85.1 '
+      - run: sh scripts/gate.sh test
+      - run: sh scripts/gate.sh package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-linux-aarch64
+          path: dist/*.tar.gz

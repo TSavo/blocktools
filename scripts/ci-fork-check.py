@@ -2,7 +2,7 @@
 """Fork-PR runner check (rule H-fork). Parses every workflow in .github/workflows and, for each job that a
 pull_request event can start, EVALUATES its runs-on expression (a small GitHub-expression evaluator, not a grep)
 for a fork PR and a same-repo PR / push, with vars.RUNNER_LABELS unset and set. Fails if:
-  - a fork PR can select a self-hosted label (or any label but ubuntu-latest / macos-latest / windows-latest),
+  - a fork PR can select a self-hosted label (or any label but ubuntu-latest / macos-latest / windows-latest / ubuntu-24.04-arm),
   - a workflow uses pull_request_target (runs fork code with secrets),
   - a job reachable from pull_request may get a write token (workflow or job permissions not read-only / absent),
   - push / same-repo PR jobs that use the Battleaxe expression stop selecting self-hosted by default.
@@ -10,7 +10,7 @@ Usage: python3 scripts/ci-fork-check.py [workflow-dir]"""
 import glob, json, os, re, sys
 import yaml
 
-HOSTED = {"ubuntu-latest", "macos-latest", "windows-latest"}
+HOSTED = {"ubuntu-latest", "macos-latest", "windows-latest", "ubuntu-24.04-arm"}  # GitHub-hosted image labels (arm: public repos)
 
 def tokens(s):
     pat = re.compile(r"\s*(?:(?P<str>'(?:[^']|'')*')|(?P<op>==|!=|&&|\|\||!|\(|\)|,)|(?P<num>\d+)|(?P<id>[A-Za-z_][\w.-]*))")

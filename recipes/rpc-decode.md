@@ -8,7 +8,7 @@ and `tx-decode` reads them from a file. This keeps every network byte inside rpc
 
 There is **no real bitcoind in CI**. `scripts/mock-bitcoind.py` stands in for it: a deterministic fake of a
 pruned regtest node on 127.0.0.1, with 3 synthetic blocks and one spend
-(mock spend: 50000 sat in, 49000 sat out, fee 1000 sat). `scripts/e2e.d/rpc-decode.sh` runs the script block below against that mock, once as a pruned node and
+(mock spend: 50000 sat in, 49000 sat out, fee 1000 sat (unmeasured)). `scripts/e2e.d/rpc-decode.sh` runs the script block below against that mock, once as a pruned node and
 once with `-txindex`, and checks every result shown in the comments. The example after it runs in
 `scripts/recipe-check.py` on recorded mock output. The mock's replies copy bitcoind's shapes and error codes
 (-5 for a tx it can't find, -8 for a bad height), but it is a mock. This recipe has not been run against a

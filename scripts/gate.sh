@@ -9,7 +9,7 @@
 set -eu
 if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
 cd "$(dirname "$0")/.."
-STAGES="lint test negatives e2e"
+STAGES="lint test negatives e2e package"
 step() { echo "== gate: $*"; "$@" || { echo "gate FAILED at: $*" >&2; exit 1; }; }
 stage() {
   case "$1" in
@@ -42,6 +42,9 @@ stage() {
       echo "skip wasm-check on macOS: wasm is verified by the Linux gate only (untested on macOS)"
     else step sh scripts/wasm-check.sh; fi
     step bash scripts/e2e-local.sh;;
+  package)  # release-layout tarball for this host's OS/arch, smoke-tested from the unpacked tarball (scripts/package.sh)
+    step cargo build -q --locked --release --workspace
+    step sh scripts/package.sh;;
   *) echo "gate: unknown stage '$1' (stages: $STAGES)" >&2; exit 2;;
   esac
   echo "gate stage $1 ok"
