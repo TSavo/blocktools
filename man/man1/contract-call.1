@@ -1,0 +1,99 @@
+.TH CONTRACT\-CALL 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+contract\-call \- read EVM contract state with eth_call and decode the return data (HOST\-SIDE, network)
+.SH SYNOPSIS
+.nf
+contract\-call URL ADDRESS SIGNATURE [ARG...]   one call; SIGNATURE with `returns (...)` decodes the result
+contract\-call URL ADDRESS \-\-abi FILE \-\-read    one\-shot state read: every view/pure function with no inputs
+\&... | contract\-call URL                        JSON lines {"to","sig","args":[...],"block"?,"from"?} on stdin
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  contract\-call URL ADDRESS SIGNATURE [ARG...]   one call; SIGNATURE with `returns (...)` decodes the result
+  contract\-call URL ADDRESS \-\-abi FILE \-\-read    one\-shot state read: every view/pure function with no inputs
+  ... | contract\-call URL                        JSON lines {"to","sig","args":[...],"block"?,"from"?} on stdin
+.RE
+.fi
+Any EVM\-style chain: URL is the endpoint (or a chain name from the shared endpoint table); the chain id is read
+from the endpoint (eth_chainId) and printed on every line; \-\-chain\-id N refuses any other chain.
+ARGs are ABI values: decimal or 0x integers, 0x addresses and bytes, true/false, JSON arrays for arrays/tuples.
+A revert is decoded (Error(string), Panic(uint256), and custom errors from \-\-abi or \-\-error) and exits 1.
+Options:
+.nf
+.RS 2
+  \-\-block TAG           latest (default), pending, safe, finalized, earliest, a block number, or a 32\-byte block hash
+  \-\-from ADDR           msg.sender for the call
+  \-\-abi FILE            ABI JSON (array or {"abi": [...]}) or one signature per line: functions for \-\-read, errors for reverts
+  \-\-error SIGNATURE     a custom error signature to decode reverts with (repeatable)
+  \-\-read                with \-\-abi: call every function that takes no inputs and returns something (view/pure when the ABI says)
+  \-\-chain\-id N          refuse unless the endpoint's eth_chainId is N (chain_id_mismatch); nothing else is sent
+  \-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
+  \-\-auth\-env NAME       same, from environment variable NAME
+  \-\-policy FILE         rpc policy file: adds refusals (deny eth_call and nothing is sent)
+  \-\-timeout SECONDS     per request, 1..300 (default 30)
+.RE
+.fi
+stdout: one JSON line per call {"tool","status":"ok","chain_id","to","block","function","selector","calldata",
+"returndata","returns","outputs":[{name,type,value}]}; no returns list: returndata only.
+stderr: {"tool":"contract\-call","status":...}: reverted (with the decoded revert), empty_return (no code at the address
+or no such function), bad_return, refused (nothing sent), rpc_error, http_error. Exit 0 ok, 2 bad input, 1 everything else.
+Only eth_chainId and eth_call are sent, each through rpc's checks (read allowlist, deny\-list, policy, secret fields);
+responses carrying key material are withheld; credentials are redacted from all output. Same bounds as rpc: no redirects,
+8 MiB response cap, https only (plain http for localhost). No signing, no broadcast, no trace (see contract\-trace).
+.SH OPTIONS
+.nf
+\-\-block TAG           latest (default), pending, safe, finalized, earliest, a block number, or a 32\-byte block hash
+\-\-from ADDR           msg.sender for the call
+\-\-abi FILE            ABI JSON (array or {"abi": [...]}) or one signature per line: functions for \-\-read, errors for reverts
+\-\-error SIGNATURE     a custom error signature to decode reverts with (repeatable)
+\-\-read                with \-\-abi: call every function that takes no inputs and returns something (view/pure when the ABI says)
+\-\-chain\-id N          refuse unless the endpoint's eth_chainId is N (chain_id_mismatch); nothing else is sent
+\-\-auth\-file FILE      credentials, same formats as rpc \-\-auth\-file; never printed
+\-\-auth\-env NAME       same, from environment variable NAME
+\-\-policy FILE         rpc policy file: adds refusals (deny eth_call and nothing is sent)
+\-\-timeout SECONDS     per request, 1..300 (default 30)
+.fi
+.SH INPUT/OUTPUT
+.nf
+.RS 2
+  contract\-call URL ADDRESS \-\-abi FILE \-\-read    one\-shot state read: every view/pure function with no inputs
+  ... | contract\-call URL                        JSON lines {"to","sig","args":[...],"block"?,"from"?} on stdin
+.RE
+.fi
+ARGs are ABI values: decimal or 0x integers, 0x addresses and bytes, true/false, JSON arrays for arrays/tuples.
+.nf
+.RS 2
+  \-\-abi FILE            ABI JSON (array or {"abi": [...]}) or one signature per line: functions for \-\-read, errors for reverts
+  \-\-read                with \-\-abi: call every function that takes no inputs and returns something (view/pure when the ABI says)
+.RE
+.fi
+stdout: one JSON line per call {"tool","status":"ok","chain_id","to","block","function","selector","calldata",
+"returndata","returns","outputs":[{name,type,value}]}; no returns list: returndata only.
+or no such function), bad_return, refused (nothing sent), rpc_error, http_error. Exit 0 ok, 2 bad input, 1 everything else.
+Only eth_chainId and eth_call are sent, each through rpc's checks (read allowlist, deny\-list, policy, secret fields);
+responses carrying key material are withheld; credentials are redacted from all output. Same bounds as rpc: no redirects,
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+1
+last status http_error
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ contract\-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals() returns (uint8)'
+# exit 1, last status: http_error
+$ contract\-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'balanceOf(address) returns (uint256)'
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+Host\-side network tool: it needs the network by design, so it is not in the sealed image and sealed\-run refuses it. Run it on the host and give it public data only (addresses, public keys, signed transactions).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

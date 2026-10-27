@@ -54,6 +54,13 @@ indexed topics decoded:
 <!-- e2e: expect="signature":"Transfer(address,address,uint256)" ; expect="indexed":true ; expect="value":"154943368057" ; rc=0 -->
     abi-decode --sig 'event Transfer(address indexed from, address indexed to, uint256 value)' < recipes/fixtures/evm-mainnet/01c-usdc-transfer-getLogs.json
 
+`log-decode` does the same and keeps where each log came from (`address`, `block_number`, `log_index`,
+`transaction_hash`); it also reads receipts (their `logs`), JSON lines, and filters with `--address`/`--only-matched`.
+Logs whose topic0 matches none of your signatures are printed as `no_match` lines, never guessed:
+
+<!-- e2e: expect="event":"Transfer" ; expect="block_number": ; expect="value":"154943368057" ; rc=0 -->
+    log-decode --only-matched --sig 'Transfer(address indexed from, address indexed to, uint256 value)' recipes/fixtures/evm-mainnet/01c-usdc-transfer-getLogs.json
+
 ## (d) Return data: `balanceOf`
 
 `03c-usdc-balanceOf.json` (request "03c") is an `eth_call` result. Give the output types (USDC uses six decimals,
@@ -61,6 +68,21 @@ see `03a`):
 
 <!-- e2e: expect="value":"58142937468866" ; rc=0 -->
     abi-decode --types uint256 < recipes/fixtures/evm-mainnet/03c-usdc-balanceOf.json
+
+### Calling the contract yourself: `contract-call`
+
+`contract-call` sends the `eth_call` for you (host-side, network; it goes through `rpc`'s read allowlist and secret
+checks), reads the chain id from the endpoint first and prints it on every line, then decodes the return data with
+the `returns (...)` part of the signature. Here the endpoint is a local mock answering with the recorded `03a`
+fixture; on a real node give its URL (any EVM chain; `--chain-id N` refuses any other chain):
+
+<!-- e2e: expect="chain_id":1 ; expect="function":"decimals()" ; expect="value":"6" ; rc=0 -->
+    contract-call $ETH/03a 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals() returns (uint8)'
+
+With `--abi FILE --read` it calls every view/pure function that takes no inputs (a one-shot state read); `--block`
+pins a block number, tag or block hash. A revert comes back decoded (`Error(string)`, `Panic`, custom errors from
+`--abi`/`--error`) with exit 1; an empty `0x` reply to a function that declares returns is `empty_return` (no code
+at that address on that chain, or no such function), never a zero.
 
 ## (e) Reverts: `Error(string)` and a custom error
 

@@ -556,6 +556,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "contract-call"
+version = "0.1.1"
+dependencies = [
+ "blocktools-evm",
+ "blocktools-io",
+ "blocktools-net",
+ "rpc",
+ "serde_json",
+]
+
+[[package]]
 name = "corez"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1032,6 +1043,15 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "log-decode"
+version = "0.1.1"
+dependencies = [
+ "blocktools-evm",
+ "blocktools-io",
+ "serde_json",
+]
 
 [[package]]
 name = "md-5"

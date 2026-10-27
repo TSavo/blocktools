@@ -7,8 +7,9 @@
 
 `./blocktools run '<pipeline>'` runs through the real agent boundary (target/release/sealed-run
 agent). `recipes/recover.sh ...` runs the front door (fund= funds one address on the mock chain and
-appends --url). A command starting with jq/sig-hash/abi-decode/abi-encode/create-address is an
-offline EVM pipeline on recipes/fixtures/ run by bash with BIN first on PATH.
+appends --url). A command starting with jq/sig-hash/abi-decode/abi-encode/create-address/log-decode is an
+offline EVM pipeline on recipes/fixtures/ run by bash with BIN first on PATH; contract-call $ETH/<prefix> ...
+talks to a 127.0.0.1 mock node that answers with the recorded fixture <prefix>-*.json.
 /in/ and /secrets/ map to a temp dir of vectors made here. Checks: exit code,
 every expect substring in stdout+stderr, and no secret value in stdout (public fields stripped).
 Every recipe file except README.md must carry at least one tested example.
@@ -96,7 +97,20 @@ mock = subprocess.Popen([sys.executable, "scripts/mock-chain.py", pf, lf, os.pat
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 while not (os.path.exists(pf) and os.path.getsize(pf)): time.sleep(0.05)
 RU = "http://127.0.0.1:" + open(pf).read().strip()
-def sub(s): return s.replace("/in/", IN + "/").replace("/secrets/", SEC + "/")
+# mock EVM node for contract-call examples: $ETH/<fixture-prefix> answers eth_chainId with 0x1 (mainnet, where the
+# fixtures were recorded) and any other method with that recorded fixture (recipes/fixtures/evm-mainnet/<prefix>*.json)
+import http.server, json, threading
+class _Eth(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_POST(self):
+        req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+        fx = [f for f in os.listdir("recipes/fixtures/evm-mainnet") if f.startswith(self.path.strip("/") + "-")]
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "result": "0x1"}) if req.get("method") == "eth_chainId" else \
+            open("recipes/fixtures/evm-mainnet/" + fx[0]).read() if len(fx) == 1 else '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"no fixture"}}'
+        b = body.encode(); self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+_eth = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Eth); threading.Thread(target=_eth.serve_forever, daemon=True).start()
+ETH = f"http://127.0.0.1:{_eth.server_address[1]}"
+def sub(s): return s.replace("/in/", IN + "/").replace("/secrets/", SEC + "/").replace("$ETH", ETH)
 ok = skipped = 0; bad = []
 try:
     # recipes/*.md plus the two front-door pages, so their worked examples cannot rot either
@@ -120,9 +134,9 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify) ", cmd):
-                # offline, secret-free EVM filters on recorded fixtures: a plain bash pipeline with BIN on PATH
-                argv = ["bash", "-o", "pipefail", "-c", cmd]
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call) ", cmd):
+                # offline, secret-free EVM filters on recorded fixtures (contract-call: against the $ETH fixture mock): bash with BIN on PATH
+                argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:
                 bad.append(f"{where}: untestable command form: {cmd}"); continue
             env_path = {"PATH": os.path.abspath(B) + os.pathsep + os.environ.get("PATH", "")} if argv[0] == "bash" and argv[1] == "-o" else {}

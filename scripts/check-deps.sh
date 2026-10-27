@@ -38,7 +38,7 @@ done
 # network crates may only appear in the host-side tools
 for m in $members; do
   p=$(awk -F'"' '/^name = "/{print $2; exit}' "$m/Cargo.toml")
-  case "$p" in blocktools-net|utxo-fetch|tx-broadcast|rpc) continue;; esac
+  case "$p" in blocktools-net|utxo-fetch|tx-broadcast|rpc|contract-call) continue;; esac
   tree "$p" > "$tmp/t" || { rc=1; continue; }  # rule:C-stale
   if grep -qxE 'minreq|rustls|ring|webpki-roots|blocktools-net' "$tmp/t"; then echo "FAIL $p: pulls a network crate"; rc=1; fi  # rule:C-net
 done

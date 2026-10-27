@@ -432,6 +432,23 @@ scope.
 - Only https URLs are accepted, except plain http to localhost/127.0.0.1.
 - Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
 
+## contract-call: eth_call with decoding, and one-shot state reads
+
+`contract-call URL ADDRESS 'balanceOf(address) returns (uint256)' 0x...` builds the calldata from the signature and
+arguments (same encoder as `abi-encode`), asks the endpoint for `eth_chainId` (printed on every line; `--chain-id N`
+refuses any other chain before `eth_call` is sent), sends `eth_call` at `--block` (tag, number, or block hash as an
+EIP-1898 `{"blockHash"}` object) and decodes the return data with the `returns (...)` types. `--abi FILE --read`
+calls every view/pure function without inputs. JSON lines `{"to","sig","args","block","from"}` on stdin batch calls
+(up to 1000). Both requests go through the same `check_call_in` as `rpc` (read allowlist, deny-list, `--policy`,
+secret fields), responses carrying key material are withheld, and `--auth-file`/`--auth-env` values are redacted.
+
+Results that are not a decoded value are never printed as one: a revert is `reverted` on stderr with the revert data
+decoded (`Error(string)`, `Panic(uint256)`, custom errors from `--abi`/`--error`, exit 1); `0x` for a function that
+declares returns is `empty_return` (no code at the address on that chain/block, or no such function); return data that
+does not decode cleanly under the declared types (for example a `uint8` above 255) is `bad_return`. Tested against a
+127.0.0.1 mock in `tools/contract-call/tests/cli.rs` and in `recipes/evm-contract-data.md`; not measured against a
+live node. Decode the logs a node returns (`eth_getLogs`, receipts) with the offline `log-decode`.
+
 ## Cookbook (mock round trips, run by `scripts/e2e.d/rpc.sh`)
 
 ```

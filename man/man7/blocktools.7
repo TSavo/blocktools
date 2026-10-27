@@ -66,6 +66,9 @@ print the chain registry (crates/core chains.rs) as data, one JSON object per
 \fBclassify\fR(1)
 unknown wallet material \-> public JSON lines, one per item:
 .TP
+\fBcontract\-call\fR(1)
+read EVM contract state with eth_call and decode the return data (HOST\-SIDE, network)
+.TP
 \fBcreate\-address\fR(1)
 contract address from CREATE (deployer, nonce) or CREATE2 (EIP\-1014: deployer, salt, init code), offline
 .TP
@@ -83,6 +86,9 @@ one raw 32\-byte private key per line \-> addresses on every chain in the
 .TP
 \fBkeystore\-open\fR(1)
 Ethereum Web3 Secret Storage v3 or presale (pyethsaletool) JSON + password \-> address
+.TP
+\fBlog\-decode\fR(1)
+decode EVM event logs (topics + data) against event signatures you bring, offline
 .TP
 \fBmsg\-sign\fR(1)
 sign ONE text message after a human reads it and types a code on /dev/tty

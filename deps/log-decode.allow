@@ -1,0 +1,16 @@
+block-buffer
+blocktools-evm
+blocktools-io
+crypto-common
+digest
+generic-array
+itoa
+keccak
+memchr
+secp256k1
+secp256k1-sys
+serde_core
+serde_json
+sha3
+typenum
+zmij

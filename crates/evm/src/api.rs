@@ -225,3 +225,41 @@ pub fn create_json(req: &Value) -> Result<Value, String> {
     let a = crate::create::create(&dep, n);
     Ok(json!({"status": "ok", "scheme": "create", "deployer": checksum_address(&dep), "nonce": n, "address": checksum_address(&a)}))
 }
+
+/// Log inputs a node hands back, flattened: one log object, an array of logs, an `eth_getLogs` envelope,
+/// a receipt (its `logs`) or a receipt envelope. Order is preserved.
+pub fn collect_logs(v: &Value) -> Result<Vec<Value>, String> {
+    if let Some(e) = v.get("error") { return Err(format!("rpc_error:{e}")); }
+    let r = v.get("result").unwrap_or(v);
+    match r {
+        Value::Array(xs) => { let mut o = vec![]; for x in xs { o.extend(collect_logs(x)?); } Ok(o) }
+        Value::Object(m) if m.contains_key("topics") => Ok(vec![r.clone()]),
+        Value::Object(m) if m.get("logs").is_some_and(Value::is_array) => collect_logs(&m["logs"]),
+        Value::Null => Ok(vec![]),
+        _ => Err("input_is_not_a_log_receipt_or_getlogs_result".into()),
+    }
+}
+
+fn hex_qty(v: &Value) -> Value {
+    match v.as_str().and_then(|s| s.strip_prefix("0x")).and_then(|h| u64::from_str_radix(h, 16).ok()) { Some(n) => json!(n), None => v.clone() }
+}
+
+/// Decode one log object (topics + data) against `sigs`, keeping where it came from:
+/// `address`, `block_number`, `transaction_hash`, `log_index`, `removed` when the node gave them.
+pub fn decode_log_object(log: &Value, sigs: &[Sig]) -> Result<Value, String> {
+    let ts = log.get("topics").and_then(Value::as_array).ok_or("log_without_topics")?;
+    if ts.len() > 4 { return Err("more_than_4_topics".into()); }
+    let mut topics = vec![];
+    for x in ts { let b = unhex(x.as_str().ok_or("bad_topic")?)?; topics.push(<[u8; 32]>::try_from(b.as_slice()).map_err(|_| "topic_not_32_bytes")?); }
+    let data = unhex(log.get("data").and_then(Value::as_str).unwrap_or("0x"))?;
+    let mut o = decode_log(&topics, &data, sigs)?;
+    if o["status"] == "ok" { o["event"] = json!(o["signature"].as_str().unwrap_or("").split('(').next().unwrap_or("")); }
+    if let Some(a) = log.get("address").and_then(Value::as_str) { o["address"] = json!(parse_address(a).map(|a| checksum_address(&a)).unwrap_or_else(|_| a.to_string())); }
+    for (k, out) in [("blockNumber", "block_number"), ("logIndex", "log_index"), ("transactionIndex", "transaction_index")] {
+        if let Some(x) = log.get(k) { o[out] = hex_qty(x); }
+    }
+    for (k, out) in [("transactionHash", "transaction_hash"), ("blockHash", "block_hash"), ("removed", "removed")] {
+        if let Some(x) = log.get(k) { o[out] = x.clone(); }
+    }
+    Ok(o)
+}

@@ -4,3 +4,4 @@ rpc public
 utxo-fetch public
 tx-broadcast public
 xmr-wallet local-rpc
+contract-call public

@@ -80,3 +80,7 @@ msg-verify | 1 | msg-verify --address 1HZwkjkeaoZfTSaJxDw6aKkxp45agDiEzN --messa
 msg-verify | 2 | msg-verify --address bc1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8 --message hi --sig AA==
 msg-sign | 1 | printf '%064x\n' 1 | msg-sign --address 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH --message 0xc0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
 msg-sign | 1 | printf '%064x\n' 1 | msg-sign --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi
+log-decode | 0 | log-decode --sig 'Transfer(address indexed from, address indexed to, uint256 value)' "$R/recipes/fixtures/evm-mainnet/01c-usdc-transfer-getLogs.json"
+log-decode | 2 | echo '{"topics":["0x12"],"data":"0x"}' | log-decode --sig 'Transfer(address indexed from, address indexed to, uint256 value)'
+contract-call | 1 | contract-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'decimals() returns (uint8)'
+contract-call | 2 | contract-call http://127.0.0.1:9 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 'balanceOf(address) returns (uint256)'
