@@ -18,6 +18,8 @@ Watch-only input, policy deny, wrong TTY confirmation code, or a deliberate stop
 
 Host-only network tools (`utxo-fetch`, `tx-broadcast`, `xmr-wallet`) are not in the
 sealed image. Run them on the host after redacted public data leaves the container.
+`utxo-set` and `wallet-finder` are offline host tools: no network, but not in the sealed image either, so
+`sealed-run` refuses them too; see [goal-find-funded-phrase.md](../recipes/goal-find-funded-phrase.md).
 Shell metacharacters are rejected; use the sealed pipeline grammar only.
 
 ## Man page missing after DEB install in Docker
