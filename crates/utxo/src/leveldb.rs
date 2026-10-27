@@ -27,6 +27,29 @@ fn crc32c(data: &[u8]) -> u32 {
     for &b in data { c = t[((c ^ u32::from(b)) & 0xff) as usize] ^ (c >> 8) }
     !c
 }
+/// Is `dir/LOCK` held by a live process? LevelDB takes a POSIX fcntl write lock on it (env_posix.cc
+/// LockFile). Checked read-only through /proc/locks (no lock taken, nothing opened for writing).
+/// Linux only; elsewhere this returns false (documented: stop the node or read a copy).
+pub fn locked(dir: &Path) -> io::Result<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let Ok(m) = std::fs::metadata(dir.join("LOCK")) else { return Ok(false) };
+        let (dev, ino) = (m.dev(), m.ino());
+        let (maj, min) = (((dev >> 8) & 0xfff) | ((dev >> 32) & !0xfff), (dev & 0xff) | ((dev >> 12) & !0xff));
+        let Ok(t) = std::fs::read_to_string("/proc/locks") else { return Ok(false) };
+        for l in t.lines() {
+            // "1: POSIX  ADVISORY  WRITE 1234 fd:01:5678 0 EOF" (the "->" lines are waiters)
+            let Some(id) = l.split_whitespace().find(|w| w.matches(':').count() == 2 && !w.ends_with(':')) else { continue };
+            let p: Vec<&str> = id.split(':').collect();
+            let (Ok(a), Ok(b), Ok(i)) = (u64::from_str_radix(p[0], 16), u64::from_str_radix(p[1], 16), p[2].parse::<u64>()) else { continue };
+            if a == maj && b == min && i == ino { return Ok(true) }
+        }
+        Ok(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    { let _ = dir; Ok(false) }
+}
 /// Snappy raw-format decompression, ported from the reference (snappy.cc / format_description.txt):
 /// varint uncompressed length, then elements tagged by the low 2 bits: 00 literal (length in the tag's
 /// upper 6 bits, or 1-4 following bytes when that is 60-63), 01 copy with 3-bit length-4 and 11-bit
@@ -236,6 +259,7 @@ impl PartialOrd for Head { fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
 
 impl Db {
     pub fn open(dir: &Path) -> io::Result<Db> {
+        if locked(dir)? { return Err(bad("chainstate_locked: a running node holds this directory's LOCK; stop it, or copy the directory while it is stopped")) }
         let live = live_files(dir)?;
         let mut m: BTreeMap<Vec<u8>, (u64, Option<Vec<u8>>)> = BTreeMap::new();
         for l in &live.logs {

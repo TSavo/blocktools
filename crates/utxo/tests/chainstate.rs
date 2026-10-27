@@ -1,7 +1,7 @@
 //! chainstate reader: per-tx ('c') record decoding, log-only LevelDB dirs built here (obfuscation,
 //! deletion shadowing, last-write-wins), and refusals (CRC flip, mid-flush 'H' key). Tables are
 //! measured against real nodes in scripts/e2e.d/chainstate-real.sh.
-use blocktools_utxo::chainstate::{per_tx, Chainstate};
+use blocktools_utxo::chainstate::{per_tx, Chainstate, Opts};
 use blocktools_utxo::{compress_amount, write_varint};
 use std::path::Path;
 
@@ -86,4 +86,34 @@ fn refusals() {
     assert!(all(&d).unwrap_err().to_string().contains("mid_flush"));
     let d = tmp("nocurrent"); std::fs::create_dir_all(&d).unwrap();
     assert!(Chainstate::open(&d).err().unwrap().to_string().contains("CURRENT"));
+}
+
+fn all_with(dir: &Path, o: Opts) -> std::io::Result<usize> {
+    let mut cs = Chainstate::open_with(dir, o)?; let mut n = 0;
+    while cs.next_coin()?.is_some() { n += 1 }
+    Ok(n)
+}
+
+#[test]
+fn discrimination_wrong_key_or_era_fails_loudly() {
+    let d = tmp("disc");
+    let k: Vec<Vec<u8>> = (0..50u8).map(|i| ckey(i, u64::from(i))).collect();
+    let mut ops = vec![Op::Put(b"\x0e\x00obfuscate_key", obf_val())];
+    for (i, kk) in k.iter().enumerate() { ops.push(Op::Put(kk, x(coin(100 + i as u64, i % 3 == 0, 1000 * i as u64 + 1, [i as u8; 20])))) }
+    mkdb(&d, &[batch(1, &ops)]);
+    assert_eq!(all_with(&d, Opts::default()).unwrap(), 50, "detected key and era");
+    assert_eq!(all_with(&d, Opts { era: Some(b'C'), xor: None }).unwrap(), 50);
+    let e = all_with(&d, Opts { era: Some(b'c'), xor: None }).unwrap_err().to_string();
+    assert!(e.contains("era_mismatch"), "{e}");
+    let e = all_with(&d, Opts { era: None, xor: Some(vec![0; 8]) }).unwrap_err().to_string();
+    assert!(e.contains("wrong obfuscation key"), "no key applied to an obfuscated chainstate: {e}");
+    let mut wrong = XOR.to_vec(); wrong[3] ^= 0x10;
+    let e = all_with(&d, Opts { era: None, xor: Some(wrong) }).unwrap_err().to_string();
+    assert!(e.contains("wrong obfuscation key"), "one wrong key byte: {e}");
+    // mixed layouts in one directory
+    let d = tmp("mixed");
+    let mut v = Vec::new(); write_varint(1, &mut v); write_varint(2, &mut v); write_varint(compress_amount(5), &mut v); v.push(0); v.extend([7; 20]); write_varint(9, &mut v);
+    let mut ck = vec![b'c']; ck.extend([0xee; 32]);
+    mkdb(&d, &[batch(1, &[Op::Put(&ckey(1, 0), coin(5, false, 100, [1; 20])), Op::Put(&ck, v)])]);
+    assert!(all_with(&d, Opts::default()).unwrap_err().to_string().contains("layout_mixed"));
 }
