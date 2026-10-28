@@ -76,9 +76,15 @@ fn fee_over_input_share(d: &Decoded, fee: u64) -> bool {
 pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
     let cap = effective_max_fee(d, p);
+    // A THORChain-style inbound carries exactly one zero-value OP_RETURN memo alongside the real
+    // destination(s). Accept that single memo as a non-destination output: it is not an
+    // `unexpected_output`, and its `op_return_output` warning does not trip `has_warnings`. Two
+    // OP_RETURNs, or a non-zero-value OP_RETURN, are NOT a memo and stay refused (unexpected_output).
+    let op_returns = d.outputs.iter().filter(|o| o.kind == "op_return").count();
+    let memo_ok = op_returns == 1 && d.outputs.iter().filter(|o| o.kind == "op_return").all(|o| o.amount.unwrap_or(0) == 0);
     // Never overridable: the signed bytes do not commit to these amounts, so the fee shown is unproven.
     if d.unproven_inputs > 0 { f.push(crate::code!("legacy_input_amount_unproven")) }
-    if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned") { f.push(crate::code!("has_warnings")) }
+    if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned" && !(memo_ok && *w == "op_return_output")) { f.push(crate::code!("has_warnings")) }
     if let Some(t) = &d.evm {
         let fee = t.max_fee_per_gas.saturating_mul(t.gas as u128);
         if fee > cap { f.push(crate::code!("fee_above_cap")) }
@@ -105,6 +111,8 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
         if p.max_fee.is_none() { if let Some(x) = d.fee { if fee_over_input_share(d, x) { f.push(crate::code!("fee_over_10pct_of_inputs")) } } }
         if !p.expect_to.is_empty() {
             for o in &d.outputs {
+                // The single accepted zero-value OP_RETURN memo is not a destination; skip it.
+                if memo_ok && o.kind == "op_return" { continue }
                 match &o.address {
                     Some(a) if p.expect_to.iter().chain(&p.change).any(|e| same_out(&d.chain, e, a)) => {}
                     _ => { f.push(crate::code!("unexpected_output")); break }

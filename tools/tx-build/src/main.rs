@@ -1,7 +1,9 @@
 //! tx-build: build an UNSIGNED transaction offline from files and flags. Never touches the network.
 //! UTXO chains -> {"psbt": base64}; EVM -> {"unsigned_tx": hex}. Pipe the result to tx-decode.
 //!   tx-build --chain btc|ltc|doge --utxos FILE --to ADDR (--sweep | --consolidate | --send SATS --change ADDR)
-//!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N]
+//!            --fee-rate SAT_PER_VB [--rbf] [--dust-limit 546] [--locktime N] [--op-return HEX | --memo STRING]
+//!   (--op-return HEX / --memo STRING adds a zero-value trailing OP_RETURN, e.g. a THORChain swap memo;
+//!    refused above the chain's relay limit (bch 220, else 80 bytes); tx-sign accepts the single memo output)
 //!   (also bch|bsv|btg: same flags; legacy inputs need prev_tx; tx-sign signs them with the fork-id sighash;
 //!    bch --to also takes CashAddr, bitcoincash:q... or bare, same output script as the legacy address)
 //!   tx-build --chain ppc|nvc|clam|rdd --utxos FILE --to ADDR --sweep --fee-rate UNITS_PER_BYTE [--time UNIX]
@@ -74,11 +76,22 @@ fn main() {
     if sweep == send.is_some() { fail("choose exactly one of --sweep/--consolidate or --send") }
     let plan = build::BtcPlan { to: a.get("--to").unwrap_or_else(|| fail("--to required")).into(), send, change: a.get("--change").map(Into::into),
         fee_rate: num(a.get("--fee-rate"), "--fee-rate").unwrap_or_else(|| fail("--fee-rate required")) as u64, rbf: a.has("--rbf"),
-        dust: num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64, op_return: None, locktime: num(a.get("--locktime"), "--locktime").unwrap_or(0) as u32 };
+        dust: num(a.get("--dust-limit"), "--dust-limit").unwrap_or(546) as u64, op_return: op_return_memo(&a, chain), locktime: num(a.get("--locktime"), "--locktime").unwrap_or(0) as u32 };
     let p = build::build_btc(c, utxos, &plan).unwrap_or_else(|e| fail(&e));
     let mut o = json!({"tool":"tx-build","status":"ok","chain":chain,"type":"psbt","psbt":blocktools_core::b64::encode(&p.serialize())});
     if spec { o["chain_spec"] = json!("unverified chain spec"); o["chain_spec_sha256"] = json!(blocktools_core::chain_spec::get().map(|s| s.sha256.clone())) }
     blocktools_io::outln!("{o}");
+}
+/// `--op-return HEX` or `--memo STRING` -> the zero-value OP_RETURN script (THORChain memo). At most one
+/// of the two; refused above the chain's per-chain relay limit (blocktools_tx::build::op_return_script).
+fn op_return_memo(a: &A, chain: &str) -> Option<Vec<u8>> {
+    let bytes = match (a.get("--op-return"), a.get("--memo")) {
+        (Some(_), Some(_)) => fail("choose at most one of --op-return or --memo"),
+        (Some(h), None) => blocktools_core::hex_dec(h.trim().trim_start_matches("0x")).unwrap_or_else(|| fail("--op-return: hex")),
+        (None, Some(m)) => m.as_bytes().to_vec(),
+        (None, None) => return None,
+    };
+    Some(build::op_return_script(chain, &bytes).unwrap_or_else(|e| fail(&e)))
 }
 fn eaddr(s: &str) -> [u8; 20] {
     blocktools_core::validate::validate("eth", s).unwrap_or_else(|_| fail("bad address"));

@@ -40,12 +40,13 @@ for _c, _a in [("ppc", "PKGSi8HTQzLx89rkZrRrVkPFjrcSC55NP9"), ("nvc", "4QP6S2Gv3
                ("blk", "BF8MAsLp7aSfb9g9qGSHwzDerit8nAZAJX"), ("zec", "t1UYsZVJkLPeMjxEtACvSxfWuNmddpWfxzs"),
                ("qrk", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"), ("xpm", "AST9CekEhDWuxHPynRmeyjg5biNFSijvb3"),
                ("qtum", "QXHFfTBKYXjaaTH1e7Rox8CcdNPGHVhM59"),
+               ("doge", "DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE"),  # key 1 (thorchain-swap-utxo.md inbound)
                ("grs", "grs1qw508d6qejxtdg4y5r3zarvary0c5xw7k3k4sj5"),
                ("bcc", "8XFa9Ce4Pf6d3Rvpr3jnp6sm8279Ec1V92")]:  # legacy-bcc.dat key 1 (make-fixtures.py)
     # Each line carries a synthetic prev_tx (legacy inputs must prove their amount; see SECURITY.md).
     if _c == "zec":  # ZIP-243/244 sighash commits to the amount: a lying amount only yields an invalid signature
         w(IN, "u-zec.json", '{"txid":"' + "c" * 64 + '","vout":1,"amount":1000000,"address":"' + _a + '"}'); continue
-    w(IN, f"u-{_c}.json", subprocess.run(MOCK + [_c, "1", "100000000" if _c == "qtum" else "1000000", _a],
+    w(IN, f"u-{_c}.json", subprocess.run(MOCK + [_c, "1", "500000000" if _c == "doge" else "100000000" if _c == "qtum" else "1000000", _a],
                                          check=True, capture_output=True, text=True).stdout.strip())
 # BIP84 spec mnemonic (abandon x11 about) root key in xprv form (same key as BIP84's zprvAWgYBBk7...).
 w(IN, "xprv.txt", "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu")
