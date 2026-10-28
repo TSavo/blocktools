@@ -11,4 +11,5 @@ utxo-set offline
 wallet-finder offline
 tx-plan offline
 multisig offline
+taproot-multisig offline
 tx-combine offline

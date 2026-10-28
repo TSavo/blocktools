@@ -1002,3 +1002,5 @@ cb359b6a5b42e47068cd655231484fcc763d2f79eae5ea318b029c704a4dc020
 6b83d91caf63b051dd87d9b0c6ea015ee348800938f15f79f4f6617cd8e56db0
 # THORChain DOGE->RUNE swap inbound, DOGE mainnet txid (public chain data, block 6433260): recipes/thorchain-swap-utxo.md
 6d0a0978df7782ce418e777e435406c7c2b9bab88225cd0c543894ed8c80dfdb
+# BIP341 unspendable NUMS internal key H (x-only), the public script-path-only taproot constant (taproot_multisig.rs)
+50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0

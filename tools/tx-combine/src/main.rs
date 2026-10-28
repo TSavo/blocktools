@@ -51,7 +51,12 @@ fn main() {
     for f in &files[1..] {
         acc.combine(read_psbt(f)).unwrap_or_else(|_| die("bad_input", "PSBTs do not combine (different unsigned tx?)"));
     }
+    // Finalize both kinds of multisig input: P2WSH (ECDSA) and Taproot script-path (Schnorr). Each
+    // finalizer skips inputs it does not own, so a PSBT mixing the two finalizes fully.
     if let Err(e) = blocktools_tx::multisig::combine_finalize(&mut acc) {
+        die("refused", e)
+    }
+    if let Err(e) = blocktools_tx::taproot_multisig::combine_finalize(&mut acc) {
         die("refused", e)
     }
     let tx = blocktools_tx::multisig::extract(&acc).unwrap_or_else(|e| die("refused", e));

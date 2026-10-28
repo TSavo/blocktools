@@ -21,7 +21,7 @@ fn inbound_plan() -> Plan {
         chain: "doge".into(),
         chain_id: None,
         steps: vec![
-            Step::AddInput { txid: TXID.into(), vout: 0, amount: 51138959603, address: FROM.into(), prev_tx: Some(PREV_TX.into()), witness_script: None },
+            Step::AddInput { txid: TXID.into(), vout: 0, amount: 51138959603, address: FROM.into(), prev_tx: Some(PREV_TX.into()), witness_script: None, tap_leaf_script: None },
             Step::AddOutput { to: VAULT.into(), amount: String::new() }, // empty amount => sweep
             Step::OpReturn { memo: MEMO_HEX.into() },
             Step::ExpectTo { address: VAULT.into() },

@@ -1,0 +1,10 @@
+[package]
+name = "taproot-multisig"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools taproot-multisig: build a script-path m-of-n tapscript (CHECKSIGADD) under the NUMS internal key, with address, control block and merkle root. Offline, reads only public pubkeys, prints no key."
+[dependencies]
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-tx = { version = "0.2.0", path = "../../crates/tx" }
+serde_json.workspace = true
