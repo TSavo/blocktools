@@ -998,3 +998,7 @@ cb359b6a5b42e47068cd655231484fcc763d2f79eae5ea318b029c704a4dc020
 1d41a82668315621918e69a62974e00ac583dbd65e2020dea63b781d42a715bf
 28eefe07b0d1932cfb3992b841ef8025f226344f9edc39e026bbfd0d91e01c90
 8d31b66ac0a7e23bc2dd7d220452b209aee4123bf2677d5d4cde4aead5480a25
+# THORChain swap payout, DOGE mainnet txid (public chain data, block 6433220): recipes/thorchain-swap-evm.md
+6b83d91caf63b051dd87d9b0c6ea015ee348800938f15f79f4f6617cd8e56db0
+# THORChain DOGE->RUNE swap inbound, DOGE mainnet txid (public chain data, block 6433260): recipes/thorchain-swap-utxo.md
+6d0a0978df7782ce418e777e435406c7c2b9bab88225cd0c543894ed8c80dfdb

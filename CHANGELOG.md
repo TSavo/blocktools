@@ -108,6 +108,10 @@ existing scripts are listed under "Changed".
   (K-agree) (24688cd, 5a2ceb4, 57492bd, 751299a).
 
 ### Fixed
+- `acct-tx` (rune): a `MsgDeposit` has no recipient, so decode/build no longer put the memo in `"to"`
+  (`"to":null`; the memo stays in `"memo"`). The schema refused the memo as an address, so the sealed
+  boundary dropped the whole line and `recipes/chain-thorchain.md`'s example exited 2. `sign --expect-memo`
+  compares against `"memo"`; the /dev/tty summary shows "(no recipient) memo ...".
 - `scripts/release-repos.sh` and `scripts/package-native.sh` no longer bind-mount host paths into docker: sources and
   staging go in as a tar on stdin and binaries, .rpm and .apk come back as a tar on stdout. On a Docker Desktop daemon
   (the signer runner) a WSL2 distro path mounts empty, so repos-dry-run failed with "could not find Cargo.toml in

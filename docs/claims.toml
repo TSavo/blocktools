@@ -3,13 +3,13 @@
 
 [[claim]]
 id = "fee-cap-evm-default"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "With no --max-fee, every signing route caps EVM total fee at 0.01 ETH-equivalent"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "cargo test -q --release -p blocktools --test fee_cap_paths"
 expect = "test result: ok"
-commit = "1f1fa71"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/policy.rs"]
@@ -17,13 +17,13 @@ doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = 
 
 [[claim]]
 id = "fee-cap-utxo-default"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "With no --max-fee, every signing route caps UTXO fee at max(100,000 base units, chain rate limit x vsize); 35 of 35 corpus sweeps pass (flat cap refused 9 of 35); cap+1 refused on each of 27 buildable chains; 240,000 sat on a 1-input BTC tx refused; fee over 10% of inputs refused without explicit --max-fee, 0 of 35 corpus sweeps trip it"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "cargo test -q --release -p blocktools-tx --test fee_cap_chains"
 expect = "test result: ok. 5 passed"
-commit = "1f1fa71"
 date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/policy.rs", "crates/core/src/chains.rs", "crates/tx/tests/fee_cap_chains.rs", "crates/tx/tests/data/feeprobe-corpus.jsonl"]
@@ -155,46 +155,46 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
-value = "1,931,794"
+expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
+value = "1,932,020"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,931,794 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,932,020 bytes" }]
 
 [[claim]]
 id = "wasm-size-stripped"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
-value = "1,617,080"
+expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
+value = "1,617,306"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,617,080 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,617,306 bytes" }]
 
 [[claim]]
 id = "wasm-crates"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
+status = "untested"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
@@ -247,7 +247,7 @@ kind = "number"
 platform = "any"
 status = "unmeasurable"
 reason = "facts of external protocols, pinned by the KAT vectors in crates/*/tests rather than measured"
-doc = [{ file = "DESIGN.md", text = "4 bytes" }, { file = "DESIGN.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "16 bytes" }, { file = "EXPORTS.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "0..80 bytes" }, { file = "EXPORTS.md", text = "75 bytes" }, { file = "EXPORTS.md", text = "546 sats" }, { file = "docs/ROADMAP.md", text = "80 bytes" }, { file = "docs/ROADMAP.md", text = "75 bytes" }, { file = "recipes/chain-ton.md", text = "120 bytes" }, { file = "recipes/input-raw-key.md", text = "32 bytes" }]
+doc = [{ file = "DESIGN.md", text = "4 bytes" }, { file = "DESIGN.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "16 bytes" }, { file = "EXPORTS.md", text = "32 bytes" }, { file = "EXPORTS.md", text = "0..80 bytes" }, { file = "EXPORTS.md", text = "75 bytes" }, { file = "EXPORTS.md", text = "546 sats" }, { file = "docs/ROADMAP.md", text = "80 bytes" }, { file = "docs/ROADMAP.md", text = "75 bytes" }, { file = "recipes/chain-ton.md", text = "120 bytes" }, { file = "recipes/input-raw-key.md", text = "32 bytes" }, { file = "CHANGELOG.md", text = "80 bytes" }, { file = "recipes/thorchain-swap-utxo.md", text = "220 bytes" }]
 
 [[claim]]
 id = "prior-art"
@@ -961,11 +961,11 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
+note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "measured"
-commit = "9914d74"
+status = "untested"
 date = "2026-10-27"
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"

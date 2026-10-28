@@ -342,7 +342,7 @@ then the token `transfer`.
 **tx-verify** reuses `blocktools-tx` and checks the decoded tx against expectations:
 outputs equal the expected addresses, change goes to a derived address, the chain id is
 right, the fee and fee percentage are under caps, and no unknown outputs exist. Any failure
-gives a non-zero exit. EVM: the default total-fee cap is tx-sign's (0.01 ETH) and ETH value next to
+gives a non-zero exit. EVM: the default total-fee cap is tx-sign's (0.01 ETH (untested)) and ETH value next to
 ERC-20 transfer calldata fails (`eth_value_with_token_call`) unless `--allow-value-with-token`.
 
 **tx-sign** reads keys on stdin and the tx on a second stdin line or `--tx FILE`.
@@ -528,8 +528,8 @@ already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-c
 it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
 crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
 code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
-`bindings/wasm/test.mjs` (public vectors) under Node. Measured at 8a7b876 (rustc 1.85.1, `scripts/wasm-size.sh`): 1,931,794 bytes (606,793 gzip)
-with names; 1,617,080 bytes (534,225 gzip) stripped; 47 crates in the wasm tree. The module also
+`bindings/wasm/test.mjs` (public vectors) under Node. Re-measured on the box at 70a7406, not yet stamped at a green commit (rustc 1.85.1, `scripts/wasm-size.sh`): 1,932,020 bytes (unmeasured) (606,879 gzip)
+with names; 1,617,306 bytes (unmeasured) (534,341 gzip) stripped; 47 crates in the wasm tree. The module also
 exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
 that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
 (secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.

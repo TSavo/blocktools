@@ -115,7 +115,7 @@ fn thor_describe(t: &thor::Deposit, sig: Option<&[u8; 64]>) -> Value {
     json!({"chain":"rune","type":"MsgDeposit","asset":format!("{}.{}", t.asset_chain, t.asset_ticker),
         "amount_base":t.amount.to_string(),"amount_str":fmt_units(t.amount, 8),"fee_base":"0","fee_str":"0 (RfRune, deducted by the chain)",
         "gas":t.gas,"sequence":t.sequence,"account_number":t.account_number,"chain_id":t.chain_id,
-        "from":t.thor_address(),"to":t.memo,"memo":t.memo,"network":t.chain_id,"signed":sig.is_some(),
+        "from":t.thor_address(),"to":serde_json::Value::Null,"memo":t.memo,"network":t.chain_id,"signed":sig.is_some(),
         "signature_valid":sig.map(|s| t.verify(s)),"txid":raw.map(|r| thor::Deposit::txid(&r)),"warnings":w})
 }
 fn thor_read(s: &str) -> (thor::Deposit, Option<[u8; 64]>) {
@@ -426,7 +426,7 @@ fn main() {
                 "rune" => {
                     let (t, sig) = thor_read(&raw);
                     if sig.is_some() { fail("already_signed") }
-                    let d = thor_describe(&t, None); if d["to"] != want { fail("memo_mismatch (pass the exact --expect-memo)") }
+                    let d = thor_describe(&t, None); if d["memo"] != want { fail("memo_mismatch (pass the exact --expect-memo)") }
                     let k = hex32(&secret);
                     (d, Box::new(move || { let sg = t.sign(&k).unwrap_or_else(|e| fail(e)); let r = t.tx_raw(&sg);
                         json!({"status":"ok","chain":"rune","signed":b64::encode(&r),"unsigned":b64::encode(&t.sign_doc()),"txid":thor::Deposit::txid(&r)}) }))
@@ -435,7 +435,7 @@ fn main() {
             };
             let summary = format!("{} {} {}\n  amount {}  fee {}\n  from {}\n  to   {}{}\n{}", c.to_uppercase(), d["type"].as_str().unwrap(),
                 d.get("network").and_then(|v| v.as_str()).or(d["genesis_id"].as_str()).unwrap_or(""),
-                d["amount_str"].as_str().unwrap_or("ENTIRE BALANCE"), d["fee_str"].as_str().unwrap(), d["from"].as_str().unwrap(), d["to"].as_str().unwrap(),
+                d["amount_str"].as_str().unwrap_or("ENTIRE BALANCE"), d["fee_str"].as_str().unwrap(), d["from"].as_str().unwrap(), d["to"].as_str().map(String::from).unwrap_or_else(|| format!("(no recipient) memo {}", d["memo"].as_str().unwrap_or(""))),
                 d["close_to"].as_str().map(|c| format!("\n  CLOSE REMAINDER TO {c}")).unwrap_or_default(),
                 d["warnings"].as_array().unwrap().iter().map(|w| format!("  WARNING {}\n", w.as_str().unwrap())).collect::<String>());
             if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }

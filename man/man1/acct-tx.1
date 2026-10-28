@@ -9,6 +9,9 @@ acct\-tx \- account\-model payments for xlm, algo and atom. Encoded transactions
  acct\-tx build   \-\-chain algo \-\-from A.. \-\-to A.. (\-\-amount MICROALGO | \-\-sweep) \-\-fee MICROALGO \-\-first\-round N [\-\-last\-round N] [\-\-note T]
  acct\-tx keys    \-\-chain atom < hex\-private\-key                    \-> {"address","pubkey"} (public only; build needs \-\-pubkey)
  acct\-tx build   \-\-chain atom \-\-from cosmos1.. \-\-pubkey HEX33 \-\-to cosmos1.. (\-\-amount UATOM | \-\-sweep \-\-balance UATOM) \-\-fee UATOM
+ acct\-tx keys    \-\-chain rune < hex\-private\-key                    \-> {"address" (thor1..),"pubkey"}
+ acct\-tx build   \-\-chain rune \-\-from thor1.. \-\-pubkey HEX33 \-\-amount RUNE_1E8 \-\-memo "~:name:.."|"=:ASSET:DEST:LIM" \-\-sequence N \-\-account\-number N [\-\-gas 20000000] [\-\-chain\-id thorchain\-1]
+ acct\-tx sign    \-\-chain rune \-\-tx FILE \-\-expect\-memo "~:name:.." < hex\-private\-key   (shows memo + amount on /dev/tty, signs after the code)
  acct\-tx build   \-\-chain ton  \-\-from UQ.. \-\-to EQ..|UQ.. (\-\-amount NANOTON | \-\-sweep) \-\-seqno N \-\-valid\-until UNIX [\-\-comment T]
  acct\-tx build   \-\-chain ada  \-\-from addr1.. \-\-to addr1.. \-\-utxo TXID#IX:LOVELACE [\-\-utxo ..] (\-\-amount LOVELACE | \-\-sweep) \-\-fee LOVELACE \-\-ttl SLOT
  acct\-tx build   \-\-chain dot  \-\-from 1.. \-\-to 1.. (\-\-amount PLANCK | \-\-sweep) \-\-nonce N \-\-block\-number N \-\-block\-hash HEX [\-\-period 64]
@@ -71,6 +74,7 @@ acct\-tx sign    \-\-chain C \-\-tx FILE \-\-expect\-to ADDR [\-\-testnet] < sec
 .SH OPTIONS
 .nf
                  \-\-gas N \-\-sequence N \-\-account\-number N [\-\-chain\-id cosmoshub\-4] [\-\-memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
+                 (THORChain MsgDeposit of THOR.RUNE; the action is the memo; native fee deducted by the chain)
                  (wallet v4r2 external message, BOC base64; deployed wallets only: seqno >= 1; the bounce flag follows the \-\-to form)
                  (ADA\-only legacy outputs, change back to \-\-from; hex CBOR like cardano\-cli; UTXOs carrying native assets must not be used)
                  [\-\-spec V \-\-tx\-version V] [\-\-tip PLANCK]   (Polkadot Asset Hub Balances; UNVERIFIED layout, see recipes/chain\-polkadot.md)
