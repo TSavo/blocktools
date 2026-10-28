@@ -20,6 +20,7 @@
 //!
 //! This crate ORCHESTRATES; it adds no encoding and no crypto of its own.
 use serde::{Deserialize, Serialize};
+pub mod evm;
 
 /// Which transaction family a chain belongs to: picks the Context, the Unsigned target, and which
 /// structural steps are legal. (Solana/Tron/XRP/Stellar/Algo/TON/ADA/DOT join as the model grows;

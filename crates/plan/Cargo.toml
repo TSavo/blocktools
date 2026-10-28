@@ -8,3 +8,6 @@ description = "Universal declarative transaction representation (IR) across chai
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { workspace = true }
+blocktools-core = { version = "0.2.0", path = "../core", default-features = false }
+blocktools-evm = { version = "0.2.0", path = "../evm" }
+blocktools-tx = { version = "0.2.0", path = "../tx" }
