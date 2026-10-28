@@ -39,6 +39,31 @@ pub fn p2wsh_address(witness_script: &ScriptBuf, net: Network) -> String {
     bitcoin::Address::p2wsh(witness_script, net).to_string()
 }
 
+/// CLI convenience: build an m-of-n P2WSH from hex-encoded compressed pubkeys on `net`
+/// ("bitcoin"/"mainnet", "testnet", "signet", "regtest"). Returns
+/// (witness_script hex, P2WSH address, `wsh(multi(m,…))` descriptor). Pure, no keys.
+pub fn multisig_from_hex(
+    threshold: usize,
+    pubkey_hex: &[String],
+    net: &str,
+) -> Result<(String, String, String), String> {
+    let network = match net {
+        "bitcoin" | "mainnet" | "btc" => Network::Bitcoin,
+        "testnet" => Network::Testnet,
+        "signet" => Network::Signet,
+        "regtest" => Network::Regtest,
+        _ => return Err(format!("unknown network: {net}")),
+    };
+    let mut pubs = Vec::new();
+    for h in pubkey_hex {
+        let b = blocktools_core::hex_dec(h).ok_or_else(|| format!("bad pubkey hex: {h}"))?;
+        pubs.push(PublicKey::from_slice(&b).map_err(|_| format!("not a valid pubkey: {h}"))?);
+    }
+    let ws = multisig_script(threshold, &pubs).map_err(|e| e.to_string())?;
+    let descriptor = format!("wsh(multi({threshold},{}))", pubkey_hex.join(","));
+    Ok((blocktools_core::hex_enc(ws.as_bytes()), p2wsh_address(&ws, network), descriptor))
+}
+
 fn op_small_int(v: u8) -> Option<usize> {
     // OP_1..OP_16 encode the integers 1..16 as opcodes 0x51..0x60.
     (0x51..=0x60).contains(&v).then(|| (v - 0x50) as usize)
@@ -144,6 +169,25 @@ pub fn combine_finalize(p: &mut Psbt) -> Result<usize, &'static str> {
         fin += 1;
     }
     Ok(fin)
+}
+
+/// Build the network transaction from a PSBT whose every input is finalized (final_script_sig or
+/// final_script_witness set). Un-gated (no signing/secrets): a combiner needs only PSBT assembly.
+/// Errors `input_without_signature` if any input is still unfinalized.
+pub fn extract(p: &Psbt) -> Result<bitcoin::Transaction, &'static str> {
+    if p.inputs.iter().any(|i| i.final_script_sig.is_none() && i.final_script_witness.is_none()) {
+        return Err("input_without_signature");
+    }
+    let mut tx = p.unsigned_tx.clone();
+    for (ti, i) in tx.input.iter_mut().zip(&p.inputs) {
+        if let Some(s) = &i.final_script_sig {
+            ti.script_sig = s.clone();
+        }
+        if let Some(w) = &i.final_script_witness {
+            ti.witness = w.clone();
+        }
+    }
+    Ok(tx)
 }
 
 #[cfg(test)]

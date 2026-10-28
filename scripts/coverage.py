@@ -45,7 +45,7 @@ ROWS = [  # (tool, verb, mode, argv-template-or-chains)
 NO_TX_VERB = set("""abi-decode abi-encode abi-inspect armory-read bip38-open blockchain-read build-parity bytecode-inspect chain-table
 chainstate-dump classify contract-call contract-trace create-address dat-read derive electrum-read key-to-addresses keystore-open
 log-decode msg-sign msg-verify multibit-read multisig new-seed phrase-to-key psbt-parity pw-candidates read-file redact rpc sealed-run seed-repair
-seed-to-master sig-hash signum-account tx-plan twc-vectors typed-data-verify utxo-fetch utxo-set verifier-parity wallet-finder xpub-addresses""".split())
+seed-to-master sig-hash signum-account tx-combine tx-plan twc-vectors typed-data-verify utxo-fetch utxo-set verifier-parity wallet-finder xpub-addresses""".split())
 # tx-plan is a declarative skin over blocktools-plan: every chain it resolves/checks is already a cell served by
 # the family's own tool (tx-build/tx-verify/acct-tx/...); it encodes no chain of its own, so it adds no matrix cell.
 # A probe on dummy bytes cannot tell these apart: the UTXO decoder takes any name in the chains table (which has xmr,
