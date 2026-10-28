@@ -3,6 +3,7 @@
 # Every offline tool is here. One name per line. scripts/e2e.d/help-claims.sh checks all three agree.
 seed-repair
 seed-to-master
+new-seed
 derive
 keystore-open
 read-file

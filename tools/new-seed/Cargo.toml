@@ -1,0 +1,12 @@
+[package]
+name = "new-seed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools new-seed. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-secrets = { version = "0.2.0", path = "../../crates/secrets", features = ["seed"] }
+zeroize.workspace = true
+[dev-dependencies]
+blocktools-schema = { version = "0.2.0", path = "../../crates/schema" }

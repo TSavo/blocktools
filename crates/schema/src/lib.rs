@@ -10,7 +10,7 @@ pub const STATUSES: &[&str] = &[
 ];
 // Single source for the failure vocabulary: blocktools_tx include!s the same file (D1-12).
 include!("tx_failures.rs");
-pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
+pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "new-seed", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
     "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx", "phrase-to-key"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
     "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
