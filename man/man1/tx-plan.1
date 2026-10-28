@@ -1,0 +1,103 @@
+.TH TX\-PLAN 1 2026-10-25 "blocktools 0.2.0" "blocktools manual"
+.SH NAME
+tx\-plan \- build a declarative transaction Plan (RFC #15) step by step and resolve it to unsigned bytes
+.SH SYNOPSIS
+.nf
+tx\-plan new \-\-chain C [\-\-chain\-id N] | tx\-plan <step> ... | tx\-plan resolve|check \-\-context FILE|\-  (declarative Plan builder; RFC #15)
+.fi
+.SH DESCRIPTION
+A thin Unix\-filter skin over blocktools\-plan: it adds no encoding and no crypto, it only composes a
+`Plan` as JSON and hands it to the library's family resolve/check, which orchestrate the shipped tools.
+Builder subcommands read a Plan on stdin and write the augmented Plan on stdout, so they compose:
+.nf
+.RS 2
+  tx\-plan new \-\-chain bsc \-\-chain\-id 56 | tx\-plan call \-\-to 0x.. \-\-sig 'f(uint256)' \-\-arg 1 | tx\-plan resolve \-\-context ctx.json
+.RE
+.fi
+Plan builders (JSON Plan in on stdin, augmented JSON Plan out; `new` ignores stdin):
+.nf
+.RS 2
+  new \-\-chain NAME [\-\-chain\-id N]                            empty Plan
+  call \-\-to ADDR \-\-sig SOLIDITY_SIG [\-\-arg V ...]            EVM Step::Call
+  approve \-\-token ADDR \-\-spender ADDR \-\-amount UNITS         EVM Step::Approve
+  create \-\-initcode HEX                                      EVM Step::Create
+  value \-\-amount WEI                                         EVM Step::Value
+  output \-\-to ADDR [\-\-amount SATS]                           UTXO Step::AddOutput (empty amount = sweep)
+  change \-\-to ADDR                                           UTXO Step::Change
+  op\-return \-\-memo HEX                                       UTXO Step::OpReturn
+  input \-\-txid TXID \-\-vout N \-\-amount SATS \-\-address ADDR [\-\-prev\-tx HEX]   UTXO Step::AddInput
+  fee\-rate \-\-satvb N        rbf [\-\-off]        locktime \-\-n N               UTXO steps
+  transfer \-\-to ADDR \-\-amount UNITS                          Account Step::Transfer
+  deposit \-\-asset A \-\-amount UNITS \-\-memo S                  Account Step::Deposit
+  expect\-to \-\-address ADDR     expect\-out [\-\-token ADDR] \-\-min UNITS
+  expect\-memo \-\-memo S         cap\-fee \-\-max UNITS           shared assertions
+  raw \-\-kind K \-\-fields JSON                                 totality escape hatch
+.RE
+.fi
+Terminals (Plan in on stdin or via \-\-plan FILE):
+.nf
+.RS 2
+  resolve \-\-context FILE|\-   compile to unsigned bytes (evm/utxo hex, account sign\-doc hex), via
+                             blocktools_plan::{evm,utxo,account}::resolve, dispatched by family_of.
+  check   \-\-context FILE|\-   resolve, then assert the bytes against the plan's assertions via the
+                             family check(); prints each Finding and a status line (exit 1 if any).
+.RE
+.fi
+Context JSON (live facts, never stored in the plan): evm {"nonce","gas","max_fee_per_gas","priority_fee"};
+utxo {"fee_rate"}; account {"sequence","account_number","gas","pubkey"}.
+.SH OPTIONS
+.nf
+\-\-chain
+\-\-chain\-id
+\-\-context
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+`Plan` as JSON and hands it to the library's family resolve/check, which orchestrate the shipped tools.
+Builder subcommands read a Plan on stdin and write the augmented Plan on stdout, so they compose:
+.nf
+.RS 2
+  tx\-plan new \-\-chain bsc \-\-chain\-id 56 | tx\-plan call \-\-to 0x.. \-\-sig 'f(uint256)' \-\-arg 1 | tx\-plan resolve \-\-context ctx.json
+.RE
+.fi
+Plan builders (JSON Plan in on stdin, augmented JSON Plan out; `new` ignores stdin):
+.nf
+.RS 2
+  output \-\-to ADDR [\-\-amount SATS]                           UTXO Step::AddOutput (empty amount = sweep)
+  input \-\-txid TXID \-\-vout N \-\-amount SATS \-\-address ADDR [\-\-prev\-tx HEX]   UTXO Step::AddInput
+  raw \-\-kind K \-\-fields JSON                                 totality escape hatch
+.RE
+.fi
+Terminals (Plan in on stdin or via \-\-plan FILE):
+Context JSON (live facts, never stored in the plan): evm {"nonce","gas","max_fee_per_gas","priority_fee"};
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+no status field
+.TP
+0
+last status ok
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ tx\-plan new \-\-chain bsc \-\-chain\-id 56
+# exit 0, no status field
+$ tx\-plan new
+# exit 2, last status: bad_input
+$ printf '{"nonce":14,"gas":250000,"max_fee_per_gas":1000000000,"priority_fee":1000000000}' > c; tx\-plan new \-\-chain bsc \-\-chain\-id 56 | tx\-plan call \-\-to 0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b \-\-sig 'depositWithExpiry(address,address,uint256,string,uint256)' \-\-arg 0x718f6C9df785BC4e323086De024CA822efbE8aB9 \-\-arg 0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c \-\-arg 500112480000000 \-\-arg '=:d:DTWd9kMm3EULnVRmkVFehaDTzPQJ3nqQ5r/0xeb0eC7a28E4B6B175806E21D9D3afE45792C5c7B:50080186199/1/0' \-\-arg 1793139980 | tx\-plan expect\-to \-\-address 0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b | tx\-plan resolve \-\-context c
+# exit 0, last status: ok
+$ printf '{"sequence":0,"account_number":157891,"gas":20000000,"pubkey":"02db731fc490a4107583546391517f26d0196a1e8ac777560cccda03c702c86023"}' > c; tx\-plan new \-\-chain rune | tx\-plan deposit \-\-asset THOR.RUNE \-\-amount 1105120000 \-\-memo '~:swapchan:THOR:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu:ETH.ETH' | tx\-plan expect\-memo \-\-memo '~:swapchan:THOR:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu:ETH.ETH' | tx\-plan check \-\-context c
+# exit 0, last status: ok
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+Host\-side offline tool: it opens no network connection and reads public chain data; it is not in the sealed image and sealed\-run refuses it. It never prints a key; anything it prints from your own input (a matching phrase) is yours to keep private, so send stdout to a private file.
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

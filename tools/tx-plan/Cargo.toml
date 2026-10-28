@@ -1,0 +1,11 @@
+[package]
+name = "tx-plan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools tx-plan: build a declarative transaction Plan (RFC #15) and resolve it to unsigned bytes via the library families. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
+[dependencies]
+blocktools-plan = { version = "0.2.0", path = "../../crates/plan" }
+blocktools-core = { version = "0.2.0", path = "../../crates/core" }
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+serde_json.workspace = true
