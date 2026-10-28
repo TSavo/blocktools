@@ -3,7 +3,7 @@
 tx\-sign \- sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
+tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-partial] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
@@ -44,16 +44,8 @@ EVM contract creation: \-\-create\-hash KECCAK (keccak256 of the init code) inst
 Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with \-\-max\-fee.
 .SH OPTIONS
 .nf
-\-\-abi
-\-\-call
-\-\-create\-hash
-\-\-expect\-to
-\-\-max\-fee
-\-\-plan
-\-\-policy
-\-\-tx
+  \-\-partial: m\-of\-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx\-combine. No finalize, no signed tx.
 .fi
-Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 .nf
 .RS 2

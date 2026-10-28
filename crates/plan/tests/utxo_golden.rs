@@ -21,7 +21,7 @@ fn inbound_plan() -> Plan {
         chain: "doge".into(),
         chain_id: None,
         steps: vec![
-            Step::AddInput { txid: TXID.into(), vout: 0, amount: 51138959603, address: FROM.into(), prev_tx: Some(PREV_TX.into()) },
+            Step::AddInput { txid: TXID.into(), vout: 0, amount: 51138959603, address: FROM.into(), prev_tx: Some(PREV_TX.into()), witness_script: None },
             Step::AddOutput { to: VAULT.into(), amount: String::new() }, // empty amount => sweep
             Step::OpReturn { memo: MEMO_HEX.into() },
             Step::ExpectTo { address: VAULT.into() },
@@ -58,7 +58,9 @@ fn check_fails_on_tampered_vault() {
     // Point the asserted vault at the sender's own address: the resolved output[0] no longer matches.
     for s in &mut p.steps { if let Step::ExpectTo { address } = s { *address = FROM.into(); } }
     let findings = blocktools_plan::utxo::check(&p, &v);
-    assert!(findings.iter().any(|f| f.code == "vault"), "wrong vault must be caught: {findings:?}");
+    // check() now runs the signer's own policy::check: an output to a vault the plan no longer asserts
+    // is an `unexpected_output` (same code the signer would refuse on).
+    assert!(findings.iter().any(|f| f.code == "unexpected_output"), "wrong vault must be caught: {findings:?}");
 }
 
 #[test]
@@ -67,7 +69,9 @@ fn check_fails_on_tampered_memo() {
     let mut p = inbound_plan();
     for s in &mut p.steps { if let Step::ExpectMemo { memo } = s { *memo = "=:r:thor1deadbeef".into(); } }
     let findings = blocktools_plan::utxo::check(&p, &v);
-    assert!(findings.iter().any(|f| f.code == "memo"), "wrong memo must be caught: {findings:?}");
+    // The resolved OP_RETURN no longer equals the (tampered) ExpectMemo, so it is no longer the accepted
+    // zero-value memo output and policy::check refuses it as an `unexpected_output` (and `has_warnings`).
+    assert!(findings.iter().any(|f| f.code == "unexpected_output"), "wrong memo must be caught: {findings:?}");
 }
 
 #[test]
@@ -145,13 +149,13 @@ fn check_flags_unsupported_expect_out() {
 
 #[test]
 fn check_enforces_cap_fee() {
-    // FIX (LOW): a plan CapFee below the resolved fee must be threaded into verify_send and flagged.
-    // Before the fix check always passed None, so a tight cap was silently ignored.
+    // A plan CapFee below the resolved fee is threaded into the Policy (max_fee) and flagged by the
+    // signer's policy::check as `fee_above_cap` -- the same refusal tx-sign --plan would raise.
     let v = blocktools_plan::utxo::resolve(&inbound_plan(), &context::Utxo { fee_rate: 750000 }).unwrap();
     let mut p = inbound_plan();
     p.steps.push(Step::CapFee { max: "1".into() }); // the golden fee is 188_250_000 sats, far over 1
     let findings = blocktools_plan::utxo::check(&p, &v);
-    assert!(findings.iter().any(|f| f.code == "fee"), "a tight CapFee must be enforced: {findings:?}");
+    assert!(findings.iter().any(|f| f.code == "fee_above_cap"), "a tight CapFee must be enforced: {findings:?}");
 }
 
 #[test]

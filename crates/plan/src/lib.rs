@@ -67,7 +67,10 @@ pub type Hex = String;
 pub enum Step {
     // ---- UTXO structural (resolve target: PSBT; import/combine/export) ----
     AddInput { txid: String, vout: u32, amount: u64, address: Addr,
-               #[serde(default, skip_serializing_if = "Option::is_none")] prev_tx: Option<Hex> },
+               #[serde(default, skip_serializing_if = "Option::is_none")] prev_tx: Option<Hex>,
+               /// P2WSH inner script (e.g. an m-of-n OP_CHECKMULTISIG) for a script-hash input;
+               /// carried into the PSBT so `tx-sign --partial` can multisig-sign it. None for single-key.
+               #[serde(default, skip_serializing_if = "Option::is_none")] witness_script: Option<Hex> },
     AddOutput { to: Addr, amount: Amount },
     Change { address: Addr },
     OpReturn { memo: Hex },

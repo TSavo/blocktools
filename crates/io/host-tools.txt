@@ -10,3 +10,5 @@ contract-trace public
 utxo-set offline
 wallet-finder offline
 tx-plan offline
+multisig offline
+tx-combine offline

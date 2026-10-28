@@ -1,0 +1,44 @@
+.TH MULTISIG 1 2026-10-25 "blocktools 0.2.0" "blocktools manual"
+.SH NAME
+multisig \- build an m\-of\-n P2WSH witness script + address from compressed pubkeys. Offline, no keys
+.SH SYNOPSIS
+.nf
+multisig M \-\-pubkey HEX [\-\-pubkey HEX ...] [\-\-network bitcoin|testnet|signet|regtest]
+  Build an m\-of\-n P2WSH: OP_M <pk>... OP_N OP_CHECKMULTISIG, its address, and a wsh(multi(...)) descriptor.
+  Compressed pubkeys only; the pubkey ORDER is consensus\-significant, so sign in the same order. Offline, no keys.
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  multisig 3 \-\-pubkey 02ab... \-\-pubkey 02cd... \-\-pubkey 02ef... \-\-pubkey 03... \-\-pubkey 03...  [\-\-network bitcoin]
+.RE
+.fi
+stdout: one JSON line {witness_script, address, descriptor}. The pubkey ORDER is consensus\-significant
+for OP_CHECKMULTISIG, so later sign (and combine) in the SAME order. Only public pubkeys are read.
+.SH OPTIONS
+.nf
+\-\-network
+\-\-pubkey
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+stdout: one JSON line {witness_script, address, descriptor}. The pubkey ORDER is consensus\-significant
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ multisig 2 \-\-pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 \-\-pubkey 02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5 \-\-pubkey 02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9
+# exit 0, last status: ok
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+Host\-side offline tool: it opens no network connection and reads public chain data; it is not in the sealed image and sealed\-run refuses it. It never prints a key; anything it prints from your own input (a matching phrase) is yours to keep private, so send stdout to a private file.
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

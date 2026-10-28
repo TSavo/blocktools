@@ -1,0 +1,52 @@
+.TH TX\-COMBINE 1 2026-10-25 "blocktools 0.2.0" "blocktools manual"
+.SH NAME
+tx\-combine \- merge the partial\-signature PSBTs of an m\-of\-n multisig (each produced by
+.SH SYNOPSIS
+.nf
+tx\-combine \-\-psbt FILE [\-\-psbt FILE ...]   (FILE may be \- for stdin)
+  Merge partial\-signature PSBTs from an m\-of\-n multisig (tx\-sign \-\-partial outputs from each cosigner)
+  and finalize once the threshold is met. stdout: {signed_tx, psbt}. Offline, public PSBTs, no keys.
+.fi
+.SH DESCRIPTION
+`tx\-sign \-\-partial` by a different cosigner) and finalize the inputs once the threshold is met.
+.nf
+.RS 2
+  tx\-combine \-\-psbt p1.json \-\-psbt p2.json \-\-psbt p3.json
+.RE
+.fi
+stdout: one JSON line {signed_tx: hex, psbt: finalized base64}. Refuses (not_enough_signatures)
+if any multisig input is below its threshold. Offline, reads only public PSBTs, holds no key.
+.SH OPTIONS
+.nf
+\-\-partial
+\-\-psbt
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+`tx\-sign \-\-partial` by a different cosigner) and finalize the inputs once the threshold is met.
+.nf
+.RS 2
+  tx\-combine \-\-psbt p1.json \-\-psbt p2.json \-\-psbt p3.json
+.RE
+.fi
+stdout: one JSON line {signed_tx: hex, psbt: finalized base64}. Refuses (not_enough_signatures)
+if any multisig input is below its threshold. Offline, reads only public PSBTs, holds no key.
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+2
+last status bad_input
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ tx\-combine
+# exit 2, last status: bad_input
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+Host\-side offline tool: it opens no network connection and reads public chain data; it is not in the sealed image and sealed\-run refuses it. It never prints a key; anything it prints from your own input (a matching phrase) is yours to keep private, so send stdout to a private file.
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md

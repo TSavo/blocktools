@@ -1186,6 +1186,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "multisig"
+version = "0.2.0"
+dependencies = [
+ "blocktools-io",
+ "blocktools-tx",
+ "serde_json",
+]
+
+[[package]]
 name = "new-seed"
 version = "0.2.0"
 dependencies = [
@@ -1872,6 +1881,17 @@ version = "0.2.0"
 dependencies = [
  "blocktools-core",
  "blocktools-evm",
+ "blocktools-io",
+ "blocktools-tx",
+ "serde_json",
+]
+
+[[package]]
+name = "tx-combine"
+version = "0.2.0"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
  "blocktools-io",
  "blocktools-tx",
  "serde_json",

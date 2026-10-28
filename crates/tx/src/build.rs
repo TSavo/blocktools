@@ -1,5 +1,6 @@
 //! Offline transaction building from files (never the network).
-//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex][, "script" hex]}.
+//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex][, "witness_script" hex][, "script" hex]}.
+//! A "witness_script" is the P2WSH inner script (e.g. an m-of-n OP_CHECKMULTISIG) for a script-hash input.
 //! A bare-pubkey (P2PK) output is spent when "script" or the prev_tx output is `<key> OP_CHECKSIG`
 //! for the key behind the P2PKH "address"; prev_tx is then required (legacy sighash).
 use bitcoin::absolute::LockTime;
@@ -12,7 +13,12 @@ use std::str::FromStr;
 #[derive(Debug, Clone)]
 pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Vec<u8>, pub kind: &'static str, pub prev_tx: Option<Transaction>, pub redeem: Option<ScriptBuf>,
     /// Raw previous tx bytes for nTime chains (PoS layout, not a bitcoin Transaction).
-    pub prev_raw: Option<Vec<u8>> }
+    pub prev_raw: Option<Vec<u8>>,
+    /// The P2WSH inner script (for a witness-v0 script-hash input, e.g. an m-of-n multisig). When set,
+    /// `sha256(witness_script)` equals the 32-byte program of the output's P2WSH script (validated in
+    /// parse_utxos). The multisig sighash uses it as the script_code; combine builds the final witness
+    /// `OP_0 <sig>… <witness_script>` from it. None for single-key/bare inputs.
+    pub witness_script: Option<ScriptBuf> }
 
 /// The pubkey of a bare P2PK script (`<33|65-byte key> OP_CHECKSIG`).
 pub fn p2pk_key(spk: &[u8]) -> Option<&[u8]> {
@@ -62,11 +68,31 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
         };
         let redeem = match j["redeem_script"].as_str() {
             Some(h) => { let r = ScriptBuf::from_bytes(blocktools_core::hex_dec(h).ok_or_else(|| e("redeem_script hex"))?);
-                if !crate::digest::p2sh_proven_segwit(bitcoin::Script::from_bytes(&script), Some(&r)) { return Err(e("redeem_script is not a witness program hashing to this p2sh address")) }
+                // Accept a redeem script that is EITHER a witness program hashing to this P2SH address
+                // (P2SH-P2WPKH / P2SH-P2WSH), OR a bare script (e.g. an m-of-n OP_CHECKMULTISIG) whose
+                // hash160 is this P2SH address (legacy P2SH multisig). Anything else is refused.
+                use bitcoin::hashes::{hash160, Hash};
+                let is_p2sh = script.len() == 23 && script[0] == 0xa9 && script[1] == 0x14 && script[22] == 0x87;
+                let hashes_to_p2sh = is_p2sh && script[2..22] == hash160::Hash::hash(r.as_bytes()).to_byte_array();
+                if !crate::digest::p2sh_proven_segwit(bitcoin::Script::from_bytes(&script), Some(&r)) && !hashes_to_p2sh {
+                    return Err(e("redeem_script is neither a witness program nor a bare script hashing to this p2sh address"))
+                }
                 Some(r) }
             None => None,
         };
-        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, redeem, prev_raw });
+        // P2WSH inner script (m-of-n or any witness-v0 script): sha256(witness_script) must equal the
+        // 32-byte program of the P2WSH output (or of a P2SH-P2WSH redeem program).
+        let witness_script = match j["witness_script"].as_str() {
+            Some(h) => { let ws = ScriptBuf::from_bytes(blocktools_core::hex_dec(h).ok_or_else(|| e("witness_script hex"))?);
+                use bitcoin::hashes::{sha256, Hash};
+                let prog = sha256::Hash::hash(ws.as_bytes()).to_byte_array();
+                let p2wsh_ok = script.len() == 34 && script[0] == 0x00 && script[1] == 0x20 && script[2..] == prog;
+                let p2sh_wrapped = redeem.as_ref().is_some_and(|r| { let rb = r.as_bytes(); rb.len() == 34 && rb[0] == 0x00 && rb[1] == 0x20 && rb[2..] == prog });
+                if !p2wsh_ok && !p2sh_wrapped { return Err(e("witness_script does not hash to this P2WSH output (or P2SH-P2WSH redeem)")) }
+                Some(ws) }
+            None => None,
+        };
+        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, redeem, prev_raw, witness_script });
     }
     if v.is_empty() { return Err("no_utxos".into()) }
     Ok(v)
@@ -140,6 +166,7 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
         psbt.inputs[i].witness_utxo = Some(TxOut { value: Amount::from_sat(u.amount), script_pubkey: ScriptBuf::from_bytes(u.script.clone()) });
         psbt.inputs[i].non_witness_utxo = u.prev_tx.clone();
         psbt.inputs[i].redeem_script = u.redeem.clone();
+        psbt.inputs[i].witness_script = u.witness_script.clone();
     }
     Ok(psbt)
 }

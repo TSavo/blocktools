@@ -31,7 +31,7 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < keys   (asks for a code on the terminal)");
+    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < keys   (asks for a code on the terminal)\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -109,6 +109,22 @@ fn main() {
     if keys.is_empty() { bad("no keys on stdin") }
     let secp = Secp256k1::new();
     let raw = blocktools_tx::input_bytes(&txt).unwrap_or_else(|e| bad(e));
+    // --partial: m-of-n multisig. The plan/policy guard above already passed (we partial-sign only a
+    // tx that satisfies the assertions), so here we just add THIS cosigner's signature to the PSBT's
+    // partial_sigs for each P2WSH multisig input it holds a key in, and emit the still-unfinalized
+    // PSBT -- no finalize, no signed tx. Collect quorum partials, then `tx-combine` to finalize.
+    if a.iter().any(|x| x == "--partial") {
+        let mut ps = Psbt::deserialize(&raw)
+            .unwrap_or_else(|_| bad("--partial needs a UTXO PSBT (from tx-build); EVM/account have no partial mode"));
+        let dg = blocktools_core::chains::chain(&chain)
+            .map(blocktools_tx::sign::Digest::for_chain)
+            .unwrap_or(blocktools_tx::sign::Digest::Sha256d);
+        let n = blocktools_tx::multisig::partial_sign(&mut ps, &keys, dg).unwrap_or_else(|e| bad(e));
+        if n == 0 {
+            out("refused", json!({"error":"no_multisig_input_for_these_keys"}))
+        }
+        out("ok", json!({"psbt": blocktools_core::b64::encode(&ps.serialize()), "partial": true, "added": n}))
+    }
     // (signed network bytes, signer description, bytes to re-decode for the re-check)
     let (signed, signer, recheck): (Vec<u8>, String, Vec<u8>) = if let Some(mut t) = d.evm.clone() {
         let pick = match one("--from") {

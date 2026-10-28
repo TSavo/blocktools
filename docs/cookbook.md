@@ -56,3 +56,4 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 | Solana or Tron transfer: build unsigned from a plan, decode, verify (chain auto-detected, `--chain` overrides) | `sol-tron-tx` |
 | Prove control of an address: sign a text message (Bitcoin `signmessage` P2PKH, Ethereum `personal_sign`), or verify one (chain detected from the address) | `msg-sign`, `msg-verify` |
 | Declarative transaction Plan (RFC #15): build steps, resolve to unsigned bytes, check against assertions (EVM/UTXO/Account) | `tx-plan` |
+| m-of-n multisig (Bitcoin P2WSH): build the witness script + address, carry it into a Plan, each cosigner partial-signs, combine to a signed tx | `multisig`, `tx-plan input --witness-script`, `tx-sign --partial`, `tx-combine` |

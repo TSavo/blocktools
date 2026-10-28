@@ -1,7 +1,8 @@
 //! UTXO family: resolve a `Plan` to an unsigned PSBT (THORChain-inbound style) by orchestrating
 //! `blocktools::psbtmemo::build_with` -- no encoding and no coin selection of its own, per the RFC #15
-//! "orchestrate, never duplicate" rule. `check` reuses `blocktools::thor::verify_send` verbatim so the
-//! IR verdict and the raw `verify_thor_send` tool can never disagree. Live facts come via `context::Utxo`.
+//! "orchestrate, never duplicate" rule. `check` reuses the SIGNER's own `blocktools_tx::policy::check`
+//! verbatim (the exact function `tx-sign --plan` runs), so pass-check <=> sign can never disagree. Live
+//! facts come via `context::Utxo`.
 use crate::{context, Family, Finding, Plan, Step};
 use serde_json::{json, Value};
 
@@ -35,11 +36,10 @@ pub fn resolve(plan: &Plan, cx: &context::Utxo) -> Result<Value, String> {
     let mut rbf = false;
     for s in &plan.steps {
         match s {
-            Step::AddInput { txid, vout, amount, address, prev_tx } => {
-                let line = match prev_tx {
-                    Some(h) => json!({"txid": txid, "vout": vout, "amount": amount, "address": address, "prev_tx": h.trim_start_matches("0x")}),
-                    None => json!({"txid": txid, "vout": vout, "amount": amount, "address": address}),
-                };
+            Step::AddInput { txid, vout, amount, address, prev_tx, witness_script } => {
+                let mut line = json!({"txid": txid, "vout": vout, "amount": amount, "address": address});
+                if let Some(h) = prev_tx { line["prev_tx"] = json!(h.trim_start_matches("0x")); }
+                if let Some(h) = witness_script { line["witness_script"] = json!(h.trim_start_matches("0x")); }
                 utxos.push_str(&line.to_string());
                 utxos.push('\n');
             }
@@ -122,10 +122,14 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
         let prev_tx = Some(format!("0x{}", blocktools_core::hex_enc(bitcoin::consensus::serialize(nwu))));
         let this = match txin.sequence.0 { 0xffff_fffd => true, 0xffff_ffff => false, _ => return None };
         match rbf { Some(p) if p != this => return None, _ => rbf = Some(this) }
+        let witness_script = inp
+            .witness_script
+            .as_ref()
+            .map(|s| format!("0x{}", blocktools_core::hex_enc(s.as_bytes())));
         steps.push(Step::AddInput {
             txid: txin.previous_output.txid.to_string(),
             vout: txin.previous_output.vout,
-            amount, address, prev_tx,
+            amount, address, prev_tx, witness_script,
         });
     }
     if steps.is_empty() { return None; }
@@ -170,17 +174,11 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
     Some(Plan { chain: chain.into(), chain_id: None, steps })
 }
 
-/// Assert the resolved PSBT satisfies the plan's inbound assertions, reusing `thor::verify_send` (the
-/// exact logic behind the `verify_thor_send` tool) so the two always agree. `ExpectTo` is the vault,
-/// `ExpectMemo` the OP_RETURN payload, `Change` the (optional) change address; the asserted vault amount
-/// is the amount the resolve actually produced at output[0]. Every `verify_send` failure reason becomes a
-/// `Finding{code}`; an empty vector means the bytes match the plan.
 /// The UTXO signer guard set (a `blocktools_tx::policy::Policy`) derived from the plan's assertions: the
 /// same assertion steps `check` consults -- `ExpectTo` (the vault) into `expect_to`, `Change` into
 /// `change`, `ExpectMemo` into `expect_memo`, `CapFee` into `max_fee` -- mapped into the Policy the signer
-/// path (`policy::check`, via `tx-sign --plan`) consumes, so what `tx-sign --plan` enforces is the guard
-/// set `tx-plan check` asserts (RFC #15). The signer's own `policy::check` applies the same vault/memo/fee
-/// rules `check`'s `thor::verify_send` does.
+/// path (`policy::check`, via `tx-sign --plan`) consumes, so what `tx-sign --plan` enforces is exactly the
+/// guard set `tx-plan check` asserts (RFC #15).
 pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
     let mut p = blocktools_tx::policy::Policy::default();
     let mut findings: Vec<Finding> = vec![];
@@ -203,24 +201,21 @@ pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
 
 pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let f = |c: &str| vec![Finding { code: c.into() }];
-    let Some(psbt) = resolved.get("psbt").and_then(|x| x.as_str()) else { return f("tx"); };
-    // One assertion mapping shared with the signer: `check` reads the same `guards()` Policy that
-    // `tx-sign --plan` / `tx-verify --plan` enforce, so the CapFee parse (u64) and its fail-closed
-    // `cap_fee_unparsable` finding cannot diverge between the two paths.
+    // Delegate to the SIGNER's own check: decode the resolved PSBT and apply `policy::check` with the
+    // `guards()` Policy -- the exact function `tx-sign --plan` runs (tools/tx-sign/src/main.rs: the
+    // `full` closure over `check(d, &p)`). So `tx-plan check` passes IFF `tx-sign --plan` would sign:
+    // pass-check <=> sign holds by construction for EVERY UTXO shape -- a THORChain inbound (memo +
+    // ExpectMemo, accepted as the one non-destination OP_RETURN), a plain payment, or an m-of-n multisig
+    // P2WSH spend -- not only THORChain inbounds. (It previously used `thor::verify_send`, which demanded
+    // a memo and so flagged a memo-less multisig spend the signer signs happily.)
     let (g, cap_findings) = guards(plan);
-    let vault = g.expect_to.last().cloned();
-    let change = g.change.last().cloned();
-    let memo = g.expect_memo.clone().map(|m| String::from_utf8(m).unwrap_or_default());
-    let max_fee: Option<u64> = g.max_fee.map(|v| v as u64);
-    let Some(vault) = vault else { return f("vault"); };
-    let memo = memo.unwrap_or_default();
-    let amount = resolved.get("outputs").and_then(|o| o.as_array()).and_then(|a| a.first())
-        .and_then(|o| o.get("value")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(0);
-    let r = blocktools::thor::verify_send(&plan.chain, psbt, &vault, memo.as_bytes(), amount, change.as_deref(), &[], max_fee);
-    let mut out: Vec<Finding> = r.get("failures").and_then(|a| a.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(|c| Finding { code: c.into() })).collect())
-        .unwrap_or_default();
+    // The signer requires a destination assertion (--expect-to); mirror that so an assertion-less plan
+    // is a `vault` finding here rather than a silently-accepted anything-goes spend.
+    if g.expect_to.is_empty() { return f("vault"); }
+    let txt = resolved.to_string();
+    let Ok(d) = blocktools_tx::decode(&txt, &plan.chain) else { return f("tx"); };
+    let mut out: Vec<Finding> = blocktools_tx::policy::check(&d, &g)
+        .into_iter().map(|c| Finding { code: c.into() }).collect();
     // The UTXO family enforces ExpectTo (vault), ExpectMemo and CapFee; ExpectOut it cannot, so report it.
     out.extend(crate::unsupported_assertions(plan, &["expect-to", "expect-memo", "cap-fee"]));
     out.extend(cap_findings);
