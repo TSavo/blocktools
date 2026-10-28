@@ -119,7 +119,11 @@ fn main() {
         let dg = blocktools_core::chains::chain(&chain)
             .map(blocktools_tx::sign::Digest::for_chain)
             .unwrap_or(blocktools_tx::sign::Digest::Sha256d);
-        let n = blocktools_tx::multisig::partial_sign(&mut ps, &keys, dg).unwrap_or_else(|e| bad(e));
+        // P2WSH (ECDSA, BIP143) and Taproot script-path (Schnorr, BIP341) inputs are each partial-signed
+        // by the matching routine; a PSBT may carry a mix, so run both and sum what this cosigner added.
+        let w = blocktools_tx::multisig::partial_sign(&mut ps, &keys, dg).unwrap_or_else(|e| bad(e));
+        let t = blocktools_tx::taproot_multisig::partial_sign(&mut ps, &keys).unwrap_or_else(|e| bad(e));
+        let n = w + t;
         if n == 0 {
             out("refused", json!({"error":"no_multisig_input_for_these_keys"}))
         }

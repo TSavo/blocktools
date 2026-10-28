@@ -1,5 +1,5 @@
 //! Offline transaction building from files (never the network).
-//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex][, "witness_script" hex][, "script" hex]}.
+//! UTXO file: JSON lines {"txid","vout","amount"(sats),"address"[, "prev_tx" hex][, "redeem_script" hex][, "witness_script" hex][, "tap_leaf_script" hex][, "script" hex]}.
 //! A "witness_script" is the P2WSH inner script (e.g. an m-of-n OP_CHECKMULTISIG) for a script-hash input.
 //! A bare-pubkey (P2PK) output is spent when "script" or the prev_tx output is `<key> OP_CHECKSIG`
 //! for the key behind the P2PKH "address"; prev_tx is then required (legacy sighash).
@@ -18,7 +18,12 @@ pub struct Utxo { pub txid: Txid, pub vout: u32, pub amount: u64, pub script: Ve
     /// `sha256(witness_script)` equals the 32-byte program of the output's P2WSH script (validated in
     /// parse_utxos). The multisig sighash uses it as the script_code; combine builds the final witness
     /// `OP_0 <sig>… <witness_script>` from it. None for single-key/bare inputs.
-    pub witness_script: Option<ScriptBuf> }
+    pub witness_script: Option<ScriptBuf>,
+    /// The Taproot SCRIPT-PATH tapleaf (e.g. a CHECKSIGADD m-of-n) committed under the NUMS internal
+    /// key. When set, the leaf's single-leaf NUMS spend info reproduces the output's P2TR key (validated
+    /// in parse_utxos); build_btc fills the input's `tap_internal_key` / `tap_merkle_root` / `tap_scripts`
+    /// so `tx-sign --partial` can Schnorr-sign and `tx-combine` can assemble the script-path witness.
+    pub tap_leaf: Option<ScriptBuf> }
 
 /// The pubkey of a bare P2PK script (`<33|65-byte key> OP_CHECKSIG`).
 pub fn p2pk_key(spk: &[u8]) -> Option<&[u8]> {
@@ -92,7 +97,18 @@ pub fn parse_utxos(c: &Chain, text: &str) -> Result<Vec<Utxo>, String> {
                 Some(ws) }
             None => None,
         };
-        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, redeem, prev_raw, witness_script });
+        // Taproot script-path tapleaf: the single-leaf NUMS commitment must reproduce the output's
+        // 32-byte P2TR key (script = 0x5120<32>), so a planted leaf can't redirect the spend.
+        let tap_leaf = match j["tap_leaf_script"].as_str() {
+            Some(h) => { let leaf = ScriptBuf::from_bytes(blocktools_core::hex_dec(h).ok_or_else(|| e("tap_leaf_script hex"))?);
+                let info = crate::taproot_multisig::spend_info(&leaf).map_err(|_| e("tap_leaf_script: bad taproot leaf"))?;
+                let okey = info.output_key().to_x_only_public_key().serialize();
+                let p2tr_ok = script.len() == 34 && script[0] == 0x51 && script[1] == 0x20 && script[2..] == okey;
+                if !p2tr_ok { return Err(e("tap_leaf_script does not commit to this P2TR output under the NUMS key")) }
+                Some(leaf) }
+            None => None,
+        };
+        v.push(Utxo { txid, vout, amount, script, kind, prev_tx, redeem, prev_raw, witness_script, tap_leaf });
     }
     if v.is_empty() { return Err("no_utxos".into()) }
     Ok(v)
@@ -167,6 +183,17 @@ pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, S
         psbt.inputs[i].non_witness_utxo = u.prev_tx.clone();
         psbt.inputs[i].redeem_script = u.redeem.clone();
         psbt.inputs[i].witness_script = u.witness_script.clone();
+        // Taproot script-path: reconstruct the single-leaf NUMS spend info from the leaf and record the
+        // internal key, merkle root and the revealed leaf+control block so the signer/combiner can work.
+        if let Some(leaf) = &u.tap_leaf {
+            use bitcoin::taproot::LeafVersion;
+            let info = crate::taproot_multisig::spend_info(leaf).map_err(|_| "tap spend info")?;
+            let cb = crate::taproot_multisig::control_block(&info, leaf).map_err(|_| "tap control block")?;
+            psbt.inputs[i].tap_internal_key =
+                Some(bitcoin::secp256k1::XOnlyPublicKey::from_slice(&blocktools_core::hex_dec(crate::taproot_multisig::NUMS_XONLY_HEX).unwrap()).unwrap());
+            psbt.inputs[i].tap_merkle_root = info.merkle_root();
+            psbt.inputs[i].tap_scripts.insert(cb, (leaf.clone(), LeafVersion::TapScript));
+        }
     }
     Ok(psbt)
 }

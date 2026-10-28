@@ -36,10 +36,11 @@ pub fn resolve(plan: &Plan, cx: &context::Utxo) -> Result<Value, String> {
     let mut rbf = false;
     for s in &plan.steps {
         match s {
-            Step::AddInput { txid, vout, amount, address, prev_tx, witness_script } => {
+            Step::AddInput { txid, vout, amount, address, prev_tx, witness_script, tap_leaf_script } => {
                 let mut line = json!({"txid": txid, "vout": vout, "amount": amount, "address": address});
                 if let Some(h) = prev_tx { line["prev_tx"] = json!(h.trim_start_matches("0x")); }
                 if let Some(h) = witness_script { line["witness_script"] = json!(h.trim_start_matches("0x")); }
+                if let Some(h) = tap_leaf_script { line["tap_leaf_script"] = json!(h.trim_start_matches("0x")); }
                 utxos.push_str(&line.to_string());
                 utxos.push('\n');
             }
@@ -126,10 +127,16 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
             .witness_script
             .as_ref()
             .map(|s| format!("0x{}", blocktools_core::hex_enc(s.as_bytes())));
+        // Recover a taproot script-path tapleaf from the single revealed leaf, if any.
+        let tap_leaf_script = inp
+            .tap_scripts
+            .iter()
+            .next()
+            .map(|(_cb, (leaf, _ver))| format!("0x{}", blocktools_core::hex_enc(leaf.as_bytes())));
         steps.push(Step::AddInput {
             txid: txin.previous_output.txid.to_string(),
             vout: txin.previous_output.vout,
-            amount, address, prev_tx, witness_script,
+            amount, address, prev_tx, witness_script, tap_leaf_script,
         });
     }
     if steps.is_empty() { return None; }

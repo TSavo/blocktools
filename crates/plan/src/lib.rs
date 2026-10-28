@@ -70,7 +70,10 @@ pub enum Step {
                #[serde(default, skip_serializing_if = "Option::is_none")] prev_tx: Option<Hex>,
                /// P2WSH inner script (e.g. an m-of-n OP_CHECKMULTISIG) for a script-hash input;
                /// carried into the PSBT so `tx-sign --partial` can multisig-sign it. None for single-key.
-               #[serde(default, skip_serializing_if = "Option::is_none")] witness_script: Option<Hex> },
+               #[serde(default, skip_serializing_if = "Option::is_none")] witness_script: Option<Hex>,
+               /// Taproot script-path tapleaf (e.g. a CHECKSIGADD m-of-n under the NUMS internal key);
+               /// carried into the PSBT so `tx-sign --partial` can Schnorr-sign the script path. None otherwise.
+               #[serde(default, skip_serializing_if = "Option::is_none")] tap_leaf_script: Option<Hex> },
     AddOutput { to: Addr, amount: Amount },
     Change { address: Addr },
     OpReturn { memo: Hex },
