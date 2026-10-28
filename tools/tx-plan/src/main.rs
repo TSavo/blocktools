@@ -37,7 +37,15 @@ fn fail(e: &str) -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-plan","sta
 
 struct A(Vec<String>);
 impl A {
-    fn get(&self, k: &str) -> Option<&str> { self.0.iter().position(|x| x == k).and_then(|i| self.0.get(i + 1)).map(|s| s.as_str()) }
+    fn get(&self, k: &str) -> Option<&str> {
+        let i = self.0.iter().position(|x| x == k)?;
+        let v = self.0.get(i + 1)?;
+        // A token that looks like a flag is not this flag's value (treat as missing), unless the caller
+        // passed a literal `--` end-of-flags separator before it.
+        let after_sep = self.0.iter().take(i).any(|x| x == "--");
+        if !after_sep && v.starts_with("--") { return None; }
+        Some(v.as_str())
+    }
     fn req(&self, k: &str) -> &str { self.get(k).unwrap_or_else(|| fail(&format!("missing {k}"))) }
     fn has(&self, k: &str) -> bool { self.0.iter().any(|x| x == k) }
     /// Every value that follows an occurrence of `k` (for repeatable flags like --arg).
@@ -158,7 +166,21 @@ fn main() {
 }
 
 fn family(plan: &Plan) -> Family {
-    plan.family().unwrap_or_else(|| fail(&format!("unknown chain / family: {}", plan.chain)))
+    if let Some(f) = plan.family() { return f; }
+    // A represented Raw step names its family in its kind prefix ("account."/"utxo."/"evm."); use it
+    // when the chain is empty so a represented opaque region still resolves.
+    if plan.chain.is_empty() {
+        if let Some(f) = plan.steps.iter().find_map(|s| match s {
+            Step::Raw { kind, .. } => match kind.split('.').next() {
+                Some("account") => Some(Family::Account),
+                Some("utxo") => Some(Family::Utxo),
+                Some("evm") => Some(Family::Evm),
+                _ => None,
+            },
+            _ => None,
+        }) { return f; }
+    }
+    fail(&format!("unknown chain / family: {}", plan.chain))
 }
 
 fn resolve(a: &A) {
@@ -212,9 +234,10 @@ fn check(a: &A) {
         Family::Account => {
             let c = context::Account { sequence: cx_u64(&cx, "sequence"), account_number: cx_u64(&cx, "account_number"),
                 gas: cx_u64(&cx, "gas"), pubkey: cx.get("pubkey").and_then(|v| v.as_str()).unwrap_or("").to_string() };
-            // resolve first so a malformed plan is reported the same way as the raw tool.
-            account::resolve(&plan, &c).unwrap_or_else(|e| fail(&e));
-            account::check(&plan).into_iter().map(|f| f.code).collect()
+            // resolve first so a malformed plan is reported the same way as the raw tool, then assert
+            // against the resolved SignDoc bytes (check never trusts the plan's own structural step).
+            let doc = account::resolve(&plan, &c).unwrap_or_else(|e| fail(&e));
+            account::check(&plan, &doc).into_iter().map(|f| f.code).collect()
         }
     };
     for code in &findings { out(&json!({"tool":"tx-plan","finding":code})); }

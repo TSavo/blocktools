@@ -103,3 +103,62 @@ fn check_flags_wrong_destination() {
     let codes: Vec<String> = evm::check(&plan, &tx).into_iter().map(|f| f.code).collect();
     assert!(codes.iter().any(|c| c == "destination_not_expected"), "expected destination_not_expected, got {codes:?}");
 }
+
+#[test]
+fn check_flags_unsupported_assertion() {
+    // FIX (HIGH/MEDIUM): the EVM family enforces ExpectTo and CapFee but not ExpectOut/ExpectMemo; a plan
+    // carrying one of those must not be reported silently clean.
+    let mut plan = transfer_plan("0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b");
+    plan.steps.push(Step::ExpectOut { token: None, min: "1".into() });
+    let cx = context::Evm { nonce: 1, gas: 60000, max_fee_per_gas: 1_000_000_000, priority_fee: 1_000_000_000 };
+    let tx = evm::resolve(&plan, &cx).expect("resolve");
+    let codes: Vec<String> = evm::check(&plan, &tx).into_iter().map(|f| f.code).collect();
+    assert!(codes.iter().any(|c| c == "assertion_unsupported"), "ExpectOut unsupported, got {codes:?}");
+}
+
+#[test]
+fn check_flags_unparsable_cap_fee() {
+    // FIX (MEDIUM): a CapFee the author set but that cannot be parsed must be a finding, never a silent
+    // fall-through to the looser default cap.
+    let mut plan = transfer_plan("0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b");
+    for s in &mut plan.steps { if let Step::CapFee { max } = s { *max = "not-a-number".into(); } }
+    let cx = context::Evm { nonce: 1, gas: 60000, max_fee_per_gas: 1_000_000_000, priority_fee: 1_000_000_000 };
+    let tx = evm::resolve(&plan, &cx).expect("resolve");
+    let codes: Vec<String> = evm::check(&plan, &tx).into_iter().map(|f| f.code).collect();
+    assert!(codes.iter().any(|c| c == "cap_fee_unparsable"), "unparsable CapFee must be a finding: {codes:?}");
+}
+
+#[test]
+fn resolve_rejects_two_structural_steps() {
+    // FIX (MEDIUM): a second Call/Create/Approve/evm.call would silently overwrite the first; the guard
+    // the other families carry must reject it (Value may still accompany one call).
+    let plan = Plan {
+        chain: "bsc".into(), chain_id: Some(56),
+        steps: vec![
+            Step::Approve { token: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c".into(),
+                spender: "0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b".into(), amount: "1".into() },
+            Step::Call { to: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c".into(),
+                sig: "transfer(address,uint256)".into(),
+                args: vec!["0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b".into(), "2".into()] },
+        ],
+    };
+    let cx = context::Evm { nonce: 1, gas: 60000, max_fee_per_gas: 1, priority_fee: 1 };
+    let e = evm::resolve(&plan, &cx).unwrap_err();
+    assert!(e.contains("more than one structural step"), "got {e}");
+}
+
+#[test]
+fn resolve_allows_value_with_one_call() {
+    // The guard gates only the call slot: a Value accompanying a single Call is still legal.
+    let plan = Plan {
+        chain: "bsc".into(), chain_id: Some(56),
+        steps: vec![
+            Step::Call { to: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c".into(),
+                sig: "transfer(address,uint256)".into(),
+                args: vec!["0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b".into(), "2".into()] },
+            Step::Value { amount: "1000".into() },
+        ],
+    };
+    let cx = context::Evm { nonce: 1, gas: 60000, max_fee_per_gas: 1, priority_fee: 1 };
+    assert!(evm::resolve(&plan, &cx).is_ok(), "Value may accompany one Call");
+}
