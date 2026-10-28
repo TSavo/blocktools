@@ -3,7 +3,7 @@
 tx\-verify \- check a transaction (stdin; any format tx\-decode reads) against what you expect
 .SH SYNOPSIS
 .nf
-tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)] [\-\-max\-fee N] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-expect\-memo MEMO] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
+tx\-verify [\-\-chain C] (\-\-plan FILE | [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N] [\-\-max\-fee N] [\-\-expect\-memo MEMO] [\-\-policy FILE]) [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
 .fi
 .SH DESCRIPTION
 .nf
@@ -42,6 +42,7 @@ Exit 0 and status "ok" only when every check passes; otherwise status "failed", 
 \-\-expect\-memo
 \-\-expect\-to
 \-\-max\-fee
+\-\-plan
 \-\-policy
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).

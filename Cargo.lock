@@ -1903,6 +1903,7 @@ dependencies = [
  "blocktools-core",
  "blocktools-evm",
  "blocktools-io",
+ "blocktools-plan",
  "blocktools-secrets",
  "blocktools-tty",
  "blocktools-tx",
@@ -1917,6 +1918,7 @@ dependencies = [
  "blocktools-core",
  "blocktools-evm",
  "blocktools-io",
+ "blocktools-plan",
  "blocktools-tx",
  "serde_json",
 ]

@@ -218,7 +218,7 @@ right before you build — a stale vault or nonce is how money is lost. This is 
 **2. Chain state → transaction** (build the *unsigned* tx). Combine the state from
 move 1 with your intent — recipient, amount, memo, fee — into **unsigned**
 transaction bytes. No key is involved, so this runs anywhere; `tx-build` /
-`acct-tx` / `xrp-tx` / `sol-tron-tx` (and, soon, the unified `tx-plan`).
+`acct-tx` / `xrp-tx` / `sol-tron-tx` (and the unified `tx-plan`).
    → skills **send-and-sign**, **evm-contracts**, **cross-chain-swap**
 
 **3. Secret → signed transaction** (recovery material → key → signature,
@@ -366,7 +366,7 @@ Three things follow, and the skill must teach all three:
   each chain signs with its own key, in its own move 3.
 - **Each plan is the four moves, in full.** No shortcut skips the per-chain read or
   the per-chain verify; a shared destination does not mean a shared vault or memo.
-- **Keep the plans explicit as a list.** The coming `tx-plan` tool makes this first
+- **Keep the plans explicit as a list.** The `tx-plan` tool makes this first
   class — a chain of plans across chains that you resolve, verify, sign and
   broadcast one by one — but the idea holds today with the per-chain build tools:
   loop the four moves over your list of source assets.
@@ -385,7 +385,7 @@ and where it runs.
 | **mint — a new wallet** | `new-seed` (fresh BIP39 mnemonic → `seed-to-master` → `derive`) | **sealed**; mnemonic `[REDACTED]` to agents, revealed to a human to back up |
 | **1 read — wallet → addresses** | `classify`, `derive`, `seed-to-master`, `key-to-addresses`, `xpub-addresses`, `phrase-to-key`, `pw-candidates`, `seed-repair`, the openers (`dat-read`, `electrum-read`, `armory-read`, `multibit-read`, `keystore-open`, `bip38-open`, `blockchain-read`, `read-file`), `wallet-finder` + `utxo-set`, `recover.sh` | public-only; host, or sealed for an encrypted file |
 | **1 read — addresses → state** | `rpc`, `utxo-fetch` | host (deny-by-default on sign/unlock) |
-| **2 build** | `tx-build`, `acct-tx`, `xrp-tx`, `sol-tron-tx`, `abi-encode`, `tx-envelope` (and the coming `tx-plan`) | anywhere; no key |
+| **2 build** | `tx-build`, `acct-tx`, `xrp-tx`, `sol-tron-tx`, `abi-encode`, `tx-envelope`, `tx-plan` | anywhere; no key |
 | **3 sign** | `tx-sign`, `acct-tx`/`xrp-tx`/`sol-tron-tx` (sign mode), `msg-sign` | **sealed**, offline |
 | **4 broadcast** | `tx-broadcast`, `rpc` | host |
 | **verify (glue)** | `tx-verify`, `tx-decode`, `abi-decode`, `abi-inspect`, `sig-hash`, `bytecode-inspect`, `log-decode`, `create-address`, `typed-data-verify`, `msg-verify`, `contract-call`/`contract-trace` (read) | read-only; host or sealed |
@@ -411,8 +411,12 @@ Underneath the skills, the repo's own references are authoritative and CI-tested
   codes** (`docs/REFUSALS.md`), **exit codes** (`docs/EXIT-CODES.md`), **RPC**
   (`docs/RPC.md`).
 
-> Forward note: a `tx-plan` tool (the `blocktools-plan` crate) is landing that
-> unifies step 2 — it builds any transaction, on any of the three chain families,
-> from one declarative plan, and feeds the same verify/sign path. Until it ships,
-> use the per-chain build tools the skills name (`tx-build`, `acct-tx`, `xrp-tx`,
-> `sol-tron-tx`). The verify-every-tx rule does not change.
+> `tx-plan` (the `blocktools-plan` crate) unifies step 2 — it builds any
+> transaction, on any of the three chain families, from one declarative plan
+> (intent + assertions). It is additive: the per-chain build tools (`tx-build`,
+> `acct-tx`, `xrp-tx`, `sol-tron-tx`) still work. Opt in to the plan path at signing
+> with `tx-sign --plan FILE` (EVM/UTXO): the plan's assertions BECOME the signer's
+> guards — `tx-sign --plan` signs only if the resolved tx satisfies the plan, the
+> same check `tx-plan check` runs — so a passing `tx-plan check` and what the signer
+> enforces are the same by construction. `tx-verify --plan` reads the same way. The
+> verify-every-tx rule does not change.
