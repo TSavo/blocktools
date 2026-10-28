@@ -29,6 +29,7 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 
 | Goal | Recipe |
 |---|---|
+| Make a new wallet | [recipes/goal-make-a-wallet.md](../recipes/goal-make-a-wallet.md), `new-seed` |
 | List addresses | `--goal addresses` via [recover.sh](../recipes/recover.sh) |
 | Check balance | [recipes/goal-check-balance.md](../recipes/goal-check-balance.md) |
 | Sweep | [recipes/goal-sweep.md](../recipes/goal-sweep.md) |

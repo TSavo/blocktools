@@ -386,6 +386,7 @@ dependencies = [
  "blocktools-schema",
  "cbc",
  "ctr",
+ "getrandom",
  "md-5",
  "miniz_oxide",
  "pbkdf2 0.12.2",
@@ -1179,6 +1180,16 @@ name = "multibit-read"
 version = "0.2.0"
 dependencies = [
  "blocktools-io",
+ "blocktools-secrets",
+ "zeroize",
+]
+
+[[package]]
+name = "new-seed"
+version = "0.1.1"
+dependencies = [
+ "blocktools-io",
+ "blocktools-schema",
  "blocktools-secrets",
  "zeroize",
 ]

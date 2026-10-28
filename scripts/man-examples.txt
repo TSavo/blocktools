@@ -37,6 +37,9 @@ seed-to-master | 0 | echo "abandon abandon abandon abandon abandon abandon aband
 seed-to-master | 0 | echo "powerful random nobody notice nothing important anyway look away hidden message over" | seed-to-master | derive --chain btc --count 1
 seed-to-master | 0 | printf 'TREZOR\n' > pp.txt; echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" | seed-to-master --passphrase-file pp.txt
 seed-to-master | 2 | printf 'TREZOR\n' > pp.txt; seed-to-master --passphrase-file pp.txt --passphrase-prompt < /dev/null
+new-seed | 0 | new-seed --entropy 00000000000000000000000000000000
+new-seed | 0 | new-seed --words 12 --entropy 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
+new-seed | 0 | new-seed --entropy 00000000000000000000000000000000 | seed-to-master | derive --chain eth --public-only --count 1
 tx-broadcast | 2 | echo '{"psbt":"cHNidP8="}' | tx-broadcast --chain btc --url http://127.0.0.1:9
 tx-build | 2 | tx-build --chain eth
 tx-decode | 2 | echo zz | tx-decode

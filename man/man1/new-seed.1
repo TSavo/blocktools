@@ -1,0 +1,47 @@
+.TH NEW\-SEED 1 2026-10-25 "blocktools 0.1.1" "blocktools manual"
+.SH NAME
+new\-seed \- generate a fresh BIP39 mnemonic (keygen). No stdin
+.SH SYNOPSIS
+.nf
+new\-seed [\-\-words 12|24] \-> a fresh BIP39 mnemonic (OS CSPRNG). Default 24 words (256\-bit).
+  Pipe into seed\-to\-master | derive to make a wallet. Output holds a SECRET ("mnemonic").
+.fi
+.SH DESCRIPTION
+`\-\-words 12|24` picks 128 or 256 bits of OS\-CSPRNG entropy (default 24). The mnemonic is emitted
+as {"tool":"new\-seed","status":"ok","mnemonic":"..."} \-\- exactly the shape seed\-to\-master reads
+({"mnemonic":...} lines), so `new\-seed | seed\-to\-master | derive \-\-chain eth` makes a wallet.
+Output CONTAINS A SECRET ("mnemonic"): redact / sealed\-run blank it to [REDACTED]. The human
+backup path is `./blocktools reveal`.
+A hidden `\-\-entropy <hex>` replaces the CSPRNG with caller\-supplied entropy (TEST\-ONLY, for the
+known\-answer vectors); it is not shown in \-\-help.
+.SH OPTIONS
+.nf
+\-\-words
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+new\-seed: generate a fresh BIP39 mnemonic (keygen). No stdin.
+Output CONTAINS A SECRET ("mnemonic"): redact / sealed\-run blank it to [REDACTED]. The human
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status done
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ new\-seed \-\-entropy 00000000000000000000000000000000
+# exit 0, last status: done
+$ new\-seed \-\-words 12 \-\-entropy 7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
+# exit 0, last status: done
+$ new\-seed \-\-entropy 00000000000000000000000000000000 | seed\-to\-master | derive \-\-chain eth \-\-public\-only \-\-count 1
+# exit 0, last status: done
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It may open hostile wallet files and handle secrets: run it sealed and offline (./blocktools run; sealed\-run allows it).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
