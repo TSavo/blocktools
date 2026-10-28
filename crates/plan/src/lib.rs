@@ -21,6 +21,7 @@
 //! This crate ORCHESTRATES; it adds no encoding and no crypto of its own.
 use serde::{Deserialize, Serialize};
 pub mod evm;
+pub mod account;
 
 /// Which transaction family a chain belongs to: picks the Context, the Unsigned target, and which
 /// structural steps are legal. (Solana/Tron/XRP/Stellar/Algo/TON/ADA/DOT join as the model grows;
@@ -117,7 +118,8 @@ pub mod context {
     #[derive(Clone, Debug, Default, PartialEq, Eq)]
     pub struct Utxo { pub fee_rate: u64 }
     #[derive(Clone, Debug, Default, PartialEq, Eq)]
-    pub struct Account { pub sequence: u64, pub account_number: u64, pub gas: u64 }
+    pub struct Account { pub sequence: u64, pub account_number: u64, pub gas: u64, /// compressed secp256k1 signer pubkey, 33-byte hex
+        pub pubkey: String }
 }
 
 impl Plan {
