@@ -1,11 +1,11 @@
-# ./blocktools refuses a remote docker engine (bind mounts would resolve on the remote host).
+# ./blocktools refuses a remote docker engine (./in and ./secrets would be copied to the remote host).
 # Fake docker binary: answers `context inspect` with FAKE_HOST, otherwise records that it was asked to run.
 set -eu
 T=${T:-$(mktemp -d)}; W="$PWD/blocktools"
 f() { echo "FAIL wrapper-remote $1"; exit 1; }
 mkdir -p "$T/wr" && cat > "$T/wr/docker" <<'EOS'
 #!/bin/sh
-case "$1" in context) echo "${FAKE_HOST:-unix:///var/run/docker.sock}";; *) echo RAN;; esac
+case "$1" in context) echo "${FAKE_HOST:-unix:///var/run/docker.sock}";; cp) cat >/dev/null;; run) echo RAN;; esac
 EOS
 chmod +x "$T/wr/docker"
 run() { (cd "$T/wr" && env -u DOCKER_HOST BLOCKTOOLS_DOCKER="$T/wr/docker" "$@" sh "$W" run 'derive --help' 2>&1); }

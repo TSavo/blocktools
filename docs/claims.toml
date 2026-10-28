@@ -259,14 +259,14 @@ doc = [{ file = "docs/prior-art-crypto-plugins.md", text = "20 bytes" }, { file 
 
 [[claim]]
 id = "sealed-run-linux"
-statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, read-only /in, and its agent output carries addresses and no secret material (Linux docker on Battleaxe, docker 29.8.2)"
+statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, /in and /secrets as read-only named volumes (no host bind mounts), and its agent output carries addresses and no secret material (Linux docker on Battleaxe)"
 kind = "security"
 platform = "linux"
 status = "untested"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
 cheap = false
-depends = ["blocktools", "scripts/sealed-check.sh", "Dockerfile", "crates/io/sealed-tools.txt"]
+depends = ["blocktools", "scripts/sealed-check.sh", "scripts/e2e.d/wrapper-seal.sh", "Dockerfile", "crates/io/sealed-tools.txt"]
 doc = [{ file = "README.md", text = "checks the sealed run on a real container" }]
 
 [[claim]]
@@ -553,14 +553,13 @@ id = "wrapper-remote-refusal"
 statement = "./blocktools run/reveal refuse an ssh:// or tcp:// docker engine (DOCKER_HOST or current context) before docker run; BLOCKTOOLS_ALLOW_REMOTE=1 overrides"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
+note = "depends changed: the wrapper copies ./in and ./secrets into named volumes instead of bind-mounting them (Docker Desktop on Windows); the refusal itself is unchanged and wrapper-remote.sh passes locally with its fake docker; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 doc = [{ file = "README.md", text = "scripts/e2e.d/wrapper-remote.sh" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/wrapper-remote.sh)"
 expect = "wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run; local and explicit override run"
 cheap = false
 depends = ["blocktools", "scripts/e2e.d/wrapper-remote.sh"]
-commit = "62027dc"
-date = "2026-10-26"
 
 [[claim]]
 id = "utxo-found-planted"

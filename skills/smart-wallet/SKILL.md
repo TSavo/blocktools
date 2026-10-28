@@ -38,8 +38,9 @@ boundary back to you — or to an AI agent driving the wallet — is **addresses
 derivation paths, unsigned/signed transaction bytes, and statuses only, never a
 key**.
 
-- `./in` is mounted read-only at `/in` (put wallet files here); `./secrets` at
-  `/secrets` (passwords, one per file). `BLOCKTOOLS_IN` / `BLOCKTOOLS_SECRETS`
+- `./in` appears read-only at `/in` (put wallet files here); `./secrets` at
+  `/secrets` (passwords, one per file). They are copied in for each run (no
+  bind mount), so files added mid-run are not seen. `BLOCKTOOLS_IN` / `BLOCKTOOLS_SECRETS`
   move them.
 - `./blocktools reveal` is the human-only escape hatch: it needs a real terminal
   and a typed code, then prints real keys. An agent must **never** need it.
@@ -98,7 +99,7 @@ cargo build --locked --release --workspace        # tools land in target/release
 ```
 
 **The sealed image** (needed for `./blocktools run`; needs a *local* Docker host —
-the wrapper refuses an `ssh://`/`tcp://` engine unless `BLOCKTOOLS_ALLOW_REMOTE=1`):
+the wrapper refuses an `ssh://`/`tcp://` engine unless `BLOCKTOOLS_ALLOW_REMOTE=1`, because it would copy `./secrets` there):
 
 ```sh
 ./blocktools build                                 # builds image blocktools:local

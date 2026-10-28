@@ -23,7 +23,8 @@ macOS version, the engine endpoint and the server OS/arch it measured.
 A remote engine is not "sealed on macOS". With an `ssh://` context (for example Battleaxe), the container
 and its `/in` bind mount are on the Linux host, so the tools see that host's directory, not the Mac's (seen
 once by hand: empty `/in`). `./blocktools run`/`reveal` refuse such an engine unless
-`BLOCKTOOLS_ALLOW_REMOTE=1`, and `macos-sealed-check.sh` refuses it outright. That refusal runs in the
+`BLOCKTOOLS_ALLOW_REMOTE=1` (the wrapper now copies `./in` and `./secrets` into volumes instead of bind-mounting,
+so with the override they would be copied to that host), and `macos-sealed-check.sh` refuses it outright. That refusal runs in the
 macos job with a fake docker (`scripts/e2e.d/wrapper-remote.sh`, `scripts/e2e.d/macos-sealed-refuse.sh`).
 With the override, sealing is the Linux host's, which the Linux gate measures (claim sealed-run-linux).
 

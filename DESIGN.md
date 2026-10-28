@@ -154,8 +154,9 @@ Old Electrum 1.x seeds (12/24 words from the 1626-word list in `blocktools-core:
 Interactive alternative: `--passphrase-prompt` / `--password-tty` read from `/dev/tty` with echo off (blocktools-tty); never argv or env.
 
 Passwords and passphrases arrive on **stdin**, as data in the stream. The human
-puts them in `$BLOCKTOOLS_SECRETS` (mounted read-only at `/secrets`, host dir chmod 700,
-git-ignored), and the pipeline feeds them in, e.g.
+puts them in `$BLOCKTOOLS_SECRETS` (read-only at `/secrets`, host dir chmod 700,
+git-ignored; `./blocktools` copies the directory as a tar stream into a named volume for the run and removes the
+volume on exit, so while a run lasts the secrets also sit in that volume on the Docker engine's disk), and the pipeline feeds them in, e.g.
 `read-file /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
 opens a named file. The only other source is `keystore-open --password-tty`, a
 prompt to the human on `/dev/tty`. Nothing is ever read from argv or env.

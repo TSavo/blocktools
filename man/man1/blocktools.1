@@ -9,13 +9,13 @@ blocktools \- host wrapper that runs a pipeline in the sealed container
 .fi
 .SH DESCRIPTION
 Thin host\-side wrapper. Runs a blocktools pipeline in a sealed container.
-Inputs: $BLOCKTOOLS_IN (default ./in) mounted read\-only at /in.
-Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read\-only at /secrets.
+Inputs: $BLOCKTOOLS_IN (default ./in), read\-only at /in.
+Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets), read\-only at /secrets.
 .SH OPTIONS
 No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
 .SH INPUT/OUTPUT
-Inputs: $BLOCKTOOLS_IN (default ./in) mounted read\-only at /in.
-Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read\-only at /secrets.
+Inputs: $BLOCKTOOLS_IN (default ./in), read\-only at /in.
+Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets), read\-only at /secrets.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .PP

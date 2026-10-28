@@ -3,36 +3,71 @@
 #   ./blocktools run    '<pipeline>'   # agent-safe: prints only addresses/paths/statuses
 #   ./blocktools reveal '<pipeline>'   # human only: needs a TTY + typed code, prints keys
 #   ./blocktools build
-# Inputs: $BLOCKTOOLS_IN (default ./in) mounted read-only at /in.
-# Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets) read-only at /secrets.
+# Inputs: $BLOCKTOOLS_IN (default ./in), read-only at /in.
+# Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets), read-only at /secrets.
 set -eu
 IMAGE="${BLOCKTOOLS_IMAGE:-blocktools:local}"; DOCKER="${BLOCKTOOLS_DOCKER:-docker}"
 IN="${BLOCKTOOLS_IN:-$PWD/in}"; SECRETS="${BLOCKTOOLS_SECRETS:-$PWD/secrets}"
 mkdir -p "$IN" "$SECRETS"; chmod 700 "$SECRETS"
-# The bind mounts below resolve on the Docker HOST. With a remote engine (ssh:// or tcp:// context or
-# DOCKER_HOST) /in and /secrets would be the remote machine's paths, not yours: measured on macOS with an
-# ssh:// context, the container saw an empty /in. Refuse instead of silently reading the wrong files.
+# No host bind mounts: on Battleaxe the engine is Docker Desktop on Windows, whose VM does not see WSL2
+# distro paths, so a bind mount of ./in arrives empty (same cause as release-repos.sh, 8a7b876). ./in and
+# ./secrets are copied as tar streams (`docker cp -a -`, never through a host temp file) into two fresh named
+# volumes through a staging container that is created and never started, then mounted read-only into the
+# sealed container. The volumes and the staging container are removed on exit, also on failure or Ctrl-C.
+# A remote engine (ssh:// or tcp:// context or DOCKER_HOST) is refused: ./secrets would be copied to that host.
 remote_engine() {
   h="${DOCKER_HOST:-}"
   [ -n "$h" ] || h=$($DOCKER context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null) || h=
   case "$h" in ssh://*|tcp://*|http://*|https://*) echo "$h";; esac
 }
+# tar of a directory's contents, owned by the container user (10001), so a chmod 600 secret stays readable
+# inside and nothing else is; GNU tar (Linux/WSL) or bsdtar (macOS).
+tar_as_user() {
+  if tar --version 2>/dev/null | grep -q 'GNU tar'; then tar -C "$1" --owner=10001 --group=10001 --numeric-owner -cf - .
+  else tar -C "$1" --uid 10001 --gid 10001 -cf - .; fi
+}
+VOLS=""; STAGER=""
+unseal() {  # idempotent cleanup; never prints volume contents
+  [ -z "$STAGER" ] || $DOCKER rm -f "$STAGER" >/dev/null 2>&1 || :
+  [ -z "$VOLS" ] || $DOCKER volume rm -f $VOLS >/dev/null 2>&1 || :
+  STAGER=""; VOLS=""
+}
+stage_in() {  # stage_in HOSTDIR DEST: copy HOSTDIR's contents into the staging container's DEST volume
+  if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
+  err=$(tar_as_user "$1" | $DOCKER cp -a - "$STAGER:$2" 2>&1 >/dev/null) || {
+    echo "blocktools: copying $2 into the container failed: $err" >&2; exit 5; }
+}
 seal() {
   r=$(remote_engine)
-  [ -z "$r" ] || [ "${BLOCKTOOLS_ALLOW_REMOTE:-}" = 1 ] || { echo "blocktools: docker engine is remote ($r): ./in and ./secrets would be read on that host, not here. Use a local engine (e.g. docker context use desktop-linux) or set BLOCKTOOLS_ALLOW_REMOTE=1 if the files are on that host." >&2; exit 4; }
+  [ -z "$r" ] || [ "${BLOCKTOOLS_ALLOW_REMOTE:-}" = 1 ] || { echo "blocktools: docker engine is remote ($r): ./in and ./secrets would be copied to that host. Use a local engine (e.g. docker context use desktop-linux) or set BLOCKTOOLS_ALLOW_REMOTE=1 if that is intended." >&2; exit 4; }
   flags="$1"; shift
+  tag="blocktools-$$-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
+  trap unseal EXIT; trap 'exit 130' INT; trap 'exit 143' TERM
+  for v in in secrets; do
+    $DOCKER volume create --label "blocktools.sealed=$tag" "$tag-$v" >/dev/null
+    VOLS="$VOLS $tag-$v"
+  done
+  STAGER=$($DOCKER create --network none --log-driver none --label "blocktools.sealed=$tag" \
+    --mount "type=volume,src=$tag-in,dst=/in" --mount "type=volume,src=$tag-secrets,dst=/secrets" "$IMAGE")
+  stage_in "$IN" /in
+  stage_in "$SECRETS" /secrets
+  $DOCKER rm -f "$STAGER" >/dev/null; STAGER=""
   # BLOCKTOOLS_SEAL_PROBE=1: `create` instead of `run --rm`, so scripts/sealed-check.sh can inspect the
-  # exact flags below on a real container (then start -a it and remove it).
+  # exact flags below on a real container (then start -a it and remove it and its two volumes).
   if [ "${BLOCKTOOLS_SEAL_PROBE:-}" = 1 ]; then op="create"; else op="run --rm"; fi
+  rc=0
   $DOCKER $op $flags \
     --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true \
     --user 10001:10001 --pids-limit 64 --memory 2g --memory-swap 2g --cpus 2 \
     --tmpfs /run/blocktools:rw,noexec,nosuid,nodev,size=64m,mode=0700,uid=10001 \
     --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=10001 \
-    --mount "type=bind,src=$IN,dst=/in,readonly" \
-    --mount "type=bind,src=$SECRETS,dst=/secrets,readonly" \
-    --log-driver none \
-    "$IMAGE" "$@"
+    --mount "type=volume,src=$tag-in,dst=/in,readonly,volume-nocopy" \
+    --mount "type=volume,src=$tag-secrets,dst=/secrets,readonly,volume-nocopy" \
+    --label "blocktools.sealed=$tag" --log-driver none \
+    "$IMAGE" "$@" || rc=$?
+  # probe: the created container still uses the volumes; sealed-check.sh removes both
+  [ "${BLOCKTOOLS_SEAL_PROBE:-}" != 1 ] || [ $rc != 0 ] || VOLS=""
+  return $rc
 }
 case "${1:-}" in
   build) d=$(dirname "$0"); c=$(git -C "$d" rev-parse HEAD 2>/dev/null || echo unknown)

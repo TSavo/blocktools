@@ -140,8 +140,12 @@ human-only variant: it needs a real terminal and a typed code, then prints keys.
 **macOS sealed path is unverified (untested).** The macos CI job runs the tools natively, not sealed. One hand check on a Mac
 (macOS 26.3.1 x86_64; Docker Desktop not running, so `docker` pointed at an `ssh://` context on a Linux host): the container
 ran on the remote host and saw an empty `/in`, because bind mounts resolve on the Docker host (hand-measured once, not re-run in CI) (untested).
+The wrapper no longer bind-mounts anything: `./in` and `./secrets` are copied as tar streams into two named volumes
+(through a staging container that is never started), mounted read-only, and removed on exit, because a Docker Desktop
+engine on Windows does not see WSL2 paths and a bind mount there arrives empty. `scripts/e2e.d/wrapper-seal.sh` checks
+this with a fake docker everywhere and on a real engine on the Linux CI runners (untested until a green CI run shows it).
 `./blocktools run`/`reveal` now refuse an `ssh://` or `tcp://` engine (`DOCKER_HOST` or the current context) before starting
-a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if the files are on that host.
+a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary) (untested); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if copying `./in` and `./secrets` to that host is intended.
 Without Docker, `sealed-run agent '<pipeline>'` gives the same redaction but none of the
 container isolation.
 
