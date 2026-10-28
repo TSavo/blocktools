@@ -81,7 +81,7 @@ grep -q 'not_enough_signatures' "$W/under.json" || { cat "$W/under.json"; f "sub
 echo "ok   multisig: a sub-threshold combine refuses (not_enough_signatures)"
 
 # 6b. A cosigner outside the script: partial-sign refuses (no multisig input for this key).
-python3 scripts/e2e-only/tty-drive.py right "$W/kX" "$W/pX.json" "$Bab/tx-sign" --partial --tx "$W/tx.json" --plan "$W/plan.json" > "$W/ttyX" 2>&1 || true
+python3 scripts/e2e-only/tty-drive.py right "$W/kX" "$W/pX.json" "$Bab/tx-sign" --partial --tx "$W/tx.json" --plan "$W/plan.json" > "$W/ttyX" 2>&1 || true  # allow-true: a non-cosigner is expected to refuse; asserted next
 grep -q 'no_multisig_input_for_these_keys' "$W/pX.json" || { cat "$W/pX.json"; f "a non-cosigner key must be refused"; }
 echo "ok   multisig: a key outside the script is refused (no_multisig_input_for_these_keys)"
 
@@ -92,7 +92,7 @@ for s in p["steps"]:
     if s.get("op")=="expect-to": s["address"]=sys.argv[2]
 print(json.dumps(p))' "$W/plan.json" bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 2>/dev/null || echo "")
 printf '%s\n' "$Ptamper" > "$W/plan.tamper.json"
-python3 scripts/e2e-only/tty-drive.py right "$W/k1" "$W/pt.json" "$Bab/tx-sign" --partial --tx "$W/tx.json" --plan "$W/plan.tamper.json" > "$W/ttyt" 2>&1 || true
+python3 scripts/e2e-only/tty-drive.py right "$W/k1" "$W/pt.json" "$Bab/tx-sign" --partial --tx "$W/tx.json" --plan "$W/plan.tamper.json" > "$W/ttyt" 2>&1 || true  # allow-true: a tampered plan is expected to refuse; asserted next
 grep -q '"status":"ok"' "$W/pt.json" && { cat "$W/pt.json"; f "a tampered plan assertion must refuse the partial sign"; }
 echo "ok   multisig: a tampered expect-to refuses the partial sign (pass-check <=> sign holds across the multi-party flow)"
 
