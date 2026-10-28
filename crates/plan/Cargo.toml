@@ -1,0 +1,10 @@
+[package]
+name = "blocktools-plan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Universal declarative transaction representation (IR) across chain families. DANGEROUS: audit before trusting with funds. See RFC https://github.com/TSavo/blocktools/issues/15."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true }
