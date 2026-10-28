@@ -13,6 +13,12 @@ Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm expo
 `tools/` crate was removed; no option was removed from any man page). Behaviour changes that can affect
 existing scripts are listed under "Changed".
 
+### Fixed
+- `tx-sign --plan` / `tx-verify --plan` (UTXO): an unparsable `cap-fee` max was dropped for the chain's
+  default cap; it now refuses with `cap_fee_unparsable`, and `utxo::check` reads the same `utxo::guards`
+  mapping (u64 cap) so the two cannot diverge. A UTXO plan whose `chain` differs from the tx's chain is
+  refused with `plan_chain_mismatch`. Docs no longer say UTXO check and sign are the same "by construction".
+
 ### Added
 - THORChain UTXO inbound (swap from a UTXO coin): `tx-build --memo STRING` / `--op-return HEX` adds a
   zero-value trailing `OP_RETURN` to the UTXO build path (THORChain inbound shape `[vault, change,

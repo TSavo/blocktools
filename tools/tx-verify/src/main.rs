@@ -22,12 +22,15 @@ fn main() {
     // --plan FILE: the Plan (RFC #15) carries the assertions; `blocktools_plan::sign_guards` derives the
     // SAME policy::Policy the flags build (plus fail-closed findings), so a passing `tx-verify --plan` and a
     // `tx-sign --plan` enforce the identical assertions. Opt-in and exclusive with the manual assertion flags.
-    let (p, plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
+    // UTXO plans name their chain; the tx being verified/signed must be on that same chain.
+    let mut plan_chain: Option<String> = None;
+    let (p, mut plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
         for k in ["--expect-to", "--expect-memo", "--max-fee", "--chain-id", "--change", "--policy"] {
             if a.iter().any(|x| x == k) { bad("--plan carries the assertions; do not also pass --expect-to/--expect-memo/--max-fee/--chain-id/--change/--policy") }
         }
         let plan: blocktools_plan::Plan = serde_json::from_str(&std::fs::read_to_string(&plan_file).unwrap_or_else(|_| bad("cannot read --plan file"))).unwrap_or_else(|e| bad(&format!("bad Plan JSON: {e}")));
         let g = blocktools_plan::sign_guards(&plan);
+        plan_chain = (g.family == Some(blocktools_plan::Family::Utxo)).then(|| plan.chain.to_ascii_lowercase());
         match g.family {
             Some(blocktools_plan::Family::Evm) | Some(blocktools_plan::Family::Utxo) => {}
             _ => bad("tx-verify --plan supports EVM and UTXO plans only"),
@@ -47,6 +50,7 @@ fn main() {
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
     let chain = blocktools_tx::resolve_chain(&s, one("--chain")).unwrap_or_else(|e| bad(e));
     let d = blocktools_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
+    if plan_chain.as_ref().is_some_and(|pc| *pc != chain.to_ascii_lowercase()) { plan_findings.push("plan_chain_mismatch".into()) }
     // Default fee cap (same as tx-sign) is applied inside policy::check unless --max-fee is given.
     let mut f: Vec<String> = check(&d, &p).into_iter().map(String::from).collect();
     f.extend(plan_findings.iter().cloned());

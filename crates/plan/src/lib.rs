@@ -157,8 +157,11 @@ impl Plan {
 /// op the family does not consult, and a structural step whose destination/memo assertion the plan omits.
 ///
 /// `tx-sign --plan` feeds `policy` to the same `policy::check` path the `--expect-to`/`--max-fee`/... flags
-/// drive and refuses to sign on any `findings`, so a Plan that passes `tx-plan check` and one signed with
-/// `tx-sign --plan` enforce the identical assertions **by construction** (RFC #15). `tx-sign` can sign only
+/// drive and refuses to sign on any `findings` (RFC #15). Each family's `check()` reads its assertions through
+/// the same `guards()` mapping, so the CapFee parse and its `cap_fee_unparsable` finding are shared. For EVM
+/// the verifier is shared too (`check` runs `policy::check`); for UTXO `check` verifies with
+/// `thor::verify_send` while the signer runs `policy::check`, two verifiers fed the same assertions.
+/// The CLIs also refuse a UTXO plan whose `chain` differs from the tx's chain (`plan_chain_mismatch`). `tx-sign` can sign only
 /// the Evm and Utxo families; an Account plan resolves to a Cosmos SignDoc that `acct-tx` signs instead.
 #[derive(Clone, Debug)]
 pub struct SignGuards {

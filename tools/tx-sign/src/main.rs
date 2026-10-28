@@ -46,7 +46,9 @@ fn main() {
     // signer guard set (the SAME policy::Policy the flags build, plus fail-closed findings). tx-sign then
     // SIGNS ONLY IF the resolved tx satisfies them -- the same check `tx-plan check` runs. Opt-in and
     // exclusive with the manual assertion flags (no silent mixing).
-    let (p, plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
+    // UTXO plans name their chain; the tx being verified/signed must be on that same chain.
+    let mut plan_chain: Option<String> = None;
+    let (p, mut plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
         for k in ["--expect-to", "--expect-memo", "--max-fee", "--chain-id", "--change", "--policy"] {
             if a.iter().any(|x| x == k) { bad("--plan carries the assertions; do not also pass --expect-to/--expect-memo/--max-fee/--chain-id/--change/--policy") }
         }
@@ -54,6 +56,7 @@ fn main() {
         std::fs::File::open(&plan_file).and_then(|fh| fh.take(blocktools_tx::MAX_INPUT as u64).read_to_string(&mut ptxt)).unwrap_or_else(|_| bad("cannot read --plan file"));
         let plan: blocktools_plan::Plan = serde_json::from_str(&ptxt).unwrap_or_else(|e| bad(&format!("bad Plan JSON: {e}")));
         let g = blocktools_plan::sign_guards(&plan);
+        plan_chain = (g.family == Some(blocktools_plan::Family::Utxo)).then(|| plan.chain.to_ascii_lowercase());
         match g.family {
             Some(blocktools_plan::Family::Evm) | Some(blocktools_plan::Family::Utxo) => {}
             _ => bad("tx-sign --plan supports EVM and UTXO plans only; sign account-family plans with acct-tx"),
@@ -69,6 +72,7 @@ fn main() {
             allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
             expect_memo: one("--expect-memo").map(String::into_bytes) }, Vec::new())
     };
+    if plan_chain.as_ref().is_some_and(|pc| *pc != chain.to_ascii_lowercase()) { plan_findings.push("plan_chain_mismatch".into()) }
     let creating = d.evm.as_ref().is_some_and(|t| t.to.is_none());
     if creating && !p.expect_to.is_empty() { bad("contract creation has no destination: use --create-hash KECCAK instead of --expect-to") }
     if creating && one("--create-hash").is_none() { bad("contract creation needs --create-hash KECCAK (keccak256 of the init code)") }

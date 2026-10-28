@@ -140,9 +140,10 @@ library**: one plan object — intent + assertions — that it resolves against 
 and feeds down the identical verify/sign path, on any of the three chain families. It is
 opt-in at signing: `tx-sign --plan FILE` (EVM/UTXO) derives the signer's guards from the
 plan's assertions and signs **only if** the resolved tx satisfies them — the same check
-`tx-plan check` runs, fail-closed — so a passing `tx-plan check` and what `tx-sign --plan`
-enforces are the identical assertions by construction (`tx-verify --plan` reads the same
-way). You can still write the plan by hand as the build flags plus the verify/policy
+`tx-plan check` reads, through one shared mapping, fail-closed (an unparsable `cap-fee` is
+`cap_fee_unparsable`, a plan for another chain is `plan_chain_mismatch`). The verifier is
+shared on EVM; on UTXO `tx-plan check` and the signer run two verifiers over the same
+assertions (`tx-verify --plan` reads the same way as the signer). You can still write the plan by hand as the build flags plus the verify/policy
 assertions; the model does not change, only how first-class the plan object is.
 
 ## The policy file is the hard gate between move 2 and move 3 (`docs/POLICY.md`)

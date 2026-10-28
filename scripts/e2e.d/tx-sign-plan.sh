@@ -71,3 +71,20 @@ echo "ok   tx-sign-plan: tampering the plan (wrong vault / wrong memo / fee over
 "$B/tx-verify" --plan "$W/plan.badto.json" < "$W/tx.json" > "$W/v.badto" || true  # allow-true: refusal asserted next
 grep -q '"status":"failed"' "$W/v.badto" && grep -q unexpected_output "$W/v.badto" || { cat "$W/v.badto"; f "tx-verify --plan did not reject the wrong vault"; }
 echo "ok   tx-sign-plan: tx-verify --plan matches tx-sign --plan (honest passes, tampered fails)"
+
+# 6. Unparsable CapFee fails closed on EVERY path (check, verify, sign): never the looser chain default.
+python3 -c 'import json,sys;p=json.load(open(sys.argv[1]));[s.__setitem__("max","abc") for s in p["steps"] if s.get("op")=="cap-fee"];json.dump(p,open(sys.argv[2],"w"))' "$W/plan.json" "$W/plan.abc.json"
+"$B/tx-plan" check --plan "$W/plan.abc.json" --context "$W/ctx.json" > "$W/c.abc" && { cat "$W/c.abc"; f "tx-plan check passed an unparsable cap-fee"; }
+grep -q cap_fee_unparsable "$W/c.abc" || { cat "$W/c.abc"; f "tx-plan check abc: no cap_fee_unparsable"; }
+"$B/tx-verify" --chain doge --plan "$W/plan.abc.json" < "$W/tx.json" > "$W/v.abc" && { cat "$W/v.abc"; f "tx-verify --plan passed an unparsable cap-fee"; }
+grep -q '"status":"failed"' "$W/v.abc" && grep -q cap_fee_unparsable "$W/v.abc" || { cat "$W/v.abc"; f "tx-verify abc: no cap_fee_unparsable"; }
+refuses abc cap_fee_unparsable "$W/plan.abc.json"
+echo "ok   tx-sign-plan: an unparsable cap-fee is refused by tx-plan check, tx-verify --plan and tx-sign --plan"
+
+# 7. Plan chain must match the tx chain: an ltc plan on this doge tx is refused (verify and sign).
+python3 -c 'import json,sys;p=json.load(open(sys.argv[1]));p["chain"]="ltc";json.dump(p,open(sys.argv[2],"w"))' "$W/plan.json" "$W/plan.ltc.json"
+"$B/tx-verify" --chain doge --plan "$W/plan.ltc.json" < "$W/tx.json" > "$W/v.ltc" && { cat "$W/v.ltc"; f "tx-verify --plan passed an ltc plan on a doge tx"; }
+grep -q plan_chain_mismatch "$W/v.ltc" || { cat "$W/v.ltc"; f "tx-verify ltc plan: no plan_chain_mismatch"; }
+refuses ltcplan plan_chain_mismatch "$W/plan.ltc.json"
+"$B/tx-verify" --chain doge --plan "$W/plan.json" < "$W/tx.json" | grep -q '"status":"ok"' || f "matching-chain plan no longer verifies"
+echo "ok   tx-sign-plan: a plan for another chain is refused (plan_chain_mismatch); the matching chain still verifies"

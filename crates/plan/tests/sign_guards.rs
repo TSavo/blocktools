@@ -1,4 +1,4 @@
-//! `sign_guards` (RFC #15): a Plan's assertions BECOME the signer's guards by construction. These assert
+//! `sign_guards` (RFC #15): a Plan's assertions BECOME the signer's guards (one shared mapping per family). These assert
 //! the library mapping directly -- the per-family guard set `tx-sign --plan` feeds to `policy::check`, and
 //! the fail-closed findings that refuse a sign. The full resolve -> `tx-plan check` passes -> `tx-sign
 //! --plan` signs -> tamper -> `tx-sign --plan` refuses invariant runs end to end in
@@ -99,4 +99,13 @@ fn sign_guards_utxo_vault_memo_and_fail_closed() {
     let mut no_to = clean.clone();
     no_to.steps.retain(|s| !matches!(s, Step::ExpectTo { .. }));
     assert!(sign_guards(&no_to).findings.iter().any(|f| f.code == "destination_not_asserted"));
+
+    // An unparsable CapFee fails closed on the signer path too (never the looser chain default).
+    for bad in ["abc", "", "-1", "18446744073709551616"] {
+        let mut abc = clean.clone();
+        for s in abc.steps.iter_mut() { if let Step::CapFee { max } = s { *max = bad.into(); } }
+        let g = sign_guards(&abc);
+        assert!(g.findings.iter().any(|f| f.code == "cap_fee_unparsable"), "{bad:?}: {:?}", g.findings);
+        assert_eq!(g.policy.max_fee, None);
+    }
 }

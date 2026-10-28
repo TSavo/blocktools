@@ -417,6 +417,9 @@ Underneath the skills, the repo's own references are authoritative and CI-tested
 > `acct-tx`, `xrp-tx`, `sol-tron-tx`) still work. Opt in to the plan path at signing
 > with `tx-sign --plan FILE` (EVM/UTXO): the plan's assertions BECOME the signer's
 > guards — `tx-sign --plan` signs only if the resolved tx satisfies the plan, the
-> same check `tx-plan check` runs — so a passing `tx-plan check` and what the signer
-> enforces are the same by construction. `tx-verify --plan` reads the same way. The
+> assertions `tx-plan check` reads, through one shared mapping (an unparsable
+> `cap-fee` is refused everywhere as `cap_fee_unparsable`, and a plan for another
+> chain is refused as `plan_chain_mismatch`). On EVM the verifier is shared as well;
+> on UTXO `tx-plan check` and the signer use two verifiers over the same assertions,
+> so verify the bytes at signing too. `tx-verify --plan` reads the same way. The
 > verify-every-tx rule does not change.

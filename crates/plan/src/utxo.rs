@@ -183,40 +183,35 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
 /// rules `check`'s `thor::verify_send` does.
 pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
     let mut p = blocktools_tx::policy::Policy::default();
+    let mut findings: Vec<Finding> = vec![];
     for s in &plan.steps {
         match s {
             Step::ExpectTo { address } => p.expect_to.push(address.clone()),
             Step::Change { address } => p.change.push(address.clone()),
             Step::ExpectMemo { memo } => p.expect_memo = Some(memo.clone().into_bytes()),
-            Step::CapFee { max } => p.max_fee = max.parse::<u128>().ok(),
+            // A CapFee the author set must never be silently dropped for the looser chain default: an
+            // unparsable cap (or one wider than the u64 UTXO fee width) is a finding, never a fall-through.
+            Step::CapFee { max } => match max.parse::<u64>() {
+                Ok(v) => p.max_fee = Some(v as u128),
+                Err(_) => findings.push(Finding { code: "cap_fee_unparsable".into() }),
+            },
             _ => {}
         }
     }
-    (p, vec![])
+    (p, findings)
 }
 
 pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let f = |c: &str| vec![Finding { code: c.into() }];
     let Some(psbt) = resolved.get("psbt").and_then(|x| x.as_str()) else { return f("tx"); };
-    let mut vault: Option<String> = None;
-    let mut memo: Option<String> = None;
-    let mut change: Option<String> = None;
-    let mut max_fee: Option<u64> = None;
-    // A CapFee the author set must never be silently dropped for the looser default: an
-    // unparsable cap is a finding, and the cap stays unset only as a failure, not a fall-through.
-    let mut cap_findings: Vec<Finding> = vec![];
-    for s in &plan.steps {
-        match s {
-            Step::ExpectTo { address } => vault = Some(address.clone()),
-            Step::ExpectMemo { memo: m } => memo = Some(m.clone()),
-            Step::Change { address } => change = Some(address.clone()),
-            Step::CapFee { max } => match max.parse::<u64>() {
-                Ok(v) => max_fee = Some(v),
-                Err(_) => cap_findings.push(Finding { code: "cap_fee_unparsable".into() }),
-            },
-            _ => {}
-        }
-    }
+    // One assertion mapping shared with the signer: `check` reads the same `guards()` Policy that
+    // `tx-sign --plan` / `tx-verify --plan` enforce, so the CapFee parse (u64) and its fail-closed
+    // `cap_fee_unparsable` finding cannot diverge between the two paths.
+    let (g, cap_findings) = guards(plan);
+    let vault = g.expect_to.last().cloned();
+    let change = g.change.last().cloned();
+    let memo = g.expect_memo.clone().map(|m| String::from_utf8(m).unwrap_or_default());
+    let max_fee: Option<u64> = g.max_fee.map(|v| v as u64);
     let Some(vault) = vault else { return f("vault"); };
     let memo = memo.unwrap_or_default();
     let amount = resolved.get("outputs").and_then(|o| o.as_array()).and_then(|a| a.first())
