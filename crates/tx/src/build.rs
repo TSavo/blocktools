@@ -80,8 +80,8 @@ pub fn out_vb(script: &[u8]) -> u64 { 9 + script.len() as u64 }
 pub struct BtcPlan { pub to: String, pub send: Option<u64>, pub change: Option<String>, pub fee_rate: u64, pub rbf: bool, pub dust: u64, pub op_return: Option<Vec<u8>>, pub locktime: u32 }
 
 /// Largest OP_RETURN data push the chain's reference node relays (bytes). Mirrors
-/// `blocktools::psbtmemo::op_return_limit`, measured by memo-regtest.sh: BCHN 28.0.1 accepts 220,
-/// LTC/Dogecoin and Bitcoin accept 80. Used by tx-build's `--op-return`/`--memo` (THORChain memo).
+/// `blocktools::psbtmemo::op_return_limit`, measured by memo-regtest.sh on regtest: BCHN 28.0.1 accepts 220,
+/// Litecoin and Dogecoin accept 80. Bitcoin's 80 is not measured: memo-regtest.sh runs ltc, doge and bch only. Used by tx-build's `--op-return`/`--memo` (THORChain memo).
 pub fn op_return_limit(chain: &str) -> usize { match chain { "bch" => 220, _ => 80 } }
 
 /// OP_RETURN output script for `memo`, refused above the chain's relay limit (`op_return_limit`).

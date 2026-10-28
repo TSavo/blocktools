@@ -79,7 +79,7 @@ pub fn serialize_nvc_tx_from_json(json: &str, expected_txid: &str) -> Result<Str
 pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx::decode(input, chain).map_err(err)?.text()) }
 
 /// tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the
-/// tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value
+/// tx-sign default: 0.01 ETH-equivalent for EVM (untested); UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value
 /// alongside ERC-20 transfer calldata.
 #[wasm_bindgen(js_name = verifyTx)]
 #[allow(clippy::too_many_arguments)]
