@@ -528,8 +528,8 @@ already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-c
 it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
 crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
 code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
-`bindings/wasm/test.mjs` (public vectors) under Node. Measured at 0ed878d (rustc 1.85.1, clang 19.1.7, `scripts/wasm-size.sh`): 1,933,319 bytes (607,494 gzip)
-with names; 1,618,269 bytes (534,794 gzip) stripped; 47 crates in the wasm tree. The module also
+`bindings/wasm/test.mjs` (public vectors) under Node. Last measured at 0ed878d (rustc 1.85.1, clang 19.1.7, `scripts/wasm-size.sh`; awaiting restamp): 1,933,319 bytes (607,494 gzip) (unmeasured)
+with names; 1,618,269 bytes (534,794 gzip) stripped (unmeasured); 47 crates in the wasm tree (unmeasured). The module also
 exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
 that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
 (secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.
