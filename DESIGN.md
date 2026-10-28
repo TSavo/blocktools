@@ -64,7 +64,7 @@ pastes keys into chat.
 
 ## 3. Agent-facing schema (enforced by `redact`)
 
-One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512). Allowlisted fields:
+One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512; re-run pending after crates/schema changed) (unmeasured). Allowlisted fields:
 
 | field | validator |
 |---|---|
