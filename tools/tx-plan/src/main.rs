@@ -13,7 +13,8 @@
 //!   output --to ADDR [--amount SATS]                           UTXO Step::AddOutput (empty amount = sweep)
 //!   change --to ADDR                                           UTXO Step::Change
 //!   op-return --memo HEX                                       UTXO Step::OpReturn
-//!   input --txid TXID --vout N --amount SATS --address ADDR [--prev-tx HEX]   UTXO Step::AddInput
+//!   input --txid TXID --vout N --amount SATS --address ADDR [--prev-tx HEX] [--witness-script HEX]   UTXO Step::AddInput
+//!     --witness-script: the P2WSH inner m-of-n script (from `multisig`), so tx-sign --partial can multisig-sign this input
 //!   fee-rate --satvb N        rbf [--off]        locktime --n N               UTXO steps
 //!   transfer --to ADDR --amount UNITS                          Account Step::Transfer
 //!   deposit --asset A --amount UNITS --memo S                  Account Step::Deposit
@@ -140,6 +141,7 @@ fn main() {
             amount: a.req("--amount").parse().unwrap_or_else(|_| fail("--amount")),
             address: a.req("--address").into(),
             prev_tx: a.get("--prev-tx").map(Into::into),
+            witness_script: a.get("--witness-script").map(Into::into),
         }),
         "fee-rate" => append(&a, Step::FeeRate { sat_per_vb: a.req("--satvb").parse().unwrap_or_else(|_| fail("--satvb")) }),
         "rbf" => append(&a, Step::Rbf { enabled: !a.has("--off") }),

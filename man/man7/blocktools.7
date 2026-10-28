@@ -105,6 +105,9 @@ check a message signature against an address. No keys are read
 \fBmultibit\-read\fR(1)
 MultiBit Classic .key export, bitcoinj/MultiBit Classic `.wallet` protobuf, or
 .TP
+\fBmultisig\fR(1)
+build an m\-of\-n P2WSH witness script + address from compressed pubkeys. Offline, no keys
+.TP
 \fBnew\-seed\fR(1)
 generate a fresh BIP39 mnemonic (keygen). No stdin
 .TP
@@ -146,6 +149,9 @@ tx\-broadcast (HOST\-SIDE, network): send ONE already\-signed transaction, after
 .TP
 \fBtx\-build\fR(1)
 build an UNSIGNED transaction offline from files and flags. Never touches the network
+.TP
+\fBtx\-combine\fR(1)
+merge the partial\-signature PSBTs of an m\-of\-n multisig (each produced by
 .TP
 \fBtx\-decode\fR(1)
 one transaction on stdin (hex/base64 raw tx, PSBT, EVM RLP, or a JSON line with
