@@ -182,12 +182,19 @@ pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let mut memo: Option<String> = None;
     let mut change: Option<String> = None;
     let mut max_fee: Option<u64> = None;
+    let mut cap_findings: Vec<Finding> = vec![];
     for s in &plan.steps {
         match s {
             Step::ExpectTo { address } => vault = Some(address.clone()),
             Step::ExpectMemo { memo: m } => memo = Some(m.clone()),
             Step::Change { address } => change = Some(address.clone()),
-            Step::CapFee { max } => max_fee = max.parse::<u64>().ok(),
+            // A CapFee the author set must never be silently dropped for the looser chain default: an
+            // unparsable cap is a finding, and the cap stays unset only as a failure, not a fall-through
+            // (mirrors the EVM family's `cap_fee_unparsable`).
+            Step::CapFee { max } => match max.parse::<u64>() {
+                Ok(v) => max_fee = Some(v),
+                Err(_) => cap_findings.push(Finding { code: "cap_fee_unparsable".into() }),
+            },
             _ => {}
         }
     }
@@ -202,5 +209,6 @@ pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
         .unwrap_or_default();
     // The UTXO family enforces ExpectTo (vault), ExpectMemo and CapFee; ExpectOut it cannot, so report it.
     out.extend(crate::unsupported_assertions(plan, &["expect-to", "expect-memo", "cap-fee"]));
+    out.extend(cap_findings);
     out
 }

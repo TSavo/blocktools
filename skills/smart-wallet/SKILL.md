@@ -411,8 +411,12 @@ Underneath the skills, the repo's own references are authoritative and CI-tested
   codes** (`docs/REFUSALS.md`), **exit codes** (`docs/EXIT-CODES.md`), **RPC**
   (`docs/RPC.md`).
 
-> Forward note: a `tx-plan` tool (the `blocktools-plan` crate) is landing that
-> unifies step 2 — it builds any transaction, on any of the three chain families,
-> from one declarative plan, and feeds the same verify/sign path. Until it ships,
-> use the per-chain build tools the skills name (`tx-build`, `acct-tx`, `xrp-tx`,
-> `sol-tron-tx`). The verify-every-tx rule does not change.
+> Forward note: a `tx-plan` tool (the `blocktools-plan` crate) unifies step 2 — it
+> resolves one declarative plan (intent + assertions) to unsigned bytes on any of the
+> three chain families, then independently re-decodes and checks those bytes
+> (`tx-plan check`). It does **not** yet translate the plan's assertions into `tx-sign`
+> policy flags: a passing `tx-plan check` and what `tx-sign` enforces are not yet wired
+> together. So keep driving the seal with the per-chain build tools the skills name
+> (`tx-build`, `acct-tx`, `xrp-tx`, `sol-tron-tx`) and the explicit
+> `--expect-to`/`--expect-memo`/`--max-fee`/`--policy` assertions. The verify-every-tx
+> rule does not change.

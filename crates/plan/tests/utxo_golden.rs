@@ -153,3 +153,16 @@ fn check_enforces_cap_fee() {
     let findings = blocktools_plan::utxo::check(&p, &v);
     assert!(findings.iter().any(|f| f.code == "fee"), "a tight CapFee must be enforced: {findings:?}");
 }
+
+#[test]
+fn check_flags_unparsable_cap_fee() {
+    // FIX (HIGH): an unparsable CapFee max must fail CLOSED. Before the fix `max.parse().ok()` dropped the
+    // bad cap to None, so the chain default applied and check returned clean -- a tight cap the author
+    // intended was silently ignored. It must now emit cap_fee_unparsable (mirrors the EVM family), never ok.
+    let v = blocktools_plan::utxo::resolve(&inbound_plan(), &context::Utxo { fee_rate: 750000 }).unwrap();
+    let mut p = inbound_plan();
+    p.steps.push(Step::CapFee { max: "abc".into() });
+    let findings = blocktools_plan::utxo::check(&p, &v);
+    assert!(findings.iter().any(|f| f.code == "cap_fee_unparsable"),
+        "an unparsable CapFee must fail closed, not fall through to the default: {findings:?}");
+}

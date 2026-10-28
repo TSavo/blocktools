@@ -135,12 +135,14 @@ Two consequences you lean on the whole time:
 users* of one underlying transaction library: build resolves, verify checks assertions,
 sign resolves-then-signs — three skins over the same resolve/assert core, which is why
 the same `--expect-to`/`--max-fee`/`--chain-id`/`--policy` vocabulary runs through all
-of them. The coming `tx-plan` (wave 2, the `blocktools-plan` crate) is the **declarative
+of them. The `tx-plan` tool (wave 2, the `blocktools-plan` crate) is the **declarative
 plan skin over that same library**: one plan object — intent + assertions — that it
-resolves against move-1 state and feeds down the identical verify/sign path, on any of
-the three chain families. Until it ships, you write the plan by hand as the build flags
-plus the verify/policy assertions; the model does not change, only how first-class the
-plan object is.
+resolves against move-1 state to unsigned bytes and then independently re-decodes-and-checks
+them (`tx-plan check`), on any of the three chain families. It does **not** yet translate
+the plan's assertions into `tx-sign`'s policy flags — a passing `tx-plan check` and what
+`tx-sign` enforces are not yet wired together — so you still write the seal's assertions by
+hand as the verify/policy flags; the model does not change, only how first-class the plan
+object is.
 
 ## The policy file is the hard gate between move 2 and move 3 (`docs/POLICY.md`)
 
