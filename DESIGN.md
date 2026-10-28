@@ -64,7 +64,7 @@ pastes keys into chat.
 
 ## 3. Agent-facing schema (enforced by `redact`)
 
-One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512) (unmeasured). Allowlisted fields:
+One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512). Allowlisted fields:
 
 | field | validator |
 |---|---|
@@ -328,7 +328,7 @@ with `psbt`/`tx`/`unsigned_tx`/`signed_tx`. The output is:
 
 Bitcoin and PSBT parsing is rust-bitcoin's consensus code. RLP is a small bounded codec
 (depth 4, 4096 items, canonical lengths). Keccak comes from `sha3` and recovery from
-`secp256k1`. Input is limited to 4 MiB (boundary test, tx-input-4mib; re-run pending after crates/tx changed) (unmeasured). In agent mode the line passes `redact`:
+`secp256k1`. Input is limited to 4 MiB (boundary test, tx-input-4mib). In agent mode the line passes `redact`:
 amounts, addresses, counts and warnings cross, **txids do not** (a 64-hex value is
 indistinguishable from a key, so the boundary drops it). On the host, run tx-decode
 directly to see txids.
@@ -528,8 +528,8 @@ already-present secp256k1, which shrinks libsecp256k1's tables). `scripts/wasm-c
 it, runs wasm-bindgen (`pkg/node`, `pkg/web`), and fails if the dep tree has any secrets/net/seed
 crate, if the name section contains secret APIs (blocktools_secrets, tx::sign, WIF/xprv/seed
 code, libsecp256k1 signing/keygen), or if exports differ from the public list, then runs
-`bindings/wasm/test.mjs` (public vectors) under Node. Re-measured on the box at 70a7406, not yet stamped at a green commit (rustc 1.85.1, `scripts/wasm-size.sh`): 1,932,020 bytes (606,879 gzip) (unmeasured)
-with names; 1,617,306 bytes (534,341 gzip) (unmeasured) stripped; 47 crates in the wasm tree. The module also
+`bindings/wasm/test.mjs` (public vectors) under Node. Measured at d733eda (rustc 1.85.1, `scripts/wasm-size.sh`): 1,933,239 bytes (607,461 gzip)
+with names; 1,618,269 bytes (534,794 gzip) stripped; 47 crates in the wasm tree. The module also
 exports four libsecp256k1 context hooks (`rustsecp256k1_v0_10_0_context_*`, error callbacks)
 that secp256k1-sys marks `#[no_mangle]`; they are not secret-bearing. Build needs clang
 (secp256k1-sys C code) and the wasm32-unknown-unknown target. Not published to npm.

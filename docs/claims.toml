@@ -74,15 +74,16 @@ doc = [{ file = "README.md", text = "47.9 MB" }]
 
 [[claim]]
 id = "redact-512"
-note = "depends changed since 977b94a; re-run passing at dd6cd00 on the box; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "Redacted JSON lines are at most 512 bytes: a 512-byte line passes unchanged, a 513+ byte line is dropped (boundary test, k = 0..32 warnings)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "d733eda"
+date = "2026-10-27"
 command = "cargo test -q -p blocktools-schema --test redact_512"
 expect = "test result: ok. 1 passed"
 value = "512"
-env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
+env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1; re-run on the box at d733eda); boundary test, no timing"
 cheap = true
 depends = ["crates/schema/src/lib.rs", "crates/schema/tests/redact_512.rs"]
 doc = [{ file = "DESIGN.md", text = "512 bytes" }]
@@ -140,8 +141,8 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "untested"
-note = "measured at a4d7182; crates/tx/src/lib.rs changed (Io.data for expect_memo); re-run passes on the box at the expect_memo commit, restamp after a green main run"
+status = "measured"
+commit = "d733eda"
 date = "2026-10-27"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
@@ -153,46 +154,46 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "d733eda"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
-value = "1,932,020"
+expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
+value = "1,933,239"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,932,020 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,933,239 bytes" }]
 
 [[claim]]
 id = "wasm-size-stripped"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "d733eda"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
-value = "1,617,306"
+expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
+value = "1,618,269"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,617,306 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,618,269 bytes" }]
 
 [[claim]]
 id = "wasm-crates"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,020 bytes (1932020; 606879 gzip -9 -n) with names; 1,617,306 bytes (1617306; 534341 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "d733eda"
 date = "2026-10-27"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1932020 bytes (606879 gzip) with names; 1617306 bytes (534341 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
@@ -948,8 +949,8 @@ id = "tx-decode-evm-mainnet"
 statement = "tx-decode --chain eth decodes one real Ethereum mainnet tx of each type (legacy EIP-155, 2930, 1559, 4844, 7702; committed raw bytes from eth_getRawTransactionByHash) and every field the node returns from eth_getTransactionByHash (hash, from, to, nonce, gas, value, input, chainId, v/r/s, fees, accessList, blob fields, authorizationList) equals the decode; a node field the check does not compare fails it"
 kind = "security"
 platform = "any"
-status = "untested"
-note = "measured at 5249e0c; crates/tx/src/lib.rs changed (Io.data for expect_memo); re-run passes on the box at the expect_memo commit, restamp after a green main run"
+status = "measured"
+commit = "d733eda"
 date = "2026-10-27"
 command = "sh scripts/e2e.d/evm-decode.sh"
 expect = "ok   tx-decode --chain eth on a non-EVM input -> not_evm"
