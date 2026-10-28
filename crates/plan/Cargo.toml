@@ -12,3 +12,4 @@ blocktools-core = { version = "0.2.0", path = "../core", default-features = fals
 blocktools-evm = { version = "0.2.0", path = "../evm" }
 blocktools-tx = { version = "0.2.0", path = "../tx" }
 blocktools-acct = { version = "0.2.0", path = "../acct" }
+blocktools = { version = "0.2.0", path = "../blocktools" }

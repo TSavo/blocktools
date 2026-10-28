@@ -21,6 +21,7 @@
 //! This crate ORCHESTRATES; it adds no encoding and no crypto of its own.
 use serde::{Deserialize, Serialize};
 pub mod evm;
+pub mod utxo;
 pub mod account;
 
 /// Which transaction family a chain belongs to: picks the Context, the Unsigned target, and which
