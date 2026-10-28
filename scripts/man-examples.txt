@@ -48,6 +48,8 @@ tx-envelope | 0 | tx-envelope --json '{"op":"verify_thor_send","chain":"ltc","tx
 tx-sign | 2 | echo x > t; tx-sign --tx t --expect-to bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3 < /dev/null
 tx-verify | 2 | echo zz | tx-verify
 utxo-fetch | 1 | utxo-fetch --chain btc --url http://127.0.0.1:9 bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
+signum-account | 0 | echo 'correct horse battery staple' | signum-account
+signum-account | 2 | printf '' | signum-account
 xmr-keys | 2 | echo not a seed | xmr-keys
 xmr-wallet | 2 | xmr-wallet scan
 xpub-addresses | 0 | echo xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj | xpub-addresses --count 1

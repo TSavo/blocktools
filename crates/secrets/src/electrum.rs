@@ -59,6 +59,29 @@ pub fn py_to_json(s: &str) -> Option<String> {
 /// Electrum 1.x "old" keys: see electrum_old (shared with seed-to-master / derive).
 pub use crate::electrum_old::keys as old_keys;
 
+/// Electrum 1.x / Counterwallet mnemonic -> the 32-hex "old seed" (feed to `old_keys`). Three words
+/// encode 8 hex chars, per Electrum's old_mnemonic.mn_decode. None unless every word is in the list
+/// and the word count is a non-zero multiple of three. This is what lets blocktools derive the real
+/// Bitcoin address a Counterwallet (Counterparty) passphrase controls, instead of mis-reading it as BIP39.
+pub fn old_mnemonic_to_seed(phrase: &str) -> Option<Zeroizing<String>> {
+    use crate::electrum_old_words::OLD_WORDS;
+    let w: Vec<&str> = phrase.split_whitespace().collect();
+    if w.is_empty() || w.len() % 3 != 0 {
+        return None;
+    }
+    let n: i64 = 1626;
+    let idx = |word: &str| OLD_WORDS.iter().position(|&x| x == word).map(|i| i as i64);
+    let mut out = String::with_capacity(w.len() / 3 * 8);
+    for g in w.chunks(3) {
+        let (a, b, c) = (idx(g[0])?, idx(g[1])?, idx(g[2])?);
+        // floored modulo (Rust `%` can be negative, Electrum uses Python's floored %)
+        let m = |v: i64| ((v % n) + n) % n;
+        let x = a + n * m(b - a) + n * n * m(c - b);
+        out.push_str(&format!("{x:08x}"));
+    }
+    Some(Zeroizing::new(out))
+}
+
 fn dec(key: &[u8; 32], b64: &str) -> Option<Zeroizing<String>> {
     let b = Zeroizing::new(blocktools_core::b64::decode(b64)?);
     if b.len() < 32 || b.len() % 16 != 0 { return None }
@@ -186,6 +209,24 @@ mod tests {
             assert_eq!(open(&t, "nope"), Err("wrong_password"));
         }
     }
+    /// Electrum-1 / Counterwallet mnemonic -> old seed -> old_keys. The index-0/change-0 address was
+    /// validated independently (Python coincurve, Electrum old_mnemonic + old key scheme).
+    #[test] fn counterwallet_old_mnemonic() {
+        let seed = old_mnemonic_to_seed(
+            "mouth built curve choice square bubble offer breath vain stage sweat spring",
+        )
+        .unwrap();
+        assert_eq!(seed.len(), 32);
+        assert!(seed.bytes().all(|c| c.is_ascii_hexdigit()));
+        let ks = old_keys(seed.as_str(), None, 1).unwrap();
+        assert_eq!(ks[0].1, "1C6GJ8rocZzrjXPFnAEARTmysjuBS3RYY8");
+        // a BIP39 phrase (not in the old wordlist) must not decode as old-Electrum
+        assert!(old_mnemonic_to_seed(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        )
+        .is_none());
+    }
+
     #[test] fn py_literal() {
         assert_eq!(py_to_json("{'a': True, 0: [u'x', None], 'b': (1, 2)}").unwrap(), r#"{"a": true, "0": ["x", null], "b": [1, 2]}"#);
     }

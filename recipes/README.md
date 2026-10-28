@@ -106,6 +106,7 @@ Worldcoin (wdc) txs decode as Bitcoin-legacy (mainnet-checked) but wdc remains u
 | monero_address | exit 3 (needs the view key) | monero.md |
 | xrp_seed | xrp-tx keys, exit 3 -> xrp-tx build/sign | xrp.md |
 | ton_mnemonic, algo_mnemonic, xlm_seed | address, exit 3 -> acct-tx build/sign | chain-ton/algorand/stellar.md |
+| (Signum/Burst passphrase) | `recover.sh --chain signum`: signum-account -> S- address, exit 3 (sweep in Signum XT wallet) | chain-old-coins.md |
 | unknown | exit 3 | input-unknown.md |
 
 Sweep is automated for btc/ltc/doge/eth. For any other `--chain`, recover.sh prints the addresses, exits 3 and names

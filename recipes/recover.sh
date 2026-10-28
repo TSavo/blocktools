@@ -38,6 +38,12 @@ say "classified as $class"
 
 # 2. Switch on the type: keys() prints key lines (SECRET) for tx-sign and redact.
 pw_then_file() { head -n1 "$PWF" | tr -d '\n'; echo; cat "$FILE"; }   # password line, then the wallet
+# Burst/Signum passphrases are free-form text (not BIP39/secp256k1), so classify cannot tell them from
+# any other prose; --chain signum reads the file as a Burst/Signum secret passphrase (sweep is not
+# automated for Signum, so this stops after the S- address, like the other acct chains below).
+if [ "$CHAIN" = signum ]; then
+  keys() { "$B/signum-account" < "$FILE"; }
+else
 case $class in
   mnemonic)        keys() { "$B/seed-repair" < "$FILE" | "$B/seed-to-master" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
   electrum_seed|electrum_old_seed) keys() { "$B/seed-to-master" < "$FILE" | "$B/derive" --chain "$CHAIN" --count "$COUNT"; } ;;
@@ -66,6 +72,7 @@ case $class in
   bip38)           keys() { pw_then_file | "$B/bip38-open" | "$B/key-to-addresses" --chain "$CHAIN"; } ;;
   *)               say "no reader for $class yet (see docs/ROADMAP.md)"; exit 3 ;;
 esac
+fi
 
 # 3. Public addresses only (redact strips every secret field), then ask the chain.
 keys | "$B/redact" > "$W/red"   # reader/redact failures stop the script (pipefail)
@@ -79,6 +86,7 @@ next() { case $1 in
   atom) echo "acct-tx build/sign (recipes/chain-cosmos.md)" ;; ton) echo "acct-tx build/sign (recipes/chain-ton.md)" ;;
   ada) echo "acct-tx build/sign (recipes/chain-cardano.md)" ;; dot) echo "acct-tx build/sign (recipes/chain-polkadot.md)" ;;
   xrp) echo "xrp-tx build/sign (recipes/xrp.md)" ;; grs) echo "tx-build from a UTXO list (recipes/chain-groestlcoin.md)" ;;
+  signum) echo "send it from the Signum XT wallet with your passphrase; SwapChan find_money reports the S- address balance (recipes/chain-old-coins.md)" ;;
   zec) echo "tx-build from a UTXO list (recipes/chain-zcash-transparent.md)" ;;
   qtum) echo "tx-build from a UTXO list (recipes/chain-qtum.md)" ;;
   pot) echo "sweep is not built for pot (no reachable explorer to verify its tx format); import the key into a Potcoin wallet (recipes/chain-old-coins.md)" ;;
