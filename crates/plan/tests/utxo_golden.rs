@@ -92,3 +92,64 @@ fn doge_rune_inbound_represent_round_trips() {
     // The recovered assertions (ExpectTo/ExpectMemo) still verify against the rebuilt bytes.
     assert!(blocktools_plan::utxo::check(&represented, &rebuilt).is_empty(), "recovered plan verifies");
 }
+
+#[test]
+fn nonminimal_op_return_push_breaks_round_trip_silently() {
+    // FIX (HIGH): a non-minimal OP_RETURN push (6a 4c <len> payload, len<=75) is not what op_return_for
+    // emits, so lifting it to an OpReturn step would resolve to the MINIMAL push and not round-trip.
+    // represent must re-encode-and-compare, see the mismatch, and fall to Raw (exact bytes preserved).
+    let cx = context::Utxo { fee_rate: 750000 };
+    let built = blocktools_plan::utxo::resolve(&inbound_plan(), &cx).unwrap();
+    let mut m = built.clone();
+    let nonmin = OPRET_SPK.replacen("6a2f", "6a4c2f", 1); // PUSHDATA1 over the same 47-byte payload
+    for o in m["outputs"].as_array_mut().unwrap() {
+        if o["script"].as_str().unwrap().starts_with("6a") { o["script"] = serde_json::json!(nonmin); }
+    }
+    let represented = blocktools_plan::utxo::represent(&m, "doge");
+    assert!(represented.steps.iter().any(|s| matches!(s, Step::Raw { .. })),
+        "non-minimal OP_RETURN must fall to Raw: {represented:?}");
+    assert!(!represented.steps.iter().any(|s| matches!(s, Step::OpReturn { .. })),
+        "must NOT lift to a (lossy) OpReturn step");
+    let rebuilt = blocktools_plan::utxo::resolve(&represented, &cx).unwrap();
+    assert_eq!(rebuilt, m, "Raw round-trips to the exact bytes");
+}
+
+#[test]
+fn overlong_op_return_makes_resolve_error() {
+    // FIX (HIGH): an 81-byte OP_RETURN payload exceeds the relay limit; lifting it to OpReturn would make
+    // resolve error (memo_length). represent must fall to Raw so the exact bytes still round-trip.
+    let cx = context::Utxo { fee_rate: 750000 };
+    let built = blocktools_plan::utxo::resolve(&inbound_plan(), &cx).unwrap();
+    let mut m = built.clone();
+    let overlong = format!("6a4c51{}", "ab".repeat(81)); // PUSHDATA1, 0x51 = 81 payload bytes
+    for o in m["outputs"].as_array_mut().unwrap() {
+        if o["script"].as_str().unwrap().starts_with("6a") { o["script"] = serde_json::json!(overlong); }
+    }
+    let represented = blocktools_plan::utxo::represent(&m, "doge");
+    assert!(represented.steps.iter().any(|s| matches!(s, Step::Raw { .. })),
+        "over-limit OP_RETURN must fall to Raw: {represented:?}");
+    let rebuilt = blocktools_plan::utxo::resolve(&represented, &cx).unwrap();
+    assert_eq!(rebuilt, m, "Raw round-trips to the exact bytes (resolve never errors memo_length)");
+}
+
+#[test]
+fn check_flags_unsupported_expect_out() {
+    // FIX (HIGH): the UTXO family does not consult ExpectOut; a plan carrying one must not verify clean.
+    let v = blocktools_plan::utxo::resolve(&inbound_plan(), &context::Utxo { fee_rate: 750000 }).unwrap();
+    let mut p = inbound_plan();
+    p.steps.push(Step::ExpectOut { token: None, min: "1".into() });
+    let findings = blocktools_plan::utxo::check(&p, &v);
+    assert!(findings.iter().any(|f| f.code == "assertion_unsupported"),
+        "ExpectOut must be reported as unsupported: {findings:?}");
+}
+
+#[test]
+fn check_enforces_cap_fee() {
+    // FIX (LOW): a plan CapFee below the resolved fee must be threaded into verify_send and flagged.
+    // Before the fix check always passed None, so a tight cap was silently ignored.
+    let v = blocktools_plan::utxo::resolve(&inbound_plan(), &context::Utxo { fee_rate: 750000 }).unwrap();
+    let mut p = inbound_plan();
+    p.steps.push(Step::CapFee { max: "1".into() }); // the golden fee is 188_250_000 sats, far over 1
+    let findings = blocktools_plan::utxo::check(&p, &v);
+    assert!(findings.iter().any(|f| f.code == "fee"), "a tight CapFee must be enforced: {findings:?}");
+}

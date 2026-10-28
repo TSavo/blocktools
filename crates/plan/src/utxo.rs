@@ -112,14 +112,14 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
     let mut rbf: Option<bool> = None;
     for (i, txin) in tx.input.iter().enumerate() {
         let inp = psbt.inputs.get(i)?;
-        let prevout = inp.non_witness_utxo.as_ref()
-            .and_then(|t| t.output.get(txin.previous_output.vout as usize).cloned())
-            .or_else(|| inp.witness_utxo.clone())?;
+        // resolve rebuilds each input from a full prev_tx (non_witness_utxo); a witness_utxo-only input
+        // carries no prev_tx, so the exact bytes can't be reproduced -- fall to Raw.
+        let nwu = inp.non_witness_utxo.as_ref()?;
+        let prevout = nwu.output.get(txin.previous_output.vout as usize).cloned()?;
         let amount = prevout.value.to_sat();
         total_in = total_in.checked_add(amount)?;
         let address = blocktools_core::chains::script_to_address(c, prevout.script_pubkey.as_bytes())?.1;
-        let prev_tx = inp.non_witness_utxo.as_ref()
-            .map(|t| format!("0x{}", blocktools_core::hex_enc(bitcoin::consensus::serialize(t))));
+        let prev_tx = Some(format!("0x{}", blocktools_core::hex_enc(bitcoin::consensus::serialize(nwu))));
         let this = match txin.sequence.0 { 0xffff_fffd => true, 0xffff_ffff => false, _ => return None };
         match rbf { Some(p) if p != this => return None, _ => rbf = Some(this) }
         steps.push(Step::AddInput {
@@ -129,17 +129,27 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
         });
     }
     if steps.is_empty() { return None; }
-    // Outputs: exactly one payment (the vault) plus at most one OP_RETURN; no change output.
+    // Outputs: exactly one payment (the vault) at VOUT0 plus at most one OP_RETURN as the final output
+    // (resolve/build_with emit the vault first and the memo last); no change output.
+    let outs = resolved.get("outputs")?.as_array()?;
+    let last = outs.len().checked_sub(1)?;
     let mut payment: Option<(String, u64)> = None;
     let mut memo_hex: Option<String> = None;
-    for o in resolved.get("outputs")?.as_array()? {
+    for (i, o) in outs.iter().enumerate() {
         let script = blocktools_core::hex_dec(o.get("script")?.as_str()?)?;
         let value: u64 = o.get("value")?.as_str()?.parse().ok()?;
         if script.first() == Some(&0x6a) {
-            if memo_hex.is_some() || value != 0 { return None; }
-            memo_hex = Some(blocktools_core::hex_enc(op_return_payload(&script)?));
+            // Only one OP_RETURN, zero-value, and it must be the last output (ordering resolve rebuilds).
+            if memo_hex.is_some() || value != 0 || i != last { return None; }
+            let payload = op_return_payload(&script)?;
+            // Non-minimal push or an over-limit payload can't be reproduced by op_return_for: re-encode
+            // and compare to the exact script bytes (mirrors the acct decoders' re-encode self-check).
+            if payload.len() > blocktools::psbtmemo::op_return_limit(chain) { return None; }
+            if blocktools::psbtmemo::op_return_for(chain, &payload).ok()? != script { return None; }
+            memo_hex = Some(blocktools_core::hex_enc(payload));
         } else {
-            if payment.is_some() { return None; } // a second payment output => change, not a clean sweep
+            // The single payment (vault) must be VOUT0, and there is no change output in a clean sweep.
+            if payment.is_some() || i != 0 { return None; }
             payment = Some((o.get("address")?.as_str()?.to_string(), value));
         }
     }
@@ -171,11 +181,13 @@ pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let mut vault: Option<String> = None;
     let mut memo: Option<String> = None;
     let mut change: Option<String> = None;
+    let mut max_fee: Option<u64> = None;
     for s in &plan.steps {
         match s {
             Step::ExpectTo { address } => vault = Some(address.clone()),
             Step::ExpectMemo { memo: m } => memo = Some(m.clone()),
             Step::Change { address } => change = Some(address.clone()),
+            Step::CapFee { max } => max_fee = max.parse::<u64>().ok(),
             _ => {}
         }
     }
@@ -184,8 +196,11 @@ pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let amount = resolved.get("outputs").and_then(|o| o.as_array()).and_then(|a| a.first())
         .and_then(|o| o.get("value")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(0);
-    let r = blocktools::thor::verify_send(&plan.chain, psbt, &vault, memo.as_bytes(), amount, change.as_deref(), &[], None);
-    r.get("failures").and_then(|a| a.as_array())
+    let r = blocktools::thor::verify_send(&plan.chain, psbt, &vault, memo.as_bytes(), amount, change.as_deref(), &[], max_fee);
+    let mut out: Vec<Finding> = r.get("failures").and_then(|a| a.as_array())
         .map(|a| a.iter().filter_map(|x| x.as_str().map(|c| Finding { code: c.into() })).collect())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // The UTXO family enforces ExpectTo (vault), ExpectMemo and CapFee; ExpectOut it cannot, so report it.
+    out.extend(crate::unsupported_assertions(plan, &["expect-to", "expect-memo", "cap-fee"]));
+    out
 }

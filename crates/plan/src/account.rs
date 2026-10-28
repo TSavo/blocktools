@@ -99,28 +99,50 @@ pub fn represent(sign_doc: &[u8]) -> Plan {
             }
         }
     }
-    Plan { chain: String::new(), chain_id: None, steps: vec![
+    // Totality fallback. An opaque doc keeps a chain string `family_of` maps to the Account family
+    // (so the CLI can still dispatch a represented Account Raw) -- "rune" is the Account sentinel; a
+    // partially-decodable Cosmos Send's hrp is used when known.
+    let chain = atom::Send::decode_sign_doc(sign_doc).ok()
+        .and_then(|s| atom::chain_of(&s.to).map(|r| r.0.to_string()))
+        .unwrap_or_else(|| "rune".to_string());
+    Plan { chain, chain_id: None, steps: vec![
         Step::Raw { kind: "account.sign_doc".into(), fields: json!({"doc": format!("0x{}", blocktools_core::hex_enc(sign_doc))}) },
     ]}
 }
 
-/// Assert the plan's assertion steps agree with its structural step: `ExpectMemo` must match the
-/// `Deposit` memo, `ExpectTo` the `Transfer` recipient. Findings reuse the tools' string codes so
-/// `check` and the raw guards stay in lockstep. Thin by construction; the bytes are built by `resolve`.
-pub fn check(plan: &Plan) -> Vec<Finding> {
+/// Assert the **resolved SignDoc bytes** satisfy the plan's assertions. Mirrors `evm::check(plan, tx)`
+/// and `utxo::check(plan, resolved)`: it never trusts the plan's own structural step, it decodes the
+/// bytes with the acct crate's canonical decoders (`thor::Deposit::decode_sign_doc` / `atom::Send::
+/// decode_sign_doc`) and compares the DECODED memo/recipient against the assertions. FAIL CLOSED: a
+/// `MsgDeposit` with no `ExpectMemo` is a finding (the memo is the whole security payload of a THORChain
+/// deposit), a `MsgSend` with no `ExpectTo` is a finding (mirrors utxo::check's `return f("vault")`), and
+/// an opaque doc neither decoder accepts is itself a finding -- an unasserted structural step never
+/// silently passes. Assertion ops the family does not consult are reported via `unsupported_assertions`.
+pub fn check(plan: &Plan, sign_doc: &[u8]) -> Vec<Finding> {
     let mut f = vec![];
-    let memo = plan.steps.iter().find_map(|s| match s { Step::Deposit { memo, .. } => Some(memo.as_str()), _ => None });
-    let recipient = plan.steps.iter().find_map(|s| match s { Step::Transfer { to, .. } => Some(to.as_str()), _ => None });
-    for s in &plan.steps {
-        match s {
-            Step::ExpectMemo { memo: want } => {
-                if memo != Some(want.as_str()) { f.push(Finding { code: "memo_not_expected".into() }) }
-            }
-            Step::ExpectTo { address } => {
-                if recipient != Some(address.as_str()) { f.push(Finding { code: "destination_not_expected".into() }) }
-            }
+    let fc = |c: &str| Finding { code: c.into() };
+    let expect_memo = plan.steps.iter().find_map(|s| match s { Step::ExpectMemo { memo } => Some(memo.clone()), _ => None });
+    let expect_to = plan.steps.iter().find_map(|s| match s { Step::ExpectTo { address } => Some(address.clone()), _ => None });
+
+    if let Ok(d) = thor::Deposit::decode_sign_doc(sign_doc) {
+        // MsgDeposit: require an ExpectMemo and match it to the decoded memo.
+        match expect_memo {
+            None => f.push(fc("memo_not_expected")),
+            Some(want) if want != d.memo => f.push(fc("memo_not_expected")),
             _ => {}
         }
+    } else if let Ok(s) = atom::Send::decode_sign_doc(sign_doc) {
+        // MsgSend: require an ExpectTo and match it to the decoded recipient.
+        match expect_to {
+            None => f.push(fc("destination_not_expected")),
+            Some(want) if want != s.to => f.push(fc("destination_not_expected")),
+            _ => {}
+        }
+    } else {
+        // A doc the canonical decoders cannot read carries unasserted structure: fail closed.
+        f.push(fc("account_unverified"));
     }
+    // The Account family consults ExpectMemo (deposit) and ExpectTo (transfer); anything else is unchecked.
+    f.extend(crate::unsupported_assertions(plan, &["expect-memo", "expect-to"]));
     f
 }

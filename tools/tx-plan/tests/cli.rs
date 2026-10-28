@@ -79,3 +79,36 @@ fn thorchain_register_pipe_checks_clean() {
     assert!(checked.contains("\"findings\":[]"), "no findings: {checked}");
     let _ = std::fs::remove_file(&ctx);
 }
+
+/// Run `tx-plan <args>` with `input` on stdin; return the full output (success not asserted).
+fn run_status(args: &[&str], input: &str) -> std::process::Output {
+    let mut c = Command::new(BIN)
+        .args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().expect("spawn tx-plan");
+    c.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+    c.wait_with_output().unwrap()
+}
+
+#[test]
+fn flag_value_that_looks_like_a_flag_is_treated_as_missing() {
+    // FIX (LOW): `--to` immediately followed by another registered flag is a MISSING value, not "--sig".
+    let o = run_status(&["call", "--to", "--sig", "transfer(address,uint256)"], "");
+    assert_eq!(o.status.code(), Some(2), "a following flag token is a missing value");
+    assert!(String::from_utf8_lossy(&o.stdout).contains("missing --to"),
+        "stdout: {}", String::from_utf8_lossy(&o.stdout));
+}
+
+#[test]
+fn represented_account_raw_resolves_through_the_cli() {
+    // FIX (HIGH): a represented opaque Account doc lifts to Raw{kind:"account.sign_doc"} and, even with
+    // an empty chain string, the CLI derives the Account family from the kind prefix and resolves it.
+    let ctx = std::env::temp_dir().join("tx-plan-rawacct-ctx.json");
+    std::fs::write(&ctx, r#"{"sequence":0,"account_number":0,"gas":0,"pubkey":"02db731fc490a4107583546391517f26d0196a1e8ac777560cccda03c702c86023"}"#).unwrap();
+    let planfile = std::env::temp_dir().join("tx-plan-rawacct-plan.json");
+    std::fs::write(&planfile, r#"{"chain":"","steps":[{"op":"raw","kind":"account.sign_doc","fields":{"doc":"0xdeadbeef01"}}]}"#).unwrap();
+    let resolved = run(&["resolve", "--plan", planfile.to_str().unwrap(), "--context", ctx.to_str().unwrap()], "");
+    assert!(resolved.contains("\"sign_doc\":\"deadbeef01\""), "raw account doc resolves verbatim: {resolved}");
+    assert!(resolved.contains("\"status\":\"ok\""));
+    let _ = std::fs::remove_file(&ctx);
+    let _ = std::fs::remove_file(&planfile);
+}

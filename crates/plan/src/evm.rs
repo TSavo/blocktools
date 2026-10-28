@@ -34,15 +34,24 @@ fn chain_slug(id: Option<u64>) -> String {
 pub fn resolve(plan: &Plan, cx: &context::Evm) -> Result<Tx, String> {
     let chain_id = plan.chain_id.ok_or("evm plan needs chain_id")?;
     let (mut to, mut data, mut value, mut acted) = (None, Vec::<u8>::new(), 0u128, false);
+    // The call/create/approve/evm.call slot is single-shot; a second structural step would silently
+    // overwrite the first (last-write-wins). Value may accompany one call, so it does not take the slot.
+    let mut slot = false;
+    let mut take_slot = || -> Result<(), String> {
+        if slot { return Err("evm plan has more than one structural step".into()); }
+        slot = true; Ok(())
+    };
     for s in &plan.steps {
         match s {
-            Step::Call { to: t, sig, args } => { to = Some(addr20(t)?); data = calldata(sig, args)?; acted = true }
+            Step::Call { to: t, sig, args } => { take_slot()?; to = Some(addr20(t)?); data = calldata(sig, args)?; acted = true }
             Step::Approve { token, spender, amount } => {
+                take_slot()?;
                 to = Some(addr20(token)?);
                 data = calldata("approve(address,uint256)", &[spender.clone(), amount.clone()])?;
                 acted = true
             }
             Step::Create { initcode } => {
+                take_slot()?;
                 to = None;
                 data = blocktools_core::hex_dec(initcode.trim_start_matches("0x")).ok_or("bad initcode hex")?;
                 acted = true
@@ -51,6 +60,7 @@ pub fn resolve(plan: &Plan, cx: &context::Evm) -> Result<Tx, String> {
             // Totality: an opaque call whose selector isn't modelled, rebuilt verbatim so
             // resolve(represent(tx)) == tx holds for every EVM call (see `represent`).
             Step::Raw { kind, fields } if kind == "evm.call" => {
+                take_slot()?;
                 to = Some(addr20(fields["to"].as_str().ok_or("evm.call raw needs a to field")?)?);
                 data = blocktools_core::hex_dec(fields["data"].as_str().ok_or("evm.call raw needs a data field")?.trim_start_matches("0x"))
                     .ok_or("bad evm.call raw data hex")?;
@@ -99,11 +109,17 @@ pub fn represent(tx: &Tx) -> Plan {
 /// `policy::check`, and lifts the string codes into `Finding`. By going through the same verifier as
 /// tx-verify, `check` and the raw tool can never disagree.
 pub fn check(plan: &Plan, tx: &Tx) -> Vec<Finding> {
+    let mut findings: Vec<Finding> = vec![];
     let mut policy = blocktools_tx::policy::Policy { chain_id: plan.chain_id, ..Default::default() };
     for s in &plan.steps {
         match s {
             Step::ExpectTo { address } => policy.expect_to.push(address.clone()),
-            Step::CapFee { max } => { if let Ok(v) = max.parse::<u128>() { policy.max_fee = Some(v) } }
+            // A CapFee the author set must never be silently dropped for the looser default: an
+            // unparsable cap is a finding, and the cap stays unset only as a failure, not a fall-through.
+            Step::CapFee { max } => match max.parse::<u128>() {
+                Ok(v) => policy.max_fee = Some(v),
+                Err(_) => findings.push(Finding { code: "cap_fee_unparsable".into() }),
+            },
             _ => {}
         }
     }
@@ -112,5 +128,8 @@ pub fn check(plan: &Plan, tx: &Tx) -> Vec<Finding> {
         Ok(d) => d,
         Err(e) => return vec![Finding { code: e.to_string() }],
     };
-    blocktools_tx::policy::check(&decoded, &policy).into_iter().map(|c| Finding { code: c.to_string() }).collect()
+    findings.extend(blocktools_tx::policy::check(&decoded, &policy).into_iter().map(|c| Finding { code: c.to_string() }));
+    // The EVM family enforces ExpectTo and CapFee; ExpectOut/ExpectMemo it cannot, so report them.
+    findings.extend(crate::unsupported_assertions(plan, &["expect-to", "cap-fee"]));
+    findings
 }

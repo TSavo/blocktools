@@ -112,6 +112,23 @@ impl Step {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Finding { pub code: String }
 
+/// Fail-closed assertion coverage: one `assertion_unsupported` Finding per assertion step present in the
+/// plan whose op a family's `check` does not actually consult. A representable assertion that no family
+/// enforces must never silently pass, so every family appends this to its own findings, naming the set
+/// of assertion ops it does enforce. Non-assertion steps are ignored.
+pub fn unsupported_assertions(plan: &Plan, enforced: &[&str]) -> Vec<Finding> {
+    plan.steps.iter().filter_map(|s| {
+        let op = match s {
+            Step::ExpectTo { .. } => "expect-to",
+            Step::ExpectOut { .. } => "expect-out",
+            Step::ExpectMemo { .. } => "expect-memo",
+            Step::CapFee { .. } => "cap-fee",
+            _ => return None,
+        };
+        (!enforced.contains(&op)).then(|| Finding { code: "assertion_unsupported".into() })
+    }).collect()
+}
+
 /// Per-family live facts, fetched at build time, never stored in the plan.
 pub mod context {
     #[derive(Clone, Debug, Default, PartialEq, Eq)]
