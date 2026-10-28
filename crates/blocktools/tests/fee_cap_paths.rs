@@ -40,11 +40,11 @@ const TO: &str = "0x3535353535353535353535353535353535353535";
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let out = std::process::Command::new("git").args(["grep", "-l", "Policy {", "--", "*.rs", ":!*/tests/*", ":!crates/tx/src/policy.rs", ":!crates/tx/src/policy_file.rs"]).current_dir(&root).output().unwrap();
     let files: Vec<String> = String::from_utf8(out.stdout).unwrap().lines().map(String::from).collect();
-    let pinned = ["bindings/wasm/src/lib.rs", "crates/blocktools/src/check.rs", "crates/blocktools/src/envelope.rs", "tools/tx-sign/src/main.rs", "tools/tx-verify/src/main.rs"];
+    let pinned = ["bindings/wasm/src/lib.rs", "crates/blocktools/src/check.rs", "crates/blocktools/src/envelope.rs", "crates/plan/src/evm.rs", "tools/tx-sign/src/main.rs", "tools/tx-verify/src/main.rs"];
     assert_eq!(files, pinned, "new Policy entry point: route it through policy::check/verify and add it here + to fee_cap_paths tests");
     for f in &files {
         let s = std::fs::read_to_string(root.join(f)).unwrap();
-        assert!(s.contains("policy::verify(") || s.contains("check(&d, &p)") || s.contains("check(d, &p)"), "{f} builds a Policy but never calls the shared verifier");
+        assert!(s.contains("policy::verify(") || s.contains("policy::check(") || s.contains("check(&d, &p)") || s.contains("check(d, &p)"), "{f} builds a Policy but never calls the shared verifier");
         assert!(!s.contains("default_max_fee"), "{f}: fee default must live only in policy::check");
     }
 }
