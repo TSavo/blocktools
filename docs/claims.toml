@@ -154,12 +154,11 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
+note = "depends changed since d733eda (crates/plan in a72b89b; crates/plan is not in the wasm tree); re-measured on the box at a72b89b; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "d733eda"
-date = "2026-10-27"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
 value = "1,933,239"
@@ -170,12 +169,11 @@ doc = [{ file = "DESIGN.md", text = "1,933,239 bytes" }]
 
 [[claim]]
 id = "wasm-size-stripped"
+note = "depends changed since d733eda (crates/plan in a72b89b; crates/plan is not in the wasm tree); re-measured on the box at a72b89b; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "d733eda"
-date = "2026-10-27"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
 value = "1,618,269"
@@ -186,12 +184,11 @@ doc = [{ file = "DESIGN.md", text = "1,618,269 bytes" }]
 
 [[claim]]
 id = "wasm-crates"
+note = "depends changed since d733eda (crates/plan in a72b89b; crates/plan is not in the wasm tree); re-measured on the box at a72b89b; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,933,239 bytes (1933239; 607461 gzip -9 -n) with names; 1,618,269 bytes (1618269; 534794 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "d733eda"
-date = "2026-10-27"
+status = "untested"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
 expect = "wasm 1933239 bytes (607461 gzip) with names; 1618269 bytes (534794 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
