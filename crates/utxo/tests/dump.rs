@@ -61,7 +61,7 @@ fn compressed_p2pk_decodes_to_the_full_script() {
 fn bloom_no_false_negatives_fpr_near_design_exact_set_eliminates() {
     let mut r = 0x1234_5678_9abc_def0u64;
     let mut rnd = || { r ^= r << 13; r ^= r >> 7; r ^= r << 17; r };
-    let mut prog = |rnd: &mut dyn FnMut() -> u64| { let mut p = [0u8; 20]; for c in p.chunks_mut(8) { c.copy_from_slice(&rnd().to_le_bytes()[..c.len()]) } [&[0x00, 0x14][..], &p].concat() };
+    let prog = |rnd: &mut dyn FnMut() -> u64| { let mut p = [0u8; 20]; for c in p.chunks_mut(8) { c.copy_from_slice(&rnd().to_le_bytes()[..c.len()]) } [&[0x00, 0x14][..], &p].concat() };
     let coins: Vec<Coin> = (0..50_000u32).map(|i| { let mut c = coin(0, i, 1, prog(&mut rnd)); c.txid[..4].copy_from_slice(&i.to_le_bytes()); c }).collect();
     let s = UtxoSet::ingest(write_dump(25, [0; 4], [0; 32], &coins).as_slice(), 12).unwrap();
     for c in &coins { assert!(matches!(s.query_script(&c.script), Answer::Funded { .. })) }
