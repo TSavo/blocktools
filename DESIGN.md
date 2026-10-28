@@ -64,7 +64,7 @@ pastes keys into chat.
 
 ## 3. Agent-facing schema (enforced by `redact`)
 
-One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512). Allowlisted fields:
+One JSON object per line, at most 512 bytes (boundary test, docs/CLAIMS.md redact-512) (unmeasured). Allowlisted fields:
 
 | field | validator |
 |---|---|
@@ -342,7 +342,7 @@ then the token `transfer`.
 **tx-verify** reuses `blocktools-tx` and checks the decoded tx against expectations:
 outputs equal the expected addresses, change goes to a derived address, the chain id is
 right, the fee and fee percentage are under caps, and no unknown outputs exist. Any failure
-gives a non-zero exit. EVM: the default total-fee cap is tx-sign's 0.01 ETH (untested) and ETH value next to
+gives a non-zero exit. EVM: the default total-fee cap is tx-sign's 0.01 ETH (untested). ETH value next to
 ERC-20 transfer calldata fails (`eth_value_with_token_call`) unless `--allow-value-with-token`.
 
 **tx-sign** reads keys on stdin and the tx on a second stdin line or `--tx FILE`.

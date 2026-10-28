@@ -103,7 +103,7 @@ geth --lightkdf (N=4096, r=8, p=6), RFC 7914 vector 2 through the crate, bounds,
 ## EVM verification defaults (security review 2026-10-25)
 
 `tx-verify` (and wasm `verifyTx` with `max_fee` "") now applies tx-sign's default EVM total-fee cap, gas × maxFeePerGas
-≤ 0.01 ETH (untested), so verify and sign agree; pass `--max-fee WEI` to change it. A nonzero native value alongside ERC-20
+≤ 0.01 ETH, so verify and sign agree (untested); pass `--max-fee WEI` to change it. A nonzero native value alongside ERC-20
 `transfer` calldata (the ETH would go to the token contract) fails with `eth_value_with_token_call` in tx-verify
 and tx-sign unless `--allow-value-with-token`. Test: `evm_value_with_token_and_default_cap` (crates/tx/tests/kat.rs).
 
