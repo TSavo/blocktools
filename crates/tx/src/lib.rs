@@ -46,6 +46,7 @@ pub fn resolve_chain(txt: &str, flag: Option<String>) -> Result<String, &'static
 #[cfg(feature = "secrets")]
 pub mod sign;
 pub mod multisig;
+pub mod taproot_multisig;
 pub mod rlp;
 pub mod message;
 use bitcoin::consensus::deserialize;
