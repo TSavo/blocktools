@@ -5,7 +5,7 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
-## [0.2.0] - Unreleased (release candidate; not tagged)
+## [0.2.0] - 2026-10-28
 
 Version 0.2.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check) (4212b19).
 Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm export or tool was removed
