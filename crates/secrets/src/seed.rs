@@ -92,6 +92,7 @@ pub fn from_entropy(entropy: &[u8]) -> Result<Zeroizing<String>, &'static str> {
 /// A fresh BIP39 English mnemonic with `strength_bits` of entropy (128 or 256) drawn from the OS
 /// CSPRNG (`getrandom`). Returns a SECRET. Panics only if the OS entropy source fails or
 /// `strength_bits` is not a supported BIP39 strength.
+#[cfg(feature = "keygen")]
 pub fn generate(strength_bits: usize) -> Zeroizing<String> {
     let mut ent = Zeroizing::new(vec![0u8; strength_bits / 8]);
     getrandom::getrandom(&mut ent[..]).expect("OS CSPRNG");
@@ -115,6 +116,7 @@ mod gen_tests {
     }
     #[test] fn bad_entropy_length_errs() { assert!(from_entropy(&[0u8; 15]).is_err()); }
     // Property: default strengths produce a valid-checksum mnemonic of the right word count.
+    #[cfg(feature = "keygen")]
     #[test] fn generate_valid_checksum_and_length() {
         for (bits, words) in [(128usize, 12usize), (256, 24)] {
             let mn = generate(bits);
@@ -123,6 +125,7 @@ mod gen_tests {
         }
     }
     // Property: two generations differ (CSPRNG, not a constant).
+    #[cfg(feature = "keygen")]
     #[test] fn generate_differs() { assert_ne!(generate(256).as_str(), generate(256).as_str()); }
 }
 
