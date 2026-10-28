@@ -23,12 +23,31 @@ DECODE and VERIFY it offline, sign it sealed behind a typed code, then broadcast
 from the host. blocktools has no network. SwapChan (and/or a THORChain node) is
 the eyes on the network; blocktools is the hands on the keys.
 
-## Mental model: a THORChain swap is a send + a memo
+## Mental model: a swap is the wallet's four moves
 
-A THORChain swap is not an exchange call. It is **sending your input asset to the
-current THORChain inbound vault with a MEMO that encodes the swap**. The memo is
-the instruction; the network reads it and pays the destination asset out on its
-own chain. The shape depends on the input chain:
+The `smart-wallet` hub teaches one shape for everything the wallet does: **four
+moves — (1) read, (2) build, (3) sign, (4) broadcast — with verify as the glue.**
+A THORChain swap is exactly that shape, with two swap-specific twists on the ends:
+
+1. **Read (wallet → chain state).** Fetch the state you'll spend from *and* the
+   **current THORChain inbound vault, router, memo and expiry** — the vault
+   **rotates**, so move 1 re-reads it fresh every swap. `rpc` is how you get data
+   out of the chain (or SwapChan's keyless quote). This is a host step, no key.
+2. **Build (chain state → unsigned tx).** A THORChain swap is not an exchange
+   call — it is **sending your input asset to that inbound vault with a MEMO that
+   encodes the swap**, and move 2 **attaches the memo**. The network reads the memo
+   and pays the destination asset out on its own chain. Output is unsigned bytes.
+3. **Sign (secret → signed tx, sealed).** Re-derive the key inside the seal and
+   sign — but first verify, because **the two silent money-losers are a rotated
+   vault and a byte-wrong memo**. Move 3's `--expect-to` + `--expect-memo` are the
+   guard; they refuse to sign unless vault, memo and amount match exactly.
+4. **Broadcast (signed tx → network).** Send the signed source-chain deposit from
+   the host. **THORChain relays the cross-chain leg** once the deposit lands and
+   pays the destination asset to your address — you only broadcast the source leg.
+
+So this skill is **moves 1 → 2 → 3 → 4 for one swap**; a multi-asset sweep is a
+**series** of such swaps (see "Many chains → one asset" below). The build shape
+depends on the input chain:
 
 - **EVM chain** (BNB, Ethereum, Avalanche, ...) → a `depositWithExpiry` contract
   call to the THORChain **router**: `router.depositWithExpiry(vault, asset,
@@ -44,6 +63,32 @@ own chain. The shape depends on the input chain:
 Swap memo grammar (UTXO/short form): `=:ASSET:DEST:LIMIT[/...][:AFFILIATE:FEE]`
 — e.g. `=:ETH.ETH:0xADDR:0` or `=:r:thor1...` (RUNE). A THORName action memo is
 `~:NAME:CHAIN:...` (see below).
+
+## Thinking in plans (what you actually reason about)
+
+Underneath the four moves is one object: the **plan**. A plan is *durable intent
+plus assertions*, held apart from the *ephemeral chain state* it runs against.
+"Swap this DOGE into ETH at `0x…`, limit L, fee ≤ F" is the plan — and it is true
+no matter what today's vault, UTXO set or fee rate happens to be. Move 1 supplies
+the ephemeral facts (the current vault, your UTXOs, the nonce); **resolving** the
+plan against those facts is move 2 and yields the unsigned tx.
+
+Two consequences you lean on the whole time:
+
+- **The plan is what you verify against.** It carries its own assertions —
+  `expect_to` (the vault/router), `expect_memo` (the swap memo, exact), `cap_fee`.
+  Verify is not a vibe check; it is the mechanical question *"does the resolved tx
+  still satisfy every assertion the plan declared?"* The rotated vault and the
+  byte-wrong memo get caught here precisely because the *intended* vault and memo
+  live in the plan, and the resolved bytes are checked against them.
+- **Intent and state stay apart.** Because the vault rotates and fees move, you
+  never bake a live fact into the plan. You re-read (move 1) and re-resolve every
+  time; the plan is the fixed thing, the chain is the moving thing, and verify is
+  where the two are reconciled right before the key touches anything.
+
+So a swap is just a plan whose move-2 build attaches a memo. Everything below is
+how you resolve, verify, sign and broadcast that plan on each chain family — and,
+when one plan isn't enough, how you sequence a chain of them.
 
 ## The two dangers unique to swaps
 
@@ -62,15 +107,15 @@ Both silently lose funds. blocktools `verify` + `--expect-memo` is the guard; us
    the memo in the tx equals yours exactly, and print it on `/dev/tty` so you
    confirm before typing the code.
 
-## Division of trust
+## Division of trust (mapped to the four moves)
 
-| Step | Who | Tooling |
-|------|-----|---------|
-| quote → current vault, router, memo, expiry | **host / network** | SwapChan `get_quote` / `compare_routes`, or `rpc NODE /thorchain/quote/swap?...` |
-| build the UNSIGNED tx + a `verify_tx` summary | **SwapChan** (keyless) | `build_swap_tx`, `verify_tx` |
-| independently DECODE & VERIFY (right vault, right memo, right amount, fee cap) | **blocktools** (offline) | `abi-decode` / `tx-envelope verify_thor_send` / `tx-verify` / `acct-tx decode` |
-| sign (sealed, typed-code, memo shown) | **blocktools** (sealed) | `tx-sign` / `acct-tx sign` with `--expect-to` + `--expect-memo` |
-| broadcast | **host / network** | `tx-broadcast` / `rpc NODE /cosmos/tx/v1beta1/txs` |
+| Move | Step | Who | Tooling |
+|------|------|-----|---------|
+| **1 read** | quote → current vault, router, memo, expiry (+ your state) | **host / network** | SwapChan `get_quote` / `compare_routes`, or `rpc NODE /thorchain/quote/swap?...` |
+| **2 build** | build the UNSIGNED tx (memo attached) + a `verify_tx` summary | **SwapChan** (keyless) | `build_swap_tx`, `verify_tx` |
+| **verify** | independently DECODE & VERIFY (right vault, right memo, right amount, fee cap) | **blocktools** (offline) | `abi-decode` / `tx-envelope verify_thor_send` / `tx-verify` / `acct-tx decode` |
+| **3 sign** | sign (sealed, typed-code, memo shown) | **blocktools** (sealed) | `tx-sign` / `acct-tx sign` with `--expect-to` + `--expect-memo` |
+| **4 broadcast** | broadcast the source-chain deposit (THORChain relays the rest) | **host / network** | `tx-broadcast` / `rpc NODE /cosmos/tx/v1beta1/txs` |
 
 SwapChan builds; blocktools **does not trust SwapChan's summary** — it decodes the
 raw unsigned tx itself and re-derives the vault, memo, amount and fee cap. **Human
@@ -166,6 +211,71 @@ matching chain alias (`~:NAME:ETH:0xYOUR_EVM_ADDRESS`, next sequence) to receive
 on that chain. Gas is not priced by THORChain (default limit 20000000). Full flow:
 `recipes/thorchain-thorname.md`; the MsgDeposit itself: `recipes/chain-thorchain.md`.
 
+## Many chains → one asset: a series of swaps
+
+"Sweep my DOGE, LTC and BTC all into Ethereum" is **not one transaction**. As the
+`smart-wallet` hub puts it, a wallet action is **a list of plans**, and here each
+plan is one independent four-move swap from a source chain to the same ETH address
+— a chain of plans across chains:
+
+```
+plan 1:  DOGE → =:ETH.ETH:<your-eth-address>:<limit>   (read DOGE vault+UTXOs → build → sign → broadcast)
+plan 2:  LTC  → =:ETH.ETH:<your-eth-address>:<limit>   (read LTC  vault+UTXOs → build → sign → broadcast)
+plan 3:  BTC  → =:ETH.ETH:<your-eth-address>:<limit>   (read BTC  vault+UTXOs → build → sign → broadcast)
+```
+
+Three rules, straight from the hub:
+
+- **Decompose by source.** One plan per (source asset, source chain). There is **no
+  shared signature across chains** — each chain signs with its own key in its own
+  move 3, so plan 3 above is skeleton 2 run three times on three source chains.
+- **Each plan is the full four moves.** No plan skips its **own move-1 vault read**
+  (every vault fetched fresh — they rotate independently) or its **own move-3
+  verify** (every memo `=:ETH.ETH:<addr>:<limit>` checked byte-for-byte). A shared
+  destination does not mean a shared vault or memo.
+- **The plans are independent, so run them in parallel.** Different vaults,
+  different UTXO/account state, their own fees; they all converge as ETH at the one
+  address once THORChain settles each deposit. A recovered wallet holding coins on
+  several chains is the same shape — recover the one secret, then emit one plan per
+  funded chain.
+
+See the hub's "Many chains → one asset" section for the general form (and the
+coming `tx-plan` tool that makes the list first-class).
+
+### When plans depend on each other (multi-hop)
+
+The three DOGE/LTC/BTC plans above are **independent** — no ordering, run them in
+parallel. But some goals are a **dependent chain**, where a later plan cannot even
+be *built* until an earlier one settles:
+
+- The target asset has no direct THORChain route, so you **hop**: A → (a supported
+  asset) → ETH — two swaps, and the second's input is the first's output.
+- An unsupported old coin you must first **sweep** to a supported chain, then swap
+  from there.
+
+The dependency is concrete, not stylistic: **move 1 of plan N+1 has to read the
+balance/UTXO that plan N produced**, so you cannot resolve plan N+1 until plan N's
+deposit has confirmed and (for a swap) THORChain has paid out. That forces the
+loop to be sequential at the join:
+
+```
+for each plan in the chain, in order:
+  1. read      state this plan spends — for a dependent plan, the output the
+               previous plan just settled (re-read it; don't assume the amount)
+  2. build     resolve this plan against that state (attach the memo for a swap)
+  3. verify + sign (sealed)         assertions checked, then the key, behind a code
+  4. broadcast and, before step 1 of a dependent successor, WAIT for settlement
+```
+
+THORChain is what keeps *most* swaps a single plan — it performs the far leg
+itself once your one deposit lands, so BTC→ETH is one plan on BTC, not one per
+chain. You only reach for a dependent chain when **no single route exists**. This
+is the "a chain of plans across chains — execute each, sign it in the wallet, have
+the wallet send it" shape: independent plans fan out in parallel, dependent plans
+run in order with a settlement wait at each join, and `tx-plan` (wave 2) makes the
+whole chain a first-class object you resolve → verify → sign → broadcast step by
+step.
+
 ## Notes
 
 - Re-fetch the vault/router per swap; never reuse a stale one.
@@ -178,8 +288,10 @@ on that chain. Gas is not priced by THORChain (default limit 20000000). Full flo
 
 ## See also
 
-- `send-and-sign` — the build → verify → sign-sealed → broadcast pattern these
-  swaps are built on.
+- `smart-wallet` — the hub: the four moves (1 read, 2 build, 3 sign, 4 broadcast)
+  and the many-chains-to-one-asset series this skill is an instance of.
+- `send-and-sign` — the build → verify → sign-sealed → broadcast pattern (moves
+  2→3→4) these swaps are built on.
 - `evm-contracts` — the `tx-build --data` + `--policy allow_calls` path the EVM
   deposit uses.
 - `recipes/thorchain-swap-evm.md`, `recipes/thorchain-swap-utxo.md`,

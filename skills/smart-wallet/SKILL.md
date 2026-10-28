@@ -307,6 +307,38 @@ router instead of an OP_RETURN send; on native RUNE it is an `acct-tx --chain ru
 MsgDeposit. Same four moves — see `recipes/thorchain-swap-evm.md` and the
 **cross-chain-swap** skill.)
 
+### A full journey: old LTC in a JSON wallet → USDC in a fresh ETH wallet
+
+"I have a bunch of old LTC in a JSON wallet. Make a new ETH wallet, send it there
+as USDC." One sentence, four skills, and a boundary worth knowing:
+
+1. **Recover the LTC secret** (skill **recover-funds**; the secret side of move 3).
+   `classify /in/wallet.json` names the format, the matching opener (sealed) yields
+   the master, `derive --chain ltc --public-only` lists the LTC addresses. The key
+   never leaves the seal.
+2. **Read the LTC state** (move 1). `rpc` / `utxo-fetch` against those addresses
+   returns the UTXOs — confirm there really is "a bunch" before building anything.
+3. **Mint the new ETH wallet** (skill **wallet-keys**). blocktools makes it:
+   `new-seed --words 24 | seed-to-master | derive --chain eth --count 1` generates
+   a fresh BIP39 mnemonic from the OS CSPRNG and derives its ETH address. The
+   mnemonic is a secret — it comes back `[REDACTED]` to an agent (the address in
+   clear), and is revealed to a *human* to write down and back up via
+   `./blocktools reveal`. Good practice before you fund it: prove the address
+   derives from the secret you just generated.
+4. **One swap plan: LTC → USDC, to that address** (skill **cross-chain-swap**).
+   THORChain collapses the cross-chain leg, so this is a *single* plan, not a
+   chain: move 1 reads the current LTC inbound vault; move 2 builds an LTC send to
+   that vault with the memo `=:ETH.USDC-0x…:0xNEWADDR:<limit>` (the exact
+   `ETH.USDC-0x…` asset id comes from the quote); move 3 verifies vault + memo +
+   amount and signs sealed with the *recovered LTC* key; move 4 broadcasts the LTC
+   deposit and THORChain pays USDC to the new ETH address.
+
+The lesson the journey teaches: the wallet **recovers, mints and signs** — one tool
+chain turns an old JSON file into recovered LTC and a fresh mnemonic into a new ETH
+destination, and the cross-chain delivery is a single plan because THORChain does
+the far leg. (If the target asset had no direct route, step 4 would become a
+dependent chain of plans — see **cross-chain-swap**.)
+
 ### Many chains → one asset: a series of transactions
 
 "Sweep my DOGE, LTC and BTC all into Ethereum" has no single transaction that does
@@ -350,6 +382,7 @@ and where it runs.
 
 | Move | Tools | Runs |
 |---|---|---|
+| **mint — a new wallet** | `new-seed` (fresh BIP39 mnemonic → `seed-to-master` → `derive`) | **sealed**; mnemonic `[REDACTED]` to agents, revealed to a human to back up |
 | **1 read — wallet → addresses** | `classify`, `derive`, `seed-to-master`, `key-to-addresses`, `xpub-addresses`, `phrase-to-key`, `pw-candidates`, `seed-repair`, the openers (`dat-read`, `electrum-read`, `armory-read`, `multibit-read`, `keystore-open`, `bip38-open`, `blockchain-read`, `read-file`), `wallet-finder` + `utxo-set`, `recover.sh` | public-only; host, or sealed for an encrypted file |
 | **1 read — addresses → state** | `rpc`, `utxo-fetch` | host (deny-by-default on sign/unlock) |
 | **2 build** | `tx-build`, `acct-tx`, `xrp-tx`, `sol-tron-tx`, `abi-encode`, `tx-envelope` (and the coming `tx-plan`) | anywhere; no key |

@@ -13,54 +13,139 @@ description: >-
 
 # send-and-sign
 
-Move a coin with blocktools by building the transaction unsigned, reading exactly what it does,
-signing it behind the sealed boundary with a human-typed code, reading the signed bytes again, and
-only then broadcasting on the host. Every tool is a small Rust Unix filter that reads one JSON
-object (or hex) per line and prints a JSON status line; the last line's `status` and exit code tell
-you what happened (`docs/EXIT-CODES.md`, `docs/REFUSALS.md`).
+The whole wallet is **four moves** (see the `smart-wallet` hub): **1. wallet → chain state** (read),
+**2. chain state → unsigned transaction** (build, no key), **3. secret → signed transaction** (sign,
+sealed/offline), **4. signed transaction → network** (broadcast, host). This skill is **moves 2 → 3 →
+4**, consuming the state that move 1 already read. Build the transaction unsigned (move 2), read
+exactly what it does, sign it behind the sealed boundary with a human-typed code (move 3), read the
+signed bytes again, and only then broadcast it through the user's own node (move 4). **Verify is the
+glue** that sits between 2 → 3 and 3 → 4, with a policy file as the hard gate. Every tool is a small
+Rust Unix filter that reads one JSON object (or hex) per line and prints a JSON status line; the last
+line's `status` and exit code tell you what happened (`docs/EXIT-CODES.md`, `docs/REFUSALS.md`).
+
+## Precondition: move 1 (read) via `rpc`
+
+Moves 2 → 4 are useless without move 1's state. **`rpc` is how you get data out of the chain** —
+balance and unspent outputs for a UTXO chain, the account's nonce/gas/`chain_id` for an EVM chain, the
+sequence/account number for an account chain. **Point `rpc --url` at the user's OWN node**: an old
+bitcoind fork still running in a corner, or a full Ethereum node. For an obscure coin with no public
+indexer, that local daemon is the only way to read state; for ETH it is the private, authoritative
+one. `utxo-fetch` is the UTXO-specific convenience on top of `rpc`; the worked pipelines below use it
+to produce the UTXO/account files move 2 reads. This read is a **host** step and needs no key — and
+re-read right before you build, because a stale nonce or UTXO set loses money. Deriving the addresses
+to query (move 1a) is the `wallet-keys` skill. → hub skill **smart-wallet**, **wallet-keys**.
 
 > DANGEROUS: used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds.
 > Read and audit anything that signs before trusting it with real money. Unit tests are evidence,
 > not a substitute for your own review.
 
-## The sealed boundary (keys never cross)
+## Move 3's sealed boundary (keys never cross)
 
-Secrets run inside `./blocktools run '<pipeline>'`, which executes offline with `--network none`:
-keys are derived and piped straight into the signer in memory, never written to disk, and anything
-that looks like a key comes back `[REDACTED]`. Network tools — `utxo-fetch`, `tx-broadcast`, and any
-RPC — are **not** in the sealed image; `sealed-run` refuses them, so they run on the host and are
-given public data only (addresses, public keys, the signed transaction). `tx-sign` and the account
-signers need a human to read a summary and type a code on `/dev/tty`; with no terminal they abort and
-nothing is signed. Never run `./blocktools reveal` to print a key unless the user is the one driving
-that step on their own machine.
+Move 3 — **secret → signed transaction** — is the only move that touches a key, and it runs inside
+`./blocktools run '<pipeline>'`, which executes offline with `--network none`: the key is derived and
+piped straight into the signer in memory, never written to disk, and anything that looks like a key
+comes back `[REDACTED]`. The host-side moves — move 1's `rpc`/`utxo-fetch` read and move 4's
+`tx-broadcast` — are **not** in the sealed image; `sealed-run` refuses them, so they run on the host
+and are given public data only (addresses, public keys, the signed transaction). `tx-sign` and the
+account signers need a human to read a summary and type a code on `/dev/tty`; with no terminal they
+abort and nothing is signed. Never run `./blocktools reveal` to print a key unless the user is the one
+driving that step on their own machine. The secret that feeds move 3 comes from `wallet-keys` (a seed
+or key you hold) or `recover-funds` (an old or damaged wallet).
 
-## The core loop — no exceptions
+## The core loop — moves 2 → 3 → 4, no exceptions
 
 ```
-keys (sealed) -> build UNSIGNED -> decode + verify against intent -> sign (sealed, typed code)
-             -> decode + verify the SIGNED bytes again -> broadcast (host, second code)
+move 1 (read via rpc, host) -> move 2 build UNSIGNED -> VERIFY (decode + gate vs intent)
+    -> move 3 sign (sealed, typed code) -> VERIFY the SIGNED bytes again
+    -> move 4 broadcast (host, through the user's own node, second code)
 ```
 
-1. **Build** the unsigned transaction offline from UTXO/nonce/account files and flags (`tx-build`,
-   `acct-tx build`, `xrp-tx build`, `sol-tron-tx build --plan`). It never touches the network.
-2. **Decode the exact bytes you will sign:** `tx-decode --text` (or the builder's `decode`
-   subcommand). Read every output address character by character against where you meant to send,
-   the amount, the fee, and — for EVM — the chain id and token. Stop on any warning you do not
-   understand.
-3. **Verify as a hard gate:** `tx-verify` with `--expect-to`, a fee cap, the chain id, and a
-   `--policy` file. It exits 0 / `status: "ok"` only when every check passes; otherwise `failed`,
-   exit 1. Do not proceed on a failure.
-4. **Sign** inside the seal (`tx-sign`, `acct-tx sign`, `xrp-tx sign`). It re-runs the checks, prints
-   the decoded summary on your terminal, and only signs after the human types the code it shows.
-5. **Decode the signed output again** and confirm the outputs, fee, and (EVM) `from` match step 2.
-6. **Broadcast** on the host (`tx-broadcast`), which asks for a second typed code and verifies the
-   returned id equals the id it computed locally.
+1. **(move 1 — precondition)** The state is already read: the UTXO/nonce/account file from `rpc` /
+   `utxo-fetch` against the user's own node. Re-read it if it may be stale.
+2. **Build (move 2)** the unsigned transaction offline from that state and your intent — recipient,
+   amount, memo, fee (`tx-build`, `acct-tx build`, `xrp-tx build`, `sol-tron-tx build --plan`). No key
+   is involved and it never touches the network.
+3. **Verify (glue, 2 → 3), decode the exact bytes you will sign:** `tx-decode --text` (or the
+   builder's `decode` subcommand). Read every output address character by character against where you
+   meant to send, the amount, the fee, and — for EVM — the chain id and token. Stop on any warning you
+   do not understand. Then `tx-verify` as the hard gate with `--expect-to`, a fee cap, the chain id,
+   and a `--policy` file: it exits 0 / `status: "ok"` only when every check passes; otherwise
+   `failed`, exit 1. Do not proceed on a failure.
+4. **Sign (move 3)** inside the seal (`tx-sign`, `acct-tx sign`, `xrp-tx sign`). It re-runs the checks,
+   prints the decoded summary on your terminal, and only signs after the human types the code it shows.
+5. **Verify (glue, 3 → 4), decode the signed output again** and confirm the outputs, fee, and (EVM)
+   `from` match step 3.
+6. **Broadcast (move 4)** on the host, through **the same node you read in move 1**: `tx-broadcast`
+   wraps `sendrawtransaction` on a bitcoind fork or `eth_sendRawTransaction` on an ETH node, asks for a
+   second typed code, and verifies the returned id equals the id it computed locally. For a self-hosted
+   fork, that local daemon is the only path out, just as it was the only path in.
 
 Never sign bytes you have not decoded and compared to intent.
 
-## The policy file is the hard gate (`docs/POLICY.md`)
+## Thinking in plans (what a plain send actually is)
 
-A declarative JSON file turns verify from advice into a refusal. `tx-verify --policy FILE` and
+A send is the **general case** of the plan model that `cross-chain-swap` specializes.
+Underneath the four moves is one object: the **plan**. A plan is *durable intent plus
+assertions*, held apart from the *ephemeral chain state* it runs against. "Send 0.5
+BTC to `bc1q…`, fee ≤ F" is the plan — and it is true no matter what today's UTXO set,
+nonce or fee rate happens to be. The swap is only a plan whose move-2 build also
+attaches a memo; strip the memo and the vault, and you are left with exactly this —
+intent (`expect_to` the recipient, `expect_out` the amount, `cap_fee`) checked against
+live state.
+
+Read the four moves as operations on that one object:
+
+- **The plan is durable intent + assertions.** Written once, before you touch the
+  chain: *who* (`expect_to` — the recipient; for UTXO also the `change` address),
+  *how much* (`expect_out` — the non-change amount), *what it may cost* (`cap_fee`),
+  and, for EVM, the chain id and the token/call. These are the questions move 2 → 3's
+  verify will ask; the plan is where their answers live.
+- **Move 1 (`rpc`) supplies the ephemeral state.** The UTXO set, the account nonce and
+  gas, the sequence/account number, the fee rate — the moving facts, read fresh from
+  the user's own node. None of this belongs in the plan; it is what the plan is
+  resolved *against*.
+- **Move 2 resolves the plan against that state into unsigned bytes.** `tx-build` (or
+  `acct-tx`/`xrp-tx`/`sol-tron-tx build`) takes the durable intent and the live state
+  and produces one unsigned transaction — the plan made concrete for *this* UTXO set
+  and *this* nonce. Resolve, don't author: the recipient and amount come from the plan,
+  the inputs and fee arithmetic from the state.
+- **Verify is the mechanical check, not a vibe check.** It asks exactly: *"does the
+  resolved tx satisfy every assertion the plan declared?"* `tx-decode --text` lets you
+  read it; `tx-verify --expect-to … --max-fee … --chain-id …` answers the question with
+  an exit code. A swapped destination or an inflated fee is caught here precisely
+  because the *intended* recipient and cap live in the plan and the resolved bytes are
+  checked against them.
+- **The policy file is that same check made a deny-by-default HARD GATE.** Everything
+  in the plan — `allow_to`, `max_value`, `max_fee`, `chain_id`, `allow_tokens`,
+  `allow_calls` — written to `docs/POLICY.md` form so a refusal, not your attention, is
+  what stops a bad resolve. See the next section.
+
+Two consequences you lean on the whole time:
+
+- **Intent and state stay apart — never bake a live fact into the plan.** The nonce,
+  the UTXO set and the fee rate move; the plan does not. So you **re-read (move 1) and
+  re-resolve (move 2) every time**, and let verify reconcile the two right before the
+  key touches anything. A plan that has yesterday's nonce frozen into it is not a plan,
+  it is a stale transaction waiting to fail or double-spend.
+- **The assertions are the plan's whole safety value.** A resolve with no assertions is
+  just bytes; the `expect_to`/`expect_out`/`cap_fee` (and the policy that hardens them)
+  are what make "verify" a question with a yes/no answer instead of a judgement call.
+
+**Doctrine — CLIs are lib users.** `tx-build`, `tx-verify` and `tx-sign` are *thin
+users* of one underlying transaction library: build resolves, verify checks assertions,
+sign resolves-then-signs — three skins over the same resolve/assert core, which is why
+the same `--expect-to`/`--max-fee`/`--chain-id`/`--policy` vocabulary runs through all
+of them. The coming `tx-plan` (wave 2, the `blocktools-plan` crate) is the **declarative
+plan skin over that same library**: one plan object — intent + assertions — that it
+resolves against move-1 state and feeds down the identical verify/sign path, on any of
+the three chain families. Until it ships, you write the plan by hand as the build flags
+plus the verify/policy assertions; the model does not change, only how first-class the
+plan object is.
+
+## The policy file is the hard gate between move 2 and move 3 (`docs/POLICY.md`)
+
+A declarative JSON file turns verify — the glue between build (move 2) and sign (move 3) — from
+advice into a refusal. `tx-verify --policy FILE` and
 `tx-sign --policy FILE` check it **before** signing, and `tx-sign` checks it again on the signed
 bytes. Deny by default: a chain with no entry is refused (`policy:no_rule_for_chain`). Unknown keys
 are errors, so a typo cannot silently drop a rule. `tx-verify` reports the file's sha256 so you know
@@ -86,7 +171,7 @@ Keys: `allow_to` (every non-change recipient), `change` (allowed, not counted to
 `--call SIGNATURE` (or `--abi FILE`) so the calldata decodes exactly; contract creation is approved
 with `--create-hash KECCAK`, not the file.
 
-## Chain-family map (which tool builds and signs)
+## Chain-family map (which tool does moves 2 build / 3 sign / 4 broadcast)
 
 | Family | Chains | Build / sign tools |
 |---|---|---|
@@ -102,8 +187,11 @@ unsigned transfer, but cannot sign — do not promise an end-to-end send there.
 
 ## Worked pipelines
 
-Ground every flag in the man pages and recipes; do not invent flags. Addresses below are public
-BIP/spec test vectors.
+Each pipeline is the four moves end to end: `utxo-fetch`/`rpc` reads state from the user's node
+(move 1), `tx-build` builds unsigned (move 2), `tx-decode`/`tx-verify` gate it, `./blocktools run ...
+tx-sign` signs sealed (move 3), and `tx-broadcast` sends through that same node (move 4). Ground every
+flag in the man pages and recipes; do not invent flags. Addresses below are public BIP/spec test
+vectors.
 
 ### 1. Bitcoin sweep (UTXO) — `recipes/goal-sweep.md`, `recipes/chain-bitcoin.md`
 
@@ -231,8 +319,11 @@ bad_input / unsupported. Measured on Linux; always read the last JSON status lin
 
 ## See also
 
-- Companion skills: `wallet-keys` (derive addresses and open wallet files), `evm-contracts`
-  (calldata, ABI, approvals, contract creation), `cross-chain-swap`.
+- Hub: `smart-wallet` — the four moves (1 read, 2 build, 3 sign, 4 broadcast) this skill is 2 → 3 → 4
+  of. Companion skills: `wallet-keys` (move 1a: derive addresses and open wallet files; and the move-3
+  secret you hold), `evm-contracts` (move 2 for calldata, ABI, approvals, contract creation),
+  `cross-chain-swap` (the same four moves where move 1 also fetches the vault and move 2 attaches the
+  memo), `recover-funds` (recovers the move-3 secret from an old or damaged wallet).
 - Authoritative sources: `recipes/goal-verify-and-offline.md`, `recipes/decode-a-transaction.md`,
   `recipes/goal-sweep.md`, the per-chain recipes (`recipes/chain-bitcoin.md`,
   `recipes/chain-ethereum.md`, `recipes/chain-cosmos.md`, `recipes/xrp.md`,
