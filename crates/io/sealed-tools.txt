@@ -24,6 +24,7 @@ key-to-addresses
 classify
 chain-table
 xmr-keys
+signum-account
 zec-sapling
 xrp-tx
 acct-tx

@@ -102,6 +102,16 @@ existing scripts are listed under "Changed".
 - `tty::confirm_ack`: a typed acknowledgement distinct from the confirmation code (3a21083).
 - e2e recovery against wallets written at test time by Bitcoin Core 25.2, Electrum 4.5.8, eth-account and
   python-mnemonic (d9a6056; scope documented in 0f8a581) [recovery-synthetic-thirdparty].
+- Signum (ex-Burst) recovery: new `signum-account` tool. A secret passphrase → SHA-256 private key →
+  Curve25519 base multiplication (clamped, as libsodium/NXT `crypto_scalarmult_base`) → account id → the
+  NXT Reed-Solomon `S-XXXX-XXXX-XXXX-XXXXX` address. Not BIP39/secp256k1, so no existing reader reached it;
+  routed from `recover.sh --chain signum` (a free-form passphrase is not auto-classified), sweep in the
+  Signum XT wallet. `crates/secrets/src/burst.rs`; `redact` allows the `signum` chain/kind and the S-
+  address shape (`is_signum_address`). Vector: `S-H6YU-VM2A-MDZ5-CM32A` / id `11817502445436113882`.
+- Electrum 1.x / Counterwallet mnemonics: `electrum::old_mnemonic_to_seed` decodes the 1626-word Electrum-1
+  word list (3 words → 8 hex, floored modulo) to the stretched hex seed, feeding the existing `electrum_old`
+  key derivation — so a 12-word Counterwallet phrase now reaches its uncompressed P2PKH addresses.
+  `crates/secrets/src/electrum_old_words.rs`. Vector: → `1C6GJ8rocZzrjXPFnAEARTmysjuBS3RYY8`.
 
 ### Changed
 - `rpc sendraw` and `tx-broadcast` show input values and fee before the confirmation code; when the fee

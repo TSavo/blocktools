@@ -11,10 +11,10 @@ pub const STATUSES: &[&str] = &[
 // Single source for the failure vocabulary: blocktools_tx include!s the same file (D1-12).
 include!("tx_failures.rs");
 pub const TOOLS: &[&str] = &["zec-sapling", "seed-repair", "seed-to-master", "new-seed", "derive", "keystore-open", "redact", "sealed-run", "read-file", "dat-read",
-    "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx", "phrase-to-key"];
+    "key-to-addresses", "classify", "tx-decode", "tx-verify", "tx-build", "tx-build-sweep", "tx-sign", "tx-broadcast", "electrum-read", "multibit-read", "armory-read", "xpub-addresses", "xmr-keys", "xrp-tx", "acct-tx", "phrase-to-key", "signum-account"];
 pub const KINDS: &[&str] = &["p2pkh", "p2pkh-uncompressed", "p2sh-p2wpkh", "p2wpkh", "p2tr", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld", "cosmos", "algo", "sr25519", "ton-v4r2", "ada-base", "sapling", "unified", "xmr",
-    "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown"];
-pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "bcc", "grs", "pivx", "sys", "firo", "ksm", "polyx", "strd", "axl", "cre", "kuji", "cmdx", "ntrn", "somm", "fet", "mars", "umee", "noble", "sei", "tia", "coreum", "qsr", "xprt", "akt", "kava", "blz", "band", "cro", "bld", "dydx", "rune", "inj", "evmos", "canto", "zeta"];
+    "p2pk", "p2sh", "p2wsh", "op_return", "nonstandard", "unknown", "signum"];
+pub const CHAINS: &[&str] = &["btc", "ltc", "doge", "eth", "tron", "xrp", "sol", "xlm", "aptos", "sui", "near", "xtz", "egld", "atom", "algo", "dot", "ton", "ada", "zec", "xmr", "qtum", "ftc", "nmc", "dash", "vtc", "dgb", "via", "mona", "rvn", "xpm", "trc", "mec", "aur", "bch", "bsv", "btg", "ppc", "nvc", "clam", "blk", "rdd", "pot", "qrk", "wdc", "anc", "bcc", "grs", "pivx", "sys", "firo", "ksm", "polyx", "strd", "axl", "cre", "kuji", "cmdx", "ntrn", "somm", "fet", "mars", "umee", "noble", "sei", "tia", "coreum", "qsr", "xprt", "akt", "kava", "blz", "band", "cro", "bld", "dydx", "rune", "inj", "evmos", "canto", "zeta", "signum"];
 pub const SCHEMES: &[&str] = &["bip39", "electrum-standard", "electrum-segwit", "electrum-2fa", "electrum-2fa-segwit", "electrum-old", "brainwallet-sha256", "warpwallet"];
 /// Fields whose VALUE is secret. They are kept as a labelled placeholder so the agent can see
 /// that a key exists (and which kind), never its value.
@@ -63,9 +63,18 @@ pub fn is_ada_address(s: &str) -> bool { (58..=120).contains(&s.len()) && s.star
 pub fn is_zs_address(s: &str) -> bool { s.len() == 78 && s.starts_with("zs1") && all_in(&s[3..], BECH) }
 /// Zcash ZIP-316 unified address: "u1" + bech32m chars, 100..=600 long (public). Only with "chain":"zec".
 pub fn is_ua_address(s: &str) -> bool { (100..=600).contains(&s.len()) && s.starts_with("u1") && all_in(&s[2..], BECH) }
+/// Signum (ex-Burst) Reed-Solomon address S-XXXX-XXXX-XXXX-XXXXX over the NXT base-32 alphabet
+/// (no 0/1/I/O). Public, hyphen-grouped, fixed length — unambiguous and not key-shaped.
+pub fn is_signum_address(s: &str) -> bool {
+    const A: &[u8] = b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let Some(body) = s.strip_prefix("S-") else { return false };
+    let groups: Vec<&str> = body.split('-').collect();
+    groups.len() == 4
+        && [4, 4, 4, 5].iter().zip(&groups).all(|(&len, g)| g.len() == len && g.bytes().all(|c| A.contains(&c)))
+}
 pub fn is_address(s: &str) -> bool {
     let n = s.len();
-    is_xmr_address(s) || is_ua_address(s) || is_dot_address(s) || is_ksm_address(s) || is_polyx_address(s) || is_ton_address(s) || is_ada_address(s) || is_zs_address(s) || is_xlm_address(s) || is_algo_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
+    is_xmr_address(s) || is_ua_address(s) || is_dot_address(s) || is_ksm_address(s) || is_polyx_address(s) || is_ton_address(s) || is_ada_address(s) || is_zs_address(s) || is_xlm_address(s) || is_algo_address(s) || is_signum_address(s) || ((25..=44).contains(&n) && all_in(s, B58))
         || is_bech(s)
         || (s.starts_with("0x") && n == 42 && s[2..].chars().all(|c| c.is_ascii_hexdigit()))
 }
@@ -306,6 +315,15 @@ mod tests {
         assert!(redact_line(&format!(r#"{{"status":"ok","chain":"btc","address":"{a}"}}"#)).is_none());
         let s = format!("S{}", &a[1..]);
         assert!(redact_line(&format!(r#"{{"status":"ok","chain":"xlm","address":"{s}"}}"#)).is_none());
+    }
+    #[test] fn signum_rs_address_passes() {
+        let l = r#"{"tool":"signum-account","status":"ok","chain":"signum","kind":"signum","address":"S-H6YU-VM2A-MDZ5-CM32A","account_id":"11817502445436113882"}"#;
+        let o = redact_line(l).unwrap();
+        assert!(o.contains("S-H6YU-VM2A-MDZ5-CM32A")); // public address survives
+        assert!(!o.contains("account_id")); // non-allowlisted field dropped
+        assert!(is_signum_address("S-H6YU-VM2A-MDZ5-CM32A"));
+        assert!(!is_signum_address("S-H6YU-VM2A-MDZ5")); // too few groups
+        assert!(!is_signum_address("S-H0YU-VM2A-MDZ5-CM32A")); // 0 is not in the NXT alphabet
     }
     #[test] fn sol_shape_only_with_chain_sol() {
         let a = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"; // public vector address

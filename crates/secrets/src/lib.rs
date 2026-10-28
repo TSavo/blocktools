@@ -17,6 +17,10 @@ pub mod electrum;
 pub mod electrum_old;
 #[cfg(feature = "brain")]
 pub mod brain;
+#[cfg(feature = "burst")]
+pub mod burst;
+
+pub mod electrum_old_words;
 #[cfg(feature = "keys")]
 pub mod keys;
 #[cfg(feature = "keystore")]

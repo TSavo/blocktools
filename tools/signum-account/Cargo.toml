@@ -1,0 +1,10 @@
+[package]
+name = "signum-account"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools signum-account: Burst/Signum secret passphrase (stdin) -> numeric account id and S- Reed-Solomon address. Prints no secrets."
+[dependencies]
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-secrets = { version = "0.2.0", path = "../../crates/secrets", features = ["burst"] }
+zeroize = { workspace = true }
