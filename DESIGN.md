@@ -54,7 +54,7 @@ host (agent)                         sealed container (--network none)
 | Hostile KDF params (CPU/memory DoS) | scrypt bounded by memory (128·N·r ≤ 256 MiB) and work (N·r·p ≤ 2^24), not per-knob, so geth standard, geth --lightkdf (N=4096 p=6) and the Web3 spec vector (N=2^18 r=1 p=8) open; PBKDF2 ≤ 10M iterations; container memory/pids/CPU limits |
 | Exfiltration over the network | `--network none`; no network tools in the image; no network code in tools |
 | Container escape / privilege | non-root uid 10001, `--cap-drop ALL`, `no-new-privileges`, read-only rootfs, noexec tmpfs |
-| Persistence of secrets on disk | Only tmpfs is writable; inputs mounted read-only; `--log-driver none` |
+| Persistence of secrets on disk | `/in` and `/secrets` are tmpfs filled over stdin (no bind mount, no volume); the rest of the writable space is tmpfs; inputs are root-owned 0444 in 0555 dirs, so uid 10001 (no capabilities) cannot change them; `--log-driver none` |
 | Blind signing / tampered unsigned tx | `tx-verify` decodes inside the container; human confirms on the TTY (§6) |
 | Password in agent context, argv or env | Passwords come only from a read-only file in `/secrets` or a `/dev/tty` prompt |
 | Agent runs `reveal` | `reveal` needs a controlling terminal and a random typed code. **Residual risk:** an agent that can spawn a pty can satisfy this (scripts/e2e-only/tty-drive.py does). Optional terminal pinning (`sealed-run pin-tty`) refuses other sessions but is defeated by a same-user agent that rewrites the pin; see SECURITY.md |
@@ -155,8 +155,9 @@ Interactive alternative: `--passphrase-prompt` / `--password-tty` read from `/de
 
 Passwords and passphrases arrive on **stdin**, as data in the stream. The human
 puts them in `$BLOCKTOOLS_SECRETS` (read-only at `/secrets`, host dir chmod 700,
-git-ignored; `./blocktools` copies the directory as a tar stream into a named volume for the run and removes the
-volume on exit, so while a run lasts the secrets also sit in that volume on the Docker engine's disk), and the pipeline feeds them in, e.g.
+git-ignored; `./blocktools` streams the directory as tar on stdin into a tmpfs `/secrets` inside the sealed
+container: no bind mount, no volume, nothing on the engine's disk; the tmpfs goes with the container on exit.
+tmpfs is RAM of the engine's VM/host and could be swapped out by it; that is the remaining exposure), and the pipeline feeds them in, e.g.
 `read-file /secrets/ks-password /in/ks.json | keystore-open`. The tool itself never
 opens a named file. The only other source is `keystore-open --password-tty`, a
 prompt to the human on `/dev/tty`. Nothing is ever read from argv or env.

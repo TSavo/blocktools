@@ -5,7 +5,7 @@ T=${T:-$(mktemp -d)}; W="$PWD/blocktools"
 f() { echo "FAIL wrapper-remote $1"; exit 1; }
 mkdir -p "$T/wr" && cat > "$T/wr/docker" <<'EOS'
 #!/bin/sh
-case "$1" in context) echo "${FAKE_HOST:-unix:///var/run/docker.sock}";; cp) cat >/dev/null;; run) echo RAN;; esac
+case "$1" in context) echo "${FAKE_HOST:-unix:///var/run/docker.sock}";; create) echo cid;; inspect) echo true;; exec) cat >/dev/null;; start) echo RAN;; esac
 EOS
 chmod +x "$T/wr/docker"
 run() { (cd "$T/wr" && env -u DOCKER_HOST BLOCKTOOLS_DOCKER="$T/wr/docker" "$@" sh "$W" run 'derive --help' 2>&1); }

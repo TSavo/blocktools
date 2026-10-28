@@ -130,7 +130,7 @@ Runner image (per SwapChan's check of Battleaxe): node 24.19.0, bun, Docker, no 
 | python3 + `cryptography`, `pyyaml` | python3 must be on the image (untested); the job pip-installs them only when `import cryptography, yaml` fails (recipes e2e skips without cryptography) |
 | git, curl | must be on the image |
 | shellcheck, groff, pnpm | not used by the gate |
-| Docker | the e2e stage's `scripts/e2e.d/wrapper-seal.sh` uses the host engine on the Linux self-hosted runners (fails there without one; skipped elsewhere): it builds a throwaway `busybox:1.36.1`-based image and runs `./blocktools run` against it. The sealed-image claims (`scripts/image-size.sh`, `scripts/sealed-check.sh`) stay manual |
+| Docker | the e2e stage's `scripts/e2e.d/wrapper-seal.sh` uses the host engine on the Linux self-hosted runners (fails there without one; skipped elsewhere): it builds a throwaway `busybox:1.36.1`-based image (with a shell stand-in for `sealed-run unpack`/`staged`) and runs `./blocktools run` against it. The sealed-image claims (`scripts/image-size.sh`, `scripts/sealed-check.sh`) stay manual |
 
 ## Persistent runner
 
@@ -142,8 +142,8 @@ prune, git clean except target/, and removal of `$TMPDIR/blocktools-*` and `$TMP
 wasm-check's reproducibility rebuild still runs in a fresh build dir. The cleanup
 touches only that runner's checkout, so it is safe with parallel jobs as long as each runner container has
 its own `/tmp`. That is the case unless the compose file mounts a shared `/tmp`; we have not verified it.
-`scripts/gate.sh` creates Docker objects only in `scripts/e2e.d/wrapper-seal.sh` (one test image, two volumes and two
-containers per `./blocktools run`, all labelled `blocktools.sealed` or tagged `blocktools-e2e-seal:PID` and removed by the test). Workflow-level `concurrency` (`ci-<ref>`) keeps one
+`scripts/gate.sh` creates Docker objects only in `scripts/e2e.d/wrapper-seal.sh` (one test image and one
+container per `./blocktools run`, no volumes, all labelled `blocktools.sealed` or tagged `blocktools-e2e-seal:PID` and removed by the test). Workflow-level `concurrency` (`ci-<ref>`) keeps one
 run per ref and, since 2026-10-26, cancels the previous commit's run when a new push arrives (see 'Queue').
 The jobs inside a run execute in parallel on different runners.
 

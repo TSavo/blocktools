@@ -12,6 +12,10 @@ WITHOUT a shell (no expansion, no injection), then:
   sealed\-run agent '<pipeline>'  \-> stdout = redacted public JSON lines only
   sealed\-run human '<pipeline>'  \-> raw output (keys!) to /dev/tty after a typed code
   sealed\-run pin\-tty             \-> pin this terminal session; afterwards codes are accepted only from it
+  sealed\-run unpack /in|/secrets  \-> (wrapper, via `docker exec \-u 0`) unpack a tar from stdin into that
+                                     tmpfs: files 0444 / dirs 0555 owned by root, so uid 10001 can read
+                                     but never change them; the root dir is opened (0555) last
+  sealed\-run staged agent|human '<pipeline>' \-> wait until /secrets is readable (staging done), then run
 .RE
 .fi
 Pipeline grammar: `tool args... [< file] | tool args... | ...`
@@ -24,6 +28,8 @@ No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
 .RS 2
   sealed\-run agent '<pipeline>'  \-> stdout = redacted public JSON lines only
   sealed\-run human '<pipeline>'  \-> raw output (keys!) to /dev/tty after a typed code
+  sealed\-run unpack /in|/secrets  \-> (wrapper, via `docker exec \-u 0`) unpack a tar from stdin into that
+  sealed\-run staged agent|human '<pipeline>' \-> wait until /secrets is readable (staging done), then run
 .RE
 .fi
 .SH EXIT STATUS

@@ -9,11 +9,13 @@ set -eu
 IMAGE="${BLOCKTOOLS_IMAGE:-blocktools:local}"; DOCKER="${BLOCKTOOLS_DOCKER:-docker}"
 IN="${BLOCKTOOLS_IN:-$PWD/in}"; SECRETS="${BLOCKTOOLS_SECRETS:-$PWD/secrets}"
 mkdir -p "$IN" "$SECRETS"; chmod 700 "$SECRETS"
-# No host bind mounts: on Battleaxe the engine is Docker Desktop on Windows, whose VM does not see WSL2
-# distro paths, so a bind mount of ./in arrives empty (same cause as release-repos.sh, 8a7b876). ./in and
-# ./secrets are copied as tar streams (`docker cp -a -`, never through a host temp file) into two fresh named
-# volumes through a staging container that is created and never started, then mounted read-only into the
-# sealed container. The volumes and the staging container are removed on exit, also on failure or Ctrl-C.
+# No host bind mounts and no volumes: on Battleaxe the engine is Docker Desktop on Windows, whose VM does not
+# see WSL2 distro paths, so a bind mount of ./in arrives empty (same cause as release-repos.sh, 8a7b876).
+# ./in and ./secrets travel as tar streams on stdin (`docker exec -i -u 0 ... sealed-run unpack`, never
+# through a host temp file) into tmpfs mounts of the sealed container itself (RAM: nothing reaches the
+# engine's disk), unpacked as root-owned 0444 files in 0555 dirs, so uid 10001 reads them and cannot change
+# them. The pipeline starts only once /secrets opens. The container (and with it the tmpfs) is removed on
+# exit, also on failure or Ctrl-C.
 # A remote engine (ssh:// or tcp:// context or DOCKER_HOST) is refused: ./secrets would be copied to that host.
 remote_engine() {
   h="${DOCKER_HOST:-}"
@@ -27,46 +29,55 @@ tar_as_user() {
   else tar -C "$1" --uid 10001 --gid 10001 -cf - .; fi
 }
 VOLS=""; STAGER=""
-unseal() {  # idempotent cleanup; never prints volume contents
-  [ -z "$STAGER" ] || $DOCKER rm -f "$STAGER" >/dev/null 2>&1 || :
-  [ -z "$VOLS" ] || $DOCKER volume rm -f $VOLS >/dev/null 2>&1 || :
-  STAGER=""; VOLS=""
+unseal() {  # idempotent cleanup; never prints input contents
+  [ -z "$CID" ] || $DOCKER rm -f "$CID" >/dev/null 2>&1 || :
+  [ -z "$APID" ] || kill "$APID" 2>/dev/null || :
+  CID=""; APID=""
 }
-stage_in() {  # stage_in HOSTDIR DEST: copy HOSTDIR's contents into the staging container's DEST volume
+stage_in() {  # stage_in HOSTDIR DEST: stream HOSTDIR's contents into the running container's DEST tmpfs
   if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi
-  err=$(tar_as_user "$1" | $DOCKER cp -a - "$STAGER:$2" 2>&1 >/dev/null) || {
+  err=$(tar_as_user "$1" | $DOCKER exec -i -u 0 "$CID" /blocktools/sealed-run unpack "$2" 2>&1 >/dev/null) || {
     echo "blocktools: copying $2 into the container failed: $err" >&2; exit 5; }
 }
+CID=""; APID=""
 seal() {
   r=$(remote_engine)
   [ -z "$r" ] || [ "${BLOCKTOOLS_ALLOW_REMOTE:-}" = 1 ] || { echo "blocktools: docker engine is remote ($r): ./in and ./secrets would be copied to that host. Use a local engine (e.g. docker context use desktop-linux) or set BLOCKTOOLS_ALLOW_REMOTE=1 if that is intended." >&2; exit 4; }
   flags="$1"; shift
   tag="blocktools-$$-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
   trap unseal EXIT; trap 'exit 130' INT; trap 'exit 143' TERM
-  for v in in secrets; do
-    $DOCKER volume create --label "blocktools.sealed=$tag" "$tag-$v" >/dev/null
-    VOLS="$VOLS $tag-$v"
-  done
-  STAGER=$($DOCKER create --network none --log-driver none --label "blocktools.sealed=$tag" \
-    --mount "type=volume,src=$tag-in,dst=/in" --mount "type=volume,src=$tag-secrets,dst=/secrets" "$IMAGE")
-  stage_in "$IN" /in
-  stage_in "$SECRETS" /secrets
-  $DOCKER rm -f "$STAGER" >/dev/null; STAGER=""
-  # BLOCKTOOLS_SEAL_PROBE=1: `create` instead of `run --rm`, so scripts/sealed-check.sh can inspect the
-  # exact flags below on a real container (then start -a it and remove it and its two volumes).
-  if [ "${BLOCKTOOLS_SEAL_PROBE:-}" = 1 ]; then op="create"; else op="run --rm"; fi
-  rc=0
-  $DOCKER $op $flags \
+  # the tmpfs mounts count against --memory 2g; refuse up front rather than fail half-way through the copy
+  insize="${BLOCKTOOLS_IN_SIZE_MB:-512}"
+  case "$insize" in ''|*[!0-9]*) echo "blocktools: BLOCKTOOLS_IN_SIZE_MB must be a number of MB" >&2; exit 5;; esac
+  [ "$(du -sk "$IN" | cut -f1)" -lt $((insize * 1024)) ] || { echo "blocktools: $IN is larger than the ${insize} MB /in tmpfs (set BLOCKTOOLS_IN_SIZE_MB)" >&2; exit 5; }
+  [ "$(du -sk "$SECRETS" | cut -f1)" -lt 16384 ] || { echo "blocktools: $SECRETS is larger than the 16 MB /secrets tmpfs" >&2; exit 5; }
+  # BLOCKTOOLS_SEAL_PROBE=FILE: keep the container after the run and write its id to FILE, so
+  # scripts/sealed-check.sh can inspect the exact flags below (it removes the container).
+  rm=--rm; [ -z "${BLOCKTOOLS_SEAL_PROBE:-}" ] || rm=
+  CID=$($DOCKER create $rm $flags \
     --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true \
     --user 10001:10001 --pids-limit 64 --memory 2g --memory-swap 2g --cpus 2 \
     --tmpfs /run/blocktools:rw,noexec,nosuid,nodev,size=64m,mode=0700,uid=10001 \
     --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=10001 \
-    --mount "type=volume,src=$tag-in,dst=/in,readonly,volume-nocopy" \
-    --mount "type=volume,src=$tag-secrets,dst=/secrets,readonly,volume-nocopy" \
+    --tmpfs "/in:rw,noexec,nosuid,nodev,size=${insize}m,mode=0700,uid=0,gid=0" \
+    --tmpfs /secrets:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0 \
     --label "blocktools.sealed=$tag" --log-driver none \
-    "$IMAGE" "$@" || rc=$?
-  # probe: the created container still uses the volumes; sealed-check.sh removes both
-  [ "${BLOCKTOOLS_SEAL_PROBE:-}" != 1 ] || [ $rc != 0 ] || VOLS=""
+    "$IMAGE" staged "$@")
+  [ -z "${BLOCKTOOLS_SEAL_PROBE:-}" ] || echo "$CID" > "$BLOCKTOOLS_SEAL_PROBE"
+  case "$flags" in
+    *t*) $DOCKER start -ai "$CID" < /dev/tty & ;;
+    *) $DOCKER start -a "$CID" < /dev/null & ;;
+  esac
+  APID=$!
+  i=0; until [ "$($DOCKER inspect -f '{{.State.Running}}' "$CID" 2>/dev/null)" = true ]; do
+    i=$((i + 1)); [ $i -lt 300 ] || { echo "blocktools: sealed container did not start" >&2; exit 5; }
+    kill -0 "$APID" 2>/dev/null || { echo "blocktools: sealed container did not start" >&2; exit 5; }
+    sleep 0.1 2>/dev/null || sleep 1
+  done
+  stage_in "$IN" /in
+  stage_in "$SECRETS" /secrets   # last: the pipeline starts when /secrets opens
+  rc=0; wait "$APID" || rc=$?; APID=""
+  [ -z "${BLOCKTOOLS_SEAL_PROBE:-}" ] || CID=""
   return $rc
 }
 case "${1:-}" in

@@ -9,22 +9,22 @@ cd "$(dirname "$0")/.."
 D=${BLOCKTOOLS_DOCKER:-docker}; IMG=${BLOCKTOOLS_IMAGE:-blocktools:local}
 $D image inspect "$IMG" >/dev/null 2>&1 || { echo "sealed-check: no image $IMG (docker: $D)" >&2; exit 2; }
 id=""; vols=""; W=$(mktemp -d)
-# the probe container keeps the wrapper's two named volumes (/in, /secrets); remove all three on exit
-trap 'rm -rf "$W"; [ -z "$id" ] || { vols=$($D inspect -f "{{range .Mounts}}{{.Name}} {{end}}" "$id" 2>/dev/null) || vols=; $D rm -f "$id" >/dev/null 2>&1; [ -z "$vols" ] || $D volume rm -f $vols >/dev/null 2>&1; }' EXIT
+# the probe container is kept after the run (BLOCKTOOLS_SEAL_PROBE=file gets its id); remove it on exit
+trap 'rm -rf "$W"; [ -z "$id" ] || $D rm -f "$id" >/dev/null 2>&1' EXIT
 mkdir "$W/in" "$W/secrets"; chmod 755 "$W" "$W/in"
 echo "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" > "$W/in/m.txt"; chmod 644 "$W/in/m.txt"
-id=$(BLOCKTOOLS_SEAL_PROBE=1 BLOCKTOOLS_IN="$W/in" BLOCKTOOLS_SECRETS="$W/secrets" sh ./blocktools run 'seed-to-master < /in/m.txt | derive --chain btc --count 2' | tail -1)
 rc=0
+out=$(BLOCKTOOLS_SEAL_PROBE="$W/id" BLOCKTOOLS_IN="$W/in" BLOCKTOOLS_SECRETS="$W/secrets" sh ./blocktools run 'seed-to-master < /in/m.txt | derive --chain btc --count 2' 2>&1) || { echo "FAIL sealed run exited non-zero: $(printf '%s' "$out" | head -3)"; rc=1; }
+id=$(cat "$W/id")
 chk() { v=$($D inspect -f "$2" "$id"); if [ "$v" = "$3" ]; then echo "ok   sealed $1 = $v"; else echo "FAIL sealed $1: $v (want $3)"; rc=1; fi; }
 chk NetworkMode '{{.HostConfig.NetworkMode}}' none
 chk ReadonlyRootfs '{{.HostConfig.ReadonlyRootfs}}' true
 chk CapDrop '{{.HostConfig.CapDrop}}' '[ALL]'
 chk User '{{.Config.User}}' 10001:10001
 chk SecurityOpt '{{.HostConfig.SecurityOpt}}' '[no-new-privileges:true]'
-chk InMountRW '{{range .Mounts}}{{if eq .Destination "/in"}}{{.RW}}{{end}}{{end}}' false
-chk SecretsMountRW '{{range .Mounts}}{{if eq .Destination "/secrets"}}{{.RW}}{{end}}{{end}}' false
-chk MountTypes '{{range .Mounts}}{{.Type}} {{end}}' 'volume volume '
-out=$($D start -a "$id" 2>&1 < /dev/null) || { echo "FAIL sealed run exited non-zero: $(printf '%s' "$out" | head -3)"; rc=1; }
+chk Mounts '{{len .Mounts}}' 0
+chk InTmpfs '{{index .HostConfig.Tmpfs "/in"}}' 'rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=0,gid=0'
+chk SecretsTmpfs '{{index .HostConfig.Tmpfs "/secrets"}}' 'rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0'
 n=$(printf '%s\n' "$out" | grep -c '"address":"bc1q' || true)  # allow-true: count asserted next
 if [ "$n" -ge 1 ]; then echo "ok   sealed run printed $n bc1q addresses"; else echo "FAIL sealed run printed no addresses"; rc=1; fi
 LEAK='"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret)":"[^[]|xprv[1-9A-Za-z]{20}|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"'
