@@ -9,3 +9,4 @@ contract-call public
 contract-trace public
 utxo-set offline
 wallet-finder offline
+tx-plan offline

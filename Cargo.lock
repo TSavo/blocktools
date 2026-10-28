@@ -1875,6 +1875,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tx-plan"
+version = "0.2.0"
+dependencies = [
+ "blocktools-core",
+ "blocktools-io",
+ "blocktools-plan",
+ "serde_json",
+]
+
+[[package]]
 name = "tx-sign"
 version = "0.2.0"
 dependencies = [
