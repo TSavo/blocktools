@@ -80,15 +80,16 @@ pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx:
 
 /// tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the
 /// tx-sign default: 0.01 ETH-equivalent for EVM (untested); UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value
-/// alongside ERC-20 transfer calldata.
+/// alongside ERC-20 transfer calldata. `expected_memo` (UTF-8, optional): the only OP_RETURN payload accepted
+/// (one zero-value OP_RETURN, exact match); without it any OP_RETURN is refused (`unexpected_output`).
 #[wasm_bindgen(js_name = verifyTx)]
 #[allow(clippy::too_many_arguments)]
-pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>, call_json: Option<String>) -> Result<String, JsError> {
+pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>, call_json: Option<String>, expected_memo: Option<String>) -> Result<String, JsError> {
     if is_sol(chain) { return Err(err("solana_use_solVerifyTx")) } // different policy shape (owner/lamports/mint/allow_programs)
     let d = tx::decode(input, chain).map_err(err)?;
     let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
     let ex = expect_to.clone();
-    let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false) };
+    let p = Policy { expect_to, change, chain_id: chain_id.map(u64::from), max_fee, allow_warnings, allow_value_with_token: allow_value_with_token.unwrap_or(false), expect_memo: expected_memo.map(String::into_bytes) };
     let v = blocktools::tx::policy::verify(&d, &p);
     let mut f: Vec<String> = v.findings.iter().map(|x| x.to_string()).collect();
     // callJson {sigs?, abi?, createHash?}: the tx-verify --call/--abi/--create-hash check of an EVM contract call/creation.

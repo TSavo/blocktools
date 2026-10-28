@@ -17,9 +17,13 @@ existing scripts are listed under "Changed".
 - THORChain UTXO inbound (swap from a UTXO coin): `tx-build --memo STRING` / `--op-return HEX` adds a
   zero-value trailing `OP_RETURN` to the UTXO build path (THORChain inbound shape `[vault, change,
   OP_RETURN memo]`; refused above the chain's relay limit — BCH 220, else 80 bytes;
-  `blocktools_tx::build::op_return_script`), and `tx-sign`/`tx-verify`/`tx-envelope` accept exactly one
-  zero-value `OP_RETURN` as a non-destination memo instead of `unexpected_output`/`has_warnings`
-  (`crates/tx/src/policy.rs`); `tx-sign` shows the memo (UTF-8 if printable, else hex) on the `/dev/tty`
+  `blocktools_tx::build::op_return_script`), and `tx-sign`/`tx-verify` accept exactly one
+  zero-value `OP_RETURN` as a non-destination memo only when `--expect-memo MEMO` (wasm `verifyTx`
+  `expected_memo`) equals its payload byte-for-byte; without it, or on any mismatch, it is
+  `unexpected_output`/`has_warnings` as before (deny by default; `Policy::expect_memo`,
+  `crates/tx/src/policy.rs`, `crates/tx/tests/op_return_memo.rs`, `scripts/e2e.d/thorchain-utxo.sh`;
+  the first version in 70a7406 accepted any single zero-value memo for every caller, changed before
+  release); `tx-envelope verify_thor_send` checks the memo against its own `memo` field; `tx-sign` shows the memo (UTF-8 if printable, else hex) on the `/dev/tty`
   summary and keeps the typed-code confirmation. A second `OP_RETURN`, or a non-zero-value `OP_RETURN`,
   is still refused. Recipe `recipes/thorchain-swap-utxo.md`; `scripts/e2e.d/thorchain-utxo.sh` drives the
   shipped path node-free (build → `verify_thor_send` → pty sign → decode) with the two negative probes,

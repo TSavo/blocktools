@@ -19,6 +19,9 @@ pub struct Policy {
     /// EVM: accept a nonzero native `value` alongside token-transfer calldata (normally a mistake: the
     /// ETH goes to the token contract, usually unrecoverable).
     pub allow_value_with_token: bool,
+    /// UTXO: the exact OP_RETURN payload the human expects (THORChain inbound memo). Only with this set
+    /// is a single zero-value OP_RETURN accepted, and only when its payload equals it byte-for-byte.
+    pub expect_memo: Option<Vec<u8>>,
 }
 
 fn same(a: &str, b: &str) -> bool { if a.starts_with("0x") { a.eq_ignore_ascii_case(b) } else { a == b } }
@@ -77,11 +80,13 @@ pub fn check(d: &Decoded, p: &Policy) -> Vec<&'static str> {
     let mut f = Vec::new();
     let cap = effective_max_fee(d, p);
     // A THORChain-style inbound carries exactly one zero-value OP_RETURN memo alongside the real
-    // destination(s). Accept that single memo as a non-destination output: it is not an
+    // destination(s). When the caller names the memo (expect_memo), accept that single memo as a non-destination output: it is not an
     // `unexpected_output`, and its `op_return_output` warning does not trip `has_warnings`. Two
     // OP_RETURNs, or a non-zero-value OP_RETURN, are NOT a memo and stay refused (unexpected_output).
     let op_returns = d.outputs.iter().filter(|o| o.kind == "op_return").count();
-    let memo_ok = op_returns == 1 && d.outputs.iter().filter(|o| o.kind == "op_return").all(|o| o.amount.unwrap_or(0) == 0);
+    // Opt-in: with no expect_memo every OP_RETURN is refused as before (deny by default). The amount
+    // must be known and zero; the payload must equal expect_memo exactly.
+    let memo_ok = op_returns == 1 && p.expect_memo.as_ref().is_some_and(|m| d.outputs.iter().filter(|o| o.kind == "op_return").all(|o| o.amount == Some(0) && o.data.as_deref() == Some(&m[..])));
     // Never overridable: the signed bytes do not commit to these amounts, so the fee shown is unproven.
     if d.unproven_inputs > 0 { f.push(crate::code!("legacy_input_amount_unproven")) }
     if !p.allow_warnings && d.warnings.iter().any(|w| *w != "unsigned" && !(memo_ok && *w == "op_return_output")) { f.push(crate::code!("has_warnings")) }

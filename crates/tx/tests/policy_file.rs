@@ -41,7 +41,7 @@ fn pf(rule: &str) -> blocktools_tx::policy_file::PolicyFile { parse(&format!(r#"
 }
 
 #[test] fn utxo_rules_and_parse_errors() {
-    let io = |a: &str, v| Io { txid: None, vout: None, address: Some(a.into()), kind: "p2wpkh", amount: Some(v) };
+    let io = |a: &str, v| Io { data: None, txid: None, vout: None, address: Some(a.into()), kind: "p2wpkh", amount: Some(v) };
     let d = Decoded { chain: "btc".into(), ty: "psbt", signed: false, txid: None, inputs: vec![], outputs: vec![io("A", 700), io("C", 300)],
         fee: Some(200), vsize: None, locktime: None, rbf: None, evm: None, warnings: vec![], unproven_inputs: 0 };
     let p = |r: &str| parse(&format!(r#"{{"version":1,"chains":{{"btc":{r}}}}}"#)).unwrap();

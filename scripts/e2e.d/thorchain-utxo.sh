@@ -1,7 +1,8 @@
 #!/bin/sh
 # THORChain UTXO inbound via the SHIPPED tools, node-free (synthetic UTXO): tx-build --memo builds the
 # [vault, change, OP_RETURN memo] inbound, tx-envelope verify_thor_send accepts it, tx-sign (pty, public
-# key 1) shows the memo and signs, tx-decode confirms the signed OP_RETURN. Negative probes (refused
+# key 1) shows the memo and signs, tx-decode confirms the signed OP_RETURN. Deny by default: tx-verify/tx-sign accept the memo only with
+# --expect-memo equal to it; none or one byte different is refused. Negative probes (refused
 # before any signing): a tx with TWO OP_RETURNs and a tx with a NON-ZERO-value OP_RETURN. Public key 1/2.
 set -eu
 . scripts/e2e-only/portable.sh
@@ -24,12 +25,21 @@ printf '{"op":"verify_thor_send","chain":"doge","tx":"%s","vault":"%s","memo":"%
 "$B/tx-envelope" --json "$(cat "$W/env.json")" > "$W/env.out" || true  # allow-true: outcome asserted next
 grep -q '"ok":true' "$W/env.out" || { cat "$W/env.out"; f "verify_thor_send refused the honest inbound"; }
 
-# tx-verify (the shared policy) also accepts it: the single zero-value OP_RETURN is not an unexpected output
-"$B/tx-verify" --chain doge --expect-to "$V" --change "$A1" < "$W/tx.json" | grep -q '"status":"ok"' || f "tx-verify refused the honest inbound"
-echo "ok   thorchain-utxo: tx-build --memo + verify_thor_send + tx-verify accept the doge inbound"
+# tx-verify (the shared policy) accepts it only with --expect-memo naming the exact payload (opt-in)
+"$B/tx-verify" --chain doge --expect-to "$V" --change "$A1" --expect-memo "$MEMO" < "$W/tx.json" | grep -q '"status":"ok"' || f "tx-verify refused the honest inbound"
+# deny by default: no --expect-memo, or a memo one byte different, is refused (unexpected_output)
+WRONG='=:r:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunv'
+for m in none wrong; do
+  if [ $m = none ]; then set --; else set -- --expect-memo "$WRONG"; fi
+  "$B/tx-verify" --chain doge --expect-to "$V" --change "$A1" "$@" < "$W/tx.json" > "$W/v.$m" || true  # allow-true: refusal asserted next
+  grep -q '"status":"failed"' "$W/v.$m" && grep -q unexpected_output "$W/v.$m" || { cat "$W/v.$m"; f "tx-verify memo $m not refused"; }
+  "$B/tx-sign" --tx "$W/tx.json" --chain doge --expect-to "$V" --change "$A1" "$@" < "$W/k1" > "$W/s.$m" 2>&1 || true  # allow-true: refusal asserted next
+  grep -q '"status":"refused"' "$W/s.$m" && grep -q unexpected_output "$W/s.$m" || { cat "$W/s.$m"; f "tx-sign memo $m not refused"; }
+done
+echo "ok   thorchain-utxo: tx-build --memo + verify_thor_send + tx-verify --expect-memo accept the doge inbound; no or wrong --expect-memo refused (tx-verify, tx-sign)"
 
 # 3. tx-sign (pty, right code) shows the memo and signs; tx-decode confirms the OP_RETURN
-python3 scripts/e2e-only/tty-drive.py right "$W/k1" "$W/signed.json" "$Bab/tx-sign" --tx "$W/tx.json" --chain doge --expect-to "$V" --change "$A1" > "$W/tty" 2>&1
+python3 scripts/e2e-only/tty-drive.py right "$W/k1" "$W/signed.json" "$Bab/tx-sign" --tx "$W/tx.json" --chain doge --expect-to "$V" --change "$A1" --expect-memo "$MEMO" > "$W/tty" 2>&1
 grep -qF "OP_RETURN memo : $MEMO" "$W/tty" || { cat "$W/tty"; f "memo not shown on the tty summary"; }
 grep -q '"status":"ok"' "$W/signed.json" || { cat "$W/signed.json"; f "tx-sign did not sign the inbound"; }
 "$B/tx-decode" --text --chain doge < "$W/signed.json" | grep -q op_return || f "signed tx has no OP_RETURN"
@@ -79,7 +89,10 @@ PY
 python3 "$W/surg.py" "$BASE" two > "$W/two.b64" || f "graft two"
 python3 "$W/surg.py" "$BASE" paid > "$W/paid.b64" || f "graft paid"
 for case in two paid; do
-  "$B/tx-sign" --tx "$W/$case.b64" --chain doge --expect-to "$V" --change "$A1" < "$W/k1" > "$W/neg.$case" 2>&1 || true  # allow-true: refusal asserted next
-  grep -q '"status":"refused"' "$W/neg.$case" && grep -q unexpected_output "$W/neg.$case" || { cat "$W/neg.$case"; f "$case OP_RETURN not refused"; }
+  if [ $case = two ]; then m='=:r:extra-memo-one'; else m='=:r:paid-opreturn'; fi  # memo matches: refusal is from count/value
+  "$B/tx-sign" --tx "$W/$case.b64" --chain doge --expect-to "$V" --change "$A1" --expect-memo "$m" < "$W/k1" > "$W/neg.$case" 2>&1 || true  # allow-true: refusal asserted next
+  grep -q '"status":"refused"' "$W/neg.$case" && grep -q unexpected_output "$W/neg.$case" || { cat "$W/neg.$case"; f "$case OP_RETURN not refused by tx-sign"; }
+  "$B/tx-verify" --chain doge --expect-to "$V" --change "$A1" --expect-memo "$m" < "$W/$case.b64" > "$W/nv.$case" || true  # allow-true: refusal asserted next
+  grep -q '"status":"failed"' "$W/nv.$case" && grep -q unexpected_output "$W/nv.$case" || { cat "$W/nv.$case"; f "$case OP_RETURN not refused by tx-verify"; }
 done
-echo "ok   thorchain-utxo: two OP_RETURNs and a non-zero-value OP_RETURN both refused (unexpected_output)"
+echo "ok   thorchain-utxo: two OP_RETURNs and a non-zero-value OP_RETURN both refused by tx-sign and tx-verify even with a matching --expect-memo (unexpected_output)"

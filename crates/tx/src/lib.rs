@@ -57,7 +57,10 @@ use serde_json::{json, Value};
 pub const MAX_INPUT: usize = 4 << 20;
 
 #[derive(Debug, Clone)]
-pub struct Io { pub txid: Option<String>, pub vout: Option<u32>, pub address: Option<String>, pub kind: &'static str, pub amount: Option<u64> }
+pub struct Io {
+    /// OP_RETURN outputs: the payload of the script's single data push (None if not exactly one push).
+    pub data: Option<Vec<u8>>,
+    pub txid: Option<String>, pub vout: Option<u32>, pub address: Option<String>, pub kind: &'static str, pub amount: Option<u64> }
 
 #[derive(Debug, Clone)]
 pub struct Decoded {
@@ -121,10 +124,10 @@ pub fn zec_decoded(tx: &zcash::ZTx, prev: Option<&[(u64, Vec<u8>)]>) -> Decoded 
     let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
     let io = |amount: u64, s: &[u8]| -> Io {
         let (kind, address) = match zcash::script_to_address(s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
-        Io { txid: None, vout: None, address, kind, amount: Some(amount) }
+        Io { data: op_return_data(s), txid: None, vout: None, address, kind, amount: Some(amount) }
     };
     let inputs: Vec<Io> = tx.inputs.iter().enumerate().map(|(n, i)| {
-        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { txid: None, vout: None, address: None, kind: "unknown", amount: None });
+        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { data: None, txid: None, vout: None, address: None, kind: "unknown", amount: None });
         let mut t = i.txid; t.reverse(); x.txid = Some(hex_enc(t)); x.vout = Some(i.vout); x
     }).collect();
     let outputs: Vec<Io> = tx.outputs.iter().map(|(a, s)| io(*a, s)).collect();
@@ -155,10 +158,10 @@ pub fn pos_decoded(c: &Chain, tx: &pos::PosTx, prev: Option<&[(u64, Vec<u8>)]>) 
     let signed = tx.inputs.iter().any(|i| !i.script_sig.is_empty());
     let io = |amount: u64, s: &[u8]| -> Io {
         let (kind, address) = match chains::script_to_address(c, s) { Some((k, a)) => (k, Some(a)), None if s.first() == Some(&0x6a) => ("op_return", None), None => ("nonstandard", None) };
-        Io { txid: None, vout: None, address, kind, amount: Some(amount) }
+        Io { data: op_return_data(s), txid: None, vout: None, address, kind, amount: Some(amount) }
     };
     let inputs: Vec<Io> = tx.inputs.iter().enumerate().map(|(n, i)| {
-        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { txid: None, vout: None, address: None, kind: "unknown", amount: None });
+        let mut x = prev.and_then(|p| p.get(n)).map(|(a, s)| io(*a, s)).unwrap_or(Io { data: None, txid: None, vout: None, address: None, kind: "unknown", amount: None });
         let mut t = i.txid; t.reverse(); x.txid = Some(hex_enc(t)); x.vout = Some(i.vout); x
     }).collect();
     let outputs: Vec<Io> = tx.outputs.iter().map(|(a, s)| io(*a, s)).collect();
@@ -223,6 +226,19 @@ pub fn decode_with_prevtxs(b: &[u8], utxo_chain: &str, prevtxs: &[Vec<u8>]) -> R
     Ok(d)
 }
 
+/// Payload of an OP_RETURN script made of exactly one data push (direct, PUSHDATA1 or PUSHDATA2)
+/// that consumes the whole script; None for anything else (not OP_RETURN, extra pushes, truncation).
+pub fn op_return_data(s: &[u8]) -> Option<Vec<u8>> {
+    if s.first() != Some(&0x6a) { return None }
+    let (len, at) = match *s.get(1)? {
+        n @ 1..=75 => (n as usize, 2),
+        0x4c => (*s.get(2)? as usize, 3),
+        0x4d => (u16::from_le_bytes([*s.get(2)?, *s.get(3)?]) as usize, 4),
+        _ => return None,
+    };
+    (s.len() == at + len).then(|| s[at..].to_vec())
+}
+
 fn out_io(c: &Chain, o: &TxOut) -> Io {
     let s = o.script_pubkey.as_bytes();
     let (kind, address) = match chains::script_to_address(c, s) {
@@ -230,7 +246,7 @@ fn out_io(c: &Chain, o: &TxOut) -> Io {
         None if s.first() == Some(&0x6a) => ("op_return", None),
         None => ("nonstandard", None),
     };
-    Io { txid: None, vout: None, address, kind, amount: Some(o.value.to_sat()) }
+    Io { data: op_return_data(s), txid: None, vout: None, address, kind, amount: Some(o.value.to_sat()) }
 }
 /// Extra vbytes a signature adds to an unsigned input, by script kind (estimate).
 fn sig_vbytes(kind: &str) -> u64 { match kind { "p2wpkh" => 27, "p2sh" => 50, "p2tr" => 17, _ => 107 } }
@@ -240,7 +256,7 @@ fn btc_tx(c: &Chain, tx: &Transaction, prev: Option<Vec<Option<TxOut>>>) -> Deco
     let signed = tx.input.iter().any(|i| !i.script_sig.is_empty() || !i.witness.is_empty());
     let inputs: Vec<Io> = tx.input.iter().enumerate().map(|(n, i)| {
         let p = prev.as_ref().and_then(|v| v.get(n).cloned().flatten());
-        let mut io = p.as_ref().map(|o| out_io(c, o)).unwrap_or(Io { txid: None, vout: None, address: None, kind: "unknown", amount: None });
+        let mut io = p.as_ref().map(|o| out_io(c, o)).unwrap_or(Io { data: None, txid: None, vout: None, address: None, kind: "unknown", amount: None });
         io.txid = Some(i.previous_output.txid.to_string()); io.vout = Some(i.previous_output.vout); io
     }).collect();
     let outputs: Vec<Io> = tx.output.iter().map(|o| out_io(c, o)).collect();
@@ -309,8 +325,8 @@ fn evm_decoded(b: &[u8]) -> Result<Decoded, &'static str> {
     } else if !t.data.is_empty() { w.push("unknown_calldata") }
     let from = t.from().map(|a| addr(&a));
     if t.sig.is_some() && from.is_none() { w.push("bad_signature") }
-    let inputs = from.map(|a| vec![Io { txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
-    let outputs = vec![Io { txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
+    let inputs = from.map(|a| vec![Io { data: None, txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
+    let outputs = vec![Io { data: None, txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
     Ok(Decoded { chain: "eth".into(), ty: if t.kind == evm::Kind::Legacy { "evm-legacy" } else { "evm-1559" }, signed: t.sig.is_some(),
         txid: t.txhash().map(|h| format!("0x{}", hex_enc(h))), inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w, unproven_inputs: 0 })
 }
@@ -335,8 +351,8 @@ pub fn decode_evm_view(b: &[u8]) -> Result<(Decoded, evm_decode::View), &'static
     if v.tx_type == 4 { w.push("eip7702_delegation") }
     let from = v.from.map(|a| addr(&a));
     if t.sig.is_some() && from.is_none() { w.push("bad_signature") }
-    let inputs = from.map(|a| vec![Io { txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
-    let outputs = vec![Io { txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
+    let inputs = from.map(|a| vec![Io { data: None, txid: None, vout: None, address: Some(a), kind: "eth", amount: None }]).unwrap_or_default();
+    let outputs = vec![Io { data: None, txid: None, vout: None, address: t.to.map(|a| addr(&a)), kind: "eth", amount: u64::try_from(t.value).ok() }];
     let d = Decoded { chain: "eth".into(), ty: v.type_name(), signed: t.sig.is_some(), txid: v.hash.map(|h| format!("0x{}", hex_enc(h))),
         inputs, outputs, fee: None, vsize: None, locktime: None, rbf: None, evm: Some(t), warnings: w, unproven_inputs: 0 };
     Ok((d, v))

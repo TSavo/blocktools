@@ -1,6 +1,8 @@
 //! tx-sign: sign ONE transaction after a human reads its summary and types a code on /dev/tty.
 //!   tx-sign --tx FILE --expect-to ADDR [--expect-to ADDR]... [--change ADDR]... [--chain btc|ltc|doge]
-//!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token] [--policy FILE]  < keys
+//!           [--chain-id N (required for EVM)] [--max-fee SATS_OR_WEI] [--from 0xADDR] [--allow-warnings] [--allow-value-with-token] [--expect-memo MEMO] [--policy FILE]  < keys
+//! --expect-memo MEMO: UTXO THORChain-style memo. A single zero-value OP_RETURN is accepted only when its payload
+//!   equals MEMO byte-for-byte (UTF-8); without it every OP_RETURN is refused (unexpected_output).
 //! --policy FILE: offline policy file (docs/POLICY.md), checked in addition to the flags, before signing and on the signed bytes.
 //! --chain is optional: the chain comes from the tx-build file's "chain" field (a differing --chain is refused).
 //! bch/bsv/btg PSBTs are signed with the replay-protected fork-id sighash (SIGHASH_ALL|FORKID, BTG fork id 79;
@@ -43,7 +45,8 @@ fn main() {
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
         max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))),
-        allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token") };
+        allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
+        expect_memo: one("--expect-memo").map(String::into_bytes) };
     let creating = d.evm.as_ref().is_some_and(|t| t.to.is_none());
     if creating && !p.expect_to.is_empty() { bad("contract creation has no destination: use --create-hash KECCAK instead of --expect-to") }
     if creating && one("--create-hash").is_none() { bad("contract creation needs --create-hash KECCAK (keccak256 of the init code)") }

@@ -3,13 +3,19 @@
 tx\-verify \- check a transaction (stdin; any format tx\-decode reads) against what you expect
 .SH SYNOPSIS
 .nf
-tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)] [\-\-max\-fee N] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
+tx\-verify [\-\-chain C] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)] [\-\-max\-fee N] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-expect\-memo MEMO] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
 .fi
 .SH DESCRIPTION
 .nf
 .RS 2
   tx\-verify [\-\-chain btc|ltc|doge] [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N (required for EVM)]
-            [\-\-max\-fee SATS_OR_WEI] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-policy FILE]
+            [\-\-max\-fee SATS_OR_WEI] [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-expect\-memo MEMO] [\-\-policy FILE]
+.RE
+.fi
+\-\-expect\-memo MEMO: UTXO THORChain\-style memo. A single zero\-value OP_RETURN is accepted only when its payload
+.nf
+.RS 2
+  equals MEMO byte\-for\-byte (UTF\-8); without it every OP_RETURN is refused (unexpected_output).
 .RE
 .fi
 \-\-policy FILE: offline policy file (docs/POLICY.md); its findings are added and its sha256 is reported.
@@ -33,6 +39,7 @@ Exit 0 and status "ok" only when every check passes; otherwise status "failed", 
 \-\-chain\-id
 \-\-change
 \-\-create\-hash
+\-\-expect\-memo
 \-\-expect\-to
 \-\-max\-fee
 \-\-policy
@@ -40,6 +47,11 @@ Exit 0 and status "ok" only when every check passes; otherwise status "failed", 
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
 tx\-verify: check a transaction (stdin; any format tx\-decode reads) against what you expect.
+.nf
+.RS 2
+  equals MEMO byte\-for\-byte (UTF\-8); without it every OP_RETURN is refused (unexpected_output).
+.RE
+.fi
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP

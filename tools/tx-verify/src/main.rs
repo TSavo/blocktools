@@ -1,6 +1,8 @@
 //! tx-verify: check a transaction (stdin; any format tx-decode reads) against what you expect.
 //!   tx-verify [--chain btc|ltc|doge] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)]
-//!             [--max-fee SATS_OR_WEI] [--allow-warnings] [--allow-value-with-token] [--policy FILE]
+//!             [--max-fee SATS_OR_WEI] [--allow-warnings] [--allow-value-with-token] [--expect-memo MEMO] [--policy FILE]
+//! --expect-memo MEMO: UTXO THORChain-style memo. A single zero-value OP_RETURN is accepted only when its payload
+//!   equals MEMO byte-for-byte (UTF-8); without it every OP_RETURN is refused (unexpected_output).
 //! --policy FILE: offline policy file (docs/POLICY.md); its findings are added and its sha256 is reported.
 //! --call SIGNATURE (repeatable) / --abi FILE: EVM contract call. The calldata is decoded strictly against these
 //!   function signatures (it must re-encode byte-for-byte) and reported as "call" {signature, selector, args};
@@ -12,7 +14,7 @@ use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)] [--max-fee N] [--allow-warnings] [--allow-value-with-token] [--policy FILE] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < tx");
+    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)] [--max-fee N] [--allow-warnings] [--allow-value-with-token] [--expect-memo MEMO] [--policy FILE] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < tx");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-verify");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -20,7 +22,8 @@ fn main() {
     let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
         chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
         max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))), allow_warnings: a.iter().any(|x| x == "--allow-warnings"),
-        allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token") };
+        allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
+        expect_memo: one("--expect-memo").map(String::into_bytes) };
     let mut s = String::new();
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
     let chain = blocktools_tx::resolve_chain(&s, one("--chain")).unwrap_or_else(|e| bad(e));

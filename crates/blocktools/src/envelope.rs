@@ -103,6 +103,7 @@ fn verify_utxo_evm(chain: &str, tx: &str, v: &Value) -> Result<Value, String> {
         },
         allow_warnings: v.get("allow_warnings").and_then(|x| x.as_bool()).unwrap_or(false),
         allow_value_with_token: v.get("allow_value_with_token").and_then(|x| x.as_bool()).unwrap_or(false),
+        expect_memo: None,
     };
     let v = blocktools_tx::policy::verify(&d, &p);
     Ok(json!({

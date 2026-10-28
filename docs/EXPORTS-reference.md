@@ -1315,10 +1315,10 @@ bt.verifyThorSend("btc", "zz", "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", "=:
 ## `verifyTx`
 
 ```ts
-verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null | undefined, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null, call_json?: string | null): string
+verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null | undefined, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null, call_json?: string | null, expected_memo?: string | null): string
 ```
 
-tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM (untested); UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata.
+tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM (untested); UTXO per chain, see policy::default_fee_cap). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata. `expected_memo` (UTF-8, optional): the only OP_RETURN payload accepted (one zero-value OP_RETURN, exact match); without it any OP_RETURN is refused (`unexpected_output`).
 
 Calls in test.mjs: 8.
 

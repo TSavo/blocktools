@@ -25,22 +25,23 @@ last output and pays its vbytes out of coin selection. `--send SATS --change ADD
 vault and the remainder (less fee) back to you; `--sweep` sends the whole input to the vault. The memo is
 refused above the chain's relay limit (BCH 220 bytes, otherwise 80). Verify the build with
 `tx-envelope verify_thor_send` (exact `[vault, optional change, OP_RETURN memo]` shape, non-RBF, proven
-input values, fee cap) and with the shared `tx-verify` policy — the single zero-value `OP_RETURN` is
-accepted as a memo, not an `unexpected_output`:
+input values, fee cap) and with the shared `tx-verify` policy. The single zero-value `OP_RETURN` is accepted only when you pass
+`--expect-memo MEMO` with the exact payload; without it, or with a memo that differs by one byte, it is an
+`unexpected_output`:
 
 <!-- e2e: expect="status":"ok" ; rc=0 -->
-    tx-build --chain doge --utxos /in/u-doge.json --to D5kTEGxmas71USKAcAaJptKjq8NJc6EK8C --send 100000000 --change DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE --fee-rate 1000 --memo '=:r:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu' | tx-verify --chain doge --expect-to D5kTEGxmas71USKAcAaJptKjq8NJc6EK8C --change DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE
+    tx-build --chain doge --utxos /in/u-doge.json --to D5kTEGxmas71USKAcAaJptKjq8NJc6EK8C --send 100000000 --change DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE --fee-rate 1000 --memo '=:r:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu' | tx-verify --chain doge --expect-to D5kTEGxmas71USKAcAaJptKjq8NJc6EK8C --change DFpN6QqFfUm3gKNaxN6tNcab1FArL9cZLE --expect-memo '=:r:thor174jsu5agtgztcmcly96ac9mrtf5n2k98dhmunu'
 
     tx-build --chain doge --utxos utxos.json --to VAULT --send AMOUNT --change YOUR_ADDR --fee-rate RATE --memo 'MEMO' > inbound.json
     tx-envelope --json '{"op":"verify_thor_send","chain":"doge","tx":"'"$(jq -r .psbt inbound.json)"'","vault":"VAULT","memo":"MEMO","amount":"AMOUNT","change":"YOUR_ADDR","taker":"YOUR_ADDR"}'
 
 ## 3. Sign (the memo is shown) and broadcast
 
-`tx-sign` requires `--expect-to VAULT` for the real destination; the single `OP_RETURN` is additional and
-its memo is printed on the `/dev/tty` summary (UTF-8 if printable, else hex) so you confirm it before
+`tx-sign` requires `--expect-to VAULT` for the real destination and `--expect-memo MEMO` for the single
+`OP_RETURN` (exact match, else refused before signing); the memo is also printed on the `/dev/tty` summary (UTF-8 if printable, else hex) so you confirm it before
 typing the code. A second `OP_RETURN`, or an `OP_RETURN` carrying value, is still refused.
 
-    tx-sign --tx inbound.json --chain doge --expect-to VAULT --change YOUR_ADDR < key   # shows the memo; type the code
+    tx-sign --tx inbound.json --chain doge --expect-to VAULT --change YOUR_ADDR --expect-memo 'MEMO' < key   # shows the memo; type the code
     tx-broadcast --chain doge --url NODE < inbound.signed
 
 Track the cross-chain leg at `/thorchain/tx/status/<inbound-txid>`; the destination asset arrives on its
@@ -56,8 +57,8 @@ A DOGE→RUNE swap on 2026-10-27 used vault `DF5ndBX4Fd6yUcPvAs9SkbH5r4VaZE6huG`
 
 `scripts/e2e.d/thorchain-utxo.sh` drives the shipped path node-free on a synthetic DOGE UTXO:
 `tx-build --memo` → `tx-envelope verify_thor_send` (ok) → `tx-verify` (ok) → `tx-sign` (pty, public key 1,
-memo shown) → `tx-decode` confirms the `OP_RETURN`, and proves two `OP_RETURN`s or a non-zero-value
-`OP_RETURN` are still refused. `scripts/e2e.d/memo-regtest.sh` runs the same inbound against the real
+memo shown, `--expect-memo`) → `tx-decode` confirms the `OP_RETURN`, and proves two `OP_RETURN`s or a non-zero-value
+`OP_RETURN` are still refused, as is the memo with no or a one-byte-different `--expect-memo`. `scripts/e2e.d/memo-regtest.sh` runs the same inbound against the real
 pinned LTC/DOGE/BCH regtest nodes. UNTESTED in CI: the live THORChain quote and the cross-chain settlement.
 
 See [thorchain-swap-evm.md](thorchain-swap-evm.md) for the reverse direction (an EVM token into a swap)
