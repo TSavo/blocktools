@@ -1,16 +1,16 @@
 Package: blocktools
 Architecture: amd64
-Version: 0.1.1-1
+Version: 0.2.0-1
 Priority: optional
 Section: utils
 Maintainer: TSavo <noreply@example.com>
 Depends: libc6 (>= 2.34)
-Filename: pool/main/b/blocktools/blocktools_0.1.1-1_amd64.deb
-Size: 6450166
-MD5sum: 13cb63bf80d3cf87158668a7c83d5ae0
-SHA1: b7d9995421b7c8c25394acd48efcbf69867fd244
-SHA256: 96b845d43c06eca7dc0e344a9fd7a0c5a9fd0bc1adf0ef15b58a92906a423260
-SHA512: 05cf28335ee653a21fbd7784c4d8a504010731395d057513b470d8b9c701ee61757900e635ce18d819b2f70611ddef60791b2898d309cc0af22fc84ef203fd6f
+Filename: pool/main/b/blocktools/blocktools_0.2.0-1_amd64.deb
+Size: 9284870
+MD5sum: dc0d6bd90a13972454d8a930bb6ff147
+SHA1: be0f33b70f9a0b7d34fe04bc5ef019684b11be1b
+SHA256: 3c65448589ce1b7c8f4feadf84901bc148aaff272a41dfdc294450bea1cd3845
+SHA512: 1c26e64503aec2c8000fb065934899cdfc037c1ec85f5c5b544470e0d86f97120af5a7c059ecd7a79cee00da21d77c951667ebf73e780289de472b12ec75d171
 Description: blocktools offline chain utilities
  Binaries + man pages. DANGEROUS: audit before use with real funds.
 
