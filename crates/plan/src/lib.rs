@@ -43,6 +43,7 @@ pub fn family_of(chain: &str) -> Option<Family> {
 
 /// A transaction as intent + assertions. serde-stable: this is the only thing kept and re-verified.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Plan {
     /// Chain name as the CLIs use it; the family is derived from it (`family_of`).
     pub chain: String,
@@ -62,7 +63,7 @@ pub type Hex = String;
 /// One step. Structural steps describe what the transaction IS; assertion steps describe what the
 /// signer must enforce. `Raw` is the totality escape hatch: faithful bytes/fields not yet modelled.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "op", rename_all = "kebab-case")]
+#[serde(tag = "op", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum Step {
     // ---- UTXO structural (resolve target: PSBT; import/combine/export) ----
     AddInput { txid: String, vout: u32, amount: u64, address: Addr,
@@ -173,5 +174,25 @@ mod t {
         let j = serde_json::to_string(&p).unwrap();
         assert_eq!(serde_json::from_str::<Plan>(&j).unwrap(), p);
         assert!(p.misplaced_steps().is_empty(), "Raw is representable on any chain");
+    }
+    #[test]
+    fn unknown_plan_field_is_rejected() {
+        // deny_unknown_fields on Plan: a stray top-level key (here `allow_any`) must fail, not be ignored.
+        let j = r#"{"chain":"bsc","chain_id":56,"steps":[],"allow_any":true}"#;
+        assert!(serde_json::from_str::<Plan>(j).is_err(), "unknown Plan field must be rejected");
+    }
+    #[test]
+    fn unknown_step_field_is_rejected() {
+        // deny_unknown_fields on Step: a stray key alongside a known op must fail.
+        let j = r#"{"chain":"eth","steps":[{"op":"expect-to","address":"0xabc","bogus":1}]}"#;
+        assert!(serde_json::from_str::<Plan>(j).is_err(), "unknown Step field must be rejected");
+    }
+    #[test]
+    fn raw_free_form_fields_still_parse() {
+        // Raw keeps its free-form data inside `fields`, so only op/kind/fields are top-level keys and
+        // deny_unknown_fields does not constrain the nested payload.
+        let j = r#"{"chain":"xlm","steps":[{"op":"raw","kind":"stellar.X","fields":{"a":1,"b":{"c":[2,3],"d":"e"}}}]}"#;
+        let p = serde_json::from_str::<Plan>(j).expect("Raw with arbitrary nested fields must parse");
+        assert!(matches!(p.steps[0], Step::Raw { .. }));
     }
 }

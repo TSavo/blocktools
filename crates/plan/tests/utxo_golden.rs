@@ -153,3 +153,15 @@ fn check_enforces_cap_fee() {
     let findings = blocktools_plan::utxo::check(&p, &v);
     assert!(findings.iter().any(|f| f.code == "fee"), "a tight CapFee must be enforced: {findings:?}");
 }
+
+#[test]
+fn check_flags_unparsable_cap_fee() {
+    // FIX: an unparsable CapFee must not silently fall through to the chain default cap (verify_send
+    // then applies a looser cap and check returns ok). Mirror evm::check: emit a cap_fee_unparsable finding.
+    let v = blocktools_plan::utxo::resolve(&inbound_plan(), &context::Utxo { fee_rate: 750000 }).unwrap();
+    let mut p = inbound_plan();
+    p.steps.push(Step::CapFee { max: "abc".into() });
+    let findings = blocktools_plan::utxo::check(&p, &v);
+    assert!(findings.iter().any(|f| f.code == "cap_fee_unparsable"),
+        "an unparsable CapFee must be flagged, not silently dropped: {findings:?}");
+}
