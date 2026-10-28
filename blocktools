@@ -17,6 +17,7 @@ mkdir -p "$IN" "$SECRETS"; chmod 700 "$SECRETS"
 # them. The pipeline starts only once /secrets opens. The container (and with it the tmpfs) is removed on
 # exit, also on failure or Ctrl-C.
 # A remote engine (ssh:// or tcp:// context or DOCKER_HOST) is refused: ./secrets would be copied to that host.
+# BLOCKTOOLS_ALLOW_REMOTE=ssh permits only ssh:// engines (encrypted, into tmpfs); =1 permits any remote engine.
 remote_engine() {
   h="${DOCKER_HOST:-}"
   [ -n "$h" ] || h=$($DOCKER context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null) || h=
@@ -42,7 +43,14 @@ stage_in() {  # stage_in HOSTDIR DEST: stream HOSTDIR's contents into the runnin
 CID=""; APID=""
 seal() {
   r=$(remote_engine)
-  [ -z "$r" ] || [ "${BLOCKTOOLS_ALLOW_REMOTE:-}" = 1 ] || { echo "blocktools: docker engine is remote ($r): ./in and ./secrets would be copied to that host. Use a local engine (e.g. docker context use desktop-linux) or set BLOCKTOOLS_ALLOW_REMOTE=1 if that is intended." >&2; exit 4; }
+  if [ -n "$r" ]; then
+    case "${BLOCKTOOLS_ALLOW_REMOTE:-}:$r" in
+      1:*) ;;
+      ssh:ssh://*) ;;
+      ssh:*) echo "blocktools: docker engine is remote ($r) and not ssh://: BLOCKTOOLS_ALLOW_REMOTE=ssh permits only ssh:// engines (./secrets would cross the wire unencrypted). Use an ssh:// context or a local engine." >&2; exit 4;;
+      *) echo "blocktools: docker engine is remote ($r): ./in and ./secrets would be copied to that host. Use a local engine (e.g. docker context use desktop-linux), set BLOCKTOOLS_ALLOW_REMOTE=ssh for an ssh:// engine, or BLOCKTOOLS_ALLOW_REMOTE=1 for any remote engine." >&2; exit 4;;
+    esac
+  fi
   flags="$1"; shift
   tag="blocktools-$$-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
   trap unseal EXIT; trap 'exit 130' INT; trap 'exit 143' TERM

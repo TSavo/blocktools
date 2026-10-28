@@ -17,4 +17,20 @@ for h in ssh://battleaxe tcp://10.0.0.2:2375; do
 done
 o=$(run env DOCKER_HOST=tcp://h:2375) && f "DOCKER_HOST tcp not refused"
 [ "$(run env FAKE_HOST=ssh://b BLOCKTOOLS_ALLOW_REMOTE=1)" = RAN ] || f "explicit override ignored"
+[ "$(run env FAKE_HOST=tcp://h:2375 BLOCKTOOLS_ALLOW_REMOTE=1)" = RAN ] || f "=1 + tcp context not allowed"
+[ "$(run env DOCKER_HOST=tcp://h:2375 BLOCKTOOLS_ALLOW_REMOTE=1)" = RAN ] || f "=1 + tcp DOCKER_HOST not allowed"
+echo "ok   wrapper-remote: ALLOW_REMOTE=1 runs ssh/tcp (context and DOCKER_HOST)"
+o=$(run env DOCKER_HOST=ssh://b) && f "unset + ssh DOCKER_HOST not refused"
+echo "$o" | grep -q RAN && f "unset + ssh DOCKER_HOST: docker run happened"
+[ "$(run env FAKE_HOST=ssh://b BLOCKTOOLS_ALLOW_REMOTE=ssh)" = RAN ] || f "=ssh + ssh context not allowed"
+[ "$(run env DOCKER_HOST=ssh://b BLOCKTOOLS_ALLOW_REMOTE=ssh)" = RAN ] || f "=ssh + ssh DOCKER_HOST not allowed"
+echo "ok   wrapper-remote: ALLOW_REMOTE=ssh runs ssh:// (context and DOCKER_HOST); unset refuses ssh DOCKER_HOST"
+for e in "FAKE_HOST=tcp://h:2375" "DOCKER_HOST=tcp://h:2375" "FAKE_HOST=http://h" "DOCKER_HOST=https://h"; do
+  o=$(run env $e BLOCKTOOLS_ALLOW_REMOTE=ssh) && f "=ssh + $e not refused"
+  echo "$o" | grep -q 'permits only ssh://' || f "=ssh + $e: no message"
+  echo "$o" | grep -q RAN && f "=ssh + $e: docker run happened"
+  rc=0; run env $e BLOCKTOOLS_ALLOW_REMOTE=ssh >/dev/null || rc=$?; [ "$rc" = 4 ] || f "=ssh + $e: exit $rc, want 4"
+done
+o=$(run env FAKE_HOST=tcp://h BLOCKTOOLS_ALLOW_REMOTE=yes) && f "=yes treated as allow"
+echo "ok   wrapper-remote: ALLOW_REMOTE=ssh refuses tcp/http(s) (context and DOCKER_HOST) with exit 4; other values allow nothing"
 echo "ok   wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run; local and explicit override run"

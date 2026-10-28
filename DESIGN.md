@@ -408,6 +408,15 @@ Under the same sealing flags as `./blocktools` (no binds; mnemonic on stdin), th
 Not re-run this time: the network/rootfs/caps probes (same flags as the earlier run), `reveal` with a TTY, bind-mount
 inputs on the remote host.
 
+### Remote engines (BLOCKTOOLS_ALLOW_REMOTE)
+
+Deny by default: an `ssh://`, `tcp://` or `http(s)://` engine (`DOCKER_HOST`, else the current context) is refused
+with exit 4 before any container exists. `BLOCKTOOLS_ALLOW_REMOTE=ssh` permits only `ssh://` engines: the inputs
+cross the wire inside ssh and land in the container's tmpfs (stdin/tar only, no bind mounts, no volumes), which
+is the Mac -> Battleaxe (Docker Desktop on Windows) setup. `BLOCKTOOLS_ALLOW_REMOTE=1` permits any remote engine,
+including unencrypted `tcp://`. Any other value permits nothing. Sealing flags are the same in every case.
+Covered by `scripts/e2e.d/wrapper-remote.sh` (fake docker); a real ssh engine is not in CI (untested).
+
 ## 9. Out of scope
 
 Brute-forcing unknown passwords at scale (GPU cracking), any network access in

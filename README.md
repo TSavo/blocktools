@@ -148,7 +148,9 @@ not reach the engine's disk. The `/in` tmpfs size is set by `BLOCKTOOLS_IN_SIZE_
 this with a fake docker everywhere, `sealed-run unpack` on the wrapper's own tar, and a real engine on the Linux CI
 runners (untested until a green CI run shows it); Docker Desktop on Windows itself is not in CI (untested).
 `./blocktools run`/`reveal` now refuse an `ssh://` or `tcp://` engine (`DOCKER_HOST` or the current context) before starting
-a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary) (untested); set `BLOCKTOOLS_ALLOW_REMOTE=1` only if copying `./in` and `./secrets` to that host is intended.
+a container (`scripts/e2e.d/wrapper-remote.sh`, Linux, fake docker binary) (untested). `BLOCKTOOLS_ALLOW_REMOTE=ssh` permits only an `ssh://` engine (the tar streams travel inside ssh and land in tmpfs);
+with it a `tcp://` or `http(s)://` engine is still refused (exit 4). `BLOCKTOOLS_ALLOW_REMOTE=1` permits any remote engine;
+set it only if copying `./in` and `./secrets` to that host over that transport is intended. Recipe "Mac -> Battleaxe over SSH": see docs/MACOS.md.
 Without Docker, `sealed-run agent '<pipeline>'` gives the same redaction but none of the
 container isolation.
 

@@ -23,10 +23,24 @@ macOS version, the engine endpoint and the server OS/arch it measured.
 A remote engine is not "sealed on macOS". With an `ssh://` context (for example Battleaxe), the container
 and its `/in` bind mount are on the Linux host, so the tools see that host's directory, not the Mac's (seen
 once by hand: empty `/in`). `./blocktools run`/`reveal` refuse such an engine unless
-`BLOCKTOOLS_ALLOW_REMOTE=1` (the wrapper now streams `./in` and `./secrets` over `docker exec` stdin into tmpfs instead of bind-mounting,
+`BLOCKTOOLS_ALLOW_REMOTE=ssh` (only `ssh://`) or `BLOCKTOOLS_ALLOW_REMOTE=1` (any remote engine) (the wrapper now streams `./in` and `./secrets` over `docker exec` stdin into tmpfs instead of bind-mounting,
 so with the override they would be copied to that host), and `macos-sealed-check.sh` refuses it outright. That refusal runs in the
 macos job with a fake docker (`scripts/e2e.d/wrapper-remote.sh`, `scripts/e2e.d/macos-sealed-refuse.sh`).
 With the override, sealing is the Linux host's, which the Linux gate measures (claim sealed-run-linux).
+
+### Recipe: Mac -> Battleaxe over SSH
+
+```sh
+docker context create battleaxe --docker "host=ssh://USER@battleaxe"
+docker context use battleaxe
+BLOCKTOOLS_ALLOW_REMOTE=ssh ./blocktools run '<pipeline>'
+```
+
+`./in` and `./secrets` go over `docker exec` stdin (tar) inside the ssh connection into tmpfs mounts of the
+sealed container on Battleaxe (Docker Desktop on Windows): no host bind mounts, no volumes, nothing written to
+the engine's disk (tmpfs can still be swapped by the engine VM). `=ssh` refuses a `tcp://`/`http(s)://`
+engine with exit 4. Checked only with a fake docker (`scripts/e2e.d/wrapper-remote.sh`); a real run of this
+recipe against Docker Desktop on Windows is (untested).
 
 ## What is needed from a Mac
 
