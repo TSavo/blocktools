@@ -155,46 +155,49 @@ doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
 
 [[claim]]
 id = "wasm-size"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,617 bytes (1932617; 607050 gzip -9 -n) with names; 1,617,899 bytes (1617899; 534500 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
-date = "2026-10-27"
+status = "untested"
+note = "re-measured at 70a7406 (rustc 1.85.1); untested here only because no green main run yet carries the #14/#16 crates change (K-ci bootstrap) -- restamp to measured once one does"
+commit = "70a7406"
+date = "2026-10-28"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
-value = "1,931,794"
+expect = "wasm 1932617 bytes (607050 gzip) with names; 1617899 bytes (534500 gzip) stripped; 47 crates in the wasm tree"
+value = "1,932,617"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,931,794 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,932,617 bytes" }]
 
 [[claim]]
 id = "wasm-size-stripped"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,617 bytes (1932617; 607050 gzip -9 -n) with names; 1,617,899 bytes (1617899; 534500 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
-date = "2026-10-27"
+status = "untested"
+note = "re-measured at 70a7406 (rustc 1.85.1); untested here only because no green main run yet carries the #14/#16 crates change (K-ci bootstrap) -- restamp to measured once one does"
+commit = "70a7406"
+date = "2026-10-28"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
-value = "1,617,080"
+expect = "wasm 1932617 bytes (607050 gzip) with names; 1617899 bytes (534500 gzip) stripped; 47 crates in the wasm tree"
+value = "1,617,899"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false
 depends = ["bindings/wasm", "crates", "Cargo.lock", "Cargo.toml", "scripts/wasm-build.sh"]
-doc = [{ file = "DESIGN.md", text = "1,617,080 bytes" }]
+doc = [{ file = "DESIGN.md", text = "1,617,899 bytes" }]
 
 [[claim]]
 id = "wasm-crates"
-statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,931,794 bytes (1931794; 606793 gzip -9 -n) with names; 1,617,080 bytes (1617080; 534225 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
+statement = "wasm module (scripts/wasm-build.sh, rustc 1.85.1): 1,932,617 bytes (1932617; 607050 gzip -9 -n) with names; 1,617,899 bytes (1617899; 534500 gzip) with custom sections removed (stripped); 47 crates in the wasm32 normal dependency tree"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "8a7b876"
-date = "2026-10-27"
+status = "untested"
+note = "re-measured at 70a7406 (rustc 1.85.1); untested here only because no green main run yet carries the #14/#16 crates change (K-ci bootstrap) -- restamp to measured once one does"
+commit = "70a7406"
+date = "2026-10-28"
 command = "RUSTUP_TOOLCHAIN=1.85.1 sh scripts/wasm-size.sh"
-expect = "wasm 1931794 bytes (606793 gzip) with names; 1617080 bytes (534225 gzip) stripped; 47 crates in the wasm tree"
+expect = "wasm 1932617 bytes (607050 gzip) with names; 1617899 bytes (534500 gzip) stripped; 47 crates in the wasm tree"
 value = "47"
 env = "Linux x86_64 (the box), rustc 1.85.1 (the CI pin), wasm32-unknown-unknown; reproducible build of scripts/wasm-build.sh"
 cheap = false

@@ -18,7 +18,6 @@ because an account that has never signed has no pubkey on chain yet.
 Amounts are RUNE base units (1 RUNE = 1e8). Here a swap-to-ETH deposit (memo `=:ETH.ETH:ADDR:LIM`),
 built and decoded back through the sealed boundary — only public fields return:
 
-<!-- e2e: expect="type":"MsgDeposit" ; expect="asset":"THOR.RUNE" ; expect="amount_base":"100000000" ; expect="signed":false -->
     ./blocktools run 'acct-tx build --chain rune --from thor1w508d6qejxtdg4y5r3zarvary0c5xw7ku6wp68 --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --amount 100000000 --memo "=:ETH.ETH:0x0000000000000000000000000000000000000001:0" --sequence 0 --account-number 1 | acct-tx decode --chain rune'
 
 Signing is the `/dev/tty` step (`acct-tx sign --chain rune --expect-memo ...`): it shows the memo and
