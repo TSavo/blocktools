@@ -14,22 +14,42 @@ use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    blocktools_io::help("tx-verify [--chain C] [--expect-to ADDR]... [--change ADDR]... [--chain-id N (required for EVM)] [--max-fee N] [--allow-warnings] [--allow-value-with-token] [--expect-memo MEMO] [--policy FILE] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < tx");
+    blocktools_io::help("tx-verify [--chain C] (--plan FILE | [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--expect-memo MEMO] [--policy FILE]) [--allow-warnings] [--allow-value-with-token] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < tx");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-verify");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
-    let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
-        chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
-        max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))), allow_warnings: a.iter().any(|x| x == "--allow-warnings"),
-        allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
-        expect_memo: one("--expect-memo").map(String::into_bytes) };
+    // --plan FILE: the Plan (RFC #15) carries the assertions; `blocktools_plan::sign_guards` derives the
+    // SAME policy::Policy the flags build (plus fail-closed findings), so a passing `tx-verify --plan` and a
+    // `tx-sign --plan` enforce the identical assertions. Opt-in and exclusive with the manual assertion flags.
+    let (p, plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
+        for k in ["--expect-to", "--expect-memo", "--max-fee", "--chain-id", "--change", "--policy"] {
+            if a.iter().any(|x| x == k) { bad("--plan carries the assertions; do not also pass --expect-to/--expect-memo/--max-fee/--chain-id/--change/--policy") }
+        }
+        let plan: blocktools_plan::Plan = serde_json::from_str(&std::fs::read_to_string(&plan_file).unwrap_or_else(|_| bad("cannot read --plan file"))).unwrap_or_else(|e| bad(&format!("bad Plan JSON: {e}")));
+        let g = blocktools_plan::sign_guards(&plan);
+        match g.family {
+            Some(blocktools_plan::Family::Evm) | Some(blocktools_plan::Family::Utxo) => {}
+            _ => bad("tx-verify --plan supports EVM and UTXO plans only"),
+        }
+        let mut pol = g.policy;
+        pol.allow_warnings = a.iter().any(|x| x == "--allow-warnings");
+        pol.allow_value_with_token = a.iter().any(|x| x == "--allow-value-with-token");
+        (pol, g.findings.into_iter().map(|f| f.code).collect())
+    } else {
+        (Policy { expect_to: all("--expect-to"), change: all("--change"),
+            chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
+            max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))), allow_warnings: a.iter().any(|x| x == "--allow-warnings"),
+            allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
+            expect_memo: one("--expect-memo").map(String::into_bytes) }, Vec::new())
+    };
     let mut s = String::new();
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { bad("bad_input") }
     let chain = blocktools_tx::resolve_chain(&s, one("--chain")).unwrap_or_else(|e| bad(e));
     let d = blocktools_tx::decode(&s, &chain).unwrap_or_else(|e| bad(e));
     // Default fee cap (same as tx-sign) is applied inside policy::check unless --max-fee is given.
     let mut f: Vec<String> = check(&d, &p).into_iter().map(String::from).collect();
+    f.extend(plan_findings.iter().cloned());
     let mut o = json!({"tool":"tx-verify"});
     if let Some(file) = one("--policy") {
         let pf = blocktools_tx::policy_file::parse(&std::fs::read_to_string(file).unwrap_or_else(|_| bad("cannot read --policy file"))).unwrap_or_else(|e| bad(e));

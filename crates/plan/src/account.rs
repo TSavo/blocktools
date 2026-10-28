@@ -118,6 +118,22 @@ pub fn represent(sign_doc: &[u8]) -> Plan {
 /// deposit), a `MsgSend` with no `ExpectTo` is a finding (mirrors utxo::check's `return f("vault")`), and
 /// an opaque doc neither decoder accepts is itself a finding -- an unasserted structural step never
 /// silently passes. Assertion ops the family does not consult are reported via `unsupported_assertions`.
+/// The Account signer guard set (a `blocktools_tx::policy::Policy`) derived from the plan's assertions:
+/// `ExpectTo` (transfer recipient) into `expect_to` and `ExpectMemo` (deposit memo) into `expect_memo` --
+/// the same assertion steps `check` consults. Provided for `crate::sign_guards` symmetry; `tx-sign` has no
+/// account-signing path (account SignDocs are signed by `acct-tx`), so `tx-sign --plan` refuses this family.
+pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
+    let mut p = blocktools_tx::policy::Policy::default();
+    for s in &plan.steps {
+        match s {
+            Step::ExpectTo { address } => p.expect_to.push(address.clone()),
+            Step::ExpectMemo { memo } => p.expect_memo = Some(memo.clone().into_bytes()),
+            _ => {}
+        }
+    }
+    (p, vec![])
+}
+
 pub fn check(plan: &Plan, sign_doc: &[u8]) -> Vec<Finding> {
     let mut f = vec![];
     let fc = |c: &str| Finding { code: c.into() };

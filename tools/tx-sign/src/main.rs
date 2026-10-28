@@ -31,7 +31,7 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("tx-sign --tx FILE --expect-to ADDR [...] [--max-fee N] [--policy FILE] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < keys   (asks for a code on the terminal)");
+    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < keys   (asks for a code on the terminal)");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -42,11 +42,33 @@ fn main() {
     blocktools_core::chain_spec::tx_ready(&chain, true).unwrap_or_else(|e| bad(e)); // spec chain: spec_missing_wif etc.
     let d = blocktools_tx::decode(&txt, &chain).unwrap_or_else(|e| bad(e));
     if d.signed { bad("already_signed") }
-    let p = Policy { expect_to: all("--expect-to"), change: all("--change"),
-        chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
-        max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))),
-        allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
-        expect_memo: one("--expect-memo").map(String::into_bytes) };
+    // --plan FILE: the Plan (RFC #15) carries the assertions; `blocktools_plan::sign_guards` derives the
+    // signer guard set (the SAME policy::Policy the flags build, plus fail-closed findings). tx-sign then
+    // SIGNS ONLY IF the resolved tx satisfies them -- the same check `tx-plan check` runs. Opt-in and
+    // exclusive with the manual assertion flags (no silent mixing).
+    let (p, plan_findings): (Policy, Vec<String>) = if let Some(plan_file) = one("--plan") {
+        for k in ["--expect-to", "--expect-memo", "--max-fee", "--chain-id", "--change", "--policy"] {
+            if a.iter().any(|x| x == k) { bad("--plan carries the assertions; do not also pass --expect-to/--expect-memo/--max-fee/--chain-id/--change/--policy") }
+        }
+        let mut ptxt = String::new();
+        std::fs::File::open(&plan_file).and_then(|fh| fh.take(blocktools_tx::MAX_INPUT as u64).read_to_string(&mut ptxt)).unwrap_or_else(|_| bad("cannot read --plan file"));
+        let plan: blocktools_plan::Plan = serde_json::from_str(&ptxt).unwrap_or_else(|e| bad(&format!("bad Plan JSON: {e}")));
+        let g = blocktools_plan::sign_guards(&plan);
+        match g.family {
+            Some(blocktools_plan::Family::Evm) | Some(blocktools_plan::Family::Utxo) => {}
+            _ => bad("tx-sign --plan supports EVM and UTXO plans only; sign account-family plans with acct-tx"),
+        }
+        let mut pol = g.policy;
+        pol.allow_warnings = a.iter().any(|x| x == "--allow-warnings");
+        pol.allow_value_with_token = a.iter().any(|x| x == "--allow-value-with-token");
+        (pol, g.findings.into_iter().map(|f| f.code).collect())
+    } else {
+        (Policy { expect_to: all("--expect-to"), change: all("--change"),
+            chain_id: one("--chain-id").map(|s| s.parse().unwrap_or_else(|_| bad("--chain-id"))),
+            max_fee: one("--max-fee").map(|s| s.parse().unwrap_or_else(|_| bad("--max-fee"))),
+            allow_warnings: a.iter().any(|x| x == "--allow-warnings"), allow_value_with_token: a.iter().any(|x| x == "--allow-value-with-token"),
+            expect_memo: one("--expect-memo").map(String::into_bytes) }, Vec::new())
+    };
     let creating = d.evm.as_ref().is_some_and(|t| t.to.is_none());
     if creating && !p.expect_to.is_empty() { bad("contract creation has no destination: use --create-hash KECCAK instead of --expect-to") }
     if creating && one("--create-hash").is_none() { bad("contract creation needs --create-hash KECCAK (keccak256 of the init code)") }
@@ -62,6 +84,8 @@ fn main() {
         let mut f: Vec<String> = check(d, &p).into_iter().map(String::from).collect();
         if let Some(pf) = &pol { blocktools_tx::policy_file::apply(d, &pkey, pf, &mut f) }
         approve(d, &mut f, &a);
+        // Fail-closed: a Plan-derived finding (unparsable cap, unsupported/omitted assertion) refuses the sign.
+        f.extend(plan_findings.iter().cloned());
         f
     };
     let f = full(&d);

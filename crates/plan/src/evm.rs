@@ -108,7 +108,11 @@ pub fn represent(tx: &Tx) -> Plan {
 /// `chain_id` from `plan.chain_id`), decodes the tx through the one shared decode path, runs
 /// `policy::check`, and lifts the string codes into `Finding`. By going through the same verifier as
 /// tx-verify, `check` and the raw tool can never disagree.
-pub fn check(plan: &Plan, tx: &Tx) -> Vec<Finding> {
+/// Build the EVM signer guard set (a `blocktools_tx::policy::Policy`) from the plan's assertions, plus any
+/// fail-closed finding the mapping itself raises (an unparsable `CapFee`). This is the exact construction
+/// `check` consumes; `check` and `crate::sign_guards` share it, so a passing `tx-plan check` and what
+/// `tx-sign --plan` enforces are the same guard set by construction (RFC #15).
+pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
     let mut findings: Vec<Finding> = vec![];
     let mut policy = blocktools_tx::policy::Policy { chain_id: plan.chain_id, ..Default::default() };
     for s in &plan.steps {
@@ -123,6 +127,11 @@ pub fn check(plan: &Plan, tx: &Tx) -> Vec<Finding> {
             _ => {}
         }
     }
+    (policy, findings)
+}
+
+pub fn check(plan: &Plan, tx: &Tx) -> Vec<Finding> {
+    let (policy, mut findings) = guards(plan);
     let bytes = tx.encode_signed().unwrap_or_else(|| tx.encode_unsigned());
     let decoded = match blocktools_tx::decode_bytes(&bytes, "eth") {
         Ok(d) => d,

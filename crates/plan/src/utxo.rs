@@ -175,6 +175,26 @@ fn represent_structural(resolved: &Value, chain: &str) -> Option<Plan> {
 /// `ExpectMemo` the OP_RETURN payload, `Change` the (optional) change address; the asserted vault amount
 /// is the amount the resolve actually produced at output[0]. Every `verify_send` failure reason becomes a
 /// `Finding{code}`; an empty vector means the bytes match the plan.
+/// The UTXO signer guard set (a `blocktools_tx::policy::Policy`) derived from the plan's assertions: the
+/// same assertion steps `check` consults -- `ExpectTo` (the vault) into `expect_to`, `Change` into
+/// `change`, `ExpectMemo` into `expect_memo`, `CapFee` into `max_fee` -- mapped into the Policy the signer
+/// path (`policy::check`, via `tx-sign --plan`) consumes, so what `tx-sign --plan` enforces is the guard
+/// set `tx-plan check` asserts (RFC #15). The signer's own `policy::check` applies the same vault/memo/fee
+/// rules `check`'s `thor::verify_send` does.
+pub fn guards(plan: &Plan) -> (blocktools_tx::policy::Policy, Vec<Finding>) {
+    let mut p = blocktools_tx::policy::Policy::default();
+    for s in &plan.steps {
+        match s {
+            Step::ExpectTo { address } => p.expect_to.push(address.clone()),
+            Step::Change { address } => p.change.push(address.clone()),
+            Step::ExpectMemo { memo } => p.expect_memo = Some(memo.clone().into_bytes()),
+            Step::CapFee { max } => p.max_fee = max.parse::<u128>().ok(),
+            _ => {}
+        }
+    }
+    (p, vec![])
+}
+
 pub fn check(plan: &Plan, resolved: &Value) -> Vec<Finding> {
     let f = |c: &str| vec![Finding { code: c.into() }];
     let Some(psbt) = resolved.get("psbt").and_then(|x| x.as_str()) else { return f("tx"); };

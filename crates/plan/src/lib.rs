@@ -150,6 +150,59 @@ impl Plan {
     }
 }
 
+/// The signer guard set derived from a Plan's assertions: the `blocktools_tx::policy::Policy` that each
+/// family's `check()` builds (`chain_id`, `expect_to`, `change`, `max_fee`, `expect_memo`), the `ExpectOut`
+/// assertion (representable; no family enforces it yet, so it is surfaced, never silently dropped), and the
+/// fail-closed `findings` a `tx-plan check` raises on the plan alone -- an unparsable `CapFee`, an assertion
+/// op the family does not consult, and a structural step whose destination/memo assertion the plan omits.
+///
+/// `tx-sign --plan` feeds `policy` to the same `policy::check` path the `--expect-to`/`--max-fee`/... flags
+/// drive and refuses to sign on any `findings`, so a Plan that passes `tx-plan check` and one signed with
+/// `tx-sign --plan` enforce the identical assertions **by construction** (RFC #15). `tx-sign` can sign only
+/// the Evm and Utxo families; an Account plan resolves to a Cosmos SignDoc that `acct-tx` signs instead.
+#[derive(Clone, Debug)]
+pub struct SignGuards {
+    pub family: Option<Family>,
+    pub policy: blocktools_tx::policy::Policy,
+    /// `ExpectOut { token, min }` if the plan carries one; representable but unenforced today.
+    pub expect_out: Option<(Option<Addr>, Amount)>,
+    /// Fail-closed findings `tx-sign --plan` must refuse on, before touching keys.
+    pub findings: Vec<Finding>,
+}
+
+/// Derive the signer guards for a plan, dispatched by family (`family_of`/`plan.family`). Reuses each
+/// family's `guards()` construction (the same mapping its `check()` consumes); adds the `unsupported_assertions`
+/// findings and the fail-closed structural coverage the signer must not sign without.
+pub fn sign_guards(plan: &Plan) -> SignGuards {
+    let family = plan.family();
+    let expect_out = plan.steps.iter().find_map(|s| match s {
+        Step::ExpectOut { token, min } => Some((token.clone(), min.clone())),
+        _ => None,
+    });
+    let (policy, mut findings, enforced): (blocktools_tx::policy::Policy, Vec<Finding>, &[&str]) = match family {
+        Some(Family::Evm) => { let (p, f) = evm::guards(plan); (p, f, &["expect-to", "cap-fee"][..]) }
+        Some(Family::Utxo) => { let (p, f) = utxo::guards(plan); (p, f, &["expect-to", "expect-memo", "cap-fee"][..]) }
+        Some(Family::Account) => { let (p, f) = account::guards(plan); (p, f, &["expect-memo", "expect-to"][..]) }
+        None => (blocktools_tx::policy::Policy::default(), vec![], &[][..]),
+    };
+    findings.extend(unsupported_assertions(plan, enforced));
+    // Fail-closed structural coverage: the signer must never sign a structural step whose destination or
+    // memo the plan left unasserted (mirrors each family's check(): utxo returns `vault` without an
+    // ExpectTo and refuses a bare OP_RETURN; the evm/utxo CLIs already require --expect-to). One finding
+    // per uncovered step kind.
+    let (mut dto, mut dmemo) = (false, false);
+    for s in &plan.steps {
+        let (missing, code, dup): (bool, &str, &mut bool) = match (family, s) {
+            (Some(Family::Utxo), Step::AddOutput { .. }) => (policy.expect_to.is_empty(), "destination_not_asserted", &mut dto),
+            (Some(Family::Utxo), Step::OpReturn { .. }) => (policy.expect_memo.is_none(), "memo_not_asserted", &mut dmemo),
+            (Some(Family::Evm), Step::Call { .. } | Step::Approve { .. }) => (policy.expect_to.is_empty(), "destination_not_asserted", &mut dto),
+            _ => continue,
+        };
+        if missing && !*dup { *dup = true; findings.push(Finding { code: code.into() }); }
+    }
+    SignGuards { family, policy, expect_out, findings }
+}
+
 #[cfg(test)]
 mod t {
     use super::*;

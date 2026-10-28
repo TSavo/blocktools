@@ -3,7 +3,7 @@
 tx\-sign \- sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-tx\-sign \-\-tx FILE \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
+tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
@@ -49,6 +49,7 @@ Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sa
 \-\-create\-hash
 \-\-expect\-to
 \-\-max\-fee
+\-\-plan
 \-\-policy
 \-\-tx
 .fi
