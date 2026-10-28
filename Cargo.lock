@@ -354,6 +354,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-plan"
+version = "0.2.0"
+dependencies = [
+ "bitcoin",
+ "blocktools",
+ "blocktools-acct",
+ "blocktools-core",
+ "blocktools-evm",
+ "blocktools-tx",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "blocktools-schema"
 version = "0.2.0"
 dependencies = [

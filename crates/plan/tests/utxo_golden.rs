@@ -69,3 +69,26 @@ fn check_fails_on_tampered_memo() {
     let findings = blocktools_plan::utxo::check(&p, &v);
     assert!(findings.iter().any(|f| f.code == "memo"), "wrong memo must be caught: {findings:?}");
 }
+
+#[test]
+fn doge_rune_inbound_represent_round_trips() {
+    // RFC #15 round-trip for the UTXO family: build the inbound, lift the built result back to a Plan
+    // with `represent`, then recompile against the SAME context. The bytes (psbt + outputs + fee) must
+    // be reproduced exactly. The clean sweep-with-memo inbound recovers structurally (no Raw).
+    let cx = context::Utxo { fee_rate: 750000 };
+    let built = blocktools_plan::utxo::resolve(&inbound_plan(), &cx).unwrap();
+    let represented = blocktools_plan::utxo::represent(&built, "doge");
+
+    // Every input lifted to AddInput (with its prev_tx recovered), the vault swept, the memo recovered.
+    let inputs: Vec<&Step> = represented.steps.iter().filter(|s| matches!(s, Step::AddInput { .. })).collect();
+    assert_eq!(inputs.len(), 1, "the single inbound input is recovered");
+    assert!(matches!(inputs[0], Step::AddInput { txid, vout: 0, amount: 51138959603, prev_tx: Some(_), .. } if txid == TXID));
+    assert!(represented.steps.iter().any(|s| matches!(s, Step::AddOutput { amount, .. } if amount.is_empty())), "swept (empty amount)");
+    assert!(represented.steps.iter().any(|s| matches!(s, Step::OpReturn { memo } if memo == MEMO_HEX)), "memo recovered");
+    assert!(!represented.steps.iter().any(|s| matches!(s, Step::Raw { .. })), "clean inbound recovers structurally, no Raw");
+
+    let rebuilt = blocktools_plan::utxo::resolve(&represented, &cx).unwrap();
+    assert_eq!(rebuilt, built, "resolve(represent(tx)) == tx, byte for byte (psbt + outputs + fee)");
+    // The recovered assertions (ExpectTo/ExpectMemo) still verify against the rebuilt bytes.
+    assert!(blocktools_plan::utxo::check(&represented, &rebuilt).is_empty(), "recovered plan verifies");
+}

@@ -48,3 +48,33 @@ fn account_check_memo_assertion() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].code, "memo_not_expected", "mismatched ExpectMemo fails");
 }
+
+#[test]
+fn deposit_sign_doc_represent_round_trips() {
+    // RFC #15 round-trip for the Account family: build the SignDoc, lift it back with `represent`, then
+    // recompile against the SAME context. The MsgDeposit lifts to a structured Deposit (not Raw) and the
+    // SignDoc bytes are reproduced exactly.
+    let doc = account::resolve(&plan(), &cx()).expect("resolve");
+    let represented = account::represent(&doc);
+    match represented.steps.as_slice() {
+        [Step::Deposit { asset, amount, memo: m }] => {
+            assert_eq!(asset, "THOR.RUNE");
+            assert_eq!(amount, "1105120000");
+            assert_eq!(m, &memo());
+        }
+        other => panic!("MsgDeposit must lift to a single Deposit step, got {other:?}"),
+    }
+    let rebuilt = account::resolve(&represented, &cx()).expect("resolve represented");
+    assert_eq!(rebuilt, doc, "resolve(represent(doc)) == doc, byte for byte");
+}
+
+#[test]
+fn opaque_sign_doc_round_trips_through_raw() {
+    // Totality: a doc neither decoder accepts is held verbatim in Raw{kind:"account.sign_doc"} and
+    // rebuilt exactly, so representability never fails.
+    let doc = vec![0xde_u8, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03];
+    let represented = account::represent(&doc);
+    assert!(matches!(represented.steps.as_slice(), [Step::Raw { kind, .. }] if kind == "account.sign_doc"));
+    let rebuilt = account::resolve(&represented, &cx()).expect("resolve raw");
+    assert_eq!(rebuilt, doc, "opaque SignDoc round-trips verbatim through Raw");
+}
