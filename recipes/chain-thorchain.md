@@ -34,5 +34,6 @@ and no fee coin. KAT: body, auth_info and signed TxRaw byte-equal to the real ma
 register/alias txs (crates/acct/tests/thorchain.rs). NOT BUILT: non-RUNE deposit coins, multi-message txs,
 and the network fetch/broadcast (host-side `rpc` against a THORChain node).
 
-See [thorchain-thorname.md](thorchain-thorname.md) to register an affiliate name and
-[thorchain-swap-evm.md](thorchain-swap-evm.md) to send an EVM token into a THORChain swap.
+See [thorchain-thorname.md](thorchain-thorname.md) to register an affiliate name,
+[thorchain-swap-evm.md](thorchain-swap-evm.md) to send an EVM token into a THORChain swap, and
+[thorchain-swap-utxo.md](thorchain-swap-utxo.md) to send a UTXO coin (DOGE/LTC/BCH/BTC) into a swap.

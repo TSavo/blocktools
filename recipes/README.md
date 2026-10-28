@@ -68,6 +68,7 @@ and see addresses and signed transactions only.
 |---|---|---|
 | Register / manage an affiliate THORName | [thorchain-thorname.md](thorchain-thorname.md) | built, tested; measured on mainnet |
 | Swap an EVM token into another chain (router depositWithExpiry) | [thorchain-swap-evm.md](thorchain-swap-evm.md) | built (shipped EVM tx tools + allow_calls); measured on mainnet |
+| Swap a UTXO coin (DOGE/LTC/BCH/BTC) into another chain (OP_RETURN memo) | [thorchain-swap-utxo.md](thorchain-swap-utxo.md) | built (shipped `tx-build --memo` + `tx-sign` OP_RETURN accept); e2e + regtest; measured on mainnet |
 
 ## By goal
 | Goal | Recipe |

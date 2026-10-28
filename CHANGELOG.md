@@ -14,6 +14,16 @@ Minor version: new tools, new wasm exports and new flags; no CLI flag, wasm expo
 existing scripts are listed under "Changed".
 
 ### Added
+- THORChain UTXO inbound (swap from a UTXO coin): `tx-build --memo STRING` / `--op-return HEX` adds a
+  zero-value trailing `OP_RETURN` to the UTXO build path (THORChain inbound shape `[vault, change,
+  OP_RETURN memo]`; refused above the chain's relay limit — BCH 220, else 80 bytes;
+  `blocktools_tx::build::op_return_script`), and `tx-sign`/`tx-verify`/`tx-envelope` accept exactly one
+  zero-value `OP_RETURN` as a non-destination memo instead of `unexpected_output`/`has_warnings`
+  (`crates/tx/src/policy.rs`); `tx-sign` shows the memo (UTF-8 if printable, else hex) on the `/dev/tty`
+  summary and keeps the typed-code confirmation. A second `OP_RETURN`, or a non-zero-value `OP_RETURN`,
+  is still refused. Recipe `recipes/thorchain-swap-utxo.md`; `scripts/e2e.d/thorchain-utxo.sh` drives the
+  shipped path node-free (build → `verify_thor_send` → pty sign → decode) with the two negative probes,
+  and `scripts/e2e.d/memo-regtest.sh` runs it against the real LTC/DOGE/BCH regtest nodes.
 - THORChain (`rune`) account support: `acct-tx keys|build|decode|sign --chain rune` signs a
   THORChain `MsgDeposit` (chain_id `thorchain-1`, SIGN_MODE_DIRECT, `/cosmos.crypto.secp256k1.PubKey`) —
   the transaction behind every THORChain swap-from-RUNE and THORName action; the action rides in the

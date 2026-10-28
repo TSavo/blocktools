@@ -79,6 +79,22 @@ pub fn out_vb(script: &[u8]) -> u64 { 9 + script.len() as u64 }
 /// counted during coin selection, so the memo is funded like any other output.
 pub struct BtcPlan { pub to: String, pub send: Option<u64>, pub change: Option<String>, pub fee_rate: u64, pub rbf: bool, pub dust: u64, pub op_return: Option<Vec<u8>>, pub locktime: u32 }
 
+/// Largest OP_RETURN data push the chain's reference node relays (bytes). Mirrors
+/// `blocktools::psbtmemo::op_return_limit`, measured by memo-regtest.sh: BCHN 28.0.1 accepts 220,
+/// LTC/Dogecoin and Bitcoin accept 80. Used by tx-build's `--op-return`/`--memo` (THORChain memo).
+pub fn op_return_limit(chain: &str) -> usize { match chain { "bch" => 220, _ => 80 } }
+
+/// OP_RETURN output script for `memo`, refused above the chain's relay limit (`op_return_limit`).
+/// `6a <pushdata> <memo>`: a direct push for <=75 bytes, OP_PUSHDATA1 (0x4c) above it.
+pub fn op_return_script(chain: &str, memo: &[u8]) -> Result<Vec<u8>, String> {
+    let max = op_return_limit(chain).min(255);
+    if memo.len() > max { return Err(format!("memo is {} bytes, over the {max}-byte OP_RETURN limit for {chain}", memo.len())) }
+    let mut s = vec![0x6a];
+    if memo.len() <= 75 { s.push(memo.len() as u8) } else { s.extend([0x4c, memo.len() as u8]) }
+    s.extend_from_slice(memo);
+    Ok(s)
+}
+
 pub fn build_btc(c: &Chain, mut utxos: Vec<Utxo>, p: &BtcPlan) -> Result<Psbt, String> {
     let cap = chains::fee_warn(c.name).rate_cap();
     if p.fee_rate == 0 || p.fee_rate > cap { return Err(format!("fee_rate must be 1..{cap} sat/vB for {}", c.name)) }

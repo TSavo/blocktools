@@ -142,7 +142,12 @@ fn main() {
             call += &format!("New contract address: {} (CREATE from {signer}, nonce {n})\n", blocktools_core::validate::checksum_eth(&blocktools_evm::create::create(&s, n)));
         }
     }
-    let summary = format!("{}\n{call}Signed by: {signer}\nChecks passed: destination {}, fee cap {}{}\n",
+    // Show any OP_RETURN memo (THORChain swap memo) so the human confirms it: UTF-8 when printable, else hex.
+    let memo = op_return_memo(&raw).map(|m| {
+        let shown = if !m.is_empty() && m.iter().all(|b| (0x20..0x7f).contains(b)) { String::from_utf8_lossy(&m).into_owned() } else { format!("0x{}", blocktools_core::hex_enc(&m)) };
+        format!("OP_RETURN memo : {shown}\n")
+    }).unwrap_or_default();
+    let summary = format!("{}\n{memo}{call}Signed by: {signer}\nChecks passed: destination {}, fee cap {}{}\n",
         d2.text().trim_end(), if creating { "(new contract, init code hash matched)".to_string() } else { p.expect_to.join(", ") }, p.max_fee.unwrap_or(0), if d2.evm.is_some() { " wei" } else { " sats" });
     if !blocktools_tty::confirm(&summary) { out("aborted", json!({})) }
     let mut o = json!({"type":d2.ty,"signed_tx":blocktools_core::hex_enc(&signed)});
@@ -152,6 +157,24 @@ fn main() {
     }
     else if d2.evm.is_none() { o["psbt"] = json!(blocktools_core::b64::encode(&recheck)) }
     out("ok", o)
+}
+
+/// The data push of a single OP_RETURN output in a serialized PSBT, for the tty summary. None when the
+/// bytes are not a PSBT (EVM / pos-ntime / zec) or when there is not exactly one OP_RETURN output.
+fn op_return_memo(raw: &[u8]) -> Option<Vec<u8>> {
+    let ps = Psbt::deserialize(raw).ok()?;
+    let mut memo = None;
+    for o in &ps.unsigned_tx.output {
+        let s = o.script_pubkey.as_bytes();
+        if s.first() != Some(&0x6a) { continue }
+        if memo.is_some() { return None } // more than one OP_RETURN: policy refuses it; show nothing
+        memo = Some(match s.get(1) {
+            Some(0x4c) => s.get(3..).unwrap_or(&[]).to_vec(),
+            Some(_) => s.get(2..).unwrap_or(&[]).to_vec(),
+            None => Vec::new(),
+        });
+    }
+    memo
 }
 
 /// --call SIGNATURE / --abi FILE / --create-hash KECCAK: decode an EVM tx's calldata and,
