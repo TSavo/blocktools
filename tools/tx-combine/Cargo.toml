@@ -5,8 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools tx-combine: merge the partial-signature PSBTs of an m-of-n multisig and finalize once the threshold is met. Offline, public PSBTs, no keys."
 [dependencies]
-blocktools-io = { version = "0.2.0", path = "../../crates/io" }
-blocktools-tx = { version = "0.2.0", path = "../../crates/tx" }
-blocktools-core = { version = "0.2.0", path = "../../crates/core" }
+blocktools-io = { version = "0.3.0", path = "../../crates/io" }
+blocktools-tx = { version = "0.3.0", path = "../../crates/tx" }
+blocktools-core = { version = "0.3.0", path = "../../crates/core" }
 bitcoin.workspace = true
 serde_json.workspace = true

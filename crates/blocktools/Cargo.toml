@@ -5,16 +5,16 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools library facade: addresses, xpub watch-only derivation, path plans, address validation, transaction decode/build/verify. Default features take no private keys and do no I/O. DANGEROUS: use at your own risk; read and audit before trusting it with real funds."
 [dependencies]
-blocktools-core = { version = "0.2.0", path = "../core" }
-blocktools-tx = { version = "0.2.0", path = "../tx" }
+blocktools-core = { version = "0.3.0", path = "../core" }
+blocktools-tx = { version = "0.3.0", path = "../tx" }
 serde_json = { workspace = true }
 bitcoin = { workspace = true }
 curve25519-dalek = { workspace = true }
 sha3 = { workspace = true }
-blocktools-evm = { version = "0.2.0", path = "../evm" }
-blocktools-schema = { version = "0.2.0", path = "../schema", optional = true }
-blocktools-secrets = { version = "0.2.0", path = "../secrets", optional = true, features = ["repair", "seed", "dat", "keystore", "keys", "walk"] }
-blocktools-net = { version = "0.2.0", path = "../net", optional = true }
+blocktools-evm = { version = "0.3.0", path = "../evm" }
+blocktools-schema = { version = "0.3.0", path = "../schema", optional = true }
+blocktools-secrets = { version = "0.3.0", path = "../secrets", optional = true, features = ["repair", "seed", "dat", "keystore", "keys", "walk"] }
+blocktools-net = { version = "0.3.0", path = "../net", optional = true }
 [features]
 default = []
 # Everything that takes or returns private keys: seeds, wallet files, keystores, signing.
