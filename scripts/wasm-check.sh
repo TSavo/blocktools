@@ -49,6 +49,14 @@ kh=$(grep -E 'multisig::partial_sign|secp256k1::key::(SecretKey|Keypair)::|Keypa
 exp=$(python3 ../../scripts/wasm-names.py "$M" exports | awk '{print $2}' | sort | tr '\n' ' ')
 want="__externref_table_alloc __externref_table_dealloc __wbindgen_export_0 __wbindgen_free __wbindgen_malloc __wbindgen_realloc __wbindgen_start addressToScript addressValidate addressesFromXpub base58Decode base58Encode blake2b bolt11Decode bolt11Reencode buildEvmTransfer buildPsbtWithMemo buildUnsignedSweep buildUnsignedSweepAt cashAddrDecode cashAddrEncode cashAddrToLegacy chainParams chainTable checkTx checkTxPolicy combinePsbts convertAddress convertAddressFrom decodeAccountInfo decodeTx deriveFromXpub describeTx detectAddress detectAddressInfo evmAbiDecode evmAbiEncode evmAbiEncodePacked evmAbiInspect evmApproveCall evmBytecodeInspect evmCreateAddress evmKeccak256 evmSigHash evmSigLookup evmTypedDataVerify explainPlan legacyToCashAddr listChains memory msgVerify multisigAddress polkadotAccountStorageKey recoveryTables rustsecp256k1_v0_10_0_context_create rustsecp256k1_v0_10_0_context_destroy rustsecp256k1_v0_10_0_default_error_callback_fn rustsecp256k1_v0_10_0_default_illegal_callback_fn scriptToAddress selectUtxos serializeNvcTxFromJson solAnchorDiscriminator solAssociatedTokenAddress solBuildTransfer solDecodeTx solFindProgramAddress solIsOnCurve solVerifyTx ss58Decode ss58Encode supportedChains taprootMultisigAddress tronBuildTransfer tronDecodeTx tronTxId twox128 txPlanResolve unverifiedChains validateAddress verifyRecovery verifyRecoveryRaw verifySweepRaw verifySweepTx verifyThorSend verifyTx version "
 [ "$exp" = "$want" ] || { echo "FAIL exports differ:"; echo " got  $exp"; echo " want $want"; rc=1; }
+# rule:W-doccount: EXPORTS.md's "Same N functions" equals the JS functions the built wasm exports (glue,
+# secp context hooks and memory excluded), and every one of them is named (`name` or `name(`) in EXPORTS.md.
+fns=$(printf '%s\n' $exp | grep -vE '^(__|rustsecp256k1_|memory$)' || [ $? -eq 1 ])
+nf=$(printf '%s\n' "$fns" | grep -c . || [ $? -eq 1 ])
+nd=$(grep -oE 'Same [0-9]+ functions' ../../EXPORTS.md | grep -oE '[0-9]+' || [ $? -eq 1 ])
+undoc=$(for f in $fns; do grep -qE "\`$f[\`(]" ../../EXPORTS.md || echo "$f"; done)
+if [ "$nd" != "$nf" ] || [ -n "$undoc" ]; then echo "FAIL EXPORTS.md function count: doc says '${nd:-none}', wasm exports $nf; undocumented: ${undoc:-none}"; rc=1
+else echo "ok exports-doc $nf functions"; fi
 node test.mjs || rc=1
 node test-web.mjs || rc=1
 node gen-reference.mjs --check || rc=1  # docs/EXPORTS-reference.md is generated from the test.mjs calls

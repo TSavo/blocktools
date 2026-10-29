@@ -13,16 +13,18 @@ bolt11 <invoice>   (or pipe the invoice on stdin)
   bolt11 <invoice>           or   printf %s "<invoice>" | bolt11
 .RE
 .fi
-stdout: one JSON line {tool,status,network,amount_msat?,timestamp,payment_hash?,description?,
-description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,min_final_cltv_expiry?,
-features?,fallback?,routing_hints,signature,recovery_id}. The payee pubkey is RECOVERED from the
-signature (and `payee_pubkey` is the invoice's own `n` tag when present). Offline, public input, no keys.
+stdout: one JSON line {tool,status,network,currency,amount_msat?,amount_raw?,timestamp,payment_hash?,
+description?,description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,
+min_final_cltv_expiry?,features?,fallback?,routing_hints,signature,recovery_id}. The payee pubkey is
+RECOVERED from the signature (and `payee_pubkey` is the invoice's own `n` tag when present). The decode
+and re\-encode logic lives in blocktools\-tx (`tx::bolt11`), shared with the `bolt11Decode`/`bolt11Reencode`
+wasm exports so the tool and the binding cannot disagree. Offline, public input, no keys.
 .SH OPTIONS
 No flags. Input is read from stdin or the arguments shown in SYNOPSIS.
 .SH INPUT/OUTPUT
-stdout: one JSON line {tool,status,network,amount_msat?,timestamp,payment_hash?,description?,
-description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,min_final_cltv_expiry?,
-signature (and `payee_pubkey` is the invoice's own `n` tag when present). Offline, public input, no keys.
+stdout: one JSON line {tool,status,network,currency,amount_msat?,amount_raw?,timestamp,payment_hash?,
+description?,description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,
+wasm exports so the tool and the binding cannot disagree. Offline, public input, no keys.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
