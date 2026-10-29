@@ -11,6 +11,7 @@ pub mod create;
 pub mod eip712;
 pub mod inspect;
 pub mod metadata;
+pub mod safe;
 pub mod sig;
 pub mod u256;
 

@@ -13,3 +13,4 @@ tx-plan offline
 multisig offline
 taproot-multisig offline
 tx-combine offline
+safe-tx offline

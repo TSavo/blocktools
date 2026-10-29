@@ -1,0 +1,10 @@
+[package]
+name = "safe-tx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools safe-tx: Gnosis Safe (>=1.3.0) m-of-n execTransaction — the EIP-712 Safe tx hash, owner-signature ordering, calldata, and a verifier. Offline, reads only public data, holds no key."
+[dependencies]
+blocktools-evm = { version = "0.2.0", path = "../../crates/evm" }
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+serde_json.workspace = true
