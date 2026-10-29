@@ -56,6 +56,22 @@ pub fn detect_chain(addr: &str) -> Result<&'static str, &'static str> {
     if blocktools_core::validate::validate("btc", addr).is_ok() { return Err("address_not_p2pkh") }
     Err("unrecognised_address")
 }
+/// Verify a message signature against `addr` (chain from `detect_chain`). Returns `(ok, recovered, v)`:
+/// `ok` is the address match (eth case-insensitive), `v` the Ethereum v convention
+/// ("legacy" | "raw" | "eip155:<chain_id>"), `None` for Bitcoin. Shared by msg-verify and the wasm `msgVerify`.
+pub fn verify(addr: &str, msg: &[u8], sig: &str) -> Result<(&'static str, bool, String, Option<String>), &'static str> {
+    let chain = detect_chain(addr)?;
+    if chain == "eth" {
+        let t = sig.trim(); let t = t.strip_prefix("0x").unwrap_or(t);
+        let s = blocktools_core::hex_dec(t).ok_or("bad_hex_signature")?;
+        let (r, k) = eth_recover(msg, &s)?;
+        let v = match k { EthV::Legacy => "legacy".to_string(), EthV::Raw => "raw".into(), EthV::Eip155(c) => format!("eip155:{c}") };
+        Ok((chain, r.eq_ignore_ascii_case(addr), r, Some(v)))
+    } else {
+        let r = btc_recover(msg, sig)?;
+        Ok((chain, r == addr, r, None))
+    }
+}
 /// Messages tx-sign-style tooling must not sign blind: a bare 32-byte hash, or bytes that decode as a transaction.
 /// `hex_input`: the message was given as hex bytes (TWC treats hex-decodable text that way; we make it explicit).
 pub fn sign_refusal(msg: &[u8], hex_input: bool) -> Option<&'static str> {

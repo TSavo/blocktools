@@ -15,10 +15,15 @@ use bitcoin::blockdata::opcodes::all::{OP_CHECKSIG, OP_CHECKSIGADD, OP_NUMEQUAL}
 use bitcoin::blockdata::script::{Builder, Instruction};
 use bitcoin::hashes::Hash;
 use bitcoin::psbt::Psbt;
-use bitcoin::secp256k1::{Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey};
+use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
+#[cfg(feature = "secrets")]
+use bitcoin::secp256k1::{Keypair, Message, SecretKey};
+#[cfg(feature = "secrets")]
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::taproot::{ControlBlock, LeafVersion, TapLeafHash, TaprootBuilder};
-use bitcoin::{Network, ScriptBuf, TxOut, Witness};
+use bitcoin::{Network, ScriptBuf, Witness};
+#[cfg(feature = "secrets")]
+use bitcoin::TxOut;
 
 /// BIP341 unspendable NUMS internal key H (x-only): nothing-up-my-sleeve, so no one holds a key-path
 /// spending key and the output is script-path only. This is the constant from BIP341.
@@ -157,6 +162,7 @@ fn small_int(v: u8) -> Option<usize> {
 
 /// Collect every input's committed prevout (`witness_utxo`), required for the BIP341 all-prevouts
 /// sighash. Errors if any input lacks one.
+#[cfg(feature = "secrets")]
 fn all_prevouts(p: &Psbt) -> Result<Vec<TxOut>, &'static str> {
     p.inputs
         .iter()
@@ -164,9 +170,11 @@ fn all_prevouts(p: &Psbt) -> Result<Vec<TxOut>, &'static str> {
         .collect()
 }
 
+/// Takes private keys: compiled only with the `secrets` feature (never into the wasm).
 /// Schnorr-partial-sign every tapscript-multisig input of `p` with each key in `keys` whose x-only
 /// pubkey appears in the input's revealed leaf. Inserts `((xonly, leaf_hash) -> sig)` into
 /// `tap_script_sigs` and leaves the input UNFINALIZED. Returns the number of signatures added.
+#[cfg(feature = "secrets")]
 pub fn partial_sign(p: &mut Psbt, keys: &[SecretKey]) -> Result<usize, &'static str> {
     let secp = Secp256k1::new();
     let tx = p.unsigned_tx.clone();
@@ -251,9 +259,12 @@ pub fn combine_finalize(p: &mut Psbt) -> Result<usize, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "secrets")]
     use bitcoin::absolute::LockTime;
-    use bitcoin::secp256k1::{PublicKey as SecpPub, Secp256k1};
+    use bitcoin::secp256k1::{PublicKey as SecpPub, Secp256k1, SecretKey};
+    #[cfg(feature = "secrets")]
     use bitcoin::transaction::Version;
+    #[cfg(feature = "secrets")]
     use bitcoin::{Amount, OutPoint, Sequence, Transaction, TxIn, TxOut, Txid};
 
     fn key(b: u8) -> SecretKey {
@@ -285,6 +296,7 @@ mod tests {
         assert!(tapscript_multisig(4, &xs).is_err());
     }
 
+    #[cfg(feature = "secrets")]
     #[test]
     fn partial_sign_then_combine_produces_verifying_schnorr_sigs() {
         let secp = Secp256k1::new();

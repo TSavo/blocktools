@@ -35,12 +35,7 @@ fn main() {
     };
     let msg = if a.iter().any(|x| x == "--hex") { hexd(std::str::from_utf8(&msg).unwrap_or("")).unwrap_or_else(|| bad("bad_hex_message")) } else { msg };
     let sig = one("--sig").unwrap_or_else(|| bad("--sig SIG required"));
-    let (rec, v) = if chain == "eth" {
-        let s = hexd(&sig).unwrap_or_else(|| bad("bad_hex_signature"));
-        let (r, k) = blocktools_tx::message::eth_recover(&msg, &s).unwrap_or_else(|e| bad(e));
-        (r, Some(match k { blocktools_tx::message::EthV::Legacy => "legacy".to_string(), blocktools_tx::message::EthV::Raw => "raw".into(), blocktools_tx::message::EthV::Eip155(c) => format!("eip155:{c}") }))
-    } else { (blocktools_tx::message::btc_recover(&msg, &sig).unwrap_or_else(|e| bad(e)), None) };
-    let same = if chain == "eth" { rec.eq_ignore_ascii_case(&addr) } else { rec == addr };
+    let (_, same, rec, v) = blocktools_tx::message::verify(&addr, &msg, &sig).unwrap_or_else(|e| bad(e));
     let mut o = json!({"chain":chain,"address":addr,"recovered":rec}); if let Some(v) = v { o["v"] = json!(v) }
     out(if same { "ok" } else { "signer_mismatch" }, o)
 }

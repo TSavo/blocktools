@@ -7,13 +7,18 @@
 //!   - `combine_finalize`: once ≥ threshold partial sigs are present, assemble the final witness
 //!     `<OP_0> <sig>… <witnessScript>` with sigs ordered to the pubkey order in the script (tx-combine).
 //! Signatures are libsecp256k1's; the sighash is rust-bitcoin's. Compressed pubkeys only (segwit).
+#[cfg(feature = "secrets")]
 use crate::digest::Digest;
 use bitcoin::blockdata::opcodes::all::OP_CHECKMULTISIG;
 use bitcoin::blockdata::script::{Builder, Instruction};
+#[cfg(feature = "secrets")]
 use bitcoin::ecdsa;
+#[cfg(feature = "secrets")]
 use bitcoin::hashes::Hash;
 use bitcoin::psbt::Psbt;
+#[cfg(feature = "secrets")]
 use bitcoin::secp256k1::{Message, PublicKey as SecpPub, Secp256k1, SecretKey};
+#[cfg(feature = "secrets")]
 use bitcoin::sighash::{EcdsaSighashType, SighashCache};
 use bitcoin::{Network, PublicKey, ScriptBuf, Witness};
 
@@ -96,9 +101,11 @@ pub fn parse_multisig(s: &bitcoin::Script) -> Option<(usize, Vec<PublicKey>)> {
     Some((m, keys))
 }
 
+/// Takes private keys: compiled only with the `secrets` feature (never into the wasm).
 /// ECDSA-partial-sign every P2WSH multisig input of `p` with each key in `keys` that appears in the
 /// input's witness script. Inserts `(pubkey -> sig)` into `partial_sigs` and leaves the input
 /// UNFINALIZED. Returns the number of partial signatures added. P2WSH is BIP143 (sha256d) only.
+#[cfg(feature = "secrets")]
 pub fn partial_sign(p: &mut Psbt, keys: &[SecretKey], dg: Digest) -> Result<usize, &'static str> {
     if dg != Digest::Sha256d {
         return Err("multisig partial-sign is segwit (sha256d) only");
@@ -190,10 +197,27 @@ pub fn extract(p: &Psbt) -> Result<bitcoin::Transaction, &'static str> {
     Ok(tx)
 }
 
+/// Merge the partial-signature PSBTs of one m-of-n spend (P2WSH and/or Taproot script-path inputs),
+/// finalize every multisig input that meets its threshold, and extract the signed tx. Keyless: reads only
+/// public PSBTs. Returns `(signed tx bytes, finalized PSBT bytes)`. The one path `tx-combine` and the wasm
+/// `combinePsbts` export share. Errors: `no_psbts`, `not_a_psbt`, `psbts_do_not_combine`, then the
+/// finalizers' own refusals (`not_enough_signatures`, ...).
+pub fn combine_psbts(psbts: &[Vec<u8>]) -> Result<(Vec<u8>, Vec<u8>), &'static str> {
+    let (first, rest) = psbts.split_first().ok_or("no_psbts")?;
+    let mut acc = Psbt::deserialize(first).map_err(|_| "not_a_psbt")?;
+    for raw in rest {
+        acc.combine(Psbt::deserialize(raw).map_err(|_| "not_a_psbt")?).map_err(|_| "psbts_do_not_combine")?;
+    }
+    combine_finalize(&mut acc)?;
+    crate::taproot_multisig::combine_finalize(&mut acc)?;
+    let tx = extract(&acc)?;
+    Ok((bitcoin::consensus::serialize(&tx), acc.serialize()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::secp256k1::SecretKey;
+    use bitcoin::secp256k1::{PublicKey as SecpPub, Secp256k1, SecretKey};
 
     fn key(b: u8) -> SecretKey {
         let mut k = [0u8; 32];
@@ -222,6 +246,7 @@ mod tests {
         assert!(multisig_script(4, &pubs).is_err());
     }
 
+    #[cfg(feature = "secrets")]
     #[test]
     fn partial_sign_then_combine_produces_verifying_sigs() {
         use bitcoin::absolute::LockTime;
