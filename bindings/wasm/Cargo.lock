@@ -136,6 +136,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocktools-plan"
+version = "0.2.0"
+dependencies = [
+ "bitcoin",
+ "blocktools",
+ "blocktools-core",
+ "blocktools-evm",
+ "blocktools-tx",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "blocktools-tx"
 version = "0.2.0"
 dependencies = [
@@ -151,6 +164,7 @@ name = "blocktools-wasm"
 version = "0.2.0"
 dependencies = [
  "blocktools",
+ "blocktools-plan",
  "secp256k1",
  "serde_json",
  "wasm-bindgen",

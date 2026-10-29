@@ -120,6 +120,8 @@ neg C-renamed check-deps "deprecated crate name in Cargo.lock" 'printf "\n[[pack
 neg C-facade check-deps "default features pull secret/network crates" 'sed "s/^default = \[\]/default = [\"secrets\"]/" crates/blocktools/Cargo.toml > t && mv t crates/blocktools/Cargo.toml'
 # W-repro plants the original drift mechanism: the build dir hashed into every crate's -C metadata.
 neg W-repro wasm-check "FAIL wasm not reproducible" 'sed -i "s|=/cargo\"|=/cargo\$S-Cmetadata=\$B\"|" scripts/wasm-build.sh'
+neg W-nokey wasm-check "FAIL key-taking code in wasm" 'printf "%s\n" "#[wasm_bindgen(js_name = planted)] pub fn planted(k: &[u8]) -> String { let s = secp256k1::Secp256k1::new(); let k = secp256k1::SecretKey::from_slice(k).unwrap(); format!(\"{:?}\", s.sign_ecdsa(&secp256k1::Message::from_digest([1; 32]), &k)) }" >> bindings/wasm/src/lib.rs'
+neg W-nokeyapi wasm-check "FAIL blocktools-tx without secrets exposes key-taking API" 'printf "%s\n" "pub fn planted(_k: &secp256k1::SecretKey) {}" >> crates/tx/src/lib.rs'
 # ---- check-deps.sh: planted network crate + stale lock live in check-deps-regress.sh (C-net, C-stale)
 case "$want" in "  "|*" C-net "*|*" C-stale "*) n=$((n+1)); sh scripts/check-deps-regress.sh > "$base/out" 2>&1 && echo "ok   neg C-net C-stale (check-deps-regress.sh)" || { echo "FAIL neg C-net/C-stale"; tail -5 "$base/out"; rc=1; };; esac
 # finding:R2-12 shallow clone (CI checkout default): history-based checks must refuse, not misreport.

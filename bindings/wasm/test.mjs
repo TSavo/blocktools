@@ -454,3 +454,36 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmTypedDataVerify(td, '0x00'), /signature_not_64_or_65_bytes/);
   console.log('ok evm typed data verify');
 }
+
+{ // multisigAddress / taprootMultisigAddress / txPlanResolve / combinePsbts: the scripts/e2e.d/multisig.sh 3-of-5,
+  // recorded from the CLIs; the wasm must return the same (one library path), with no private key anywhere.
+  const v = JSON.parse(readFileSync(new URL('../../crates/tx/tests/data/multisig-3of5.json', import.meta.url), 'utf8'));
+  const strip = (o) => { const { status, tool, ...r } = o; return r; };
+  assert.deepEqual(JSON.parse(bt.multisigAddress(3, v.pubkeys, 'bitcoin')), strip(v.multisig));
+  assert.deepEqual(JSON.parse(bt.taprootMultisigAddress(3, v.pubkeys, '')), strip(v.taproot_multisig));
+  assert.throws(() => bt.multisigAddress(6, v.pubkeys, 'bitcoin'));
+  assert.notEqual(JSON.parse(bt.multisigAddress(3, [...v.pubkeys].reverse(), 'bitcoin')).address, v.multisig.address); // order matters
+  assert.deepEqual(JSON.parse(bt.txPlanResolve(JSON.stringify(v.plan), JSON.stringify(v.context))), strip(v.resolve));
+  assert.throws(() => bt.txPlanResolve('{', '{}'), /bad Plan JSON/);
+  assert.throws(() => bt.txPlanResolve(JSON.stringify(v.plan), '[]'), /context/);
+  assert.throws(() => bt.txPlanResolve(JSON.stringify({ chain: 'cosmoshub', steps: [] }), '{}'), /family_not_built|unknown|account/);
+  assert.deepEqual(JSON.parse(bt.combinePsbts(v.partials)), strip(v.combine));
+  assert.throws(() => bt.combinePsbts(v.partials.slice(0, 2)), /not_enough_signatures/);
+  assert.throws(() => bt.combinePsbts([]), /no_psbts/);
+  assert.throws(() => bt.combinePsbts(['00']), /not_a_psbt/);
+  console.log('ok multisig + plan resolve + combine (== CLI)');
+}
+
+{ // msgVerify: the Trust Wallet Core signmessage vectors (scripts/e2e.d/twc-message.sh) and the TWC legacy eth vector
+  const sig = 'ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=';
+  assert.deepEqual(JSON.parse(bt.msgVerify('19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X', 'test signature', sig, false)),
+    { status: 'ok', chain: 'btc', address: '19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X', recovered: '19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X' });
+  assert.equal(JSON.parse(bt.msgVerify('1E4T9JZ3mq6cdgiRJEWzHqDXb9t322fE6d', 'test signature', 'H' + sig.slice(1), false)).status, 'ok');
+  assert.equal(JSON.parse(bt.msgVerify('1E4T9JZ3mq6cdgiRJEWzHqDXb9t322fE6d', 'test signaturE', 'H' + sig.slice(1), false)).status, 'signer_mismatch');
+  const e = JSON.parse(bt.msgVerify('0x0000000000000000000000000000000000000001', 'Foo', '0x21a779d499957e7fd39392d49a079679009e60e492d9654a148829be43d2490736ec72bc4a5644047d979c3cf4ebe2c1c514044cf436b063cb89fc6676be71101b', false));
+  assert.equal(e.status, 'signer_mismatch'); assert.equal(e.v, 'legacy'); assert.match(e.recovered, /^0x[0-9a-fA-F]{40}$/);
+  assert.equal(JSON.parse(bt.msgVerify(e.recovered, '466f6f', '0x21a779d499957e7fd39392d49a079679009e60e492d9654a148829be43d2490736ec72bc4a5644047d979c3cf4ebe2c1c514044cf436b063cb89fc6676be71101b', true)).status, 'ok');
+  assert.throws(() => bt.msgVerify('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'x', sig, false), /address_not_p2pkh/);
+  assert.throws(() => bt.msgVerify('0x0000000000000000000000000000000000000001', 'x', '0x00', false), /signature_not_65_bytes/);
+  console.log('ok msg verify');
+}

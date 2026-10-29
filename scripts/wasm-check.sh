@@ -41,12 +41,26 @@ python3 ../../scripts/wasm-names.py "$M" funcs > target/funcs.txt
 [ -s target/funcs.txt ] || { echo "FAIL no name section to check"; rc=1; }
 hits=$(grep -E 'blocktools_secrets|blocktools_tx::sign|evm::Tx::sign|chains::(secp_rows|wif|derive_chain|slip10_ed25519|sol_row|derive_sol)|blocktools_core::(derive_from_master|derive_account|key_rows|row_for|eth_address::)|bip39::|scrypt::|pbkdf2::|aes::|ed25519_dalek|Xpriv|PrivateKey|to_wif|from_wif|secp256k1_v0_10_0_(ecdsa_sign|ecdsa_sign_recoverable|schnorrsig_sign(32|_custom)?|keypair_create|ec_pubkey_create|ec_seckey_tweak_(add|mul)|ellswift_create)$' target/funcs.txt || [ $? -eq 1 ])
 [ -z "$hits" ] || { echo "FAIL secret code in wasm:"; echo "$hits"; rc=1; }
+# rule:W-nokey: no key-taking code in the wasm: the multisig partial signers, SecretKey/Keypair methods and the
+# rust-secp signing entry points are absent from the name section. (Keyless symbols that merely mention
+# SecretKey, e.g. ec_seckey_verify or `<Scalar as From<SecretKey>>`, are not matched.)
+kh=$(grep -E 'multisig::partial_sign|secp256k1::key::(SecretKey|Keypair)::|Keypair::from|sign_ecdsa|sign_schnorr' target/funcs.txt || [ $? -eq 1 ])
+[ -z "$kh" ] || { echo "FAIL key-taking code in wasm:"; echo "$kh"; rc=1; }
 exp=$(python3 ../../scripts/wasm-names.py "$M" exports | awk '{print $2}' | sort | tr '\n' ' ')
-want="__externref_table_alloc __externref_table_dealloc __wbindgen_export_0 __wbindgen_free __wbindgen_malloc __wbindgen_realloc __wbindgen_start addressToScript addressValidate addressesFromXpub base58Decode base58Encode blake2b buildEvmTransfer buildPsbtWithMemo buildUnsignedSweep buildUnsignedSweepAt cashAddrDecode cashAddrEncode cashAddrToLegacy chainParams chainTable checkTx checkTxPolicy convertAddress convertAddressFrom decodeAccountInfo decodeTx deriveFromXpub describeTx detectAddress detectAddressInfo evmAbiDecode evmAbiEncode evmAbiEncodePacked evmAbiInspect evmApproveCall evmBytecodeInspect evmCreateAddress evmKeccak256 evmSigHash evmSigLookup evmTypedDataVerify explainPlan legacyToCashAddr listChains memory polkadotAccountStorageKey recoveryTables rustsecp256k1_v0_10_0_context_create rustsecp256k1_v0_10_0_context_destroy rustsecp256k1_v0_10_0_default_error_callback_fn rustsecp256k1_v0_10_0_default_illegal_callback_fn scriptToAddress selectUtxos serializeNvcTxFromJson solAnchorDiscriminator solAssociatedTokenAddress solBuildTransfer solDecodeTx solFindProgramAddress solIsOnCurve solVerifyTx ss58Decode ss58Encode supportedChains tronBuildTransfer tronDecodeTx tronTxId twox128 unverifiedChains validateAddress verifyRecovery verifyRecoveryRaw verifySweepRaw verifySweepTx verifyThorSend verifyTx version "
+want="__externref_table_alloc __externref_table_dealloc __wbindgen_export_0 __wbindgen_free __wbindgen_malloc __wbindgen_realloc __wbindgen_start addressToScript addressValidate addressesFromXpub base58Decode base58Encode blake2b buildEvmTransfer buildPsbtWithMemo buildUnsignedSweep buildUnsignedSweepAt cashAddrDecode cashAddrEncode cashAddrToLegacy chainParams chainTable checkTx checkTxPolicy combinePsbts convertAddress convertAddressFrom decodeAccountInfo decodeTx deriveFromXpub describeTx detectAddress detectAddressInfo evmAbiDecode evmAbiEncode evmAbiEncodePacked evmAbiInspect evmApproveCall evmBytecodeInspect evmCreateAddress evmKeccak256 evmSigHash evmSigLookup evmTypedDataVerify explainPlan legacyToCashAddr listChains memory msgVerify multisigAddress polkadotAccountStorageKey recoveryTables rustsecp256k1_v0_10_0_context_create rustsecp256k1_v0_10_0_context_destroy rustsecp256k1_v0_10_0_default_error_callback_fn rustsecp256k1_v0_10_0_default_illegal_callback_fn scriptToAddress selectUtxos serializeNvcTxFromJson solAnchorDiscriminator solAssociatedTokenAddress solBuildTransfer solDecodeTx solFindProgramAddress solIsOnCurve solVerifyTx ss58Decode ss58Encode supportedChains taprootMultisigAddress tronBuildTransfer tronDecodeTx tronTxId twox128 txPlanResolve unverifiedChains validateAddress verifyRecovery verifyRecoveryRaw verifySweepRaw verifySweepTx verifyThorSend verifyTx version "
 [ "$exp" = "$want" ] || { echo "FAIL exports differ:"; echo " got  $exp"; echo " want $want"; rc=1; }
 node test.mjs || rc=1
 node test-web.mjs || rc=1
 node gen-reference.mjs --check || rc=1  # docs/EXPORTS-reference.md is generated from the test.mjs calls
+# rule:W-nokeyapi: blocktools-tx built WITHOUT `secrets` (as the wasm uses it) has no public item taking or
+# returning a SecretKey/Keypair: its rustdoc mentions neither. Positive control: WITH `secrets` it does.
+kd=../../target/doc/blocktools_tx
+rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx"; rc=1; }
+ka=$(grep -rlE 'SecretKey|Keypair' "$kd" 2>/dev/null | sed "s|$kd/||" || true)
+[ -z "$ka" ] || { echo "FAIL blocktools-tx without secrets exposes key-taking API:"; echo "$ka"; rc=1; }
+rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps --features secrets 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx --features secrets"; rc=1; }
+grep -rqE 'SecretKey|Keypair' "$kd" || { echo "FAIL W-nokeyapi positive control: rustdoc WITH secrets shows no SecretKey (check is blind)"; rc=1; }
+rm -rf "$kd"
 raw=$(wc -c < "$M"); gz=$(gzip -9c "$M" | wc -c)
 wasm-bindgen "$W" --out-dir target/stripped --target web --remove-name-section --remove-producers-section
 st=$(wc -c < target/stripped/blocktools_wasm_bg.wasm); stgz=$(gzip -9c target/stripped/blocktools_wasm_bg.wasm | wc -c)

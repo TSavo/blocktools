@@ -461,3 +461,55 @@ pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, sig
     let td: serde_json::Value = serde_json::from_str(typed_data_json).map_err(|_| JsError::new("bad_typed_data_json"))?;
     Ok(blocktools::evm::eip712::verify(&td, sig_hex.as_deref(), signer.as_deref()).map_err(err)?.to_string())
 }
+
+// ---- Keyless multisig / Plan / message tools (no private keys: the signers are behind `secrets`, never built here)
+
+fn net_ok(network: &str) -> &str { if network.is_empty() { "bitcoin" } else { network } }
+
+/// m-of-n P2WSH from compressed pubkeys, as `multisig M --pubkey ..`. `network`: bitcoin|testnet|signet|regtest
+/// ("" = bitcoin). Returns {chain:"btc", witness_script, address, descriptor}. Pubkey ORDER is consensus-significant.
+#[wasm_bindgen(js_name = multisigAddress)]
+pub fn multisig_address(threshold: u32, pubkeys: Vec<String>, network: &str) -> Result<String, JsError> {
+    let (witness_script, address, descriptor) = tx::multisig::multisig_from_hex(threshold as usize, &pubkeys, net_ok(network)).map_err(err)?;
+    Ok(json!({"chain":"btc","witness_script":witness_script,"address":address,"descriptor":descriptor}).to_string())
+}
+
+/// Taproot script-path m-of-n (CHECKSIGADD leaf under the BIP341 NUMS key), as `taproot-multisig`. x-only or
+/// compressed pubkeys. Returns {chain:"btc", leaf_script, address, control_block, merkle_root, internal_key, descriptor}.
+#[wasm_bindgen(js_name = taprootMultisigAddress)]
+pub fn taproot_multisig_address(threshold: u32, pubkeys: Vec<String>, network: &str) -> Result<String, JsError> {
+    let (leaf_script, address, control_block, merkle_root, descriptor) =
+        tx::taproot_multisig::taproot_multisig_from_hex(threshold as usize, &pubkeys, net_ok(network)).map_err(err)?;
+    Ok(json!({"chain":"btc","leaf_script":leaf_script,"address":address,"control_block":control_block,"merkle_root":merkle_root,
+              "internal_key":tx::taproot_multisig::NUMS_XONLY_HEX,"descriptor":descriptor}).to_string())
+}
+
+/// Merge cosigners' partial-signature PSBTs (base64 or hex, as tx-combine reads them) and finalize at threshold.
+/// Returns {signed_tx: hex, psbt: base64}. Throws not_enough_signatures / psbts_do_not_combine / not_a_psbt / no_psbts.
+#[wasm_bindgen(js_name = combinePsbts)]
+pub fn combine_psbts(psbts: Vec<String>) -> Result<String, JsError> {
+    let raws = psbts.iter().map(|p| tx::input_bytes(p).map_err(err)).collect::<Result<Vec<_>, _>>()?;
+    let (signed, psbt) = tx::multisig::combine_psbts(&raws).map_err(err)?;
+    Ok(json!({"signed_tx":blocktools::hex_enc(&signed),"psbt":blocktools::b64::encode(&psbt)}).to_string())
+}
+
+/// Resolve a declarative Plan (RFC #15) against a Context to UNSIGNED bytes, as `tx-plan resolve` (same library
+/// path). Families evm and utxo; account throws family_not_built (its crate is not in the wasm). Returns
+/// {chain, family, type:"evm-1559", unsigned_tx} or {chain, family, type:"psbt", ...utxo fields}.
+#[wasm_bindgen(js_name = txPlanResolve)]
+pub fn tx_plan_resolve(plan_json: &str, context_json: &str) -> Result<String, JsError> {
+    Ok(blocktools_plan::resolve_json::resolve_str(plan_json, context_json).map_err(err)?.to_string())
+}
+
+/// Message signature check, as `msg-verify`: EIP-191 personal_sign (0x address, 65-byte hex sig) or Bitcoin Core
+/// signmessage (P2PKH address, base64 sig). `message_is_hex`: message is hex bytes. Returns
+/// {status:"ok"|"signer_mismatch", chain, address, recovered, v?}; malformed input throws.
+#[wasm_bindgen(js_name = msgVerify)]
+pub fn msg_verify(address: &str, message: &str, sig: &str, message_is_hex: bool) -> Result<String, JsError> {
+    let msg = if message_is_hex { blocktools::hex_dec(message.trim()).ok_or_else(|| err("bad_hex_message"))? } else { message.as_bytes().to_vec() };
+    if msg.len() > 1 << 20 { return Err(err("message_too_large")) }
+    let (chain, ok, recovered, v) = tx::message::verify(address, &msg, sig).map_err(err)?;
+    let mut o = json!({"status": if ok { "ok" } else { "signer_mismatch" }, "chain":chain, "address":address, "recovered":recovered});
+    if let Some(v) = v { o["v"] = json!(v) }
+    Ok(o.to_string())
+}

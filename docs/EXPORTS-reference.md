@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 67. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 72. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -356,6 +356,30 @@ Error example (executed):
 ```js
 bt.checkTxPolicy("0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000", "btc", "{\"version\":2,\"chains\":{}}")
 // throws policy_bad_version
+```
+
+## `combinePsbts`
+
+```ts
+combinePsbts(psbts: string[]): string
+```
+
+Merge cosigners' partial-signature PSBTs (base64 or hex, as tx-combine reads them) and finalize at threshold. Returns {signed_tx: hex, psbt: base64}. Throws not_enough_signatures / psbts_do_not_combine / not_a_psbt / no_psbts.
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.combinePsbts(["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"])
+// -> {"psbt":"cHNidP8BAIkCAAAAAZnjeLxqQqioBXonYcY0GbsfnVKoK+BFDaz1wRoq2TQCAAAAAAD/////AvBJAgAAAAAAIgAgf4wEBil7dkGpBoPEGli3o6RqECXbCImojkccic/RAs1mwQAAAAAAACIAIH+MBAYpe3ZBqQaDxBpYt6OkahAl2wiJqI5HHInP0QLNAAAAAAABAGABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wIBAf////8BQA0DAAAAAAAiACB/jAQGKXt2QakGg8QaWLejpGoQJdsIiaiORxyJz9ECzQAAAAABAStADQMAAAAAACIAIH+MBAYpe3ZBqQaDxBpYt6OkahAl2wiJqI5HHInP0QLNIgICeb5mfvncu6xVoGKVzocLBwKb/NstzijZWfKBWxb4F5hHMEQCIDYa01voJ83fG4FLOOaw9VbpiwLkWZgfcR7ji6mzYZ0AAiByhJn//19G/JYxYq32oRgHqcfW/2q+7VYS/eB9cYY9CwEiAgLGBH+UQe19bTBFQG6VwHzYXHeOS4zvPKerrAm5XHCe5UgwRQIhAOQ6Kwl … [cut: 2678 chars total]
+```
+
+Error example (executed):
+
+```js
+bt.combinePsbts([])
+// throws no_psbts
 ```
 
 ## `convertAddress`
@@ -821,6 +845,54 @@ bt.listChains()
 // -> ["btc","ltc","doge","eth","tron","xrp","atom","algo","dot","ksm","polyx","ada","ton","xlm","aptos","sui","near","xtz","egld","sol","xmr","strd","axl","cre","kuji","cmdx","ntrn","somm","fet","mars","umee","noble","sei","tia","coreum","qsr","xprt","akt","kava","blz","band","cro","bld","dydx","rune","inj","evmos","canto","zeta","qtum","ftc","nmc","dash","vtc","dgb","via","mona","rvn","xpm","trc","mec","aur","bch","bsv","btg","ppc","nvc","clam","blk","rdd","pot","qrk","grs","wdc","anc","bcc","pivx","sys","firo","zec"]
 ```
 
+## `msgVerify`
+
+```ts
+msgVerify(address: string, message: string, sig: string, message_is_hex: boolean): string
+```
+
+Message signature check, as `msg-verify`: EIP-191 personal_sign (0x address, 65-byte hex sig) or Bitcoin Core signmessage (P2PKH address, base64 sig). `message_is_hex`: message is hex bytes. Returns {status:"ok"|"signer_mismatch", chain, address, recovered, v?}; malformed input throws.
+
+Calls in test.mjs: 7.
+
+Example (executed):
+
+```js
+bt.msgVerify("19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X", "test signature", "ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=", false)
+// -> {"address":"19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X","chain":"btc","recovered":"19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X","status":"ok"}
+```
+
+Error example (executed):
+
+```js
+bt.msgVerify("0x0000000000000000000000000000000000000001", "x", "0x00", false)
+// throws signature_not_65_bytes
+```
+
+## `multisigAddress`
+
+```ts
+multisigAddress(threshold: number, pubkeys: string[], network: string): string
+```
+
+m-of-n P2WSH from compressed pubkeys, as `multisig M --pubkey ..`. `network`: bitcoin|testnet|signet|regtest ("" = bitcoin). Returns {chain:"btc", witness_script, address, descriptor}. Pubkey ORDER is consensus-significant.
+
+Calls in test.mjs: 3.
+
+Example (executed):
+
+```js
+bt.multisigAddress(3, ["0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5","02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9","02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13","022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4"], "bitcoin")
+// -> {"address":"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc","chain":"btc","descriptor":"wsh(multi(3,0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5,02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9,02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13,022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4))","witness_script":"53210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817982102c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09 … [cut: 820 chars total]
+```
+
+Error example (executed):
+
+```js
+bt.multisigAddress(6, ["0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5","02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9","02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13","022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4"], "bitcoin")
+// throws bad m-of-n (need 1 <= m <= n <= 20)
+```
+
 ## `polkadotAccountStorageKey`
 
 ```ts
@@ -1104,6 +1176,23 @@ bt.supportedChains()
 // -> [{"name":"btc","slip44":0,"sources":[{"api":"esplora:https://blockstream.info/api","checked":"2026-10-24","name":"blockstream.info","url":"https://blockstream.info/address/{addr}"}],"ticker":"BTC","title":"Bitcoin","verified":true},{"name":"ltc","slip44":2,"sources":[{"api":"esplora:https://litecoinspace.org/api","checked":"2026-10-24","name":"litecoinspace.org","url":"https://litecoinspace.org/address/{addr}"}],"ticker":"LTC","title":"Litecoin","verified":true},{"name":"doge","slip44":3,"sources":[],"ticker":"DOGE","title":"Dogecoin","verified":true},{"name":"eth","slip44":60,"sources":[],"ti … [cut: 11235 chars total]
 ```
 
+## `taprootMultisigAddress`
+
+```ts
+taprootMultisigAddress(threshold: number, pubkeys: string[], network: string): string
+```
+
+Taproot script-path m-of-n (CHECKSIGADD leaf under the BIP341 NUMS key), as `taproot-multisig`. x-only or compressed pubkeys. Returns {chain:"btc", leaf_script, address, control_block, merkle_root, internal_key, descriptor}.
+
+Calls in test.mjs: 1.
+
+Example (executed):
+
+```js
+bt.taprootMultisigAddress(3, ["0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5","02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9","02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13","022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4"], "")
+// -> {"address":"bc1p3ujmqw3nc7mu5huje2zczynjw53ck7v502zzl67vgd04yh9f3musmxjyam","chain":"btc","control_block":"c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0","descriptor":"tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,multi_a(3,0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5,02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9,02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13,022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe … [cut: 1129 chars total]
+```
+
 ## `tronBuildTransfer`
 
 ```ts
@@ -1177,6 +1266,30 @@ Example (executed):
 ```js
 bt.twox128("System")
 // -> 26aa394eea5630e07c48ae0c9558cef7
+```
+
+## `txPlanResolve`
+
+```ts
+txPlanResolve(plan_json: string, context_json: string): string
+```
+
+Resolve a declarative Plan (RFC #15) against a Context to UNSIGNED bytes, as `tx-plan resolve` (same library path). Families evm and utxo; account throws family_not_built (its crate is not in the wasm). Returns {chain, family, type:"evm-1559", unsigned_tx} or {chain, family, type:"psbt", ...utxo fields}.
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.txPlanResolve("{\"chain\":\"btc\",\"steps\":[{\"address\":\"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc\",\"amount\":200000,\"op\":\"add-input\",\"prev_tx\":\"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff020101ffffffff01400d0300000000002200207f8c0406297b7641a90683c41a58b7a3a46a1025db0889a88e471c89cfd102cd00000000\",\"txid\":\"0234d92a1ac1f5ac0d45e02ba8529d1fbb1934c661277a05a8a8426abc78e399\",\"vout\":0,\"witness_script\":\"53210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817982102c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee52102f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f92102e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd1321022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe455ae\"},{\"amount\":\"150000\",\"op\":\"add-output\",\"to\":\"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc\"},{\"address\":\"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc\",\"op\":\"change\"},{\"op\":\"fee-rate\",\"sat_per_vb\":2},{\"address\":\"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc\",\"op\":\"expect-to\"},{\"max\":\"50000\",\"op\":\"cap-fee\"}]}", "{\"fee_rate\":2}")
+// -> {"chain":"btc","family":"utxo","fee":"490","outputs":[{"address":"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc","script":"00207f8c0406297b7641a90683c41a58b7a3a46a1025db0889a88e471c89cfd102cd","value":"150000"},{"address":"bc1q07xqgp3f0dmyr2gxs0zp5k9h5wjx5yp9mvygn2ywguwgnn73qtxsmggkmc","script":"00207f8c0406297b7641a90683c41a58b7a3a46a1025db0889a88e471c89cfd102cd","value":"49510"}],"psbt":"cHNidP8BAIkCAAAAAZnjeLxqQqioBXonYcY0GbsfnVKoK+BFDaz1wRoq2TQCAAAAAAD/////AvBJAgAAAAAAIgAgf4wEBil7dkGpBoPEGli3o6RqECXbCImojkccic/RAs1mwQAAAAAAACIAIH+MBAYpe3ZBqQaDxBpYt6OkahAl2wiJqI5HHInP0QLNAA … [cut: 1078 chars total]
+```
+
+Error example (executed):
+
+```js
+bt.txPlanResolve("{", "{}")
+// throws bad Plan JSON: EOF while parsing an object at line 1 column 1
 ```
 
 ## `unverifiedChains`
