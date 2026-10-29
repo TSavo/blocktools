@@ -203,6 +203,11 @@ const HELP: &str = " acct-tx: account-model payments for xlm, algo and atom. Enc
  acct-tx keys    --chain atom < hex-private-key                    -> {\"address\",\"pubkey\"} (public only; build needs --pubkey)
  acct-tx build   --chain atom --from cosmos1.. --pubkey HEX33 --to cosmos1.. (--amount UATOM | --sweep --balance UATOM) --fee UATOM
                  --gas N --sequence N --account-number N [--chain-id cosmoshub-4] [--memo T]   (unsigned = SignDoc, SIGN_MODE_DIRECT)
+ acct-tx multisig-build  --chain atom --threshold M --pubkey HEX33 [--pubkey ..] --signer IDX [--signer ..] --to cosmos1.. (--amount UATOM | --sweep --balance UATOM)
+                 --fee UATOM --gas N --sequence N --account-number N [--chain-id ..] [--memo T]   (m-of-n LegacyAminoPubKey, SIGN_MODE_DIRECT; --signer fixes the quorum)
+ acct-tx multisig-sign   --chain atom --tx FILE --expect-to cosmos1.. < hex-private-key   (one cosigner; shows the payment on /dev/tty, signs after the code -> {index,sig})
+ acct-tx multisig-combine --chain atom --tx FILE --part FILE [--part ..]   (assemble the quorum's parts into a MultiSignature TxRaw; refuses below threshold)
+ acct-tx multisig-decode --chain atom < combine-JSON   (re-verify every member signature and the bitarray against the SignDoc)
  acct-tx keys    --chain rune < hex-private-key                    -> {\"address\" (thor1..),\"pubkey\"}
  acct-tx build   --chain rune --from thor1.. --pubkey HEX33 --amount RUNE_1E8 --memo \"~:name:..\"|\"=:ASSET:DEST:LIM\" --sequence N --account-number N [--gas 20000000] [--chain-id thorchain-1]
                  (THORChain MsgDeposit of THOR.RUNE; the action is the memo; native fee deducted by the chain)
@@ -441,6 +446,64 @@ fn main() {
             if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }
             blocktools_io::outln!("{}", out());
         }
-        _ => { eprintln!("usage: acct-tx keys|build|decode|sign --chain xlm|algo|atom|rune|ton|ada|dot (see source header)"); std::process::exit(2) }
+        (Some("multisig-build"), "atom") => {
+            let threshold: u32 = num(&a, "--threshold").unwrap_or_else(|| fail("missing --threshold"));
+            let pubkeys: Vec<[u8; 33]> = all(&a, "--pubkey").iter().map(|h| unhex(h).try_into().unwrap_or_else(|_| fail("pubkey_must_be_33_bytes"))).collect();
+            if pubkeys.is_empty() { fail("at least one --pubkey (member, order is consensus-significant)") }
+            let signers: Vec<usize> = all(&a, "--signer").iter().map(|s| s.parse().unwrap_or_else(|_| fail("bad --signer index"))).collect();
+            if signers.is_empty() { fail("at least one --signer (the member index that will sign; repeat for a quorum)") }
+            let to = req(&a, "--to").to_string();
+            let c = atom::chain_of(&to).unwrap_or_else(|| fail("cosmos_hrp_without_vector"));
+            blocktools_core::chains::cosmos_decode(c.0, &to).unwrap_or_else(|e| fail(e));
+            let fee: u128 = num(&a, "--fee").unwrap_or_else(|| fail("missing --fee"));
+            let amount: u128 = if flag(&a, "--sweep") { num::<u128>(&a, "--balance").unwrap_or_else(|| fail("--sweep needs --balance")).checked_sub(fee).filter(|&v| v > 0).unwrap_or_else(|| fail("balance_below_fee")) }
+                else { num(&a, "--amount").unwrap_or_else(|| fail("missing --amount or --sweep")) };
+            let ms = atom::MultiSend::new(to, c.3.into(), amount, opt(&a, "--memo").unwrap_or("").into(), threshold, pubkeys.clone(), signers,
+                num(&a, "--sequence").unwrap_or_else(|| fail("missing --sequence")), fee, num(&a, "--gas").unwrap_or_else(|| fail("missing --gas")),
+                opt(&a, "--chain-id").unwrap_or(c.2).into(), num(&a, "--account-number").unwrap_or_else(|| fail("missing --account-number"))).unwrap_or_else(|e| fail(&e));
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","unsigned":b64::encode(&ms.sign_doc()),
+                "summary":{"type":"MsgSend multisig","from":ms.from,"to":ms.to,"amount":ms.amount.to_string(),"denom":ms.denom,"threshold":ms.threshold,"members":pubkeys.len(),"signers":ms.signers}}));
+        }
+        (Some("multisig-sign"), "atom") => {
+            let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
+            let v: Value = serde_json::from_str(&raw).unwrap_or_else(|_| fail("--tx must be the multisig-build JSON"));
+            let doc = b64::decode(v["unsigned"].as_str().unwrap_or_else(|| fail("missing unsigned SignDoc"))).unwrap_or_else(|| fail("bad_base64"));
+            let ms = atom::MultiSend::decode_sign_doc(&doc).unwrap_or_else(|e| fail(&e));
+            if ms.to != req(&a, "--expect-to") { fail("destination_mismatch") }
+            let mut secret = Zeroizing::new(String::new()); std::io::stdin().read_to_string(&mut secret).ok();
+            let (idx, sig) = ms.member_sign(&hex32(&secret)).unwrap_or_else(|e| fail(e));
+            let summary = format!("ATOM MsgSend multisig {}\n  amount {} {}\n  from {}\n  to   {}\n  signing as member {} of {} (threshold {})",
+                ms.chain_id, ms.amount, ms.denom, ms.from, ms.to, idx, ms.pubkeys.len(), ms.threshold);
+            if !blocktools_tty::confirm(&summary) { blocktools_io::outln!("{}", json!({"status":"aborted"})); std::process::exit(1) }
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","partial":true,"index":idx,"sig":hex(&sig),"unsigned":v["unsigned"]}));
+        }
+        (Some("multisig-combine"), "atom") => {
+            let raw = std::fs::read_to_string(req(&a, "--tx")).unwrap_or_else(|_| fail("cannot_read_tx"));
+            let v: Value = serde_json::from_str(&raw).unwrap_or_else(|_| fail("--tx must be the multisig-build JSON"));
+            let doc = b64::decode(v["unsigned"].as_str().unwrap_or_else(|| fail("missing unsigned SignDoc"))).unwrap_or_else(|| fail("bad_base64"));
+            let ms = atom::MultiSend::decode_sign_doc(&doc).unwrap_or_else(|e| fail(&e));
+            let mut parts: Vec<(usize, [u8; 64])> = vec![];
+            for pf in all(&a, "--part") {
+                let pv: Value = serde_json::from_str(&std::fs::read_to_string(pf).unwrap_or_else(|_| fail("cannot_read --part"))).unwrap_or_else(|_| fail("bad --part JSON"));
+                let idx = pv["index"].as_u64().unwrap_or_else(|| fail("--part missing index")) as usize;
+                let sig: [u8; 64] = unhex(pv["sig"].as_str().unwrap_or_else(|| fail("--part missing sig"))).try_into().unwrap_or_else(|_| fail("sig_must_be_64_bytes"));
+                parts.push((idx, sig));
+            }
+            if parts.is_empty() { fail("at least one --part (a multisig-sign JSON)") }
+            let r = ms.combine(&parts).unwrap_or_else(|e| fail(&e));
+            blocktools_io::outln!("{}", json!({"tool":"acct-tx","status":"ok","chain":"atom","signed":b64::encode(&r),"unsigned":v["unsigned"],"txid":atom::Send::txid(&r)}));
+        }
+        (Some("multisig-decode"), "atom") => {
+            let mut s = String::new(); std::io::stdin().read_to_string(&mut s).ok();
+            let v: Value = serde_json::from_str(&s).unwrap_or_else(|_| fail("multisig-decode needs the combine JSON (unsigned + signed)"));
+            let doc = b64::decode(v["unsigned"].as_str().unwrap_or_else(|| fail("missing unsigned"))).unwrap_or_else(|| fail("bad_base64"));
+            let t = atom::MultiSend::decode_sign_doc(&doc).unwrap_or_else(|e| fail(&e));
+            let signed = b64::decode(v["signed"].as_str().unwrap_or_else(|| fail("missing signed"))).unwrap_or_else(|| fail("bad_base64"));
+            let (d, parts) = atom::MultiSend::decode_tx_raw(&signed, &t.chain_id, t.account_number).unwrap_or_else(|e| fail(&e));
+            emit(json!({"tool":"acct-tx","status":"ok","chain":"atom","type":"MsgSend multisig","from":d.from,"to":d.to,
+                "amount":d.amount.to_string(),"denom":d.denom,"threshold":d.threshold,"members":d.pubkeys.len(),"signers":d.signers,
+                "signatures_verified":parts.len(),"signature_valid":d.verify(&parts),"txid":atom::Send::txid(&signed)}));
+        }
+        _ => { eprintln!("usage: acct-tx keys|build|decode|sign|multisig-build|multisig-sign|multisig-combine|multisig-decode --chain xlm|algo|atom|rune|ton|ada|dot (see source header)"); std::process::exit(2) }
     }
 }
