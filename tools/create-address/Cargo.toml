@@ -5,6 +5,6 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools create-address. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-evm = { version = "0.2.0", path = "../../crates/evm" }
-blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-evm = { version = "0.3.0", path = "../../crates/evm" }
+blocktools-io = { version = "0.3.0", path = "../../crates/io" }
 serde_json.workspace = true

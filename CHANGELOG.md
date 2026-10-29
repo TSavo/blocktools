@@ -5,6 +5,88 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
+## [0.3.0] - 2026-10-29
+
+Version 0.3.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check) (9865ebc).
+Minor version: new tools (`multisig`, `tx-combine`, `taproot-multisig`, `bolt11`), new wasm exports and new
+flags; no CLI flag, wasm export or tool was removed (checked against v0.2.0: the pinned wasm export list in
+`scripts/wasm-check.sh` only gained names; no `tools/` crate was removed; no option was removed from any man
+page). The one behaviour change that can affect existing scripts is under "Changed".
+
+This release closes the signing gap left by v0.2.0: blocktools could *build* an m-of-n transaction but not
+*sign* one. It now partial-signs and combines m-of-n across Bitcoin (P2WSH), Taproot (script-path) and Cosmos —
+plus offline BOLT11 — through the same declarative Plan, interoperable with external signers because the UTXO
+carrier is standard BIP174 PSBT.
+
+### Added
+- m-of-n multisig on Bitcoin (P2WSH), end to end through the Plan (#25, c3762e3). New `multisig M --pubkey HEX…`
+  tool → `{witness_script, P2WSH address, wsh(multi(…)) descriptor}` (offline, keyless, pubkey order preserved).
+  UTXO inputs carry a `witness_script` (`crates/tx/src/build.rs`, validated: sha256 == the P2WSH program or a
+  P2SH-P2WSH redeem; a bare `OP_CHECKMULTISIG` P2SH redeem accepted). New `crates/tx/src/multisig.rs`:
+  `multisig_script`/`p2wsh_address`/`parse_multisig`; `partial_sign` records each held key's ECDSA signature
+  over the BIP143 sighash (`script_code` = witness_script) in PSBT `partial_sigs` and never finalizes;
+  `combine_finalize` assembles `<OP_0> <sig>… <witnessScript>` in pubkey order once ≥ threshold and fails closed
+  (`not_enough_signatures`) below it. New `tx-sign --partial` (adds this cosigner's signature and prints the
+  still-unfinalized PSBT — no finalize, no signed tx — with the plan/policy guard running first) and new
+  `tx-combine` host tool (merges the cosigners' partial PSBTs, finalizes once the threshold is met). `tx-plan
+  input --witness-script HEX` threads it through `resolve`/`represent` (the round-trip law holds). e2e
+  `scripts/e2e.d/multisig.sh`: a full 3-of-5 P2WSH round-trip with no network, plus sub-threshold / non-cosigner
+  / tampered-assertion refusals. Unit: a 2-of-3 round-trip with every signature verified against the P2WSH
+  sighash (`crates/tx/src/multisig.rs` tests).
+- Taproot script-path m-of-n (#26, cb72b03). New `taproot-multisig` tool: an `OP_CHECKSIGADD` k-of-n tapleaf
+  (`<pk1> CHECKSIG <pk2> CHECKSIGADD … <m> NUMEQUAL`) committed under the BIP341 NUMS internal key, so the
+  output is script-path only; prints the P2TR address, control block and merkle root (offline, keyless).
+  `partial_sign` Schnorr-signs the BIP341 all-prevouts script-spend sighash into `tap_script_sigs`;
+  `combine_finalize` assembles the witness `[sigN…sig1, leaf, control_block]` (reverse key order, empty push for
+  a non-signer, exactly m sigs), fail-closed below threshold. An input carrying `tap_leaf_script` reconstructs
+  the single-leaf NUMS spend info and fills the PSBT's `tap_internal_key`/`tap_merkle_root`/`tap_scripts`
+  (validated: the leaf must reproduce the P2TR output key). `tx-sign --partial` and `tx-combine` run both the
+  P2WSH (ECDSA) and taproot (Schnorr) routines, skipping inputs they do not own, so a mixed PSBT signs and
+  finalizes fully. `tx-plan input --tap-leaf-script HEX`. e2e `scripts/e2e.d/taproot-multisig.sh`: a full 3-of-5
+  script-path round-trip through the Plan with the sub-threshold / non-cosigner / tampered-assertion refusals.
+- Cosmos legacy multisig (#27, c5a4b75, 8a29887). `LegacyAminoPubKey` (threshold + N child pubkeys) and N
+  `SignerInfo`s with a `MultiSignature` bitarray in `crates/acct` (atom/thor), combined via the `acct-tx`
+  partial-sign + combine path (SIGN_MODE_DIRECT; interop is a standard `TxRaw` + `MultiSignature`). e2e
+  `scripts/e2e.d/cosmos-multisig.sh`: a 2-of-3 combine. 33 Cosmos multisig transaction vectors pass
+  [twc-cosmos-vectors]; multisig addresses [twc-cosmos-addresses]. `acct-tx` message verify is shared
+  [twc-message-vectors].
+- BOLT11 offline Lightning invoice decode/encode (195ae8f, ab8c2c0). New `bolt11` tool: bech32 + tagged-field
+  parse + secp256k1 payee-pubkey recovery, and byte-identical re-encode; a tampered checksum or signature is
+  rejected. e2e `scripts/e2e.d/bolt11.sh` golden round-trip. The live channel protocol (commitments, HTLCs,
+  routing) stays out of scope — blocktools is a constructor/signer, not a node.
+- Keyless wasm exports `multisigAddress`, `taprootMultisigAddress`, `combinePsbts`, `txPlanResolve`, `msgVerify`
+  (cbf9b22), and `bolt11Decode`, `bolt11Reencode` (this release). `bindings/wasm/test.mjs` asserts each equals
+  the recorded CLI output (`crates/tx/tests/data/multisig-3of5.json`). Two new wasm guards: W-nokey (the wasm
+  name section exposes no `partial_sign`/`SecretKey`/`Keypair`/`sign_ecdsa`/`sign_schnorr`) and W-nokeyapi (the
+  `blocktools-tx` rustdoc built without the `secrets` feature mentions no `SecretKey`/`Keypair`), each with a
+  gate-negatives plant (cbf9b22, 07a5023). EXPORTS.md and docs/EXPORTS-reference.md list every export. The
+  export count (74) is measured from the wasm sources and `scripts/wasm-check.sh` [wasm-export-count], and the
+  W-doccount gate replaces the hand-written count that used to live in EXPORTS.md (1eb275a, 0fa177c, 2a3f8e2).
+- Shared library paths so the CLI and the wasm cannot diverge (633741b, 25314d7). `blocktools_tx::partial_sign`
+  (ECDSA + Schnorr) and `message::verify` are behind the `secrets` feature; `combine_psbts` and
+  `multisig::extract` are keyless, so the combiner and `msg-verify` need no signing feature. `crates/plan` gains
+  `resolve_json` (Plan + Context → unsigned-bytes JSON); without the `account` feature (the wasm build)
+  `blocktools-acct` and its ed25519 crates are not compiled and the Account family reports `family_not_built`.
+- Mac → Battleaxe signing over SSH: `BLOCKTOOLS_ALLOW_REMOTE=ssh` permits only `ssh://` engines (tcp/http(s)
+  still exit 4) (7dd387e).
+
+### Changed
+- `tx-plan` UTXO `check` now delegates to the signer's own `blocktools_tx::policy::check` on the decoded PSBT
+  instead of `thor::verify_send` (#25, c3762e3). `verify_send` is THORChain-inbound-specific and demanded a
+  memo, so it flagged a plain multisig spend the signer signs happily — check and sign diverged. Now pass-check
+  ⟺ sign holds by construction for every UTXO shape (THORChain inbound, plain payment, or m-of-n P2WSH / taproot
+  spend). The golden tamper tests assert the signer's codes (`unexpected_output` / `fee_above_cap`);
+  `crates/plan/tests/utxo_golden.rs`.
+- Wrapper: no host bind mounts (786344e, then 1846bef). `./in` and `./secrets` stream into the sealed container
+  as tar over `docker exec` stdin into tmpfs (`/in`, `/secrets`; root 0700; files root-owned 0444 so uid 10001
+  reads but cannot change them) — secrets never touch the engine's disk. This fixes empty inputs when the engine
+  is Docker Desktop on Windows, which cannot see WSL2 bind paths. Sealed flags unchanged (`--network none`,
+  `--read-only`, cap-drop ALL, no-new-privileges, uid 10001, `--log-driver none`); CLI unchanged. e2e
+  `scripts/e2e.d/wrapper-seal.sh`, `scripts/e2e.d/wrapper-remote.sh`.
+- The wasm bundle byte-size claims (`wasm-size`, `wasm-size-stripped`, `wasm-crates`) are dropped from
+  `docs/claims.toml`; the module is described qualitatively in DESIGN.md (pointing at `scripts/wasm-size.sh` for
+  a current figure) so no pinned byte count can drift, stale or need re-stamping (b8ead7f).
+
 ## [0.2.0] - 2026-10-28
 
 Version 0.2.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check) (4212b19).

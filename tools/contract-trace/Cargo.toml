@@ -5,8 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools contract-trace (HOST-SIDE, uses the network; not in the sealed image): simulate an EVM call with state overrides (eth_call) or trace it (debug_traceCall passthrough, JSON lines), through rpc's checks. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-rpc = { version = "0.2.0", path = "../rpc" }
-blocktools-net = { version = "0.2.0", path = "../../crates/net" }
-blocktools-evm = { version = "0.2.0", path = "../../crates/evm" }
-blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+rpc = { version = "0.3.0", path = "../rpc" }
+blocktools-net = { version = "0.3.0", path = "../../crates/net" }
+blocktools-evm = { version = "0.3.0", path = "../../crates/evm" }
+blocktools-io = { version = "0.3.0", path = "../../crates/io" }
 serde_json.workspace = true

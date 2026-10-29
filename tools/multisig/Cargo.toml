@@ -5,6 +5,6 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools multisig: build an m-of-n P2WSH witness script and address from compressed pubkeys. Offline, reads only public pubkeys, prints no key."
 [dependencies]
-blocktools-io = { version = "0.2.0", path = "../../crates/io" }
-blocktools-tx = { version = "0.2.0", path = "../../crates/tx" }
+blocktools-io = { version = "0.3.0", path = "../../crates/io" }
+blocktools-tx = { version = "0.3.0", path = "../../crates/tx" }
 serde_json.workspace = true
