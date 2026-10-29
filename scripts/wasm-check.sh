@@ -56,7 +56,7 @@ node gen-reference.mjs --check || rc=1  # docs/EXPORTS-reference.md is generated
 # returning a SecretKey/Keypair: its rustdoc mentions neither. Positive control: WITH `secrets` it does.
 kd=../../target/doc/blocktools_tx
 rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx"; rc=1; }
-ka=$(grep -rlE 'SecretKey|Keypair' "$kd" 2>/dev/null | sed "s|$kd/||" || true)
+ka=$(grep -rlE 'SecretKey|Keypair' "$kd" || [ $? -eq 1 ])
 [ -z "$ka" ] || { echo "FAIL blocktools-tx without secrets exposes key-taking API:"; echo "$ka"; rc=1; }
 rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps --features secrets 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx --features secrets"; rc=1; }
 grep -rqE 'SecretKey|Keypair' "$kd" || { echo "FAIL W-nokeyapi positive control: rustdoc WITH secrets shows no SecretKey (check is blind)"; rc=1; }
