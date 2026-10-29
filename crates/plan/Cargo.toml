@@ -11,6 +11,16 @@ serde_json = { workspace = true }
 blocktools-core = { version = "0.2.0", path = "../core", default-features = false }
 blocktools-evm = { version = "0.2.0", path = "../evm" }
 blocktools-tx = { version = "0.2.0", path = "../tx" }
-blocktools-acct = { version = "0.2.0", path = "../acct" }
+blocktools-acct = { version = "0.2.0", path = "../acct", optional = true }
 blocktools = { version = "0.2.0", path = "../blocktools" }
 bitcoin = { workspace = true }
+
+[features]
+# The Account family (THORChain/Cosmos SignDocs) needs blocktools-acct (ed25519/sr25519 crates), so it is
+# a default feature the CLIs keep and the wasm binding (bindings/wasm) leaves off.
+default = ["account"]
+account = ["dep:blocktools-acct"]
+
+[[test]]
+name = "account_golden"
+required-features = ["account"]

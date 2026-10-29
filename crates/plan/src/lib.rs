@@ -22,7 +22,9 @@
 use serde::{Deserialize, Serialize};
 pub mod evm;
 pub mod utxo;
+#[cfg(feature = "account")]
 pub mod account;
+pub mod resolve_json;
 
 /// Which transaction family a chain belongs to: picks the Context, the Unsigned target, and which
 /// structural steps are legal. (Solana/Tron/XRP/Stellar/Algo/TON/ADA/DOT join as the model grows;
@@ -191,7 +193,10 @@ pub fn sign_guards(plan: &Plan) -> SignGuards {
     let (policy, mut findings, enforced): (blocktools_tx::policy::Policy, Vec<Finding>, &[&str]) = match family {
         Some(Family::Evm) => { let (p, f) = evm::guards(plan); (p, f, &["expect-to", "cap-fee"][..]) }
         Some(Family::Utxo) => { let (p, f) = utxo::guards(plan); (p, f, &["expect-to", "expect-memo", "cap-fee"][..]) }
+        #[cfg(feature = "account")]
         Some(Family::Account) => { let (p, f) = account::guards(plan); (p, f, &["expect-memo", "expect-to"][..]) }
+        #[cfg(not(feature = "account"))]
+        Some(Family::Account) => (blocktools_tx::policy::Policy::default(), vec![Finding { code: "family_not_built".into() }], &[][..]),
         None => (blocktools_tx::policy::Policy::default(), vec![], &[][..]),
     };
     findings.extend(unsupported_assertions(plan, enforced));

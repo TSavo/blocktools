@@ -170,50 +170,16 @@ fn main() {
 }
 
 fn family(plan: &Plan) -> Family {
-    if let Some(f) = plan.family() { return f; }
-    // A represented Raw step names its family in its kind prefix ("account."/"utxo."/"evm."); use it
-    // when the chain is empty so a represented opaque region still resolves.
-    if plan.chain.is_empty() {
-        if let Some(f) = plan.steps.iter().find_map(|s| match s {
-            Step::Raw { kind, .. } => match kind.split('.').next() {
-                Some("account") => Some(Family::Account),
-                Some("utxo") => Some(Family::Utxo),
-                Some("evm") => Some(Family::Evm),
-                _ => None,
-            },
-            _ => None,
-        }) { return f; }
-    }
-    fail(&format!("unknown chain / family: {}", plan.chain))
+    blocktools_plan::resolve_json::family(plan).unwrap_or_else(|e| fail(&e))
 }
 
 fn resolve(a: &A) {
     let plan = read_plan(a);
     let cx = read_context(a);
-    let fam = family(&plan);
-    let mut o = json!({"tool":"tx-plan","status":"ok","chain":plan.chain,"family":fam});
-    match fam {
-        Family::Evm => {
-            let c = context::Evm { nonce: cx_u64(&cx, "nonce"), gas: cx_u64(&cx, "gas"),
-                max_fee_per_gas: cx_u128(&cx, "max_fee_per_gas"), priority_fee: cx_u128(&cx, "priority_fee") };
-            let tx = evm::resolve(&plan, &c).unwrap_or_else(|e| fail(&e));
-            o["type"] = json!("evm-1559");
-            o["unsigned_tx"] = json!(blocktools_core::hex_enc(tx.encode_unsigned()));
-        }
-        Family::Utxo => {
-            let c = context::Utxo { fee_rate: cx_u64(&cx, "fee_rate") };
-            let v = utxo::resolve(&plan, &c).unwrap_or_else(|e| fail(&e));
-            o["type"] = json!("psbt");
-            if let Some(obj) = v.as_object() { for (k, val) in obj { o[k.clone()] = val.clone(); } }
-        }
-        Family::Account => {
-            let c = context::Account { sequence: cx_u64(&cx, "sequence"), account_number: cx_u64(&cx, "account_number"),
-                gas: cx_u64(&cx, "gas"), pubkey: cx.get("pubkey").and_then(|v| v.as_str()).unwrap_or("").to_string() };
-            let doc = account::resolve(&plan, &c).unwrap_or_else(|e| fail(&e));
-            o["type"] = json!("cosmos-signdoc");
-            o["sign_doc"] = json!(blocktools_core::hex_enc(&doc));
-        }
-    }
+    // The same library resolve the wasm `txPlanResolve` export calls (blocktools_plan::resolve_json).
+    let r = blocktools_plan::resolve_json::resolve(&plan, &cx).unwrap_or_else(|e| fail(&e));
+    let mut o = json!({"tool":"tx-plan","status":"ok"});
+    if let Some(m) = r.as_object() { for (k, v) in m { o[k.clone()] = v.clone(); } }
     out(&o);
 }
 
