@@ -487,3 +487,20 @@ console.log('lift7 ok');
   assert.throws(() => bt.msgVerify('0x0000000000000000000000000000000000000001', 'x', '0x00', false), /signature_not_65_bytes/);
   console.log('ok msg verify');
 }
+
+{ // bolt11Decode / bolt11Reencode: the BOLT11 spec test vectors (same as crates/tx/src/bolt11.rs).
+  const INV = 'lnbc1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdpl2pkx2ctnv5sxxmmwwd5kgetjypeh2ursdae8g6twvus8g6rfwvs8qun0dfjkxaq9qrsgq357wnc5r2ueh7ck6q93dj32dlqnls087fxdwk8qakdyafkq3yap9us6v52vjjsrvywa6rt52cm9r9zqt8r2t7mlcwspyetp5h2tztugp9lfyql';
+  const INV_2500U = 'lnbc2500u1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpu9qrsgquk0rl77nj30yxdy8j9vdx85fkpmdla2087ne0xh8nhedh8w27kyke0lp53ut353s06fv3qfegext0eh0ymjpf39tuven09sam30g4vgpfna3rh';
+  const d = JSON.parse(bt.bolt11Decode(INV));
+  assert.equal(d.network, 'mainnet');
+  assert.equal(d.recovered_payee, '03e7156ae33b0a208d0744199163177e909e80176e55d97a2f221ede0f934dd9ad');
+  assert.equal(d.description, 'Please consider supporting this project');
+  assert.equal(d.amount_msat, undefined); // no amount in the hrp
+  assert.equal(d.tool, undefined); assert.equal(d.status, undefined); // no CLI envelope in the wasm output
+  assert.equal(JSON.parse(bt.bolt11Decode(INV_2500U)).amount_msat, '250000000'); // 2500u BTC, decimal string
+  const r = JSON.parse(bt.bolt11Reencode(INV));
+  assert.equal(r.roundtrip, true); assert.equal(r.reencoded, INV);
+  assert.throws(() => bt.bolt11Decode('lnBC1pvjl'), /mixed_case/);
+  assert.throws(() => bt.bolt11Decode('bc1qxyz'), /not_a_lightning_invoice/);
+  console.log('ok bolt11');
+}

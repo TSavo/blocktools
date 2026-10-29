@@ -1,11 +1,13 @@
 //! bolt11: decode a BOLT11 Lightning invoice and (via the library) re-encode it byte-identically.
 //!   bolt11 <invoice>           or   printf %s "<invoice>" | bolt11
-//! stdout: one JSON line {tool,status,network,amount_msat?,timestamp,payment_hash?,description?,
-//! description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,min_final_cltv_expiry?,
-//! features?,fallback?,routing_hints,signature,recovery_id}. The payee pubkey is RECOVERED from the
-//! signature (and `payee_pubkey` is the invoice's own `n` tag when present). Offline, public input, no keys.
-mod decode;
+//! stdout: one JSON line {tool,status,network,currency,amount_msat?,amount_raw?,timestamp,payment_hash?,
+//! description?,description_hash?,payment_secret?,payee_pubkey?,recovered_payee,expiry?,
+//! min_final_cltv_expiry?,features?,fallback?,routing_hints,signature,recovery_id}. The payee pubkey is
+//! RECOVERED from the signature (and `payee_pubkey` is the invoice's own `n` tag when present). The decode
+//! and re-encode logic lives in blocktools-tx (`tx::bolt11`), shared with the `bolt11Decode`/`bolt11Reencode`
+//! wasm exports so the tool and the binding cannot disagree. Offline, public input, no keys.
 use blocktools_io::outln;
+use blocktools_tx::bolt11;
 use serde_json::json;
 use std::io::Read;
 
@@ -34,48 +36,16 @@ fn main() {
     }
     // --reencode: prove the byte-identical round-trip (decode the words, re-emit with a fresh checksum).
     if args.iter().any(|a| a == "--reencode") {
-        let re = decode::reencode(&input).unwrap_or_else(|e| die("bad_input", e));
+        let re = bolt11::reencode(&input).unwrap_or_else(|e| die("bad_input", e));
         let ok = re == input.to_ascii_lowercase();
         outln!("{}", json!({"tool":"bolt11","status":if ok {"ok"} else {"mismatch"},"reencoded":re,"roundtrip":ok}));
         std::process::exit(if ok { 0 } else { 1 });
     }
-    let inv = decode::decode(&input).unwrap_or_else(|e| die("bad_input", e));
-    let mut v = json!({
-        "tool": "bolt11",
-        "status": "ok",
-        "network": inv.network,
-        "currency": inv.currency,
-        "timestamp": inv.timestamp,
-        "recovered_payee": inv.recovered_payee,
-        "signature": inv.signature,
-        "recovery_id": inv.recovery_id,
-        "routing_hints": inv.routing_hint_count,
-    });
+    // The library builds the field object (no envelope); add tool+status. serde_json sorts keys, so the
+    // output bytes are identical regardless of insertion order.
+    let mut v = bolt11::decode_value(&input).unwrap_or_else(|e| die("bad_input", e));
     let o = v.as_object_mut().unwrap();
-    if let Some(a) = inv.amount_msat {
-        o.insert("amount_msat".into(), json!(a.to_string()));
-    }
-    if !inv.amount_raw.is_empty() {
-        o.insert("amount_raw".into(), json!(inv.amount_raw));
-    }
-    for (k, val) in [
-        ("payment_hash", &inv.payment_hash),
-        ("payment_secret", &inv.payment_secret),
-        ("description", &inv.description),
-        ("description_hash", &inv.description_hash),
-        ("payee_pubkey", &inv.payee_pubkey_field),
-        ("features", &inv.features_hex),
-        ("fallback", &inv.fallback_hex),
-    ] {
-        if let Some(x) = val {
-            o.insert(k.into(), json!(x));
-        }
-    }
-    if let Some(x) = inv.expiry {
-        o.insert("expiry".into(), json!(x));
-    }
-    if let Some(x) = inv.min_final_cltv_expiry {
-        o.insert("min_final_cltv_expiry".into(), json!(x));
-    }
+    o.insert("tool".into(), json!("bolt11"));
+    o.insert("status".into(), json!("ok"));
     outln!("{v}");
 }
