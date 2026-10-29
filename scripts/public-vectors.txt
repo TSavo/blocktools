@@ -1007,3 +1007,6 @@ cb359b6a5b42e47068cd655231484fcc763d2f79eae5ea318b029c704a4dc020
 # crates/tx/tests/data/multisig-3of5.json: public 3-of-5 taproot merkle root and funding txid (keyless outputs of multisig/taproot-multisig/tx-plan on public test pubkeys)
 0234d92a1ac1f5ac0d45e02ba8529d1fbb1934c661277a05a8a8426abc78e399
 d36bed5cb2be8e40dc65d5f975b5ea6af7920f9a666aaff167cf9308ad56ee7b
+# BOLT11 spec test-vector payment_hash / payment_secret (public)
+0001020304050607080900010203040506070809000102030405060708090102
+1111111111111111111111111111111111111111111111111111111111111111

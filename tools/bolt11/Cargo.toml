@@ -1,0 +1,12 @@
+[package]
+name = "bolt11"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools bolt11: decode a BOLT11 Lightning invoice (bech32, tagged fields, recovered payee pubkey) and re-encode it byte-identically. Offline, reads only the public invoice string, holds no key and never signs."
+[dependencies]
+blocktools-io = { version = "0.2.0", path = "../../crates/io" }
+blocktools-core = { version = "0.2.0", path = "../../crates/core" }
+bitcoin.workspace = true
+secp256k1 = { workspace = true, features = ["recovery"] }
+serde_json.workspace = true
