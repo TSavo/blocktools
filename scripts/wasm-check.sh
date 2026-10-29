@@ -54,12 +54,17 @@ node test-web.mjs || rc=1
 node gen-reference.mjs --check || rc=1  # docs/EXPORTS-reference.md is generated from the test.mjs calls
 # rule:W-nokeyapi: blocktools-tx built WITHOUT `secrets` (as the wasm uses it) has no public item taking or
 # returning a SecretKey/Keypair: its rustdoc mentions neither. Positive control: WITH `secrets` it does.
-kd=../../target/doc/blocktools_tx
-rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx"; rc=1; }
-ka=$(grep -rlE 'SecretKey|Keypair' "$kd" || [ $? -eq 1 ])
-[ -z "$ka" ] || { echo "FAIL blocktools-tx without secrets exposes key-taking API:"; echo "$ka"; rc=1; }
-rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps --features secrets 2>/dev/null) || { echo "FAIL cargo doc blocktools-tx --features secrets"; rc=1; }
-grep -rqE 'SecretKey|Keypair' "$kd" || { echo "FAIL W-nokeyapi positive control: rustdoc WITH secrets shows no SecretKey (check is blind)"; rc=1; }
+# rustdoc goes to the caller's CARGO_TARGET_DIR when set (gate-negatives.sh sets it), else the workspace target/.
+td=${CARGO_TARGET_DIR:-../../target}; case "$td" in /*) ;; *) td=$PWD/$td;; esac; kd=$td/doc/blocktools_tx
+# A failed cargo doc or a missing doc dir is its own FAIL, never a silent pass or a misattributed failure.
+kdoc() { rm -rf "$kd"; (cd ../.. && cargo doc -q --locked --offline -p blocktools-tx --no-deps "$@") || { echo "FAIL W-nokeyapi: cargo doc blocktools-tx $* failed"; return 1; }
+  [ -d "$kd" ] || { echo "FAIL W-nokeyapi: cargo doc wrote no $kd"; return 1; }; }
+if kdoc; then
+  ka=$(grep -rlE 'SecretKey|Keypair' "$kd") && { echo "FAIL blocktools-tx without secrets exposes key-taking API:"; echo "$ka"; rc=1; } || [ $? -eq 1 ] || { echo "FAIL W-nokeyapi: grep of $kd errored"; rc=1; }
+else rc=1; fi
+if kdoc --features secrets; then
+  grep -rqE 'SecretKey|Keypair' "$kd" || { echo "FAIL W-nokeyapi positive control: rustdoc WITH secrets shows no SecretKey (check is blind)"; rc=1; }
+else rc=1; fi
 rm -rf "$kd"
 raw=$(wc -c < "$M"); gz=$(gzip -9c "$M" | wc -c)
 wasm-bindgen "$W" --out-dir target/stripped --target web --remove-name-section --remove-producers-section
