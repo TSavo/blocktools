@@ -143,3 +143,248 @@ pub fn address_hrp(hrp: &str, pubkey: &[u8; 33]) -> String {
     blocktools_core::chains::cosmos_address(hrp, &hash160::Hash::hash(pubkey).to_byte_array())
 }
 pub fn pubkey_of(sk: &[u8; 32]) -> Result<[u8; 33], &'static str> { Ok(PublicKey::from_secret_key(&Secp256k1::new(), &SecretKey::from_slice(sk).map_err(|_| "bad_secret_key")?).serialize()) }
+
+// ---- Cosmos legacy multisig (m-of-n), SIGN_MODE_DIRECT ----
+// A `MultiSend` is a MsgSend whose single signer is a /cosmos.crypto.multisig.LegacyAminoPubKey holding
+// N member secp256k1 pubkeys and a threshold. The SignerInfo carries a Multi mode_info (a CompactBitArray
+// of the chosen signer subset + one Single{DIRECT} per signer). Every chosen member signs the SAME SignDoc
+// bytes (sha256), so the subset is fixed up front (coordinated multisig); `combine` assembles their 64-byte
+// sigs into a MultiSignature placed in TxRaw.signatures[0]. Cosmos secp256k1 keys only (not the eth chains).
+const PUBKEY_MULTISIG: &str = "/cosmos.crypto.multisig.LegacyAminoPubKey";
+
+fn secp_pubkey_any(pk: &[u8; 33]) -> Vec<u8> {
+    let mut k = vec![]; pb::bytes(&mut k, 1, pk);
+    let mut any = vec![]; pb::bytes(&mut any, 1, PUBKEY.as_bytes()); pb::bytes(&mut any, 2, &k); any
+}
+fn legacy_amino_pubkey(threshold: u32, pubs: &[[u8; 33]]) -> Vec<u8> {
+    let mut m = vec![]; pb::uint(&mut m, 1, threshold as u64);
+    for pk in pubs { pb::bytes(&mut m, 2, &secp_pubkey_any(pk)); } m
+}
+fn multisig_pubkey_any(threshold: u32, pubs: &[[u8; 33]]) -> Vec<u8> {
+    let v = legacy_amino_pubkey(threshold, pubs);
+    let mut any = vec![]; pb::bytes(&mut any, 1, PUBKEY_MULTISIG.as_bytes()); pb::bytes(&mut any, 2, &v); any
+}
+/// The cosmos multisig address: sha256(proto-marshaled LegacyAminoPubKey)[..20], bech32 on `hrp`.
+pub fn multisig_address_hrp(hrp: &str, threshold: u32, pubs: &[[u8; 33]]) -> String {
+    let v = legacy_amino_pubkey(threshold, pubs);
+    blocktools_core::chains::cosmos_address(hrp, &Sha256::digest(&v)[..20])
+}
+fn compact_bitarray(n: usize, signers: &[usize]) -> Vec<u8> {
+    let mut elems = vec![0u8; n.div_ceil(8)];
+    for &i in signers { elems[i / 8] |= 1 << (7 - (i % 8)); }
+    let mut m = vec![]; pb::uint(&mut m, 1, (n % 8) as u64); pb::bytes(&mut m, 2, &elems); m
+}
+fn read_bitarray(b: &[u8], n: usize) -> Result<Vec<usize>, String> {
+    let f = pb::fields(b)?;
+    let elems = pb::one(&f, 2).ok_or("bitarray has no elems")?;
+    if elems.len() != n.div_ceil(8) { return Err("bitarray length does not match member count".into()) }
+    let mut out = vec![];
+    for i in 0..n { if elems[i / 8] & (1 << (7 - (i % 8))) != 0 { out.push(i) } }
+    let used = n.div_ceil(8) * 8;
+    for i in n..used { if elems[i / 8] & (1 << (7 - (i % 8))) != 0 { return Err("bitarray has a bit set past the member count".into()) } }
+    Ok(out)
+}
+fn mode_info_single_direct() -> Vec<u8> {
+    let mut single = vec![]; pb::uint(&mut single, 1, 1); // SIGN_MODE_DIRECT = 1
+    let mut mi = vec![]; pb::bytes(&mut mi, 1, &single); mi
+}
+fn mode_info_multi(n: usize, signers: &[usize]) -> Vec<u8> {
+    let mut multi = vec![]; pb::bytes(&mut multi, 1, &compact_bitarray(n, signers));
+    for _ in signers { pb::bytes(&mut multi, 2, &mode_info_single_direct()); }
+    let mut mi = vec![]; pb::bytes(&mut mi, 2, &multi); mi // ModeInfo.multi is field 2
+}
+fn multi_signature(sigs: &[[u8; 64]]) -> Vec<u8> { let mut m = vec![]; for s in sigs { pb::bytes(&mut m, 1, s); } m }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MultiSend {
+    pub from: String, pub to: String, pub denom: String, pub amount: u128, pub memo: String,
+    pub threshold: u32, pub pubkeys: Vec<[u8; 33]>, pub signers: Vec<usize>,
+    pub sequence: u64, pub fee: u128, pub gas: u64, pub chain_id: String, pub account_number: u64,
+}
+impl MultiSend {
+    /// Build an unsigned m-of-n MsgSend. `signers` is the (sorted, deduped) subset of member indices that
+    /// will sign; it fixes the SignDoc so every chosen member signs identical bytes. Cosmos keys only.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(to: String, denom: String, amount: u128, memo: String, threshold: u32, pubkeys: Vec<[u8; 33]>,
+               signers: Vec<usize>, sequence: u64, fee: u128, gas: u64, chain_id: String, account_number: u64)
+               -> Result<MultiSend, String> {
+        if threshold == 0 || threshold as usize > pubkeys.len() || pubkeys.is_empty() { return Err("bad m-of-n (need 1 <= m <= n)".into()) }
+        let hrp = chain_of(&to).ok_or("to address hrp has no vector (see atom::CHAINS)")?.0;
+        if key_of(&to) != Key::Cosmos { return Err("cosmos multisig supports secp256k1 (Cosmos) chains only, not the ethsecp256k1 chains".into()) }
+        let mut s = signers.clone(); s.sort_unstable(); s.dedup();
+        if s.iter().any(|&i| i >= pubkeys.len()) { return Err("signer index out of range".into()) }
+        let from = multisig_address_hrp(hrp, threshold, &pubkeys);
+        Ok(MultiSend { from, to, denom, amount, memo, threshold, pubkeys, signers: s, sequence, fee, gas, chain_id, account_number })
+    }
+    fn body(&self) -> Vec<u8> {
+        let mut m = vec![]; pb::bytes(&mut m, 1, self.from.as_bytes()); pb::bytes(&mut m, 2, self.to.as_bytes()); pb::bytes(&mut m, 3, &coin(&self.denom, self.amount));
+        let mut any = vec![]; pb::bytes(&mut any, 1, MSG_SEND.as_bytes()); pb::bytes(&mut any, 2, &m);
+        let mut b = vec![]; pb::bytes(&mut b, 1, &any); if !self.memo.is_empty() { pb::bytes(&mut b, 2, self.memo.as_bytes()) } b
+    }
+    fn auth_info(&self) -> Vec<u8> {
+        let any = multisig_pubkey_any(self.threshold, &self.pubkeys);
+        let mode = mode_info_multi(self.pubkeys.len(), &self.signers);
+        let mut si = vec![]; pb::bytes(&mut si, 1, &any); pb::bytes(&mut si, 2, &mode); pb::uint(&mut si, 3, self.sequence);
+        let mut fee = vec![]; if self.fee != 0 { pb::bytes(&mut fee, 1, &coin(&self.denom, self.fee)) } pb::uint(&mut fee, 2, self.gas);
+        let mut a = vec![]; pb::bytes(&mut a, 1, &si); pb::bytes(&mut a, 2, &fee); a
+    }
+    pub fn sign_doc(&self) -> Vec<u8> {
+        let mut d = vec![]; pb::bytes(&mut d, 1, &self.body()); pb::bytes(&mut d, 2, &self.auth_info()); pb::bytes(&mut d, 3, self.chain_id.as_bytes()); pb::uint(&mut d, 4, self.account_number); d
+    }
+    fn digest(&self) -> Message { Message::from_digest(Sha256::digest(self.sign_doc()).into()) }
+    /// This member's index in `pubkeys` (it must be one of the chosen `signers`), and its 64-byte sig.
+    pub fn member_sign(&self, sk: &[u8; 32]) -> Result<(usize, [u8; 64]), &'static str> {
+        let s = Secp256k1::new(); let k = SecretKey::from_slice(sk).map_err(|_| "bad_secret_key")?;
+        let pk = PublicKey::from_secret_key(&s, &k).serialize();
+        let idx = self.pubkeys.iter().position(|p| *p == pk).ok_or("key is not one of the multisig members")?;
+        if !self.signers.contains(&idx) { return Err("this member is not in the chosen signer set") }
+        Ok((idx, s.sign_ecdsa(&self.digest(), &k).serialize_compact()))
+    }
+    /// Assemble the finished TxRaw from the chosen signers' sigs, given as (member index, sig). Fails closed
+    /// below threshold, on a sig whose index is not in the signer set, or a sig that does not verify.
+    pub fn combine(&self, parts: &[(usize, [u8; 64])]) -> Result<Vec<u8>, String> {
+        let s = Secp256k1::verification_only();
+        let mut by_idx: Vec<(usize, [u8; 64])> = vec![];
+        for &(idx, sig) in parts {
+            if !self.signers.contains(&idx) { return Err("a partial signature's member index is not in the signer set".into()) }
+            if by_idx.iter().any(|(i, _)| *i == idx) { continue }
+            let pk = PublicKey::from_slice(&self.pubkeys[idx]).map_err(|_| "bad member pubkey")?;
+            let sg = Signature::from_compact(&sig).map_err(|_| "bad signature encoding")?;
+            let mut n = sg; n.normalize_s();
+            if n != sg || s.verify_ecdsa(&self.digest(), &sg, &pk).is_err() { return Err(format!("signature for member {idx} does not verify")) }
+            by_idx.push((idx, sig));
+        }
+        by_idx.sort_by_key(|(i, _)| *i);
+        if (by_idx.len() as u32) < self.threshold { return Err("not_enough_signatures".into()) }
+        if by_idx.iter().map(|(i, _)| *i).collect::<Vec<_>>() != self.signers { return Err("the provided signers differ from the tx's chosen signer set".into()) }
+        let sigs: Vec<[u8; 64]> = by_idx.into_iter().map(|(_, s)| s).collect();
+        Ok(self.tx_raw(&multi_signature(&sigs)))
+    }
+    fn tx_raw(&self, multisig_sig: &[u8]) -> Vec<u8> {
+        let mut t = vec![]; pb::bytes(&mut t, 1, &self.body()); pb::bytes(&mut t, 2, &self.auth_info()); pb::bytes(&mut t, 3, multisig_sig); t
+    }
+    /// Verify every present member signature over the SignDoc and that at least `threshold` signed.
+    pub fn verify(&self, parts: &[(usize, [u8; 64])]) -> bool {
+        let s = Secp256k1::verification_only(); let d = self.digest();
+        let ok = parts.iter().all(|&(idx, sig)| {
+            idx < self.pubkeys.len()
+                && PublicKey::from_slice(&self.pubkeys[idx]).ok().zip(Signature::from_compact(&sig).ok())
+                    .map(|(pk, sg)| { let mut n = sg; n.normalize_s(); n == sg && s.verify_ecdsa(&d, &sg, &pk).is_ok() })
+                    .unwrap_or(false)
+        });
+        ok && parts.len() as u32 >= self.threshold
+    }
+    pub fn decode_sign_doc(b: &[u8]) -> Result<MultiSend, String> {
+        let d = pb::fields(b)?;
+        let s = Self::decode_parts(pb::one(&d, 1).ok_or("no body")?, pb::one(&d, 2).ok_or("no auth_info")?,
+            String::from_utf8(pb::one(&d, 3).ok_or("no chain_id")?.to_vec()).map_err(|_| "bad chain_id")?, pb::num(&d, 4))?;
+        if s.sign_doc() != b { return Err("not canonical (re-encoding differs)".into()) }
+        Ok(s)
+    }
+    /// TxRaw + the chain_id/account_number it was signed for -> (tx, (member index, sig) list), fully verified.
+    pub fn decode_tx_raw(b: &[u8], chain_id: &str, account_number: u64) -> Result<(MultiSend, Vec<(usize, [u8; 64])>), String> {
+        let t = pb::fields(b)?;
+        if pb::count(&t, 3) != 1 { return Err("exactly one (multi)signature entry expected".into()) }
+        let s = Self::decode_parts(pb::one(&t, 1).ok_or("no body")?, pb::one(&t, 2).ok_or("no auth_info")?, chain_id.into(), account_number)?;
+        let ms = pb::fields(pb::one(&t, 3).unwrap())?;
+        let mut sigs = vec![];
+        for (k, v) in &ms { if *k == 1 { if let pb::Val::B(sb) = v { sigs.push(<[u8; 64]>::try_from(*sb).map_err(|_| "a member signature is not 64 bytes")?) } } }
+        if sigs.len() != s.signers.len() { return Err("signature count does not match the bitarray".into()) }
+        let parts: Vec<(usize, [u8; 64])> = s.signers.iter().copied().zip(sigs).collect();
+        if s.tx_raw(&multi_signature(&parts.iter().map(|(_, g)| *g).collect::<Vec<_>>())) != b { return Err("not canonical (re-encoding differs)".into()) }
+        if !s.verify(&parts) { return Err("a member signature does not verify, or the threshold is not met".into()) }
+        Ok((s, parts))
+    }
+    fn decode_parts(body: &[u8], auth: &[u8], chain_id: String, account_number: u64) -> Result<MultiSend, String> {
+        let str8 = |b: &[u8]| String::from_utf8(b.to_vec()).map_err(|_| "bad utf8".to_string());
+        let bf = pb::fields(body)?;
+        if pb::count(&bf, 1) != 1 { return Err("exactly one message expected".into()) }
+        let any = pb::fields(pb::one(&bf, 1).unwrap())?;
+        if pb::one(&any, 1) != Some(MSG_SEND.as_bytes()) { return Err("only MsgSend is supported".into()) }
+        let m = pb::fields(pb::one(&any, 2).ok_or("no msg")?)?;
+        if pb::count(&m, 3) != 1 { return Err("exactly one coin expected".into()) }
+        let c = pb::fields(pb::one(&m, 3).unwrap())?;
+        let denom = str8(pb::one(&c, 1).ok_or("no denom")?)?;
+        let amount: u128 = str8(pb::one(&c, 2).ok_or("no amount")?)?.parse().map_err(|_| "bad amount")?;
+        let af = pb::fields(auth)?;
+        if pb::count(&af, 1) != 1 { return Err("exactly one signer expected".into()) }
+        let si = pb::fields(pb::one(&af, 1).unwrap())?;
+        let pany = pb::fields(pb::one(&si, 1).ok_or("no pubkey")?)?;
+        if pb::one(&pany, 1) != Some(PUBKEY_MULTISIG.as_bytes()) { return Err("signer pubkey is not a LegacyAminoPubKey multisig".into()) }
+        let lap = pb::fields(pb::one(&pany, 2).ok_or("no multisig key")?)?;
+        let threshold = pb::num(&lap, 1) as u32;
+        let mut pubkeys = vec![];
+        for (k, v) in &lap { if *k == 2 { if let pb::Val::B(mb) = v {
+            let ma = pb::fields(mb)?;
+            if pb::one(&ma, 1) != Some(PUBKEY.as_bytes()) { return Err("a multisig member is not a cosmos secp256k1 pubkey".into()) }
+            let kb = pb::one(&pb::fields(pb::one(&ma, 2).ok_or("no member key")?)?, 1).ok_or("no member key")?;
+            pubkeys.push(PublicKey::from_slice(kb).map_err(|_| "bad member pubkey")?.serialize());
+        } } }
+        if pubkeys.is_empty() || threshold == 0 || threshold as usize > pubkeys.len() { return Err("bad m-of-n in LegacyAminoPubKey".into()) }
+        let mi = pb::fields(pb::one(&si, 2).ok_or("no mode_info")?)?;
+        let multi = pb::fields(pb::one(&mi, 2).ok_or("mode_info is not Multi")?)?;
+        let signers = read_bitarray(pb::one(&multi, 1).ok_or("no bitarray")?, pubkeys.len())?;
+        if pb::count(&multi, 2) != signers.len() { return Err("mode_infos count does not match the bitarray".into()) }
+        for (k, v) in &multi { if *k == 2 { if let pb::Val::B(sub) = v {
+            let smi = pb::fields(sub)?; let single = pb::fields(pb::one(&smi, 1).ok_or("member mode_info is not Single")?)?;
+            if pb::num(&single, 1) != 1 { return Err("member sign mode is not SIGN_MODE_DIRECT".into()) }
+        } } }
+        let fee = pb::fields(pb::one(&af, 2).ok_or("no fee")?)?;
+        if pb::count(&fee, 1) > 1 { return Err("at most one fee coin expected".into()) }
+        let fee_amt: u128 = match pb::one(&fee, 1) { None => 0, Some(f) => { let fc = pb::fields(f)?;
+            if str8(pb::one(&fc, 1).ok_or("no fee denom")?)? != denom { return Err("fee denom differs from amount denom".into()) }
+            str8(pb::one(&fc, 2).ok_or("no fee amount")?)?.parse().map_err(|_| "bad fee")? } };
+        let from = str8(pb::one(&m, 1).ok_or("no from")?)?;
+        let t = MultiSend { from, to: str8(pb::one(&m, 2).ok_or("no to")?)?, denom, amount,
+            memo: pb::one(&bf, 2).map(str8).transpose()?.unwrap_or_default(), threshold, pubkeys, signers,
+            sequence: pb::num(&si, 3), fee: fee_amt, gas: pb::num(&fee, 2), chain_id, account_number };
+        if t.body() != body || t.auth_info() != auth { return Err("unsupported fields present (timeout, granter, extension options, ...)".into()) }
+        let c = chain_of(&t.from).ok_or("cosmos_hrp_without_vector")?;
+        if chain_of(&t.to).map(|x| x.0) != Some(c.0) { return Err("to address hrp differs from from address hrp".into()) }
+        if multisig_address_hrp(c.0, t.threshold, &t.pubkeys) != t.from { return Err("from address does not match the multisig key".into()) }
+        Ok(t)
+    }
+}
+
+#[cfg(test)]
+mod multisig_tests {
+    use super::*;
+    fn member(b: u8) -> ([u8; 32], [u8; 33]) {
+        let mut sk = [0u8; 32]; sk[31] = b; (sk, pubkey_of(&sk).unwrap())
+    }
+    #[test]
+    fn two_of_three_round_trips_and_verifies() {
+        let (sk1, p1) = member(1); let (sk2, p2) = member(2); let (_sk3, p3) = member(3);
+        let pubs = vec![p1, p2, p3];
+        let to = address_hrp("cosmos", &p3);
+        let ms = MultiSend::new(to, "uatom".into(), 1_000_000, "hi".into(), 2, pubs.clone(), vec![0, 1], 5, 2000, 200000, "cosmoshub-4".into(), 42)
+            .unwrap_or_else(|e| panic!("new: {e}"));
+        let (i1, s1) = ms.member_sign(&sk1).unwrap();
+        let (i2, s2) = ms.member_sign(&sk2).unwrap();
+        assert_eq!((i1, i2), (0, 1));
+        let raw = ms.combine(&[(i1, s1), (i2, s2)]).unwrap();
+        let (d, parts) = MultiSend::decode_tx_raw(&raw, "cosmoshub-4", 42).unwrap();
+        assert_eq!(d, ms);
+        assert_eq!(parts.len(), 2);
+        assert!(d.verify(&parts));
+        assert_eq!(MultiSend::decode_sign_doc(&ms.sign_doc()).unwrap(), ms);
+    }
+    #[test]
+    fn sub_threshold_refuses() {
+        let (sk1, p1) = member(1); let (_sk2, p2) = member(2); let (_sk3, p3) = member(3);
+        let to = address_hrp("cosmos", &p3);
+        let ms = MultiSend::new(to, "uatom".into(), 1, "".into(), 2, vec![p1, p2, p3], vec![0], 0, 0, 100000, "cosmoshub-4".into(), 0).unwrap();
+        let (i1, s1) = ms.member_sign(&sk1).unwrap();
+        assert_eq!(ms.combine(&[(i1, s1)]).unwrap_err(), "not_enough_signatures");
+    }
+    #[test]
+    fn wrong_key_refuses() {
+        let (_sk1, p1) = member(1); let (_sk2, p2) = member(2); let (_sk3, p3) = member(3);
+        let (sk9, _p9) = member(9);
+        let to = address_hrp("cosmos", &p3);
+        let ms = MultiSend::new(to, "uatom".into(), 1, "".into(), 2, vec![p1, p2, p3], vec![0, 1], 0, 0, 100000, "cosmoshub-4".into(), 0).unwrap();
+        assert_eq!(ms.member_sign(&sk9).unwrap_err(), "key is not one of the multisig members");
+        let bad = [7u8; 64];
+        assert!(ms.combine(&[(0, bad), (1, bad)]).is_err());
+    }
+}
