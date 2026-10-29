@@ -908,7 +908,7 @@ command = "sh scripts/wasm-check.sh"
 expect = "ok exports-doc 74 functions"
 env = "CI run 40834324894 (gate e2e, Linux self-hosted runner) at green 1eb275a: ok exports-doc 74 functions; the box has no clang for the wasm build"
 cheap = false
-depends = ["bindings/wasm/src", "scripts/wasm-check.sh", "EXPORTS.md"]
+depends = ["bindings/wasm/src", "scripts/wasm-check.sh"]
 doc = [{ file = "EXPORTS.md", text = "Same 74 functions" }]
 
 [[claim]]
