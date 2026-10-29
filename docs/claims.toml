@@ -138,11 +138,12 @@ doc = [{ file = "docs/RPC.md", text = "status `timeout` at 30.0 s" }]
 
 [[claim]]
 id = "tx-input-4mib"
-note = "depends changed: crates/tx/src/lib.rs gains pub mod bolt11 (#31, 5aa917b); unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "1eb275a"
+date = "2026-10-29"
 value = "4"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
@@ -896,25 +897,28 @@ doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
 
 [[claim]]
 id = "wasm-export-count"
-note = "new: replaces the hand-written 50 in EXPORTS.md; unstampable until a green main commit contains the W-doccount gate (K-ci); restamp in the follow-up"
 statement = "The wasm package exports 74 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "1eb275a"
+date = "2026-10-29"
 value = "74"
 command = "sh scripts/wasm-check.sh"
 expect = "ok exports-doc 74 functions"
+env = "CI run 40834324894 (gate e2e, Linux self-hosted runner) at green 1eb275a: ok exports-doc 74 functions; the box has no clang for the wasm build"
 cheap = false
 depends = ["bindings/wasm/src", "scripts/wasm-check.sh", "EXPORTS.md"]
 doc = [{ file = "EXPORTS.md", text = "Same 74 functions" }]
 
 [[claim]]
 id = "tx-decode-evm-mainnet"
-note = "depends changed: crates/tx/src/lib.rs gains pub mod bolt11 (#31, 5aa917b); unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
 statement = "tx-decode --chain eth decodes one real Ethereum mainnet tx of each type (legacy EIP-155, 2930, 1559, 4844, 7702; committed raw bytes from eth_getRawTransactionByHash) and every field the node returns from eth_getTransactionByHash (hash, from, to, nonce, gas, value, input, chainId, v/r/s, fees, accessList, blob fields, authorizationList) equals the decode; a node field the check does not compare fails it"
 kind = "security"
 platform = "any"
-status = "untested"
+status = "measured"
+commit = "1eb275a"
+date = "2026-10-29"
 command = "sh scripts/e2e.d/evm-decode.sh"
 expect = "ok   tx-decode --chain eth on a non-EVM input -> not_evm"
 cheap = true
