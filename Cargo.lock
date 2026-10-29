@@ -449,6 +449,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt11"
+version = "0.2.0"
+dependencies = [
+ "bitcoin",
+ "blocktools-core",
+ "blocktools-io",
+ "secp256k1",
+ "serde_json",
+]
+
+[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

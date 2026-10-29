@@ -112,3 +112,4 @@ tx-plan | 0 | printf '{"sequence":0,"account_number":157891,"gas":20000000,"pubk
 multisig | 0 | multisig 2 --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --pubkey 02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5 --pubkey 02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9
 taproot-multisig | 0 | taproot-multisig 2 --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --pubkey 02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5 --pubkey 02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9
 tx-combine | 2 | tx-combine
+bolt11 | 2 | bolt11
