@@ -139,7 +139,7 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify|utxo-set|wallet-finder) ", cmd):
+            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify|utxo-set|wallet-finder|multisig|bolt11) ", cmd):
                 # offline, secret-free filters on recorded fixtures (contract-call: against the $ETH fixture mock; utxo-set/wallet-finder: public UTXO dump, no keys out): bash with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:
