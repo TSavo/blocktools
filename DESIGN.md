@@ -309,7 +309,7 @@ produces an invalid signature; the PSBT check still applies to them.
 
 **Interchange format.** Bitcoin-family transactions use PSBT (BIP-174). A watch-only host
 builds; an offline machine signs. EVM uses the unsigned RLP (EIP-155 legacy with a chain id,
-or EIP-1559 type 2). Tron txs are decoded (wasm `tronDecodeTx`); a Tron builder is not built yet. Multisig is not built.
+or EIP-1559 type 2). Tron txs are decoded (wasm `tronDecodeTx`); a Tron builder is not built yet. Bitcoin multisig is built: P2WSH m-of-n (`multisig`) and a taproot CHECKSIGADD leaf (`taproot-multisig`); cosigners partial-sign offline (`tx-sign --partial`, `secrets` feature only) and `tx-combine` finalizes. The address builders, `combinePsbts` and Plan resolve are also wasm exports; the partial signers are not (wasm-check W-nokey, W-nokeyapi).
 
 **tx-decode** (`crates/tx` library plus the thin `tools/tx-decode`, **built**). The input
 format is auto-detected: hex or base64, a raw Bitcoin tx, a PSBT, EVM RLP, or a JSON line

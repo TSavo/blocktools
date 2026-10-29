@@ -211,7 +211,7 @@ doc = [{ file = "docs/prior-art-crypto-plugins.md", text = "20 bytes" }, { file 
 
 [[claim]]
 id = "sealed-run-linux"
-statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, /in and /secrets as tmpfs filled over stdin, read-only to uid 10001 (no host bind mounts, no volumes), and its agent output carries addresses and no secret material (Linux docker on Battleaxe)"
+statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, /in and /secrets as tmpfs filled over stdin, read-only to uid 10001 (no host bind mounts, no volumes), and its agent output carries addresses and no secret material (Docker Desktop on Windows, Battleaxe)"
 kind = "security"
 platform = "linux"
 status = "untested"

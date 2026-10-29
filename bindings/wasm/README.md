@@ -47,9 +47,3 @@ fails if the resolved dependency tree differs from this crate's own lock), so th
 relative to the root. `scripts/wasm-check.sh` does a clean rebuild from a second checkout at another
 path AND another build dir and fails if the sha256 differs. Measured on Linux only. A different
 `CARGO_HOME`, toolchain or clang version is untested.
-
-## Size
-
-Printed by `scripts/wasm-check.sh` (the `wasm:` line); registry: docs/CLAIMS.md `wasm-size`, `wasm-crates`.
-Size: (unmeasured)
-Crates in tree: (unmeasured)
