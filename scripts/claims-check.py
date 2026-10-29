@@ -17,6 +17,8 @@ Exit status 1 when:
     must also carry "(untested)", "(unmeasured)" or "(unmeasurable)"                  [K-assert]
   * a measured number claim lacks `value`/`env`, or a doc line for it doesn't carry
     `value` (registry and README disagree on the number)                            [K-agree]
+  * a measured claim's doc clause (its text up to the next sentence end) still carries
+    "(untested)", "(unmeasured)" or "(unmeasurable)" (stale marker)                  [K-marker]
   * docs/CLAIMS.md's generated Measured/Untested sections are out of date.            [K-render]
   * a measured claim's `commit` has no completed successful `ci` run on main, neither at that
     commit nor at a descendant whose `depends` are unchanged since it (GitHub API; fails closed
@@ -107,6 +109,13 @@ def main():
                 for l in lines:
                     if f"({c.get('status')})" not in l:  # the marker must match the registry status
                         bad.append(f"[K-assert] {cid}: {f} states {t!r} as fact but the registry marks it {c.get('status')}")  # rule:K-assert
+            if c.get("status") == "measured":
+                # the clause carrying a measured claim's text (up to the next sentence end) may not say it is untested
+                for l in lines:
+                    i = l.index(t) + len(t); m = re.search(r"\.(?:\s|$)|;", l[i:]); seg = l[i:i + m.start()] if m else l[i:]
+                    for mk in ("(untested)", "(unmeasured)", "(unmeasurable)"):
+                        if mk in seg:
+                            bad.append(f"[K-marker] {cid}: {f} labels measured claim {t!r} {mk}; drop the stale marker")  # rule:K-marker
             if c.get("kind") == "number" and c.get("status") == "untested" and not all("(unmeasured)" in l for l in lines):
                 bad.append(f"[K-label] {cid}: unmeasured number {t!r} in {f} is not labelled (unmeasured)")  # rule:K-label
         if c.get("status") == "measured" and c.get("kind") == "number":

@@ -97,6 +97,8 @@ neg K-label docs-check "is not labelled" 'sed "/XPM 100,312 sat\/B buildable/s/ 
 neg K-ci docs-check "no successful ci run on main" 'git -c user.name=n -c user.email=n@n commit -q --allow-empty -m plant && sed "0,/^commit = \"1f1fa71\"/s//commit = \"$(git rev-parse --short HEAD)\"/" docs/claims.toml > t && mv t docs/claims.toml'
 # K-agree (expect vs statement): the measured output in expect names a byte count the statement does not carry.
 neg K-agree docs-check "but the statement does not" 'sed "/^id = \"read-file-64mib\"/,/^expect/s/^expect = \"\(.*\)\"/expect = \"\1; 99999 bytes\"/" docs/claims.toml > t && mv t docs/claims.toml'  # a measured number claim; was redact-512, then image-size-readme (both pending re-stamp)
+# K-marker: a measured claim whose doc clause still says (untested) must fail (stale marker; K-assert only checks untested claims).
+neg K-marker docs-check "drop the stale marker" 'sed "s/twc_cosmos.rs\` (33 tests)\./twc_cosmos.rs\` (33 tests) (untested)./" docs/CHAINS.md > t && mv t docs/CHAINS.md'
 neg K-render docs-check "out of date" 'echo stale >> docs/CLAIMS.md'
 neg F-status docs-check "unknown status" 'sed "s/| R1-5 \\(.*\\) | open |/| R1-5 \\1 | wontfix |/" docs/FINDINGS.md > t && mv t docs/FINDINGS.md'
 neg F-dup docs-check "duplicate ids" 'grep "^| R1-2 " docs/FINDINGS.md > t && cat t >> docs/FINDINGS.md && rm t'
