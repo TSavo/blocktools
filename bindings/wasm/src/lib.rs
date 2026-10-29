@@ -513,3 +513,21 @@ pub fn msg_verify(address: &str, message: &str, sig: &str, message_is_hex: bool)
     if let Some(v) = v { o["v"] = json!(v) }
     Ok(o.to_string())
 }
+
+/// Decode a BOLT11 Lightning invoice, as `bolt11`: bech32 (BIP173) + tagged fields + the payee pubkey
+/// RECOVERED from the signature. Returns the fields {network, currency, timestamp, recovered_payee,
+/// signature, recovery_id, routing_hints, amount_msat?, amount_raw?, payment_hash?, payment_secret?,
+/// description?, description_hash?, payee_pubkey?, features?, fallback?, expiry?, min_final_cltv_expiry?}.
+/// Public input, no keys, no channel protocol; malformed input throws a stable snake_case code.
+#[wasm_bindgen(js_name = bolt11Decode)]
+pub fn bolt11_decode(invoice: &str) -> Result<String, JsError> {
+    tx::bolt11::decode_json(invoice).map_err(err)
+}
+
+/// Re-encode a BOLT11 invoice byte-identically, as `bolt11 --reencode`: parse the 5-bit words, drop the
+/// checksum, re-emit with a fresh one. Returns {reencoded, roundtrip} (roundtrip true when it equals the
+/// lowercased input). Public input, no keys.
+#[wasm_bindgen(js_name = bolt11Reencode)]
+pub fn bolt11_reencode(invoice: &str) -> Result<String, JsError> {
+    tx::bolt11::reencode_json(invoice).map_err(err)
+}

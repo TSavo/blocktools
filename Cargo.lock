@@ -452,10 +452,8 @@ dependencies = [
 name = "bolt11"
 version = "0.2.0"
 dependencies = [
- "bitcoin",
- "blocktools-core",
  "blocktools-io",
- "secp256k1",
+ "blocktools-tx",
  "serde_json",
 ]
 

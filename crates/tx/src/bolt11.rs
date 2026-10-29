@@ -2,9 +2,14 @@
 //! tagged-field parse, and secp256k1 recovery of the payee pubkey from the signature. No channel
 //! protocol, no signing of invoices, no keys. The 5-bit (fe32) words are handled directly because
 //! BOLT11 fields are sub-byte aligned.
+//!
+//! `decode`/`reencode`/`Invoice` are the parse API; `decode_value`/`decode_json`/`reencode_json`
+//! build the JSON the `bolt11` CLI and the `bolt11Decode`/`bolt11Reencode` wasm exports both emit, so
+//! the tool and the binding cannot disagree.
 use bitcoin::hashes::{sha256, Hash};
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use secp256k1::{Message, Secp256k1};
+use serde_json::json;
 
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -295,6 +300,61 @@ pub fn decode(invoice: &str) -> Result<Invoice, &'static str> {
     Ok(inv)
 }
 
+/// The decoded invoice as a JSON object (no `tool`/`status` envelope): the fields the `bolt11` CLI
+/// prints and the `bolt11Decode` wasm export returns. Output is sorted (serde_json has no
+/// preserve_order), so field insertion order here does not affect the bytes.
+pub fn decode_value(invoice: &str) -> Result<serde_json::Value, &'static str> {
+    let inv = decode(invoice)?;
+    let mut v = json!({
+        "network": inv.network,
+        "currency": inv.currency,
+        "timestamp": inv.timestamp,
+        "recovered_payee": inv.recovered_payee,
+        "signature": inv.signature,
+        "recovery_id": inv.recovery_id,
+        "routing_hints": inv.routing_hint_count,
+    });
+    let o = v.as_object_mut().unwrap();
+    if let Some(a) = inv.amount_msat {
+        o.insert("amount_msat".into(), json!(a.to_string()));
+    }
+    if !inv.amount_raw.is_empty() {
+        o.insert("amount_raw".into(), json!(inv.amount_raw));
+    }
+    for (k, val) in [
+        ("payment_hash", &inv.payment_hash),
+        ("payment_secret", &inv.payment_secret),
+        ("description", &inv.description),
+        ("description_hash", &inv.description_hash),
+        ("payee_pubkey", &inv.payee_pubkey_field),
+        ("features", &inv.features_hex),
+        ("fallback", &inv.fallback_hex),
+    ] {
+        if let Some(x) = val {
+            o.insert(k.into(), json!(x));
+        }
+    }
+    if let Some(x) = inv.expiry {
+        o.insert("expiry".into(), json!(x));
+    }
+    if let Some(x) = inv.min_final_cltv_expiry {
+        o.insert("min_final_cltv_expiry".into(), json!(x));
+    }
+    Ok(v)
+}
+
+/// `decode_value` serialized to a JSON string.
+pub fn decode_json(invoice: &str) -> Result<String, &'static str> {
+    Ok(decode_value(invoice)?.to_string())
+}
+
+/// Re-encode the invoice and report whether it round-trips byte-identically: `{reencoded, roundtrip}`.
+pub fn reencode_json(invoice: &str) -> Result<String, &'static str> {
+    let re = reencode(invoice)?;
+    let ok = re == invoice.trim().to_ascii_lowercase();
+    Ok(json!({ "reencoded": re, "roundtrip": ok }).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,6 +408,20 @@ mod tests {
         let words: Vec<u8> = data_part.bytes().map(|c| char_to_u5(c).unwrap()).collect();
         let payload = &words[..words.len() - 6];
         assert_eq!(encode(hrp, payload), s);
+    }
+
+    #[test]
+    fn reencode_json_round_trips() {
+        let out = reencode_json(INV).expect("reencode");
+        assert!(out.contains("\"roundtrip\":true"));
+    }
+
+    #[test]
+    fn decode_json_has_recovered_payee_and_no_envelope() {
+        let out = decode_json(INV).expect("decode_json");
+        assert!(out.contains("03e7156ae33b0a208d0744199163177e909e80176e55d97a2f221ede0f934dd9ad"));
+        assert!(!out.contains("\"tool\"")); // the envelope is added by the CLI, not the library
+        assert!(!out.contains("\"status\""));
     }
 
     #[test]

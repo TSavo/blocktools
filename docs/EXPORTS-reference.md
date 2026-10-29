@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 72. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 74. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -134,6 +134,47 @@ Error example (executed):
 ```js
 bt.blake2b("", 0, "")
 // throws bad_out_len
+```
+
+## `bolt11Decode`
+
+```ts
+bolt11Decode(invoice: string): string
+```
+
+Decode a BOLT11 Lightning invoice, as `bolt11`: bech32 (BIP173) + tagged fields + the payee pubkey RECOVERED from the signature. Returns the fields {network, currency, timestamp, recovered_payee, signature, recovery_id, routing_hints, amount_msat?, amount_raw?, payment_hash?, payment_secret?, description?, description_hash?, payee_pubkey?, features?, fallback?, expiry?, min_final_cltv_expiry?}. Public input, no keys, no channel protocol; malformed input throws a stable snake_case code.
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.bolt11Decode("lnbc2500u1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpu9qrsgquk0rl77nj30yxdy8j9vdx85fkpmdla2087ne0xh8nhedh8w27kyke0lp53ut353s06fv3qfegext0eh0ymjpf39tuven09sam30g4vgpfna3rh")
+// -> {"amount_msat":"250000000","amount_raw":"2500u","currency":"bc","description":"1 cup coffee","expiry":60,"features":"82","network":"mainnet","payment_hash":"0001020304050607080900010203040506070809000102030405060708090102","payment_secret":"1111111111111111111111111111111111111111111111111111111111111111","recovered_payee":"03e7156ae33b0a208d0744199163177e909e80176e55d97a2f221ede0f934dd9ad","recovery_id":1,"routing_hints":0,"signature":"e59e3ffbd3945e4334879158d31e89b076dff54f3fa7979ae79df2db9dcaf5896cbfe1a478b8d2307e92c88139464cb7e6ef26e414c4abe33337961ddc5e8ab1","timestamp":1496314658}
+```
+
+Error example (executed):
+
+```js
+bt.bolt11Decode("bc1qxyz")
+// throws not_a_lightning_invoice
+```
+
+## `bolt11Reencode`
+
+```ts
+bolt11Reencode(invoice: string): string
+```
+
+Re-encode a BOLT11 invoice byte-identically, as `bolt11 --reencode`: parse the 5-bit words, drop the checksum, re-emit with a fresh one. Returns {reencoded, roundtrip} (roundtrip true when it equals the lowercased input). Public input, no keys.
+
+Calls in test.mjs: 1.
+
+Example (executed):
+
+```js
+bt.bolt11Reencode("lnbc1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdpl2pkx2ctnv5sxxmmwwd5kgetjypeh2ursdae8g6twvus8g6rfwvs8qun0dfjkxaq9qrsgq357wnc5r2ueh7ck6q93dj32dlqnls087fxdwk8qakdyafkq3yap9us6v52vjjsrvywa6rt52cm9r9zqt8r2t7mlcwspyetp5h2tztugp9lfyql")
+// -> {"reencoded":"lnbc1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdpl2pkx2ctnv5sxxmmwwd5kgetjypeh2ursdae8g6twvus8g6rfwvs8qun0dfjkxaq9qrsgq357wnc5r2ueh7ck6q93dj32dlqnls087fxdwk8qakdyafkq3yap9us6v52vjjsrvywa6rt52cm9r9zqt8r2t7mlcwspyetp5h2tztugp9lfyql","roundtrip":true}
 ```
 
 ## `buildEvmTransfer`
