@@ -9,6 +9,7 @@ block-buffer
 blocktools-core
 blocktools-io
 blocktools-monero
+blocktools-tx
 crypto-common
 digest
 generic-array
