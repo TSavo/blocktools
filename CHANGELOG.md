@@ -5,10 +5,10 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
-## [0.3.1] - 2026-10-30
+## [0.3.2] - 2026-10-30
 
-Patch release: no code change to any tool, wasm export or flag since v0.3.0. It exists so the 0.3.x
-apt/apk/rpm repositories get published. Version 0.3.1 in every Cargo.toml, internal pin, the wasm package,
+Patch release (supersedes the un-shipped 0.3.1, whose repos publish wedged): no code change to any tool, wasm export or flag since v0.3.0. It exists so the 0.3.x
+apt/apk/rpm repositories get published. Version 0.3.2 in every Cargo.toml, internal pin, the wasm package,
 lockfiles and man pages (version-check) (this release).
 
 ### Fixed

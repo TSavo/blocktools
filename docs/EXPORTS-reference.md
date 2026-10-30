@@ -1504,5 +1504,5 @@ Example (executed):
 
 ```js
 bt.version()
-// -> 0.3.1
+// -> 0.3.2
 ```

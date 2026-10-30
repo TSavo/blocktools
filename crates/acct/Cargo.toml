@@ -6,7 +6,7 @@ license.workspace = true
 description = "Account-model payment builders (xlm, algo, ...). DANGEROUS: audit before trusting with funds."
 
 [dependencies]
-blocktools-core = { version = "0.3.1", path = "../core", default-features = false, features = ["ed25519"] }
+blocktools-core = { version = "0.3.2", path = "../core", default-features = false, features = ["ed25519"] }
 bitcoin = { workspace = true }
 ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
@@ -18,4 +18,4 @@ schnorrkel = { workspace = true }
 rand_core = { version = "0.6", default-features = false }
 
 [dev-dependencies]
-blocktools-core = { version = "0.3.1", path = "../core", default-features = false, features = ["ed25519", "cardano", "sr25519", "secrets"] }
+blocktools-core = { version = "0.3.2", path = "../core", default-features = false, features = ["ed25519", "cardano", "sr25519", "secrets"] }

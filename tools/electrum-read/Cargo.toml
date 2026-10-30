@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools electrum-read. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-io = { version = "0.3.1", path = "../../crates/io" }
-blocktools-secrets = { version = "0.3.1", path = "../../crates/secrets", features = ["electrum"] }
+blocktools-io = { version = "0.3.2", path = "../../crates/io" }
+blocktools-secrets = { version = "0.3.2", path = "../../crates/secrets", features = ["electrum"] }
 serde_json.workspace = true
 zeroize.workspace = true
