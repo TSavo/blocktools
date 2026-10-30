@@ -11,9 +11,9 @@ path = "src/lib.rs"
 name = "rpc"
 path = "src/main.rs"
 [dependencies]
-blocktools-net = { version = "0.3.0", path = "../../crates/net" }
-blocktools-core = { version = "0.3.0", path = "../../crates/core" }
-blocktools-io = { version = "0.3.0", path = "../../crates/io" }
-blocktools-tx = { version = "0.3.0", path = "../../crates/tx", features = ["secrets"] }
-blocktools-tty = { version = "0.3.0", path = "../../crates/tty" }
+blocktools-net = { version = "0.3.1", path = "../../crates/net" }
+blocktools-core = { version = "0.3.1", path = "../../crates/core" }
+blocktools-io = { version = "0.3.1", path = "../../crates/io" }
+blocktools-tx = { version = "0.3.1", path = "../../crates/tx", features = ["secrets"] }
+blocktools-tty = { version = "0.3.1", path = "../../crates/tty" }
 serde_json.workspace = true

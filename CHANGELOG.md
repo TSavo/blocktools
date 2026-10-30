@@ -5,6 +5,29 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
+## [0.3.1] - 2026-10-30
+
+Patch release: no code change to any tool, wasm export or flag since v0.3.0. It exists so the 0.3.x
+apt/apk/rpm repositories get published. Version 0.3.1 in every Cargo.toml, internal pin, the wasm package,
+lockfiles and man pages (version-check) (this release).
+
+### Fixed
+- The v0.3.0 release `repos` job failed (release run 40848964388) with `release-repos: bolt11 ships in the
+  tarball but is not in package-native.sh CLIS`: `scripts/package-native.sh` CLIS lacked the four tools new in
+  0.3.0 (`multisig`, `tx-combine`, `taproot-multisig`, `bolt11`), so v0.3.0 shipped no apt, apk or rpm
+  repositories. CLIS now lists them (6e6aa83).
+- That guard only ran at release time, after the GitHub release was already published. It now lives in one
+  script, `scripts/clis-check.sh`, which `release-repos.sh` calls on the release tarball and the gate's lint
+  stage calls on every push, on the tarball `scripts/package-dist.sh` builds; a tool shipped in the tarball but
+  missing from CLIS now fails CI, not the release. Negative test `R-clis` drops `bolt11` from CLIS and requires
+  the check to fail with that tool's name (cfd9821).
+
+### Known limitations
+- The v0.3.0 GitHub release has only the linux-x86_64 tarball and SHA256SUMS, with no apt, apk or rpm
+  repositories; it is left as published. v0.3.1 is the first 0.3.x release with those repositories.
+- The new CI check is proven on the Linux gate; the signed repo build itself is only exercised by the release
+  workflow on a tag.
+
 ## [0.3.0] - 2026-10-29
 
 Version 0.3.0 in every Cargo.toml, internal pin, the wasm package, lockfiles and man pages (version-check) (9865ebc).

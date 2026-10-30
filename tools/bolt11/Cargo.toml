@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools bolt11: decode a BOLT11 Lightning invoice (bech32, tagged fields, recovered payee pubkey) and re-encode it byte-identically. Offline, reads only the public invoice string, holds no key and never signs."
 [dependencies]
-blocktools-io = { version = "0.3.0", path = "../../crates/io" }
+blocktools-io = { version = "0.3.1", path = "../../crates/io" }
 # decode/reencode live in blocktools-tx (tx::bolt11), shared with the wasm bolt11Decode/bolt11Reencode exports.
-blocktools-tx = { version = "0.3.0", path = "../../crates/tx" }
+blocktools-tx = { version = "0.3.1", path = "../../crates/tx" }
 serde_json.workspace = true

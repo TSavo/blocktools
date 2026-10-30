@@ -5,6 +5,6 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools classify: what kind of wallet material is this file? Public output only (class, line, fingerprint)."
 [dependencies]
-blocktools-io = { version = "0.3.0", path = "../../crates/io" }
-blocktools-core = { version = "0.3.0", path = "../../crates/core", features = ["algo", "ton"] }
+blocktools-io = { version = "0.3.1", path = "../../crates/io" }
+blocktools-core = { version = "0.3.1", path = "../../crates/core", features = ["algo", "ton"] }
 serde_json.workspace = true
