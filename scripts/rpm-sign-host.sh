@@ -27,10 +27,11 @@ $DOCKER image inspect "$IMG" >/dev/null 2>&1 || printf 'FROM fedora:40\nRUN dnf 
   | $DOCKER build -q -t "$IMG" - >/dev/null || { echo "rpm-sign: could not build $IMG" >&2; exit 1; }
 umask 077
 tmp=$(mktemp -d /dev/shm/bt-rpmsign.XXXXXX)
-work=
+work=; cid=""
 cleanup() {
   if [ -d "$tmp" ]; then shred -u "$tmp"/* 2>/dev/null || rm -f "$tmp"/*; rmdir "$tmp"; fi
   [ -z "$work" ] || rm -rf "$work"
+  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true
   return 0
 }
 trap cleanup EXIT INT TERM HUP
@@ -50,7 +51,19 @@ grep -q "BEGIN PGP PRIVATE KEY BLOCK" "$tmp/key.asc" || { echo "rpm-sign: vault 
 work=$(mktemp -d)
 cp "$repo"/*.rpm "$work/"
 cp "$PUB" "$work/pub.asc"
-$DOCKER run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/gnupg -v "$tmp:/k:ro" -v "$work:/r" --tmpfs "/gnupg:mode=0700,uid=$(id -u),gid=$(id -g)" -e GNUPGHOME=/gnupg -e FPR="$fpr" "$IMG" sh -euc '
+# No host bind mounts (the engine may be Docker Desktop, which cannot mount WSL2 paths): the key goes
+# into a container tmpfs over `docker exec` stdin (RAM only), the public key + RPMs via `docker cp`;
+# sign + build repodata offline (--network none), then `docker cp` the signed RPMs + repodata back.
+# Run as root in the ephemeral, offline (--network none) container: the old --user existed only so
+# bind-mounted outputs were host-owned; `docker cp` out is written as the host user regardless. /k and
+# the GNUPGHOME are tmpfs (RAM only). Outputs are copied back out below, so container ownership is moot.
+cid=$($DOCKER run -d --network none -e HOME=/gnupg \
+  --tmpfs /k:mode=0700 --tmpfs /gnupg:mode=0700 -e GNUPGHOME=/gnupg -e FPR="$fpr" "$IMG" sleep 300) \
+  || { echo "rpm-sign: could not start signing container" >&2; exit 1; }
+$DOCKER exec -i "$cid" sh -c 'cat > /k/key.asc' < "$tmp/key.asc"
+$DOCKER exec "$cid" mkdir -p /r
+for f in "$work"/*.rpm "$work/pub.asc"; do $DOCKER cp "$f" "$cid:/r/$(basename "$f")" >/dev/null; done
+$DOCKER exec "$cid" sh -euc '
   command -v rpmsign createrepo_c >/dev/null 2>&1 || exit 3
   gpg --batch --import /k/key.asc >/dev/null 2>&1
   gpg --batch --with-colons --list-secret-keys | grep -q "^fpr:::::::::$FPR:" || exit 4
@@ -58,9 +71,13 @@ $DOCKER run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/gnupg -v "$t
   rpmsign --define "_gpg_name $FPR" --addsign /r/*.rpm >/dev/null 2>&1
   createrepo_c -q --general-compress-type=gz /r >/dev/null
   gpg --batch --yes --local-user "$FPR" --armor --detach-sign -o /r/repodata/repomd.xml.asc /r/repodata/repomd.xml >/dev/null 2>&1' \
-  2>/dev/null || { rc=$?; [ $rc = 125 ] || [ $rc = 3 ] && echo "rpm-sign: image $IMG needs rpm-sign and createrepo_c " >&2
-    [ $rc = 4 ] || [ $rc = 5 ] && echo "rpm-sign: vault key fingerprint does not match $PUB; refusing" >&2
+  2>/dev/null || { rc=$?; $DOCKER rm -f "$cid" >/dev/null 2>&1; cid=""
+    { [ "$rc" = 125 ] || [ "$rc" = 3 ]; } && echo "rpm-sign: image $IMG needs rpm-sign and createrepo_c " >&2
+    { [ "$rc" = 4 ] || [ "$rc" = 5 ]; } && echo "rpm-sign: vault key fingerprint does not match $PUB; refusing" >&2
     echo "rpm-sign: signing failed (rc $rc)" >&2; exit 1; }
+for f in "$work"/*.rpm; do $DOCKER cp "$cid:/r/$(basename "$f")" "$f" >/dev/null; done
+rm -rf "$work/repodata"; $DOCKER cp "$cid:/r/repodata" "$work/repodata" >/dev/null
+$DOCKER rm -f "$cid" >/dev/null 2>&1; cid=""
 shred -u "$tmp/key.asc" 2>/dev/null || rm -f "$tmp/key.asc"; rmdir "$tmp"
 RPM_VERIFY_IMAGE=$IMG "$root/scripts/rpm-verify.sh" "$PUB" "$work"
 rm -f "$work/pub.asc"

@@ -5,4 +5,4 @@ edition.workspace = true
 license.workspace = true
 description = "blocktools pw-candidates. DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money."
 [dependencies]
-blocktools-io = { version = "0.3.2", path = "../../crates/io" }
+blocktools-io = { version = "0.3.3", path = "../../crates/io" }

@@ -5,6 +5,27 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
+## [0.3.3] - 2026-10-30
+
+Patch release: no code change to any tool, wasm export or flag since v0.3.0. It makes the 0.3.x
+apt/apk/rpm repository signing work on the release signer's engine. Version 0.3.3 in every Cargo.toml,
+internal pin, the wasm package, lockfiles and man pages (version-check) (this release).
+
+### Fixed
+- The `repos` release job (signed apt/apk/rpm repositories) never completed for 0.3.0–0.3.2: the host
+  signing scripts bind-mounted the private key and the package inputs into their one-shot signing
+  containers with `docker run -v`, but the release signer's engine is Docker Desktop on Windows, which
+  cannot bind-mount the WSL2 host paths — they arrive as empty directories, so the key, the signer and
+  the packages were all absent inside the container (the apk step failed with `python3: can't find
+  '__main__' module in '/sign.py'`). Rewrite the signing and verify helpers to use **no host bind
+  mounts**: the private key is streamed into a container tmpfs over `docker exec` stdin (RAM only, never
+  a volume or the container's on-disk layer), public inputs go in with `docker cp`, and signed outputs
+  come back with `docker cp`; verify containers are created, filled with `docker cp`, then started.
+  `scripts/apk-sign-host.sh`, `scripts/apk-repo-build.sh`, `scripts/rpm-sign-host.sh`,
+  `scripts/apk-verify.sh`, `scripts/rpm-verify.sh`. `scripts/apt-sign-host.sh` already signs on the host
+  (no container) and is unchanged. Verified end to end on the real engine: all four signers produce
+  signed, independently re-verified apt/apk/rpm repositories.
+
 ## [0.3.2] - 2026-10-30
 
 Patch release (supersedes the un-shipped 0.3.1, whose repos publish wedged): no code change to any tool, wasm export or flag since v0.3.0. It exists so the 0.3.x
