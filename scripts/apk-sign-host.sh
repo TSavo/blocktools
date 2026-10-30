@@ -42,7 +42,12 @@ shred -u "$tmp/secret" "$tmp/hdr" 2>/dev/null || rm -f "$tmp/secret" "$tmp/hdr"
 grep -q "PRIVATE KEY" "$tmp/$KEY_NAME" || { echo "apk-sign: vault secret is not a PEM key; refusing" >&2; exit 1; }
 cp "$PUB" "$tmp/$KEY_NAME.pub"
 work=$(mktemp -d); cid=""
-cleanup2() { cleanup; [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true; rm -rf "$work"; return 0; }
+cleanup2() {
+  cleanup
+  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the signing container may already be gone
+  rm -rf "$work"
+  return 0
+}
 trap cleanup2 EXIT INT TERM HUP
 for a in "$@"; do cp "$a" "$work/"; done
 # scripts/apk-sign-pkg.py drops the build-time throwaway signature and signs the control member.

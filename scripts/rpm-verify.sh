@@ -5,7 +5,10 @@
 set -eu
 pub=$(CDPATH= cd -- "$(dirname "$1")" && pwd)/$(basename "$1"); dir=$(CDPATH= cd -- "$2" && pwd)
 cid=""
-cleanup() { [ -z "$cid" ] || ${DOCKER:-docker} rm -f "$cid" >/dev/null 2>&1 || true; return 0; }
+cleanup() {
+  [ -z "$cid" ] || ${DOCKER:-docker} rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the verify container may already be gone
+  return 0
+}
 trap cleanup EXIT
 # No host bind mounts (the engine may be Docker Desktop, which cannot mount WSL2 paths): docker cp the
 # public key + repo dir into a created container, then start it (offline, --network none).

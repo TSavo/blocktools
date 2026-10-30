@@ -4,7 +4,11 @@
 set -eu
 pub=$1; shift
 d=$(mktemp -d); cid=""
-cleanup() { rm -rf "$d"; [ -z "$cid" ] || ${DOCKER:-docker} rm -f "$cid" >/dev/null 2>&1 || true; return 0; }
+cleanup() {
+  rm -rf "$d"
+  [ -z "$cid" ] || ${DOCKER:-docker} rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the verify container may already be gone
+  return 0
+}
 trap cleanup EXIT
 cp "$pub" "$d/"; for a in "$@"; do cp "$a" "$d/"; done
 # No host bind mounts (the engine may be Docker Desktop, which cannot mount WSL2 paths): docker cp the

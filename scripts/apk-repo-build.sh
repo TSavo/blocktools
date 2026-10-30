@@ -28,7 +28,11 @@ for a in "$@"; do cp -f "$a" "$out/$ARCH/"; done
 cp -f "$PUB" "$out/$KEY_NAME.pub"; chmod 644 "$out/$KEY_NAME.pub" "$out/$ARCH"/*.apk
 umask 077
 tmp=$(mktemp -d /dev/shm/bt-apkrepo.XXXXXX); cid=""
-cleanup() { if [ -d "$tmp" ]; then shred -u "$tmp"/* 2>/dev/null || rm -f "$tmp"/*; rmdir "$tmp"; fi; [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true; return 0; }
+cleanup() {
+  if [ -d "$tmp" ]; then shred -u "$tmp"/* 2>/dev/null || rm -f "$tmp"/*; rmdir "$tmp"; fi
+  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the indexing container may already be gone
+  return 0
+}
 trap cleanup EXIT INT TERM HUP
 jq -n --rawfile r "$CRED_DIR/role-id" --rawfile s "$CRED_DIR/secret-id" \
   "{role_id:(\$r|rtrimstr(\"\n\")), secret_id:(\$s|rtrimstr(\"\n\"))}" \
@@ -81,6 +85,6 @@ vid=$($DOCKER create alpine:3.20 sh -euc "
 $DOCKER cp "$out" "$vid:/repo" >/dev/null
 $DOCKER cp "$PUB" "$vid:/$KEY_NAME.pub" >/dev/null
 $DOCKER start -a "$vid" && vrc=0 || vrc=$?
-$DOCKER rm -f "$vid" >/dev/null 2>&1 || true
+$DOCKER rm -f "$vid" >/dev/null 2>&1 || true  # allow-true: the verify container may already be gone
 [ "$vrc" = 0 ] || exit 1
 echo "apk-repo: $out/$ARCH: $# apk(s), APKINDEX.tar.gz signed with $KEY_NAME and checked"

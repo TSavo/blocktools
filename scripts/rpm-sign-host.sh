@@ -31,7 +31,7 @@ work=; cid=""
 cleanup() {
   if [ -d "$tmp" ]; then shred -u "$tmp"/* 2>/dev/null || rm -f "$tmp"/*; rmdir "$tmp"; fi
   [ -z "$work" ] || rm -rf "$work"
-  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true
+  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the signing container may already be gone
   return 0
 }
 trap cleanup EXIT INT TERM HUP
