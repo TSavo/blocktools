@@ -21,6 +21,7 @@ stage() {
     step sh scripts/check-deps-regress.sh
     step sh scripts/hygiene-check.sh
     step sh scripts/version-check.sh
+    step sh scripts/clis-check.sh  # the release-repos CLIS guard, on the tarball package-dist.sh builds
     step sh scripts/fetch-fixtures.sh  # man examples (docs-check) read fixtures/external: pinned download, never a local-only copy
     step sh scripts/docs-check.sh;;
   test)

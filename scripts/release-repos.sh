@@ -22,9 +22,10 @@ build)
   tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT INT TERM HUP
   tar -C "$tmp" -xzf "$tgz"
   bindir=$(echo "$tmp"/blocktools-*/bin); [ -d "$bindir" ] || { echo "release-repos: no bin/ in $tgz" >&2; exit 1; }
-  # Every shipped CLI must be in the package list (phrase-to-key was missing before 0.1.1's repos).
+  # Every shipped CLI must be in the package list (phrase-to-key before 0.1.1, bolt11 et al. in 0.3.0).
+  # Same script the gate runs on every push (lint), so a missing CLI fails CI, not the release.
+  sh scripts/clis-check.sh "$bindir" >&2 || { echo "release-repos: tarball CLIs not all in package-native.sh CLIS" >&2; exit 1; }
   clis=$(sed -n 's/^CLIS="\(.*\)"/\1/p' scripts/package-native.sh)
-  for f in "$bindir"/*; do b=$(basename "$f"); case " $clis " in *" $b "*) ;; *) echo "release-repos: $b ships in the tarball but is not in package-native.sh CLIS" >&2; exit 1;; esac; done
   # No host bind mounts: on Battleaxe the daemon is Docker Desktop, whose VM does not see the WSL2 distro's
   # paths (a -v mount of the checkout arrives empty: "could not find Cargo.toml in /src", release run
   # 40591364666). The sources go in as a tar stream on stdin; the musl binaries come back as a tar on stdout.
