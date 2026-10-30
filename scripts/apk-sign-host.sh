@@ -41,14 +41,34 @@ shred -u "$tmp/secret" "$tmp/hdr" 2>/dev/null || rm -f "$tmp/secret" "$tmp/hdr"
 [ "$name" = "$KEY_NAME" ] || { echo "apk-sign: vault key_name does not match $KEY_NAME; refusing" >&2; exit 1; }
 grep -q "PRIVATE KEY" "$tmp/$KEY_NAME" || { echo "apk-sign: vault secret is not a PEM key; refusing" >&2; exit 1; }
 cp "$PUB" "$tmp/$KEY_NAME.pub"
-work=$(mktemp -d); trap "cleanup; rm -rf \"$work\"" EXIT INT TERM HUP
+work=$(mktemp -d); cid=""
+cleanup2() {
+  cleanup
+  [ -z "$cid" ] || $DOCKER rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the signing container may already be gone
+  rm -rf "$work"
+  return 0
+}
+trap cleanup2 EXIT INT TERM HUP
 for a in "$@"; do cp "$a" "$work/"; done
 # scripts/apk-sign-pkg.py drops the build-time throwaway signature and signs the control member.
-# Sign (output of abuild-sign suppressed so nothing about the key can reach a log), then verify with ONLY the repo key.
-$DOCKER run --rm -v "$tmp:/k:ro" -v "$work:/apks" -v "$root/scripts/apk-sign-pkg.py:/sign.py:ro" alpine:3.20 sh -euc "
+# No host bind mounts: the engine may be Docker Desktop (Windows), which cannot bind-mount the WSL2
+# host paths -- they arrive empty. Start a one-shot container with a tmpfs key dir, stream the private
+# key in over `docker exec` stdin (RAM only -- never a volume or the container's on-disk layer), then
+# `docker cp` the public signer + APKs in, sign (output suppressed so nothing about the key can reach a
+# log), and `docker cp` the signed APKs back out. Afterwards verify with ONLY the repo public key.
+cid=$($DOCKER run -d --tmpfs /k:mode=0700 alpine:3.20 sleep 300) \
+  || { echo "apk-sign: could not start signing container" >&2; exit 1; }
+$DOCKER exec -i "$cid" sh -c 'cat > /k/'"$KEY_NAME" < "$tmp/$KEY_NAME"
+$DOCKER exec -i "$cid" sh -c 'cat > /k/'"$KEY_NAME.pub" < "$tmp/$KEY_NAME.pub"  # tmpfs: must stream (docker cp lands under the mount)
+$DOCKER cp "$root/scripts/apk-sign-pkg.py" "$cid:/sign.py" >/dev/null
+$DOCKER exec "$cid" mkdir -p /apks
+for a in "$@"; do $DOCKER cp "$work/$(basename "$a")" "$cid:/apks/$(basename "$a")" >/dev/null; done
+$DOCKER exec "$cid" sh -euc "
   apk add -q python3 openssl >/dev/null 2>&1
   python3 /sign.py /k/$KEY_NAME $KEY_NAME.pub /apks/*.apk >/dev/null 2>&1" \
   || { echo "apk-sign: signing failed" >&2; exit 1; }
+for a in "$@"; do $DOCKER cp "$cid:/apks/$(basename "$a")" "$work/$(basename "$a")" >/dev/null; done
+$DOCKER rm -f "$cid" >/dev/null 2>&1; cid=""
 cleanup
 "$root/scripts/apk-verify.sh" "$PUB" "$work"/*.apk
 for a in "$@"; do cp -f "$work/$(basename "$a")" "$a"; done

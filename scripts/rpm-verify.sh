@@ -4,7 +4,15 @@
 #   scripts/rpm-verify.sh RPM-GPG-KEY-file REPO_DIR
 set -eu
 pub=$(CDPATH= cd -- "$(dirname "$1")" && pwd)/$(basename "$1"); dir=$(CDPATH= cd -- "$2" && pwd)
-${DOCKER:-docker} run --rm --network none -v "$pub:/pub.asc:ro" -v "$dir:/r:ro" ${RPM_VERIFY_IMAGE:-fedora:40} sh -euc '
+cid=""
+cleanup() {
+  [ -z "$cid" ] || ${DOCKER:-docker} rm -f "$cid" >/dev/null 2>&1 || true  # allow-true: the verify container may already be gone
+  return 0
+}
+trap cleanup EXIT
+# No host bind mounts (the engine may be Docker Desktop, which cannot mount WSL2 paths): docker cp the
+# public key + repo dir into a created container, then start it (offline, --network none).
+cid=$(${DOCKER:-docker} create --network none ${RPM_VERIFY_IMAGE:-fedora:40} sh -euc '
   rpm --import /pub.asc
   for f in /r/*.rpm; do
     out=$(rpm -K "$f" 2>&1) || { echo "rpm-verify: FAIL $out"; exit 1; }
@@ -14,4 +22,7 @@ ${DOCKER:-docker} run --rm --network none -v "$pub:/pub.asc:ro" -v "$dir:/r:ro" 
     gpg --batch --dearmor < /pub.asc > /tmp/k.gpg
     gpgv --keyring /tmp/k.gpg /r/repodata/repomd.xml.asc /r/repodata/repomd.xml 2>/dev/null || { echo "rpm-verify: FAIL repomd.xml signature"; exit 1; }
     echo "rpm-verify: ok repodata/repomd.xml.asc"
-  fi'
+  fi')
+${DOCKER:-docker} cp "$pub" "$cid:/pub.asc" >/dev/null
+${DOCKER:-docker} cp "$dir" "$cid:/r" >/dev/null
+${DOCKER:-docker} start -a "$cid"
