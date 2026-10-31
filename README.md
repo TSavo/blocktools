@@ -1,96 +1,99 @@
 # blocktools
 
-> **⚠️ DANGEROUS: use at your own risk.** Code that handles keys and signs transactions
-> should always be read and audited by you before you trust it with real funds.
-> **Used incorrectly, it can destroy your money**: signing to a wrong address, paying a
-> huge fee, losing keys, or sending on the wrong chain. You are responsible for verifying
-> every transaction. It opens hostile wallet files and extracts secrets, so run it only
-> sealed and offline (`./blocktools run`, `--network none`). The unit tests are evidence,
-> not a substitute for your own review. See [docs/SECURITY.md](docs/SECURITY.md).
+Offline command-line tools for blockchain transactions and smart contracts: encode and decode
+contract calls, logs and reverts, inspect ABIs and bytecode, verify EIP-712 signatures, build
+transactions and check them before anything signs, derive addresses and sign across many chains.
+Rust Unix filters (one JSON object per line on stdin/stdout) that you chain into pipelines, plus a
+wasm build for JavaScript/TypeScript. MIT licensed.
 
+> **⚠️ Use at your own risk.** Code that handles keys and signs transactions should be read and
+> audited by you before you trust it with real funds. **Used incorrectly, it can destroy your
+> money**: signing to a wrong address, paying a huge fee, losing keys, or sending on the wrong
+> chain. You are responsible for verifying every transaction. Tools that touch secrets are meant to
+> run sealed and offline (`./blocktools run`, `--network none`). The unit tests are evidence, not a
+> substitute for your own review. See [docs/SECURITY.md](docs/SECURITY.md).
 
 ## What it is
 
-blocktools recovers keys and addresses from old wallet files and seed phrases, and builds,
-checks and signs transactions, offline. It is a set of small Unix filters (Rust; one JSON object
-per line on stdin/stdout) that you chain into pipelines. Every tool that touches a secret is meant
-to run inside a sealed container started by the `./blocktools` wrapper; what comes out of that
-container to you (or to an AI agent driving it) is addresses, derivation paths and statuses only.
+* **Contract tools (EVM)**: ABI encode/decode, selector and error lookup against your own
+  candidate list, ABI inspection, log decoding, CREATE/CREATE2 addresses, bytecode inspection,
+  EIP-712 verification, and a pre-sign check of contract calls. See below.
+* **Transactions**: `tx-build` → `tx-verify` → `tx-sign` → `tx-broadcast` for Bitcoin and
+  UTXO forks, EVM, and account chains (`acct-tx`, `sol-tron-tx`, `xrp-tx`); PSBT and multisig
+  (`multisig`, `taproot-multisig`, `tx-combine`), `tx-decode`, `tx-plan`, message signing
+  (`msg-sign`/`msg-verify`), BOLT11 invoices (`bolt11`). Signing is deny-by-default: `tx-verify`
+  refuses what it cannot check unless you assert it explicitly. See [docs/POLICY.md](docs/POLICY.md)
+  and [docs/REFUSALS.md](docs/REFUSALS.md).
+* **Keys and addresses**: `derive`, `xpub-addresses`, `key-to-addresses`, `seed-to-master`,
+  `new-seed`, `chain-table`. Per-chain support (derive / detect / sign / real-node evidence) is in
+  the generated table in [docs/CHAINS.md](docs/CHAINS.md). No coin other than BTC has been signed
+  and accepted on a real mainnet; several UTXO forks have a regtest real-node test, the rest are
+  tested against mocks and vectors only.
+* **Node and chain access (host-side)**: `rpc`, `utxo-fetch`, `contract-call`, `contract-trace`.
+* **Wallet-file and seed recovery**: readers for old wallet formats, seed repair and password
+  candidates. Tested on synthetic wallets only; see
+  [Key and wallet recovery](#key-and-wallet-recovery) below.
+* **Library**: a wasm build with 75 exported functions (`bindings/wasm`, list in
+  [EXPORTS.md](EXPORTS.md)); no wasm call accepts a private key, seed or password. A C ABI too.
+
 See [DESIGN.md](DESIGN.md) for the pipe rules and [docs/SECURITY.md](docs/SECURITY.md) for the
 threat model.
 
-## What the recovery side is tested against
+## Contract tools (EVM)
 
-blocktools has **not been tested against any real lost wallet (untested)**. Nobody has handed us a real
-corrupted wallet or a real forgotten password, so the headline promise rests on synthetic tests only.
-What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage):
+| tool | what it does | network |
+|---|---|---|
+| `abi-encode` / `abi-decode` | encode calls; decode calldata, return data and reverts (`Error(string)`, custom errors); a wrong `--sig` reports `no_match` instead of guessing | offline |
+| `sig-hash` | selectors, event topics, error ids; `--lookup` against candidate signatures you supply (no built-in signature database) | offline |
+| `abi-inspect` | functions, events, selector collisions, interface ids | offline |
+| `log-decode` | decode `eth_getLogs` / receipt logs | offline |
+| `create-address` | CREATE (deployer + nonce) and CREATE2 (EIP-1014) | offline |
+| `bytecode-inspect` | EIP-1167 proxy, EIP-7702, EOF, EIP-170 size, solc metadata, selector candidates (heuristic) | offline |
+| `typed-data-verify` | EIP-712 type hash, domain separator, digest, signer recovery, expected-signer check | offline |
+| `tx-build --data/--create` → `tx-verify --call/--abi/--create-hash` | build an unsigned contract call or deployment, then approve the exact calldata or initcode before signing | offline |
+| `contract-call` | `eth_call` with return/revert decoding, `--read` for no-input views, `--chain-id` check | live RPC |
+| `contract-trace` | `eth_call` with checked state overrides; `debug_traceCall` passthrough behind `--allow-unlisted` | live RPC |
 
-* Wallet files written by the real third-party software, with throwaway keys and passwords
-  (generated fresh at test time by `scripts/recovery-gen.sh`, never committed; see docs/FIXTURES.md): Bitcoin Core 25.2 legacy BDB and descriptor (SQLite) wallet.dat,
-  Electrum 4.5.8 segwit wallets (whole-file encrypted and keystore-only), and an eth-account 0.13.4
-  scrypt keystore (the geth/MetaMask-export format). A BIP39 phrase from python-mnemonic (the Trezor
-  reference) with addresses computed by Bitcoin Core's `deriveaddresses`.
-* Damage a user would plausibly have: a typo'd seed word, two swapped words, a missing word, an
-  unknown word (`?`), on the BIP39 and Electrum seeds; a password remembered only as "horse battery"
-  plus a digit, or with two letters swapped. `seed-repair` / `pw-candidates` and the wallet readers
-  must reach the address the generator itself printed. Candidate counts and attempt numbers are
-  printed by the script on each run.
-* Our own writers, not third-party ones: `scripts/make-fixtures.py` (dat-read e2e) and
-  `scripts/electrum-bie1-gen.py`. btcrecover's test wallets (fetched by `scripts/fetch-fixtures.sh`)
-  are third-party files but not ours to regenerate.
+```sh
+abi-encode 'approve(address,uint256)' 0x000000000022D473030F116dDEE9F6B43aC78BA3 1000000
+jq -r .result.input recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json | abi-decode --sig 'transfer(address,uint256)'
+```
 
-Not covered: a swap (or typo) that still passes the BIP39 checksum (about 1 in 16 for a swap): seed-repair then reports `checksum_ok` and searches nothing, so the test picks a swap whose checksum fails; wallets damaged on disk (truncated or bit-flipped files), MetaMask's browser vault, Exodus,
-hardware-wallet passphrases, multisig, passwords not reachable from the tokens you give, seeds with more
-than two unknown words, and every wallet version other than those named above.
+`tx-build --data` piped to `tx-verify --call SIG` approves a decoded call; without `--call`, `tx-verify` fails with `unknown_contract_call`. `contract-call` and
+`contract-trace` are host tools: they are not in the sealed image or the wasm build, and their tests
+use a mock RPC. Not included: proxy storage-slot reading, ABI or verified-source fetching, full
+simulation. Recipes: [recipes/README.md](recipes/README.md).
 
 ## Install
 
-### From the v0.1.0 release (Linux x86_64 only)
+### From the v0.3.3 release (Linux x86_64 only)
 
-Releases are built for Linux x86_64 only. There is no macOS, Windows or ARM asset; on those, build from source.
+Releases are a Linux x86_64 tarball plus `SHA256SUMS`; the release itself is not signed. There is no macOS, Windows or ARM asset; on those, build from source.
 
 ```sh
-gh release download v0.1.0 -R TSavo/blocktools     # or download both files from the Releases page
-sha256sum -c SHA256SUMS                            # must print: blocktools-v0.1.0-linux-x86_64.tar.gz: OK
-tar xzf blocktools-v0.1.0-linux-x86_64.tar.gz
-cd blocktools-v0.1.0-linux-x86_64
+gh release download v0.3.3 -R TSavo/blocktools     # or download both files from the Releases page
+sha256sum -c SHA256SUMS                            # must print: blocktools-v0.3.3-linux-x86_64.tar.gz: OK
+tar xzf blocktools-v0.3.3-linux-x86_64.tar.gz
+cd blocktools-v0.3.3-linux-x86_64
 export PATH=$PWD/bin:$PATH MANPATH=$PWD/share/man:
 man blocktools
 ```
 
-The tarball holds `bin/` (the tools), `share/man/` and `man/` (manual pages), `recipes/`,
-`DESIGN.md`, `EXPORTS.md`, `LICENSE` and the `blocktools` wrapper. The binaries are **not**
-static: they are dynamically linked against glibc (`ldd bin/derive` lists `libc.so.6` and
-`libgcc_s.so.1`). The tarball is Linux x86_64 and glibc-linked: 40 of its 41 tools need glibc 2.34
-or newer, and `sealed-run` needs glibc 2.39 or newer. Measured per binary as the newest GLIBC_ symbol
-version: `for b in bin/*; do echo "$(objdump -T $b | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1) $b"; done`
-(40 lines GLIBC_2.34, one GLIBC_2.39 for `bin/sealed-run`). Only the sealed Docker image is built from static musl binaries.
-Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run.
+Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run. The binaries are
+dynamically linked against glibc; only the sealed Docker image is built from static musl binaries.
+Measured on the v0.1.0 tarball (2026-10-26), not re-measured for v0.3.3: 40 of its 41 tools needed glibc 2.34
+or newer and `sealed-run` glibc 2.39 or newer (newest `GLIBC_` symbol per binary via `objdump -T`).
 
 **Sealed mode from a tarball.** The tarball has no Dockerfile or sources, so its `./blocktools
-build` cannot work. To get the sealed image, check out the same release and build it there; the
-image does not depend on the tarball:
+build` cannot work. Build the image from the same release:
 
 ```sh
-git clone --branch v0.1.0 https://github.com/TSavo/blocktools && cd blocktools
+git clone --branch v0.3.3 https://github.com/TSavo/blocktools && cd blocktools
 ./blocktools build                                 # image blocktools:local; then ./blocktools run '...'
 ```
 
 Until then, the tarball's `bin/sealed-run agent '<pipeline>'` gives the same output redaction but
 no container isolation (no `--network none`): use it only on an offline machine.
-
-**v0.1.0 and `derive --address-list`.** In v0.1.0, `redact` (and so `sealed-run agent` and
-`./blocktools run`) drops the plain `label<TAB>path<TAB>address` lines, so the list comes back
-empty (`"count":0`). Fixed on main after v0.1.0: redact now passes those lines through its leak check, so with a source build `./blocktools run '... | derive --address-list' > addresses.txt` works (recipes/derive.md). With v0.1.0, build the same list from JSON instead:
-
-```sh
-... | derive --chain btc --count 1 --public-only | redact | jq -r 'select(.address)|[.chain+" "+.kind,.path,.address]|@tsv' > addresses.txt
-```
-
-Measured 2026-10-26 on Linux with the v0.1.0 `bin/`: download, `sha256sum -c` OK, the `ldd`
-and `objdump` results above, the `--address-list` count 0 and the `jq` workaround (4 btc lines),
-and every wallet example below through `sealed-run agent`. Not measured: actually running on glibc 2.34-2.38 (only
-the symbol versions were read; `sealed-run` is expected to fail to load there) or older, macOS.
 
 ### Debian / Ubuntu (apt, amd64)
 
@@ -153,6 +156,32 @@ with it a `tcp://` or `http(s)://` engine is still refused (exit 4). `BLOCKTOOLS
 set it only if copying `./in` and `./secrets` to that host over that transport is intended. Recipe "Mac -> Battleaxe over SSH": see docs/MACOS.md.
 Without Docker, `sealed-run agent '<pipeline>'` gives the same redaction but none of the
 container isolation.
+
+## Key and wallet recovery
+
+
+Readers for Bitcoin Core wallet.dat, Electrum, Ethereum keystores, MultiBit, Armory and BIP38, plus `seed-repair`, `pw-candidates`, `classify` and `wallet-finder`. They have **not been tested against any real lost wallet (untested)**. Nobody has handed us a real
+corrupted wallet or a real forgotten password, so recovery rests on synthetic tests only.
+What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2e stage):
+
+* Wallet files written by the real third-party software, with throwaway keys and passwords
+  (generated fresh at test time by `scripts/recovery-gen.sh`, never committed; see docs/FIXTURES.md): Bitcoin Core 25.2 legacy BDB and descriptor (SQLite) wallet.dat,
+  Electrum 4.5.8 segwit wallets (whole-file encrypted and keystore-only), and an eth-account 0.13.4
+  scrypt keystore (the geth/MetaMask-export format). A BIP39 phrase from python-mnemonic (the Trezor
+  reference) with addresses computed by Bitcoin Core's `deriveaddresses`.
+* Damage a user would plausibly have: a typo'd seed word, two swapped words, a missing word, an
+  unknown word (`?`), on the BIP39 and Electrum seeds; a password remembered only as "horse battery"
+  plus a digit, or with two letters swapped. `seed-repair` / `pw-candidates` and the wallet readers
+  must reach the address the generator itself printed. Candidate counts and attempt numbers are
+  printed by the script on each run.
+* Our own writers, not third-party ones: `scripts/make-fixtures.py` (dat-read e2e) and
+  `scripts/electrum-bie1-gen.py`. btcrecover's test wallets (fetched by `scripts/fetch-fixtures.sh`)
+  are third-party files but not ours to regenerate.
+
+Not covered: a swap (or typo) that still passes the BIP39 checksum (about 1 in 16 for a swap): seed-repair then reports `checksum_ok` and searches nothing, so the test picks a swap whose checksum fails; wallets damaged on disk (truncated or bit-flipped files), MetaMask's browser vault, Exodus,
+hardware-wallet passphrases, multisig, passwords not reachable from the tokens you give, seeds with more
+than two unknown words, and every wallet version other than those named above.
+
 
 ## Worked examples (public test fixtures only)
 

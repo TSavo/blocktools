@@ -91,7 +91,7 @@ carrier is standard BIP174 PSBT.
 - Cosmos legacy multisig (#27, c5a4b75, 8a29887). `LegacyAminoPubKey` (threshold + N child pubkeys) and N
   `SignerInfo`s with a `MultiSignature` bitarray in `crates/acct` (atom/thor), combined via the `acct-tx`
   partial-sign + combine path (SIGN_MODE_DIRECT; interop is a standard `TxRaw` + `MultiSignature`). e2e
-  `scripts/e2e.d/cosmos-multisig.sh`: a 2-of-3 combine. 33 Cosmos multisig transaction vectors pass
+  `scripts/e2e.d/cosmos-multisig.sh`: a 2-of-3 combine. 33 Cosmos single-signer MsgSend transaction vectors pass
   [twc-cosmos-vectors]; multisig addresses [twc-cosmos-addresses]. `acct-tx` message verify is shared
   [twc-message-vectors].
 - BOLT11 offline Lightning invoice decode/encode (195ae8f, ab8c2c0). New `bolt11` tool: bech32 + tagged-field
