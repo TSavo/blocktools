@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 74. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 75. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -110,6 +110,30 @@ Example (executed):
 ```js
 bt.base58Encode("7e8c088760bfde1dddcf32c17f209b8242ee52aaf131facd88d0ea2c6d0b06f2")
 // -> 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM
+```
+
+## `bech32WitnessProgram`
+
+```ts
+bech32WitnessProgram(address: string): string
+```
+
+Decode a bech32 (segwit v0, `bc1q...`) / bech32m (v1 taproot, `bc1p...`) address into its witness program. Keyless and pure. Returns {version, program_hex, words_hex}: `version` the witness version int, `program_hex` the hex of the decoded witness program bytes (bech32 `fromWords` of the data words after the version), `words_hex` the hex of the raw 5-bit data words themselves (one byte per 5-bit word, each 0..=31).
+
+Calls in test.mjs: 4.
+
+Example (executed):
+
+```js
+bt.bech32WitnessProgram("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")
+// -> {"program_hex":"751e76e8199196d454941c45d1b3a323f1433bd6","version":0,"words_hex":"0e140f070d1a001912060b0d081504140311021d030c1d03040f1814060e1e16"}
+```
+
+Error example (executed):
+
+```js
+bt.bech32WitnessProgram("1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2")
+// throws parsing unchecked hrpstring failed
 ```
 
 ## `blake2b`

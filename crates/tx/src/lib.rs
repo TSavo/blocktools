@@ -242,6 +242,26 @@ pub fn op_return_data(s: &[u8]) -> Option<Vec<u8>> {
     (s.len() == at + len).then(|| s[at..].to_vec())
 }
 
+/// Decode a bech32 (segwit v0) / bech32m (v1+) Bitcoin address into its witness program. Keyless
+/// and pure: no network, no keys. Returns `(version, program, words)` where `version` is the
+/// witness version int, `program` is the decoded witness program bytes (bech32 `fromWords`, i.e.
+/// the 5→8-bit regroup of the data words AFTER the version word), and `words` is those same raw
+/// 5-bit data words, one byte per word (each 0..=31). Errors are short strings.
+pub fn bech32_witness_program(addr: &str) -> Result<(u8, Vec<u8>, Vec<u8>), String> {
+    use bitcoin::bech32::{primitives::decode::SegwitHrpstring, Fe32};
+    let seg = SegwitHrpstring::new(addr).map_err(|e| e.to_string())?;
+    let version = seg.witness_version().to_u8();
+    let program: Vec<u8> = seg.byte_iter().collect();
+    // The data part after the version word, as ASCII bech32 chars (guaranteed valid), mapped back
+    // to their raw 5-bit field-element values.
+    let words: Vec<u8> = seg
+        .data_part_ascii_no_witver_no_checksum()
+        .iter()
+        .map(|&c| Fe32::from_char(c as char).expect("valid bech32 char").to_u8())
+        .collect();
+    Ok((version, program, words))
+}
+
 fn out_io(c: &Chain, o: &TxOut) -> Io {
     let s = o.script_pubkey.as_bytes();
     let (kind, address) = match chains::script_to_address(c, s) {
@@ -411,6 +431,9 @@ impl Decoded {
                     if let Some(n) = io.vout { m.insert("vout".into(), json!(n)); }
                     if let Some(a) = &io.address { m.insert("address".into(), json!(a)); }
                     if let Some(a) = io.amount { m.insert("amount".into(), json!(a)); }
+                    // OP_RETURN payload: the pushed data after OP_RETURN and its push opcode, hex.
+                    // Present only on a single-data-push OP_RETURN output (io.data is Some).
+                    if let Some(d) = &io.data { m.insert("op_return".into(), json!(hex_enc(d))); }
                     v.push(l);
                 }
             }
