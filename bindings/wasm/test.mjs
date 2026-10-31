@@ -474,6 +474,19 @@ console.log('lift7 ok');
   console.log('ok multisig + plan resolve + combine (== CLI)');
 }
 
+{ // bech32WitnessProgram: keyless bech32/bech32m witness-program decode == the blocktools-tx library
+  // golden vectors (crates/tx/tests/bech32_witness.rs): BIP173 P2WPKH (v0) and BIP350 P2TR (v1).
+  const v0 = JSON.parse(bt.bech32WitnessProgram('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'));
+  assert.deepEqual(v0, { version: 0, program_hex: '751e76e8199196d454941c45d1b3a323f1433bd6',
+    words_hex: '0e140f070d1a001912060b0d081504140311021d030c1d03040f1814060e1e16' });
+  const v1 = JSON.parse(bt.bech32WitnessProgram('bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0'));
+  assert.deepEqual(v1, { version: 1, program_hex: '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+    words_hex: '0f061f060c1f17191b121d1a18150d000c0a0a1c1d01180b001c0109171f061b0517070211160a191e0a001516051718021e0c00' });
+  assert.throws(() => bt.bech32WitnessProgram('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')); // legacy base58, not segwit
+  assert.throws(() => bt.bech32WitnessProgram('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5')); // bad checksum
+  console.log('ok bech32WitnessProgram (== library golden)');
+}
+
 { // msgVerify: the Trust Wallet Core signmessage vectors (scripts/e2e.d/twc-message.sh) and the TWC legacy eth vector
   const sig = 'ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=';
   assert.deepEqual(JSON.parse(bt.msgVerify('19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X', 'test signature', sig, false)),

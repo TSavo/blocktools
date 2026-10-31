@@ -474,6 +474,17 @@ pub fn multisig_address(threshold: u32, pubkeys: Vec<String>, network: &str) -> 
     Ok(json!({"chain":"btc","witness_script":witness_script,"address":address,"descriptor":descriptor}).to_string())
 }
 
+/// Decode a bech32 (segwit v0, `bc1q...`) / bech32m (v1 taproot, `bc1p...`) address into its witness
+/// program. Keyless and pure. Returns {version, program_hex, words_hex}: `version` the witness version
+/// int, `program_hex` the hex of the decoded witness program bytes (bech32 `fromWords` of the data
+/// words after the version), `words_hex` the hex of the raw 5-bit data words themselves (one byte per
+/// 5-bit word, each 0..=31).
+#[wasm_bindgen(js_name = bech32WitnessProgram)]
+pub fn bech32_witness_program(address: &str) -> Result<String, JsError> {
+    let (version, program, words) = tx::bech32_witness_program(address).map_err(err)?;
+    Ok(json!({"version": version, "program_hex": blocktools::hex_enc(program), "words_hex": blocktools::hex_enc(words)}).to_string())
+}
+
 /// Taproot script-path m-of-n (CHECKSIGADD leaf under the BIP341 NUMS key), as `taproot-multisig`. x-only or
 /// compressed pubkeys. Returns {chain:"btc", leaf_script, address, control_block, merkle_root, internal_key, descriptor}.
 #[wasm_bindgen(js_name = taprootMultisigAddress)]
