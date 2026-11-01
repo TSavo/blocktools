@@ -255,11 +255,18 @@ impl<'a> Dec<'a> {
 /// Decode `data` as the strict (canonical) ABI encoding of the tuple `params`: see the module doc and
 /// docs/ABI-STRICT.md. Data after the last tail is refused (`trailing_data`).
 pub fn decode(params: &[Param], data: &[u8]) -> Result<Vec<Value>, String> {
-    if params.iter().map(|p| ty_depth(&p.ty)).max().unwrap_or(0) >= MAX_DEPTH { return Err("too_deep".into()); }
-    let ts: Vec<&Ty> = params.iter().map(|p| &p.ty).collect();
-    let (v, end) = Dec { d: data, count: 0 }.tuple(&ts, 0, 0)?;
+    let (v, end) = decode_prefix(params, data)?;
     if end != data.len() { return Err("trailing_data".into()); }
     Ok(v)
+}
+
+/// Opt-in lenient form (`abi-decode --allow-trailing`, evmAbiDecode `allow_trailing: true`): exactly as strict as
+/// [`decode`] except that bytes after the last head/tail are not refused. Returns the values and the number of bytes
+/// consumed; `data[consumed..]` is the unconsumed suffix, which callers must report (`trailing_hex`), never drop.
+pub fn decode_prefix(params: &[Param], data: &[u8]) -> Result<(Vec<Value>, usize), String> {
+    if params.iter().map(|p| ty_depth(&p.ty)).max().unwrap_or(0) >= MAX_DEPTH { return Err("too_deep".into()); }
+    let ts: Vec<&Ty> = params.iter().map(|p| &p.ty).collect();
+    Dec { d: data, count: 0 }.tuple(&ts, 0, 0)
 }
 
 /// Decode one 32-byte word (an indexed event topic) as a static type.
