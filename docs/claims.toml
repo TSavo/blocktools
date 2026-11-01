@@ -900,16 +900,16 @@ id = "wasm-export-count"
 statement = "The wasm package exports 75 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "untested"
-note = "74 -> 75 exports (bech32WitnessProgram added in #34); depends changed, so unstampable until a green main commit contains it (K-ci) -- restamp in the follow-up"
-date = "2026-10-29"
+status = "measured"
+commit = "803a89f"
+date = "2026-10-31"
 value = "75"
 command = "sh scripts/wasm-check.sh"
 expect = "ok exports-doc 75 functions"
-env = "to be re-measured at a green main commit: ok exports-doc 75 functions; the box has no clang for the wasm build"
+env = "CI gate (e2e) on Battleaxe, main run 41255038841 at 803a89f (success): ok exports-doc 75 functions"
 cheap = false
 depends = ["bindings/wasm/src", "scripts/wasm-check.sh"]
-doc = [{ file = "EXPORTS.md", text = "Same 75 functions" }]
+doc = [{ file = "EXPORTS.md", text = "Same 75 functions" }, { file = "README.md", text = "75 exported functions" }]
 
 [[claim]]
 id = "tx-decode-evm-mainnet"
