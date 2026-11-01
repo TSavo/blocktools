@@ -267,6 +267,17 @@ The calldata is not a recognised call. blocktools cannot tell what it does. Do n
 tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-unknown-call.hex"
 ```
 
+Calldata with bytes appended after the call (an ERC-2771 sender, a referral tag, an extra word) is refused the
+same way, even with a matching `--call`: the strict decoder rejects trailing bytes (`call.status` is `bad_calldata`),
+so the transfer is not recognised and its recipient is not checked. tx-verify has no flag to accept a suffix. To
+proceed, inspect the bytes yourself with `abi-decode --allow-trailing` (see [ABI-STRICT.md](ABI-STRICT.md)), then
+sign only calldata without the suffix, or decide outside blocktools.
+
+<!-- run rc=1 expect=bad_calldata,unknown_contract_call,destination_not_expected -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data $(abi-encode --raw 'transfer(address,uint256)' "$EVM_TO" 1000)2222222222222222222222222222222222222222 | tx-verify --chain-id 1 --expect-to "$EVM_TO" --call 'transfer(address,uint256)'
+```
+
 ### `eth_value_with_token_call`
 A token `transfer` also sends ETH to the token contract. That ETH is almost certainly lost. Rebuild the transaction with value 0.
 
