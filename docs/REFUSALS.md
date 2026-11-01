@@ -163,9 +163,100 @@ tx-sign --tx "$FX/evm-legacy-no-chain-id.hex" --chain-id 1 --expect-to "$EVM_TO"
 The calldata calls a known token function that is not `transfer` (here, an unlimited `approve`).
 Approvals let someone else spend your tokens. Do not sign unless you set it up yourself.
 
-<!-- run rc=1 expect=token_call_not_transfer,unlimited_approve -->
+<!-- run rc=1 expect=token_call_not_transfer,unlimited_approve,unlimited_approval -->
 ```sh
 tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-approve.hex"
+```
+
+### `unlimited_approval`
+The calldata approves 2^128 or more tokens, or all of them (`setApprovalForAll(true)`, DAI `permit` with
+`allowed=true`). Do not sign unless you meant it; to accept it, assert both `--expect-spender ADDR --expect-unlimited`.
+
+<!-- run rc=1 expect=unlimited_approval,token_call_not_transfer -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-approve.hex"
+```
+
+### `spender_not_expected`
+A decoded approval names a different spender than `--expect-spender`.
+
+<!-- run rc=1 expect=spender_not_expected -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-spender 0x1111111111111111111111111111111111111111 --expect-unlimited < "$FX/evm-approve.hex"
+```
+
+### `amount_not_expected`
+A decoded approval or transfer amount differs from `--expect-amount` (or is not unlimited under `--expect-unlimited`).
+
+<!-- run rc=1 expect=amount_not_expected -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-spender "$EVM_TO" --expect-amount 1 < "$FX/evm-approve.hex"
+```
+
+### `recipient_not_expected`
+A decoded `transfer`/`transferFrom` sends to a different address than `--expect-recipient`.
+
+<!-- run rc=1 expect=recipient_not_expected -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data $(abi-encode --raw 'transfer(address,uint256)' 0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF 5) | tx-verify --chain-id 1 --expect-recipient 0x1111111111111111111111111111111111111111
+```
+
+### `value_not_expected`
+The native value (wei) differs from `--expect-value`.
+
+<!-- run rc=1 expect=value_not_expected -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-value 1 < "$FX/evm-transfer.hex"
+```
+
+### `spender_not_checkable`
+`--expect-spender` was given but the transaction has no approval to compare it with.
+
+<!-- run rc=1 expect=spender_not_checkable -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-spender 0x1111111111111111111111111111111111111111 < "$FX/evm-transfer.hex"
+```
+
+### `amount_not_checkable`
+`--expect-amount` was given but the transaction has no approval or token transfer to compare it with.
+
+<!-- run rc=1 expect=amount_not_checkable -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-amount 1 < "$FX/evm-transfer.hex"
+```
+
+### `recipient_not_checkable`
+`--expect-recipient` was given but the transaction has no token transfer to compare it with.
+
+<!-- run rc=1 expect=recipient_not_checkable -->
+```sh
+tx-verify --chain-id 1 --expect-to "$EVM_TO" --expect-recipient 0x1111111111111111111111111111111111111111 < "$FX/evm-transfer.hex"
+```
+
+### `inner_calls_not_asserted`
+A batch (multicall, Multicall3, Universal Router, Safe, multiSend) has an inner call you did not name with
+`--allow-inner-call TO:SELECTOR`. Read `inner_calls` in the output before you name anything.
+
+<!-- run rc=1 expect=inner_calls_not_asserted -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data $(abi-encode --raw 'multicall(bytes[])' '["0xa9059cbb00"]') | tx-verify --chain-id 1 --call 'multicall(bytes[])'
+```
+
+### `delegatecall`
+A Safe call with `operation = 1` runs another contract's code with the Safe's storage and funds. Refused unless
+`--allow-delegatecall TO` names that target.
+
+<!-- run rc=1 expect=delegatecall -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0x5555555555555555555555555555555555555555 --data $(abi-encode --raw 'execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes)' 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D 0 0x8d80ff0a 1 0 0 0 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 0x) | tx-verify --chain-id 1
+```
+
+### `bad_inner_calldata`
+A batch's inner calls do not decode strictly (here a truncated Safe `multiSend` payload). Do not sign it.
+
+<!-- run rc=1 expect=bad_inner_calldata -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D --data $(abi-encode --raw 'multiSend(bytes)' 0x00aaaa) | tx-verify --chain-id 1
 ```
 
 ### `unknown_contract_call`
