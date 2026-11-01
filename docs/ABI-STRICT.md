@@ -23,6 +23,24 @@ Every row has named cases in [`crates/evm/tests/abi_strict.rs`](../crates/evm/te
 (each case must be rejected with its exact code and must not panic), alongside canonical spec vectors that must
 still decode. The aliasing DoS case is in [`crates/evm/tests/kat.rs`](../crates/evm/tests/kat.rs).
 
+## Opt-in: accept trailing bytes (`--allow-trailing`)
+
+Real inputs sometimes carry bytes after the encoded values: an ERC-2771 sender or a referral tag appended to
+calldata, an extra word, or an `eth_call` result longer than the outputs you declared (for example
+`(uint112,uint112)` over `getReserves()`'s 3 words). The default stays strict and refuses them with `trailing_data`.
+
+`abi-decode --allow-trailing` (wasm: `evmAbiDecode` request field `"allow_trailing": true`) lifts only the
+top-level end check. The decoder reads the values as usual, and the result gains `trailing_hex`: exactly the bytes
+after the last consumed byte, as `0x` hex. Every other rule in the table still applies, including the
+nested-level canonical-tail checks. Presence rule: when the option is on, `trailing_hex` is always present (`"0x"`
+when nothing trails); when it is off, the key is absent. It applies to calldata, `--types`, `--output` and log data.
+In wasm the field must be a JSON boolean; any other value throws `allow_trailing_must_be_bool`.
+
+It is never the default, and no environment variable or config file can turn it on (deny by default,
+[POLICY.md](POLICY.md)). `tx-verify` does not accept trailing calldata: see `unknown_contract_call` in
+[REFUSALS.md](REFUSALS.md). The suffix cases are tested in `crates/evm/tests/abi_strict.rs`
+(`allow_trailing_*`), `bindings/wasm/test.mjs` and [recipes/evm-decode-calldata.md](../recipes/evm-decode-calldata.md).
+
 ## How this compares with other decoders
 
 [`scripts/abi-fuzz/`](../scripts/abi-fuzz/) is a differential fuzz with a fixed seed, run by
