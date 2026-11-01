@@ -843,7 +843,7 @@ evmTypedDataVerify(typed_data_json: string, sig_hex?: string | null, signer?: st
 
 EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict.
 
-Calls in test.mjs: 4.
+Calls in test.mjs: 5.
 
 Example (executed):
 
