@@ -1,0 +1,46 @@
+name: abi-fuzz
+# Differential ABI fuzz (scripts/abi-fuzz/fuzz.mjs): blocktools abi-encode/abi-decode vs ethers 6.17.0, viem 2.57.14
+# and Foundry cast v1.8.7 (tarball sha256-pinned). Fixed seed, bounded runtime. Separate from the ci.yml gate so it
+# never slows it; runs only when the ABI code or the harness changes, or by hand.
+on:
+  pull_request:
+    paths:
+      - "crates/evm/**"
+      - "tools/abi-encode/**"
+      - "tools/abi-decode/**"
+      - "scripts/abi-fuzz/**"
+      - ".github/workflows/abi-fuzz.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: abi-fuzz-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  fuzz:
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && '"ubuntu-latest"' || vars.RUNNER_LABELS || '["self-hosted","Linux","X64","blocktools"]') }}
+    timeout-minutes: 40
+    env:
+      SEED: "20261101"
+      VALID: "2000"
+      MUTATIONS: "5"
+      MAX_SECONDS: "1500"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: "22" }
+      - run: |
+          set -o pipefail
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 build -q --release --locked -p abi-encode -p abi-decode
+          rm -rf "${RUNNER_TEMP}/foundry" && mkdir -p "${RUNNER_TEMP}/foundry" && cd "${RUNNER_TEMP}/foundry"
+          curl -fsSLo f.tgz https://github.com/foundry-rs/foundry/releases/download/v1.8.7/foundry_v1.8.7_linux_amd64.tar.gz
+          echo "ba470eb718e779e4b0e3f1520b5284231b1bf98e9a39de07fb8f77ed70525bcf  f.tgz" | sha256sum -c -
+          tar xzf f.tgz cast
+          cd "${GITHUB_WORKSPACE}/scripts/abi-fuzz" && npm ci --ignore-scripts --no-audit --no-fund
+          BT_BIN="${GITHUB_WORKSPACE}/target/release" CAST="${RUNNER_TEMP}/foundry/cast" node fuzz.mjs | tee "${RUNNER_TEMP}/abi-fuzz.txt"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with: { name: abi-fuzz, path: "${{ runner.temp }}/abi-fuzz.txt", if-no-files-found: ignore }
+      - if: always()
+        run: rm -rf "${RUNNER_TEMP}/foundry"
