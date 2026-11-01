@@ -1,0 +1,7 @@
+{
+  "name": "blocktools-abi-fuzz",
+  "private": true,
+  "description": "Differential ABI fuzz: blocktools abi-encode/abi-decode vs ethers v6, viem and Foundry cast (CI only, .github/workflows/abi-fuzz.yml)",
+  "type": "module",
+  "dependencies": { "ethers": "6.17.0", "viem": "2.57.14" }
+}

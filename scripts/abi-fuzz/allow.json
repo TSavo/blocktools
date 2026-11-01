@@ -1,0 +1,135 @@
+{
+ "_doc": "Documented leniency of the other decoders, one entry per (decoder, blocktools error code) observed in the development run (seed 20261101, VALID=400, MUTATIONS=5, on the KeyRescue box; the CI job re-measures). An entry matches a mutated case where blocktools abi-decode REJECTED it with that error code (exact; a trailing * matches a numeric width) and that decoder ACCEPTED it. Anything not listed fails the job. These say the other decoder is less strict than docs/ABI-STRICT.md, not that it is wrong.",
+ "entries": [
+  {
+   "decoder": "ethers",
+   "our_error": "trailing_data",
+   "reason": "ethers ignores bytes after the last tail; blocktools refuses them (a canonical encoding ends at its last tail)"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "trailing_data",
+   "reason": "viem ignores bytes after the last tail; blocktools refuses them (a canonical encoding ends at its last tail)"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "trailing_data",
+   "reason": "cast ignores bytes after the last tail; blocktools refuses them (a canonical encoding ends at its last tail)"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "non_canonical_offset",
+   "reason": "ethers follows a dynamic offset wherever it points inside the data (gaps, overlap, reordering, aliasing); blocktools requires each tail to start where the previous one ended"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "non_canonical_offset",
+   "reason": "viem follows a dynamic offset wherever it points inside the data (gaps, overlap, reordering, aliasing); blocktools requires each tail to start where the previous one ended"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "non_canonical_offset",
+   "reason": "cast follows a dynamic offset wherever it points inside the data (gaps, overlap, reordering, aliasing); blocktools requires each tail to start where the previous one ended"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "dirty_bytes_padding",
+   "reason": "ethers ignores non-zero bytes in the padding after a bytes/string body; blocktools requires zero padding"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "dirty_bytes_padding",
+   "reason": "viem ignores non-zero bytes in the padding after a bytes/string body; blocktools requires zero padding"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_bytes_padding",
+   "reason": "cast ignores non-zero bytes in the padding after a bytes/string body; blocktools requires zero padding"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "bytes_padding_missing",
+   "reason": "viem accepts a bytes/string tail that ends without its padding to a 32-byte multiple; blocktools requires the padding"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "bytes_padding_missing",
+   "reason": "cast accepts a bytes/string tail that ends without its padding to a 32-byte multiple; blocktools requires the padding"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "dirty_address",
+   "reason": "viem ignores the 12 high bytes of an address word; blocktools requires them to be zero"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_address",
+   "reason": "cast ignores the 12 high bytes of an address word; blocktools requires them to be zero"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "dirty_uint*",
+   "reason": "ethers accepts a uintN (N<256) word with bits above N set (masks or ignores them); blocktools refuses it"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "dirty_uint*",
+   "reason": "viem accepts a uintN (N<256) word with bits above N set (masks or ignores them); blocktools refuses it"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_uint*",
+   "reason": "cast accepts a uintN (N<256) word with bits above N set (masks or ignores them); blocktools refuses it"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "dirty_int*",
+   "reason": "ethers accepts an intN (N<256) word that is not sign-extended; blocktools refuses it"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "dirty_int*",
+   "reason": "viem accepts an intN (N<256) word that is not sign-extended; blocktools refuses it"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_int*",
+   "reason": "cast accepts an intN (N<256) word that is not sign-extended; blocktools refuses it"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "dirty_bytes*",
+   "reason": "ethers ignores non-zero bytes after the N bytes of a bytesN word; blocktools requires zero padding"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "dirty_bytes*",
+   "reason": "viem ignores non-zero bytes after the N bytes of a bytesN word; blocktools requires zero padding"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_bytes*",
+   "reason": "cast ignores non-zero bytes after the N bytes of a bytesN word; blocktools requires zero padding"
+  },
+  {
+   "decoder": "ethers",
+   "our_error": "dirty_bool",
+   "reason": "ethers accepts a bool word other than 0 or 1 (reads it as true); blocktools refuses it"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "dirty_bool",
+   "reason": "cast accepts a bool word other than 0 or 1 (reads it as true); blocktools refuses it"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "string_not_utf8",
+   "reason": "viem accepts string bytes that are not valid UTF-8 (lossy decode); blocktools refuses them"
+  },
+  {
+   "decoder": "cast",
+   "our_error": "string_not_utf8",
+   "reason": "cast accepts string bytes that are not valid UTF-8 (lossy decode); blocktools refuses them"
+  }
+ ]
+}
