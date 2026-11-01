@@ -40,17 +40,21 @@ Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `x
 
 | Goal | Recipe |
 |---|---|
-| Unknown selector → signature (from a file you supply) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (b), `sig-hash` |
-| Transaction input → arguments (`jq` + signature) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (a), `abi-decode` |
-| `eth_getLogs` events → decoded fields | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (c), `abi-decode` |
-| `eth_call` return data (e.g. `balanceOf`) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (d), `abi-decode` |
-| Revert data: `Error(string)`, `Panic`, custom errors | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (e), `abi-decode` |
-| Arguments → calldata (`eth_call`/tx `data`), or a bare tuple (CREATE2 salt preimage) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (g), `abi-encode` |
-| Deployment tx → contract address (CREATE, from + nonce) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `create-address` |
-| Factory + salt + init-code hash → CREATE2 address (e.g. a Uniswap V3 pool) | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (f), `abi-encode`, `sig-hash --keccak`, `create-address` |
-| ABI → selectors, collisions, ERC-165/ERC-20 interfaces | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (h), `abi-inspect` |
-| `eth_getCode` → proxy / delegation / EOF, compiler version, size limit, selector candidates | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (i), `bytecode-inspect` |
-| `eth_signTypedData_v4` request or signed typed data → digest, recovered signer, verdict | [recipes/evm-contract-data.md](../recipes/evm-contract-data.md) (j), `typed-data-verify` |
+| Unknown selector → signature (from a file you supply) | [recipes/evm-unknown-selector.md](../recipes/evm-unknown-selector.md), `sig-hash` |
+| Transaction input → arguments (`jq` + signature) | [recipes/evm-decode-calldata.md](../recipes/evm-decode-calldata.md), `abi-decode` |
+| `eth_getLogs` events → decoded fields | [recipes/evm-decode-logs.md](../recipes/evm-decode-logs.md), `abi-decode` |
+| `eth_call` return data (e.g. `balanceOf`) | [recipes/evm-eth-call.md](../recipes/evm-eth-call.md), `abi-decode` |
+| Revert data: `Error(string)`, `Panic`, custom errors | [recipes/evm-decode-revert.md](../recipes/evm-decode-revert.md), `abi-decode` |
+| Arguments → calldata (`eth_call`/tx `data`), or a bare tuple (CREATE2 salt preimage) | [recipes/evm-decode-calldata.md](../recipes/evm-decode-calldata.md), `abi-encode` |
+| Deployment tx → contract address (CREATE, from + nonce) | [recipes/evm-contract-address.md](../recipes/evm-contract-address.md), `create-address` |
+| Factory + salt + init-code hash → CREATE2 address (e.g. a Uniswap V3 pool) | [recipes/evm-contract-address.md](../recipes/evm-contract-address.md), `abi-encode`, `sig-hash --keccak`, `create-address` |
+| ABI → selectors, collisions, ERC-165/ERC-20 interfaces | [recipes/evm-inspect-contract.md](../recipes/evm-inspect-contract.md), `abi-inspect` |
+| `eth_getCode` → proxy / delegation / EOF, compiler version, size limit, selector candidates | [recipes/evm-inspect-contract.md](../recipes/evm-inspect-contract.md), [recipes/evm-check-proxy-delegation.md](../recipes/evm-check-proxy-delegation.md), `bytecode-inspect` |
+| `eth_signTypedData_v4` request or signed typed data → digest, recovered signer, verdict | [recipes/evm-eip712-verify.md](../recipes/evm-eip712-verify.md), `typed-data-verify` |
+| ERC-20 approve / EIP-2612 permit: spender, amount, unlimited flag (jq), permit digest | [recipes/evm-check-approval.md](../recipes/evm-check-approval.md), `abi-decode`, `typed-data-verify` |
+| Multicall / Universal Router `execute` → nested inner calls | [recipes/evm-decode-multicall.md](../recipes/evm-decode-multicall.md), `abi-decode` |
+| Tx hash → decoded input, receipt logs, revert | [recipes/evm-tx-end-to-end.md](../recipes/evm-tx-end-to-end.md), `abi-decode`, `log-decode` |
+| Permit2 signing request → what it commits to, recovered signer | [recipes/evm-permit2-signing-request.md](../recipes/evm-permit2-signing-request.md), `typed-data-verify` |
 | Contract call tx: signature + args → calldata → unsigned tx → decoded re-verify → sign → broadcast (any chain id) | [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md), `abi-encode`, `tx-build --data`, `tx-verify --call`, `tx-sign --call` |
 | Contract creation tx: init code → unsigned tx → approve by init-code hash → sign (shows new address) | [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md), `tx-build --create`, `--create-hash` |
 | Solana or Tron transfer: build unsigned from a plan, decode, verify (chain auto-detected, `--chain` overrides) | `sol-tron-tx` |

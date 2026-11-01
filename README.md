@@ -62,7 +62,7 @@ jq -r .result.input recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json | ab
 `tx-build --data` piped to `tx-verify --call SIG` approves a decoded call; without `--call`, `tx-verify` fails with `unknown_contract_call`. `contract-call` and
 `contract-trace` are host tools: they are not in the sealed image or the wasm build, and their tests
 use a mock RPC. Not included: proxy storage-slot reading, ABI or verified-source fetching, full
-simulation. Recipes: [contract data](recipes/evm-contract-data.md) (selectors, calldata, logs, reverts, addresses, EIP-712), [contract calls and deployments](recipes/evm-contract-tx.md) (build, verify, sign, broadcast), and the [full index](recipes/README.md).
+simulation. Recipes ([index](recipes/evm-contract-data.md)): [decode calldata](recipes/evm-decode-calldata.md), [unknown selector](recipes/evm-unknown-selector.md), [logs](recipes/evm-decode-logs.md), [reverts](recipes/evm-decode-revert.md), [eth_call](recipes/evm-eth-call.md), [CREATE/CREATE2](recipes/evm-contract-address.md), [inspect a contract](recipes/evm-inspect-contract.md), [EIP-712](recipes/evm-eip712-verify.md), [approve/permit check](recipes/evm-check-approval.md), [multicall/Universal Router](recipes/evm-decode-multicall.md), [tx hash end to end](recipes/evm-tx-end-to-end.md), [Permit2 request](recipes/evm-permit2-signing-request.md), [proxy/7702 check](recipes/evm-check-proxy-delegation.md), [contract calls and deployments](recipes/evm-contract-tx.md) (build, verify, sign, broadcast), and the [full index](recipes/README.md).
 
 ## Install
 
