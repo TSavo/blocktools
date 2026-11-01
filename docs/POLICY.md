@@ -31,6 +31,13 @@ call also needs `--call SIGNATURE` (or `--abi FILE`) on tx-verify/tx-sign: the c
 shown as function + arguments. Contract creation is approved with `--create-hash KECCAK` (keccak256 of the init
 code), not by the file. See [recipes/evm-contract-tx.md](../recipes/evm-contract-tx.md).
 
+`tx-verify` also checks the approvals and transfers it can decode, whatever the file says (deny by default): an
+approval of 2^128 or more, or of all tokens, fails with `unlimited_approval` unless `--expect-spender ADDR
+--expect-unlimited` are given; batch inner calls need `--allow-inner-call TO:SELECTOR`; a Safe delegatecall needs
+`--allow-delegatecall TO`. `--expect-spender`, `--expect-amount`, `--expect-recipient` and `--expect-value` are optional
+exact assertions. These are tx-verify flags only: tx-sign does not run them yet. See
+[recipes/evm-check-approval.md](../recipes/evm-check-approval.md).
+
 Numbers can be JSON integers or decimal strings (needed above 2^53). Unknown keys are errors
 (`policy_unknown_key`), so a typo cannot silently drop a rule. The base checks always apply and
 cannot be turned off by the file: `legacy_input_amount_unproven`, `has_warnings`,

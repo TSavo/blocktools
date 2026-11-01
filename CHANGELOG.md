@@ -5,6 +5,28 @@ versions follow [Semantic Versioning](https://semver.org/). Every entry names th
 Numbers and security statements here are only those registered as measured in docs/claims.toml
 (claim id in brackets); anything not measured is under "Known limitations" in plain words.
 
+## [Unreleased]
+
+### Added
+- `tx-verify` checks approvals and transfers in the calldata: `approve`, `increaseAllowance`, EIP-2612 and DAI
+  `permit`, Permit2 `approve`/`permit`, `setApprovalForAll`, `transfer`, `transferFrom`, at top level and inside
+  `multicall`, Multicall3 `aggregate*`, Universal Router `execute`, Safe `execTransaction` and Safe `multiSend`.
+  New output keys `approvals`, `transfers`, `inner_calls`. An approval of 2^128 or more, or of all tokens, fails with
+  `unlimited_approval`. New opt-in assertions `--expect-spender`, `--expect-amount`, `--expect-unlimited` (needs
+  `--expect-spender`), `--expect-recipient`, `--expect-value`, `--allow-inner-call TO:SELECTOR`,
+  `--allow-delegatecall TO`, failing with `spender_not_expected`, `amount_not_expected`, `recipient_not_expected`,
+  `value_not_expected`, `inner_calls_not_asserted`, `delegatecall`. No blanket allow.
+- `typed-data-verify` prints `verifying_contract` and takes `--expect-chain-id` / `--expect-verifying-contract`
+  (status `chain_id_mismatch` / `verifying_contract_mismatch`, exit 1). The wasm `evmTypedDataVerify` output gains
+  `verifying_contract`; no wasm export added or removed.
+- `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
+  (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
+
+### Known limitations
+- `tx-sign` and the wasm `verifyTx` do not run these approval checks yet: `tx-sign` can still sign a transaction
+  `tx-verify` flags. Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
+  ERC-20 selector, so a token id of 2^128 or more is reported as unlimited. UNTESTED on transactions from a live wallet.
+
 ## [0.3.3] - 2026-10-30
 
 Patch release: no code change to any tool, wasm export or flag since v0.3.0. It makes the 0.3.x
