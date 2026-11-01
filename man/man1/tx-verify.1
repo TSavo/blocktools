@@ -3,7 +3,7 @@
 tx\-verify \- check a transaction (stdin; any format tx\-decode reads) against what you expect
 .SH SYNOPSIS
 .nf
-tx\-verify [\-\-chain C] (\-\-plan FILE | [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N] [\-\-max\-fee N] [\-\-expect\-memo MEMO] [\-\-policy FILE]) [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < tx
+tx\-verify [\-\-chain C] (\-\-plan FILE | [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N] [\-\-max\-fee N] [\-\-expect\-memo MEMO] [\-\-policy FILE]) [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] [\-\-expect\-spender ADDR] [\-\-expect\-amount N | \-\-expect\-unlimited] [\-\-expect\-recipient ADDR] [\-\-expect\-value WEI] [\-\-allow\-inner\-call TO:SELECTOR]... [\-\-allow\-delegatecall TO]... < tx
 .fi
 .SH DESCRIPTION
 .nf
@@ -27,11 +27,28 @@ tx\-verify [\-\-chain C] (\-\-plan FILE | [\-\-expect\-to ADDR]... [\-\-change A
 .RE
 .fi
 \-\-create\-hash KECCAK: EVM contract creation (no "to"): approved only when keccak256(init code) equals KECCAK.
+EVM content checks (blocktools_evm::approval; deny by default, opt\-in exact assertions):
+.nf
+.RS 2
+  approvals (approve, increaseAllowance, EIP\-2612/DAI permit calldata, Permit2 approve/permit, setApprovalForAll)
+  are reported as "approvals" [{path, signature, token, spender, amount, unlimited}]; an amount >= 2^128 or an
+  all\-tokens approval fails "unlimited_approval" unless \-\-expect\-unlimited (which requires \-\-expect\-spender).
+  \-\-expect\-spender ADDR / \-\-expect\-amount N / \-\-expect\-recipient ADDR / \-\-expect\-value WEI: every decoded
+  approval / transfer / native value must equal these, else spender_/amount_/recipient_/value_not_expected.
+  Batches (multicall, Multicall3 aggregate*, Universal Router execute, Safe execTransaction / multiSend) are
+  reported as "inner_calls"; each must be named by \-\-allow\-inner\-call TO:SELECTOR (else inner_calls_not_asserted),
+  and a delegatecall target by \-\-allow\-delegatecall TO (else delegatecall).
+  An approve/permit whose token (\-\-expect\-to), spender and amount (\-\-expect\-amount or \-\-expect\-unlimited) are all
+  asserted and match lifts token_call_not_transfer / unknown_contract_call and its approve warning.
+.RE
+.fi
 EVM default fee cap: 0.01 ETH (same as tx\-sign); UTXO: no cap unless \-\-max\-fee.
 Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
 .SH OPTIONS
 .nf
 \-\-abi
+\-\-allow\-delegatecall
+\-\-allow\-inner\-call
 \-\-allow\-value\-with\-token
 \-\-allow\-warnings
 \-\-call
@@ -39,8 +56,13 @@ Exit 0 and status "ok" only when every check passes; otherwise status "failed", 
 \-\-chain\-id
 \-\-change
 \-\-create\-hash
+\-\-expect\-amount
 \-\-expect\-memo
+\-\-expect\-recipient
+\-\-expect\-spender
 \-\-expect\-to
+\-\-expect\-unlimited
+\-\-expect\-value
 \-\-max\-fee
 \-\-plan
 \-\-policy

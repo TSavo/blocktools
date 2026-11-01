@@ -8,13 +8,24 @@
 //!   function signatures (it must re-encode byte-for-byte) and reported as "call" {signature, selector, args};
 //!   only an exact match lifts unknown_contract_call. Unknown selectors are reported as "unknown_selector".
 //! --create-hash KECCAK: EVM contract creation (no "to"): approved only when keccak256(init code) equals KECCAK.
+//! EVM content checks (blocktools_evm::approval; deny by default, opt-in exact assertions):
+//!   approvals (approve, increaseAllowance, EIP-2612/DAI permit calldata, Permit2 approve/permit, setApprovalForAll)
+//!   are reported as "approvals" [{path, signature, token, spender, amount, unlimited}]; an amount >= 2^128 or an
+//!   all-tokens approval fails "unlimited_approval" unless --expect-unlimited (which requires --expect-spender).
+//!   --expect-spender ADDR / --expect-amount N / --expect-recipient ADDR / --expect-value WEI: every decoded
+//!   approval / transfer / native value must equal these, else spender_/amount_/recipient_/value_not_expected.
+//!   Batches (multicall, Multicall3 aggregate*, Universal Router execute, Safe execTransaction / multiSend) are
+//!   reported as "inner_calls"; each must be named by --allow-inner-call TO:SELECTOR (else inner_calls_not_asserted),
+//!   and a delegatecall target by --allow-delegatecall TO (else delegatecall).
+//!   An approve/permit whose token (--expect-to), spender and amount (--expect-amount or --expect-unlimited) are all
+//!   asserted and match lifts token_call_not_transfer / unknown_contract_call and its approve warning.
 //! EVM default fee cap: 0.01 ETH (same as tx-sign); UTXO: no cap unless --max-fee.
 //! Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
 use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    blocktools_io::help("tx-verify [--chain C] (--plan FILE | [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--expect-memo MEMO] [--policy FILE]) [--allow-warnings] [--allow-value-with-token] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < tx");
+    blocktools_io::help("tx-verify [--chain C] (--plan FILE | [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--expect-memo MEMO] [--policy FILE]) [--allow-warnings] [--allow-value-with-token] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < tx");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-verify");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -63,6 +74,7 @@ fn main() {
         o["policy_sha256"] = json!(pf.sha256);
     }
     if let Some(c) = approve(&d, &mut f, &a) { o["call"] = c }
+    content(&d, &mut f, &mut o, &a, &p.expect_to);
     if let Some(s) = blocktools_core::chain_spec::get().filter(|s| s.name == chain) { o["chain_spec"] = json!("unverified chain spec"); o["chain_spec_sha256"] = json!(s.sha256) }
     o["status"] = json!(if f.is_empty() {"ok"} else {"failed"}); o["failures"] = json!(f); o["warnings"] = json!(d.warnings); o["fee_cap"] = blocktools_tx::policy::fee_cap(&d, &p).json();
     blocktools_io::outln!("{o}");
@@ -93,4 +105,29 @@ fn approve(d: &blocktools_tx::Decoded, f: &mut Vec<String>, a: &[String]) -> Opt
     let warn: Vec<String> = d.warnings.iter().map(|w| w.to_string()).collect();
     blocktools_evm::api::lift_approved(&o, t.to.map(|x| blocktools_tx::addr(&x)).as_deref(), &expect, &warn, f);
     Some(o)
+}
+
+/// Approval / transfer / batch content checks (blocktools_evm::approval). EVM only; adds findings.
+fn content(d: &blocktools_tx::Decoded, f: &mut Vec<String>, o: &mut serde_json::Value, a: &[String], expect_to: &[String]) {
+    let bad = |e: &str| -> ! { blocktools_io::outln!("{}", serde_json::json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
+    let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
+    let one = |k: &str| { let v = all(k); if v.len() > 1 { bad(&format!("{k} given twice")) } v.into_iter().next() };
+    let e = blocktools_evm::approval::Expect {
+        spender: one("--expect-spender"), amount: one("--expect-amount"), unlimited: a.iter().any(|x| x == "--expect-unlimited"),
+        recipient: one("--expect-recipient"), value: one("--expect-value"),
+        inner: all("--allow-inner-call").iter().map(|s| blocktools_evm::approval::Expect::inner_arg(s).unwrap_or_else(|e| bad(&e))).collect(),
+        delegatecall: all("--allow-delegatecall"),
+    };
+    let asserted = e.spender.is_some() || e.amount.is_some() || e.unlimited || e.recipient.is_some() || e.value.is_some() || !e.inner.is_empty() || !e.delegatecall.is_empty();
+    let e = e.normalized().unwrap_or_else(|x| bad(&x));
+    let Some(t) = d.evm.as_ref() else { if asserted { bad("approval/transfer assertions are EVM only") } return };
+    let (r, mut g) = blocktools_evm::approval::check(t.to.as_ref(), &t.value.to_string(), &t.data, &e);
+    if let Some(to) = t.to.as_ref() {
+        if blocktools_evm::approval::fully_asserted_approval(&r, &g, &e, expect_to, to) {
+            f.retain(|x| !["token_call_not_transfer", "unknown_contract_call", "destination_not_expected"].contains(&x.as_str()));
+            if d.warnings.iter().all(|w| ["unsigned", "token_approve", "unlimited_approve", "unknown_calldata"].contains(w)) { f.retain(|x| x != "has_warnings") }
+        }
+    }
+    for k in ["approvals", "transfers", "inner_calls"] { if let Some(v) = r.get(k) { o[k] = v.clone() } }
+    f.append(&mut g); f.dedup();
 }

@@ -6,6 +6,7 @@
 //!   eip712: typed-data hashing and signer recovery
 pub mod abi;
 pub mod api;
+pub mod approval;
 pub mod bytecode;
 pub mod create;
 pub mod eip712;
