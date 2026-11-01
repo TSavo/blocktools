@@ -22,6 +22,27 @@ input); it never guesses:
 <!-- e2e: expect="status":"no_match" ; expect="selector":"0xa9059cbb" ; rc=0 -->
     abi-decode --sig 'approve(address,uint256)' < recipes/fixtures/evm-mainnet/01a-erc20-transfer-tx.json
 
+Bytes appended after the call (an ERC-2771 sender, a referral tag) are refused by default (exit 2,
+`trailing_data`). `--allow-trailing` decodes the call and returns exactly the extra bytes as `trailing_hex`
+([ABI-STRICT.md](../docs/ABI-STRICT.md)):
+
+<!-- e2e: expect="error":"trailing_data" ; rc=2 -->
+    echo 0xa9059cbb0000000000000000000000002b5ad5c4795c026514f8317c7a215e218dccd6cf00000000000000000000000000000000000000000000000000000000000003e82222222222222222222222222222222222222222 | abi-decode --sig 'transfer(address,uint256)'
+
+<!-- e2e: expect="value":"1000" ; expect="trailing_hex":"0x2222222222222222222222222222222222222222" ; rc=0 -->
+    echo 0xa9059cbb0000000000000000000000002b5ad5c4795c026514f8317c7a215e218dccd6cf00000000000000000000000000000000000000000000000000000000000003e82222222222222222222222222222222222222222 | abi-decode --sig 'transfer(address,uint256)' --allow-trailing
+
+<!-- e2e: expect="trailing_hex":"0xdeadbeef" ; rc=0 -->
+    echo 0xa9059cbb0000000000000000000000002b5ad5c4795c026514f8317c7a215e218dccd6cf00000000000000000000000000000000000000000000000000000000000003e8deadbeef | abi-decode --sig 'transfer(address,uint256)' --allow-trailing
+
+A return value longer than the declared outputs, here `(uint112,uint112)` over 3 words:
+
+<!-- e2e: expect="error":"trailing_data" ; rc=2 -->
+    echo 0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003 | abi-decode --types '(uint112,uint112)'
+
+<!-- e2e: expect="value":"2" ; expect="trailing_hex":"0x0000000000000000000000000000000000000000000000000000000000000003" ; rc=0 -->
+    echo 0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003 | abi-decode --types '(uint112,uint112)' --allow-trailing
+
 Selector unknown? See [evm-unknown-selector.md](evm-unknown-selector.md).
 
 ## Encode: arguments → calldata
