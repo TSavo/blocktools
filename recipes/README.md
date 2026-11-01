@@ -66,7 +66,20 @@ and see addresses and signed transactions only.
 
 | Goal | Recipe | Status |
 |---|---|---|
-| Selectors, calldata, logs, return data, reverts, CREATE/CREATE2 addresses, ABI inspect, `eth_getCode`, EIP-712 (`abi-encode`, `abi-decode`, `sig-hash`, `log-decode`, `create-address`, `bytecode-inspect`, `typed-data-verify`, `contract-call`, `contract-trace`) | [evm-contract-data.md](evm-contract-data.md) | offline examples run in CI; `contract-call` and `contract-trace` tested against a mock RPC only |
+| Index of the short EVM contract recipes below | [evm-contract-data.md](evm-contract-data.md) | index |
+| Decode a transaction's calldata; encode calldata (`abi-decode`, `abi-encode`) | [evm-decode-calldata.md](evm-decode-calldata.md) | offline examples run in CI |
+| Look up an unknown selector (`sig-hash --lookup`, your own candidate list) | [evm-unknown-selector.md](evm-unknown-selector.md) | offline examples run in CI |
+| Decode event logs (`abi-decode`, `log-decode`) | [evm-decode-logs.md](evm-decode-logs.md) | offline examples run in CI |
+| Decode a revert: `Error(string)`, `Panic`, custom errors | [evm-decode-revert.md](evm-decode-revert.md) | offline examples run in CI |
+| Run an `eth_call` and decode the return; state overrides, traces (`contract-call`, `contract-trace`) | [evm-eth-call.md](evm-eth-call.md) | run in CI against a mock RPC only |
+| Compute a CREATE or CREATE2 address (`create-address`) | [evm-contract-address.md](evm-contract-address.md) | offline examples run in CI |
+| Inspect a deployed contract: code, ABI, selectors, offline source/metadata check | [evm-inspect-contract.md](evm-inspect-contract.md) | offline examples run in CI |
+| Check an EIP-712 signature and digest (`typed-data-verify`) | [evm-eip712-verify.md](evm-eip712-verify.md) | offline examples run in CI |
+| Check an ERC-20 approve or EIP-2612 permit before signing | [evm-check-approval.md](evm-check-approval.md) | offline examples run in CI on constructed data; automatic unlimited-approval flagging NOT BUILT |
+| Decode a multicall or a Universal Router `execute` (nested calls) | [evm-decode-multicall.md](evm-decode-multicall.md) | run in CI; naming router commands / v4 actions NOT BUILT |
+| Tx hash → decoded call, logs and revert, end to end | [evm-tx-end-to-end.md](evm-tx-end-to-end.md) | run in CI against a mock RPC; live node untested; tracing a mined tx NOT BUILT |
+| What a Permit2 signing request commits to, verified offline | [evm-permit2-signing-request.md](evm-permit2-signing-request.md) | run in CI on a real mainnet permit |
+| Check an EIP-1167 proxy or EIP-7702 delegation before interacting (`bytecode-inspect`) | [evm-check-proxy-delegation.md](evm-check-proxy-delegation.md) | run in CI; storage-slot proxies NOT BUILT |
 | Build, verify, sign and broadcast a contract call or a deployment (`tx-build --data/--create` → `tx-verify` → `tx-sign`) | [evm-contract-tx.md](evm-contract-tx.md) | build, verify, sign and broadcast covered by e2e against a mock that does not execute the EVM; the real-geth devnet script is untested |
 
 ## Cross-chain swaps (THORChain)

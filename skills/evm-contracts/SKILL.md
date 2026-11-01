@@ -41,7 +41,7 @@ check above actually proves something.
 
 The full worked flows live in two recipes; read them before running anything real:
 
-- `recipes/evm-contract-data.md` — the decode/encode toolkit, sections (a)..(j).
+- `recipes/evm-contract-data.md` — index of the short decode/encode/check recipes (`recipes/evm-*.md`).
 - `recipes/evm-contract-tx.md` — the contract-call and contract-creation transaction flow.
 
 ## Thinking in plans: calldata is the payload, decode is verify

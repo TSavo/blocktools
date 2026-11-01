@@ -8,4 +8,4 @@ Built off-repo (blocktools runs no compiler) with solc-js 0.8.26+commit.8a97fa7a
 - `Counter.runtime.hex`: `0x` + `evm.deployedBytecode.object`, newline.
 - `Counter.creation.hex`: `0x` + `evm.bytecode.object`, newline.
 
-Used by `tools/bytecode-inspect/tests/metadata.rs` and `recipes/evm-contract-data.md`.
+Used by `tools/bytecode-inspect/tests/metadata.rs` and `recipes/evm-inspect-contract.md`.

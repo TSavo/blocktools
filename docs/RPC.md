@@ -470,7 +470,7 @@ Results that are not a decoded value are never printed as one: a revert is `reve
 decoded (`Error(string)`, `Panic(uint256)`, custom errors from `--abi`/`--error`, exit 1); `0x` for a function that
 declares returns is `empty_return` (no code at the address on that chain/block, or no such function); return data that
 does not decode cleanly under the declared types (for example a `uint8` above 255) is `bad_return`. Tested against a
-127.0.0.1 mock in `tools/contract-call/tests/cli.rs` and in `recipes/evm-contract-data.md`; not measured against a
+127.0.0.1 mock in `tools/contract-call/tests/cli.rs` and in `recipes/evm-eth-call.md`; not measured against a
 live node. Decode the logs a node returns (`eth_getLogs`, receipts) with the offline `log-decode`.
 
 ## contract-trace: state overrides and debug_traceCall
@@ -484,7 +484,7 @@ other `--tracer` name (or `struct` for no tracer) prints the raw result on one l
 prints its frames, then `reverted` on stderr and exit 1. The state file is validated locally (addresses, quantities,
 32-byte slots, `state` and `stateDiff` exclusive). Same `check_call_in`, response secret check, credential
 redaction and transport bounds as `contract-call`. Tested against a 127.0.0.1 mock in
-`tools/contract-trace/tests/cli.rs` and in `recipes/evm-contract-data.md`; not measured against a live node.
+`tools/contract-trace/tests/cli.rs` and in `recipes/evm-eth-call.md`; not measured against a live node.
 
 ## Cookbook (mock round trips, run by `scripts/e2e.d/rpc.sh`)
 
