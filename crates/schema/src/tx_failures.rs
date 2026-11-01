@@ -5,6 +5,9 @@ pub const TX_FAILURES: &[&str] = &["has_warnings", "fee_above_cap", "fee_unknown
     // D1-12: these were emitted by tx-verify but missing here, so redact dropped the refusal line.
     "legacy_input_amount_unproven", "chain_id_not_pinned", "eth_value_with_token_call",
     "fee_over_10pct_of_inputs",
+    // approval / transfer / batch checks (blocktools_evm::approval, tx-verify)
+    "unlimited_approval", "spender_not_expected", "amount_not_expected", "recipient_not_expected", "value_not_expected",
+    "spender_not_checkable", "amount_not_checkable", "recipient_not_checkable", "inner_calls_not_asserted", "delegatecall", "bad_inner_calldata",
     // policy-file findings (blocktools_tx::policy_file)
     "policy:no_rule_for_chain", "policy:chain_id", "policy:allow_tokens", "policy:allow_calls", "policy:allow_to", "policy:max_value", "policy:max_outputs", "policy:max_fee"];
 /// Compile-time membership test used by blocktools_tx's `code!` macro: every failure code the
