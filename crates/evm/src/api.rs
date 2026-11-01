@@ -76,19 +76,29 @@ pub fn panic_reason(code: &str) -> Option<&'static str> {
 }
 
 /// Decode calldata or revert data with a 4-byte selector against `sigs` (+ Error(string)/Panic(uint256)).
-pub fn decode_selector_data(d: &[u8], sigs: &[Sig]) -> Result<Value, String> {
+pub fn decode_selector_data(d: &[u8], sigs: &[Sig]) -> Result<Value, String> { decode_selector_data_t(d, sigs, false) }
+
+/// Strict decode, or with `allow_trailing` the [`abi::decode_prefix`] form that also returns the unconsumed suffix as hex.
+fn dec_t(ps: &[Param], d: &[u8], allow_trailing: bool) -> Result<(Vec<Value>, Option<String>), String> {
+    if !allow_trailing { return Ok((abi::decode(ps, d)?, None)); }
+    let (v, end) = abi::decode_prefix(ps, d)?;
+    Ok((v, Some(hex(&d[end..]))))
+}
+
+fn decode_selector_data_t(d: &[u8], sigs: &[Sig], allow_trailing: bool) -> Result<Value, String> {
     if d.len() < 4 { return Err("data_shorter_than_selector".into()); }
     let all: Vec<Sig> = sigs.iter().cloned().chain(builtin_errors()).filter(|s| s.kind != Kind::Event && s.kind != Kind::Constructor).collect();
     let cands: Vec<&Sig> = all.iter().filter(|s| s.selector()[..] == d[..4]).collect();
     if cands.is_empty() { return Ok(json!({"status": "no_match", "selector": hex(&d[..4])})); }
     let mut last = String::new();
     for s in cands {
-        match abi::decode(&s.inputs, &d[4..]) {
-            Ok(vals) => {
+        match dec_t(&s.inputs, &d[4..], allow_trailing) {
+            Ok((vals, tr)) => {
                 let mut o = sig_info(s);
                 let panic = (s.name == "Panic" && s.canonical() == "Panic(uint256)").then(|| vals[0].as_str().and_then(panic_reason)).flatten();
                 o["args"] = abi::labelled(&s.inputs, vals);
                 if let Some(r) = panic { o["panic_reason"] = json!(r); }
+                if let Some(t) = tr { o["trailing_hex"] = json!(t); }
                 return Ok(o);
             }
             Err(e) => last = e,
@@ -98,7 +108,9 @@ pub fn decode_selector_data(d: &[u8], sigs: &[Sig]) -> Result<Value, String> {
 }
 
 /// Decode a log: topic0 selects the event among `sigs` (anonymous events: tried by shape).
-pub fn decode_log(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig]) -> Result<Value, String> {
+pub fn decode_log(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig]) -> Result<Value, String> { decode_log_t(topics, data, sigs, false) }
+
+fn decode_log_t(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig], allow_trailing: bool) -> Result<Value, String> {
     let evs: Vec<&Sig> = sigs.iter().filter(|s| s.kind == Kind::Event).collect();
     let mut last = String::from("no_matching_event");
     for s in evs {
@@ -108,7 +120,8 @@ pub fn decode_log(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig]) -> Result<Valu
         if topics.len() != idx.len() + named as usize { last = "topic_count_mismatch".into(); continue; }
         let non: Vec<Param> = s.inputs.iter().filter(|p| !p.indexed).cloned().collect();
         let res = (|| -> Result<Value, String> {
-            let mut dv = abi::decode(&non, data)?.into_iter();
+            let (dvals, tr) = dec_t(&non, data, allow_trailing)?;
+            let mut dv = dvals.into_iter();
             let mut tv = topics[named as usize..].iter();
             let mut args = vec![];
             for p in &s.inputs {
@@ -124,6 +137,7 @@ pub fn decode_log(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig]) -> Result<Valu
             }
             let mut o = sig_info(s);
             o["args"] = Value::Array(args);
+            if let Some(t) = tr { o["trailing_hex"] = json!(t); }
             Ok(o)
         })();
         match res { Ok(o) => return Ok(o), Err(e) => last = e }
@@ -133,43 +147,52 @@ pub fn decode_log(topics: &[[u8; 32]], data: &[u8], sigs: &[Sig]) -> Result<Valu
 }
 
 /// Decode raw data (returndata, constructor args) as a type list, no selector.
-pub fn decode_types(types: &[Param], d: &[u8]) -> Result<Value, String> {
-    let vals = abi::decode(types, d)?;
-    Ok(json!({"status": "ok", "types": format!("({})", types.iter().map(|p| p.ty.canon()).collect::<Vec<_>>().join(",")), "args": abi::labelled(types, vals)}))
+pub fn decode_types(types: &[Param], d: &[u8]) -> Result<Value, String> { decode_types_t(types, d, false) }
+
+fn decode_types_t(types: &[Param], d: &[u8], allow_trailing: bool) -> Result<Value, String> {
+    let (vals, tr) = dec_t(types, d, allow_trailing)?;
+    let mut o = json!({"status": "ok", "types": format!("({})", types.iter().map(|p| p.ty.canon()).collect::<Vec<_>>().join(",")), "args": abi::labelled(types, vals)});
+    if let Some(t) = tr { o["trailing_hex"] = json!(t); }
+    Ok(o)
 }
 
 /// Decode output data of a function by its `returns (...)` list.
-pub fn decode_output(s: &Sig, d: &[u8]) -> Result<Value, String> {
-    let mut o = decode_types(&s.outputs, d)?;
+pub fn decode_output(s: &Sig, d: &[u8]) -> Result<Value, String> { decode_output_t(s, d, false) }
+
+fn decode_output_t(s: &Sig, d: &[u8], allow_trailing: bool) -> Result<Value, String> {
+    let mut o = decode_types_t(&s.outputs, d, allow_trailing)?;
     o["kind"] = json!("returns"); o["signature"] = json!(s.canonical()); o["selector"] = json!(hex(&s.selector()));
     Ok(o)
 }
 
-/// Facade: `{input, sig? | sigs?(text), types?, output?}` -> decoded JSON. Exactly the CLI's logic.
+/// Facade: `{input, sig? | sigs?(text), types?, output?, allow_trailing?}` -> decoded JSON. Exactly the CLI's logic.
 pub fn decode_json(req: &Value) -> Result<Value, String> {
     let input = match req.get("input") { Some(Value::String(s)) => s.clone(), Some(v @ Value::Object(_)) => v.to_string(), _ => return Err("missing_input".into()) };
     let mut sigs = vec![];
     if let Some(s) = req.get("sig").and_then(Value::as_str) { sigs.push(Sig::parse(s)?); }
     if let Some(s) = req.get("abi") { sigs.extend(load_sigs(&match s { Value::String(x) => x.clone(), v => v.to_string() })?); }
     let types = req.get("types").and_then(Value::as_str);
-    decode_with(&input, &sigs, types, req.get("output").and_then(Value::as_bool).unwrap_or(false))
+    let allow_trailing = match req.get("allow_trailing") { None | Some(Value::Bool(false)) => false, Some(Value::Bool(true)) => true, _ => return Err("allow_trailing_must_be_bool".into()) };
+    decode_with(&input, &sigs, types, req.get("output").and_then(Value::as_bool).unwrap_or(false), allow_trailing)
 }
 
 /// Decode one input (hex or JSON) against parsed signatures; `types` = raw type list; `output` = first sig's returns.
-pub fn decode_with(input: &str, sigs: &[Sig], types: Option<&str>, output: bool) -> Result<Value, String> {
+/// `allow_trailing` (opt-in, default strict): bytes after the last head/tail are accepted and returned as
+/// `trailing_hex` (always present when set, "0x" if none); every other strictness rule still applies.
+pub fn decode_with(input: &str, sigs: &[Sig], types: Option<&str>, output: bool, allow_trailing: bool) -> Result<Value, String> {
     let inp = parse_input(input)?;
     if let Some(t) = types {
         let Input::Data(d) = inp else { return Err("types_need_data_not_a_log".into()) };
-        return decode_types(&abi::parse_types(t)?, &d);
+        return decode_types_t(&abi::parse_types(t)?, &d, allow_trailing);
     }
     if output {
         let Input::Data(d) = inp else { return Err("output_needs_data".into()) };
         let s = sigs.first().ok_or("output_needs_sig")?;
-        return decode_output(s, &d);
+        return decode_output_t(s, &d, allow_trailing);
     }
     match inp {
-        Input::Log(t, d) => decode_log(&t, &d, sigs),
-        Input::Data(d) => decode_selector_data(&d, sigs),
+        Input::Log(t, d) => decode_log_t(&t, &d, sigs, allow_trailing),
+        Input::Data(d) => decode_selector_data_t(&d, sigs, allow_trailing),
     }
 }
 

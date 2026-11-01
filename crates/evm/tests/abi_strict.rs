@@ -106,3 +106,63 @@ fn canonical_vectors_still_decode() {
     assert!(dec("(uint256[])", &(w(32) + &w(0))).is_ok());
     assert!(dec("()", "").is_ok());
 }
+
+// ---- opt-in lenient mode: only `trailing_data` is lifted (abi-decode --allow-trailing, evmAbiDecode allow_trailing) ----
+
+#[test]
+fn allow_trailing_keeps_every_other_rejection() {
+    for (name, t, h, want) in cases() {
+        let r = std::panic::catch_unwind(|| abi::decode_prefix(&p(t), &unhex(&h).unwrap()));
+        match r {
+            Err(_) => panic!("{name}: PANIC in lenient mode"),
+            Ok(Ok((_, end))) => assert_eq!(want, "trailing_data", "{name}: lenient accepted (consumed {end}) a case that must stay {want}"),
+            Ok(Err(e)) => assert_eq!(e, want, "{name}: lenient error differs from strict"),
+        }
+    }
+}
+
+#[test]
+fn allow_trailing_returns_exact_suffix() {
+    use blocktools_evm::api::decode_json;
+    use serde_json::json;
+    let transfer = format!("a9059cbb{}{}", format!("{:0>64}", "1111111111111111111111111111111111111111"), w(1000));
+    let approve = format!("095ea7b3{}{}", format!("{:0>64}", "1111111111111111111111111111111111111111"), "f".repeat(64));
+    let sig_t = "transfer(address,uint256)";
+    let sig_a = "approve(address,uint256)";
+    let suffix20 = "22".repeat(20);
+    let three = format!("{}{}{}", w(1), w(2), w(3));
+    // (request without allow_trailing, expected trailing_hex)
+    let cases = [
+        (json!({"input": format!("0x{transfer}{suffix20}"), "sig": sig_t}), format!("0x{suffix20}")),
+        (json!({"input": format!("0x{transfer}deadbeef"), "sig": sig_t}), "0xdeadbeef".to_string()),
+        (json!({"input": format!("0x{approve}{}", w(0)), "sig": sig_a}), format!("0x{}", w(0))),
+        (json!({"input": format!("0x{}{}", w(5), w(7)), "types": "(uint256)"}), format!("0x{}", w(7))),
+        (json!({"input": format!("0x{three}"), "types": "(uint112,uint112)"}), format!("0x{}", w(3))),
+        (json!({"input": format!("0x{}{}", w(5), w(7)), "sig": "f() returns (uint256)", "output": true}), format!("0x{}", w(7))),
+    ];
+    for (req, want) in cases {
+        // strict default still refuses
+        assert_eq!(decode_json(&req).unwrap_err(), "trailing_data", "{req}");
+        let mut lr = req.clone();
+        lr["allow_trailing"] = json!(false);
+        assert_eq!(decode_json(&lr).unwrap_err(), "trailing_data", "{lr}");
+        lr["allow_trailing"] = json!(true);
+        let v = decode_json(&lr).unwrap();
+        assert_eq!(v["trailing_hex"], json!(want), "{lr}");
+    }
+    // option set, nothing trailing: trailing_hex is "0x"; option unset: no trailing_hex key
+    let ok = json!({"input": format!("0x{transfer}"), "sig": sig_t, "allow_trailing": true});
+    assert_eq!(decode_json(&ok).unwrap()["trailing_hex"], json!("0x"));
+    let strict = json!({"input": format!("0x{transfer}"), "sig": sig_t});
+    assert!(decode_json(&strict).unwrap().get("trailing_hex").is_none());
+    // values are those of the prefix
+    let v = decode_json(&json!({"input": format!("0x{three}"), "types": "(uint112,uint112)", "allow_trailing": true})).unwrap();
+    assert_eq!(v["args"][1]["value"], json!("2"));
+    // non-bool option is refused, never coerced
+    for bad in [json!("true"), json!(1), json!(null)] {
+        assert_eq!(decode_json(&json!({"input": "0x", "types": "()", "allow_trailing": bad})).unwrap_err(), "allow_trailing_must_be_bool");
+    }
+    // lenient still rejects non-canonical / dirty input before the suffix
+    let dirty = format!("0x{}{}{}", format!("01{:062x}", 0), w(1), suffix20);
+    assert_eq!(decode_json(&json!({"input": dirty, "types": "(address,uint256)", "allow_trailing": true})).unwrap_err(), "dirty_address");
+}
