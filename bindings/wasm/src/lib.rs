@@ -426,7 +426,7 @@ pub fn evm_sig_lookup(hash_hex: &str, sigs_text: &str) -> Result<String, JsError
     let s = evm_api::load_sigs(sigs_text).map_err(err)?;
     Ok(evm_api::lookup(hash_hex, &s).map_err(err)?.to_string())
 }
-/// Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
+/// Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?, allow_trailing?}.
 #[wasm_bindgen(js_name = evmAbiDecode)]
 pub fn evm_abi_decode(request_json: &str) -> Result<String, JsError> { Ok(evm_api::decode_json(&evm_req(request_json)?).map_err(err)?.to_string()) }
 

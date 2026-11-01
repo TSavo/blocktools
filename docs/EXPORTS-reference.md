@@ -622,9 +622,9 @@ bt.detectAddressInfo("nope")
 evmAbiDecode(request_json: string): string
 ```
 
-Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
+Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?, allow_trailing?}.
 
-Calls in test.mjs: 5.
+Calls in test.mjs: 10.
 
 Example (executed):
 
