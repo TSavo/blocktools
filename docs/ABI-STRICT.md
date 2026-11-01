@@ -11,9 +11,9 @@ encoder produce. Anything else is refused with a typed error code (exit 2 / `bad
 | Every offset and length fits in the data; arithmetic is checked (no wrap near 2^64 or 2^256) | `offset_or_length_out_of_bounds`, `offset_or_length_too_large`, `data_too_short`, `bytes_out_of_bounds`, `array_length_out_of_bounds` |
 | Each dynamic tail starts exactly where the previous one ended, in head order: no pointer into the head, no gap, no overlap, no aliasing, no reordering, no unaligned offset (also inside nested tuples and arrays) | `non_canonical_offset` |
 | The data ends exactly after the last tail (also checked per nested level) | `trailing_data` |
-| `address` high 12 bytes are zero | `dirty_address` |
+| `address` padding (the high bytes above the address) is zero | `dirty_address` |
 | `uintN` (N<256) has no bits above N; `intN` is properly sign-extended | `dirty_uintN`, `dirty_intN` |
-| `bytesN` padding is zero; `bytes`/`string` tails are padded to 32 bytes with zeros | `dirty_bytesN`, `dirty_bytes_padding`, `bytes_padding_missing` |
+| `bytesN` padding is zero; `bytes`/`string` tails are zero-padded to a whole word | `dirty_bytesN`, `dirty_bytes_padding`, `bytes_padding_missing` |
 | `bool` is exactly 0 or 1 | `dirty_bool` |
 | `string` is valid UTF-8 | `string_not_utf8` |
 | Type nesting depth is bounded, checked before decoding | `too_deep` |

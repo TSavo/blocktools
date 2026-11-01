@@ -1013,3 +1013,5 @@ d36bed5cb2be8e40dc65d5f975b5ea6af7920f9a666aaff167cf9308ad56ee7b
 # bech32WitnessProgram golden vectors (public): BIP173 P2WPKH v0 raw 5-bit words, and the BIP350 P2TR v1 witness program = secp256k1 generator X (crates/tx/tests/bech32_witness.rs, bindings/wasm/test.mjs)
 0e140f070d1a001912060b0d081504140311021d030c1d03040f1814060e1e16
 79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
+# Foundry v1.8.7 foundry_v1.8.7_linux_amd64.tar.gz sha256 (pinned download in .github/workflows/abi-fuzz.yml)
+ba470eb718e779e4b0e3f1520b5284231b1bf98e9a39de07fb8f77ed70525bcf

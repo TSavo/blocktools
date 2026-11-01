@@ -1,5 +1,5 @@
 {
- "_doc": "Documented leniency of the other decoders, one entry per (decoder, blocktools error code) observed in the development run (seed 20261101, VALID=400, MUTATIONS=5, on the KeyRescue box; the CI job re-measures). An entry matches a mutated case where blocktools abi-decode REJECTED it with that error code (exact; a trailing * matches a numeric width) and that decoder ACCEPTED it. Anything not listed fails the job. These say the other decoder is less strict than docs/ABI-STRICT.md, not that it is wrong.",
+ "_doc": "Documented leniency of the other decoders, one entry per (decoder, blocktools error code) observed by the fuzz (seed 20261101; the CI job re-measures). An entry matches a mutated case where blocktools abi-decode REJECTED it with that error code (exact; a trailing * matches a numeric width) and that decoder ACCEPTED it. Anything not listed fails the job. These say the other decoder is less strict than docs/ABI-STRICT.md, not that it is wrong.",
  "entries": [
   {
    "decoder": "ethers",
@@ -130,6 +130,16 @@
    "decoder": "cast",
    "our_error": "string_not_utf8",
    "reason": "cast accepts string bytes that are not valid UTF-8 (lossy decode); blocktools refuses them"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "data_too_short",
+   "reason": "viem reads a final word that is cut short as if the missing bytes were zero (observed for truncations inside trailing zero bytes); blocktools, ethers and cast refuse short data"
+  },
+  {
+   "decoder": "viem",
+   "our_error": "array_length_out_of_bounds",
+   "reason": "viem reads a final word that is cut short as if the missing bytes were zero (observed for truncations inside trailing zero bytes); blocktools, ethers and cast refuse short data"
   }
  ]
 }
