@@ -276,6 +276,11 @@ mod tests {
         let below = "340282366920938463463374607431768211455";
         assert!(check(Some(&TOK), "0", &enc("increaseAllowance(address,uint256)", json!([SP, below])), &Expect::default()).1.is_empty());
         assert_eq!(check(Some(&TOK), "0", &enc("increaseAllowance(address,uint256)", json!([SP, UNLIMITED_MIN])), &Expect::default()).1, vec!["unlimited_approval"]);
+        // approve(spender, 2^128-1) passes; approve(spender, 2^128) is flagged (docs/claims.toml approve-unlimited-threshold)
+        let (o, f) = check(Some(&TOK), "0", &enc("approve(address,uint256)", json!([SP, below])), &Expect::default());
+        assert!(f.is_empty(), "{f:?}"); assert_eq!(o["approvals"][0]["unlimited"], false);
+        let (o, f) = check(Some(&TOK), "0", &enc("approve(address,uint256)", json!([SP, UNLIMITED_MIN])), &Expect::default());
+        assert_eq!(f, vec!["unlimited_approval"]); assert_eq!(o["approvals"][0]["unlimited"], true);
     }
     #[test]
     fn amount_and_spender_assertions() {

@@ -981,3 +981,16 @@ expect = "43 of 43 executables run"
 cheap = false
 depends = []
 doc = [{ file = "README.md", text = "43 of 43 executables" }]
+
+[[claim]]
+id = "approve-unlimited-threshold"
+statement = "tx-verify / verifyTx approval checks flag an approval of 2^128 or more as unlimited_approval: approve(spender, 2^128-1) passes with unlimited=false and approve(spender, 2^128) fails unlimited_approval (also increaseAllowance)"
+kind = "security"
+platform = "linux"
+status = "untested"
+note = "registered in the allow-trailing PR; stamp at a green main commit (K-ci) in the follow-up"
+command = "cargo test -q --release -p blocktools-evm --lib approval::tests::threshold_is_2_pow_128"
+expect = "test result: ok. 1 passed"
+date = "2026-11-01"
+cheap = false
+depends = ["crates/evm/src/approval.rs"]
