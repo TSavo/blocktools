@@ -33,3 +33,4 @@ Measured results are Linux-only unless labelled.
 ## Plans (not implemented unless marked)
 - [Roadmap](ROADMAP.md), [parity roadmap](ROADMAP-PARITY.md), [Monero sweep design](monero-sweep-design.md),
   [prior art](prior-art-crypto-plugins.md), [docs readiness audit](DOCS-READINESS.md).
+- [ABI-STRICT.md](ABI-STRICT.md): what the strict ABI decoder rejects
