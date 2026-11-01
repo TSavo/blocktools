@@ -397,6 +397,17 @@ console.log('lift7 ok');
   assert.equal(r.signature, 'Error(string)'); assert.equal(r.args[0].value, 'hi');
   assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input.slice(0, -2), sig: 'transfer(address,uint256)'})), /./);
   console.log('ok evm abi decode');
+  // allow_trailing (opt-in): an ERC-2771-style 20-byte suffix is refused by default, returned as trailing_hex when allowed
+  const sfx = '22'.repeat(20);
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input + sfx, sig: 'transfer(address,uint256)'})), /trailing_data/);
+  const t = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: input + sfx, sig: 'transfer(address,uint256)', allow_trailing: true})));
+  assert.equal(t.args[1].value, '5050510000'); assert.equal(t.trailing_hex, '0x' + sfx);
+  const w = (n) => n.toString(16).padStart(64, '0');
+  const g = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: '0x' + w(1) + w(2) + w(3), types: '(uint112,uint112)', allow_trailing: true})));
+  assert.equal(g.args[1].value, '2'); assert.equal(g.trailing_hex, '0x' + w(3));
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: '0x01' + w(0).slice(2) + w(1) + sfx, types: '(address,uint256)', allow_trailing: true})), /dirty_address/);
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input + sfx, sig: 'transfer(address,uint256)', allow_trailing: 'true'})), /allow_trailing_must_be_bool/);
+  console.log('ok evm abi decode allow_trailing');
 }
 
 { // evmAbiEncodePacked: Solidity ABI spec "Non-standard Packed Mode" examples
