@@ -1,7 +1,9 @@
 //! Solidity ABI types, a strict decoder and an encoder (Solidity ABI spec, "Formal Specification
 //! of the Encoding"). The decoder is bounds-checked and refuses non-canonical padding (dirty high
 //! bits, bool not 0/1, nonzero tail padding), offsets outside the data, lengths that cannot fit,
-//! nesting deeper than 32 and more than 100,000 decoded values (pointer aliasing blow-up).
+//! non-canonical tails (each dynamic tail must start where the previous one ended: no gaps, overlap,
+//! reordering or aliasing), data after the last tail, nesting deeper than 32 and more than 100,000
+//! decoded values. Malformed-input cases: crates/evm/tests/abi_strict.rs; docs/ABI-STRICT.md.
 use crate::u256::{self, Word};
 use crate::{checksum_address, hex, parse_address, unhex};
 use serde_json::{json, Value};
@@ -130,9 +132,18 @@ pub fn parse_types(s: &str) -> Result<Vec<Param>, String> {
 
 struct Dec<'a> { d: &'a [u8], count: usize }
 
+/// Type nesting depth (arrays and tuples), checked before decoding so empty containers cannot hide it.
+fn ty_depth(t: &Ty) -> usize {
+    match t {
+        Ty::Array(e, _) => 1 + ty_depth(e),
+        Ty::Tuple(ps) => 1 + ps.iter().map(|p| ty_depth(&p.ty)).max().unwrap_or(0),
+        _ => 0,
+    }
+}
+
 impl<'a> Dec<'a> {
     fn word(&self, at: usize) -> Result<&'a [u8], String> {
-        self.d.get(at..at.checked_add(32).ok_or("offset_overflow")?).ok_or_else(|| "data_too_short".to_string()).map(|w| w)
+        self.d.get(at..at.checked_add(32).ok_or("offset_overflow")?).ok_or_else(|| "data_too_short".to_string())
     }
     fn usize_at(&self, at: usize) -> Result<usize, String> {
         let w = self.word(at)?;
@@ -146,53 +157,64 @@ impl<'a> Dec<'a> {
         if self.count > MAX_VALUES { Err("too_many_values".into()) } else { Ok(()) }
     }
 
-    fn tuple(&mut self, ts: &[&Ty], base: usize, depth: usize) -> Result<Vec<Value>, String> {
+    /// Decode a tuple whose head starts at `base`. Returns the values and the end of its encoding.
+    /// Canonical rule: each dynamic member's tail starts exactly where the previous tail ended
+    /// (the first one right after the head), so tails are in head order, contiguous, never shared.
+    fn tuple(&mut self, ts: &[&Ty], base: usize, depth: usize) -> Result<(Vec<Value>, usize), String> {
         if depth > MAX_DEPTH { return Err("too_deep".into()); }
+        let head_len = ts.iter().map(|t| t.head_size()).fold(0usize, |a, b| a.saturating_add(b));
+        let mut tail = base.checked_add(head_len).ok_or("offset_overflow")?;
+        if tail > self.d.len() { return Err("data_too_short".into()); }
         let mut head = base;
-        let mut out = Vec::with_capacity(ts.len());
+        let mut out = Vec::with_capacity(ts.len().min(MAX_VALUES));
         for t in ts {
             if t.is_dynamic() {
                 let off = self.usize_at(head)?;
                 let at = base.checked_add(off).filter(|&a| a <= self.d.len()).ok_or("offset_out_of_bounds")?;
-                out.push(self.value(t, at, depth + 1)?);
+                if at != tail { return Err("non_canonical_offset".into()); }
+                let (v, e) = self.value(t, at, depth + 1)?;
+                out.push(v);
+                tail = e;
                 head += 32;
             } else {
-                out.push(self.value(t, head, depth + 1)?);
+                out.push(self.value(t, head, depth + 1)?.0);
                 head = head.checked_add(t.head_size()).ok_or("offset_overflow")?;
             }
         }
-        Ok(out)
+        Ok((out, tail))
     }
 
-    fn value(&mut self, t: &Ty, at: usize, depth: usize) -> Result<Value, String> {
+    /// Decode one value at `at`. Returns the value and the end of its encoding.
+    fn value(&mut self, t: &Ty, at: usize, depth: usize) -> Result<(Value, usize), String> {
         self.tick()?;
+        let end32 = at + 32;
         Ok(match t {
             Ty::Uint(m) => {
                 let w: Word = self.word(at)?.try_into().unwrap();
                 if u256::bits(&w) > *m { return Err(format!("dirty_uint{m}")); }
-                json!(u256::to_dec(&w))
+                (json!(u256::to_dec(&w)), end32)
             }
             Ty::Int(m) => {
                 let w: Word = self.word(at)?.try_into().unwrap();
                 let pad = 32 - m / 8;
                 let sign = if w[pad] & 0x80 != 0 { 0xff } else { 0 };
                 if w[..pad].iter().any(|&b| b != sign) { return Err(format!("dirty_int{m}")); }
-                json!(u256::int_to_dec(&w))
+                (json!(u256::int_to_dec(&w)), end32)
             }
             Ty::Address => {
                 let w = self.word(at)?;
                 if w[..12].iter().any(|&b| b != 0) { return Err("dirty_address".into()); }
-                json!(checksum_address(w[12..].try_into().unwrap()))
+                (json!(checksum_address(w[12..].try_into().unwrap())), end32)
             }
             Ty::Bool => {
                 let w = self.word(at)?;
                 if w[..31].iter().any(|&b| b != 0) || w[31] > 1 { return Err("dirty_bool".into()); }
-                json!(w[31] == 1)
+                (json!(w[31] == 1), end32)
             }
             Ty::FixedBytes(m) => {
                 let w = self.word(at)?;
                 if w[*m..].iter().any(|&b| b != 0) { return Err(format!("dirty_bytes{m}")); }
-                json!(hex(&w[..*m]))
+                (json!(hex(&w[..*m])), end32)
             }
             Ty::Bytes | Ty::String => {
                 let n = self.usize_at(at)?;
@@ -201,38 +223,48 @@ impl<'a> Dec<'a> {
                 let padded = n.div_ceil(32) * 32;
                 let pad = self.d.get(st + n..st + padded).ok_or("bytes_padding_missing")?;
                 if pad.iter().any(|&b| b != 0) { return Err("dirty_bytes_padding".into()); }
-                if *t == Ty::String {
+                let v = if *t == Ty::String {
                     json!(std::str::from_utf8(body).map_err(|_| "string_not_utf8")?)
-                } else { json!(hex(body)) }
+                } else { json!(hex(body)) };
+                (v, st + padded)
             }
             Ty::Array(e, None) => {
                 let n = self.usize_at(at)?;
-                // every element needs at least one word of head after the length word
+                // every element needs at least one word of head after the length word; zero-size
+                // elements (empty tuples) are capped by the value budget before anything is allocated
                 if n.saturating_mul(32) > self.d.len().saturating_sub(at + 32) && e.head_size() > 0 { return Err("array_length_out_of_bounds".into()); }
+                if n > MAX_VALUES.saturating_sub(self.count) { return Err("too_many_values".into()); }
                 let ts: Vec<&Ty> = std::iter::repeat_n(&**e, n).collect();
-                Value::Array(self.tuple(&ts, at + 32, depth)?)
+                let (v, end) = self.tuple(&ts, at + 32, depth)?;
+                (Value::Array(v), end)
             }
             Ty::Array(e, Some(k)) => {
                 let ts: Vec<&Ty> = std::iter::repeat_n(&**e, *k).collect();
-                Value::Array(self.tuple(&ts, at, depth)?)
+                let (v, end) = self.tuple(&ts, at, depth)?;
+                (Value::Array(v), end)
             }
             Ty::Tuple(ps) => {
                 let ts: Vec<&Ty> = ps.iter().map(|p| &p.ty).collect();
-                Value::Array(self.tuple(&ts, at, depth)?)
+                let (v, end) = self.tuple(&ts, at, depth)?;
+                (Value::Array(v), end)
             }
         })
     }
 }
 
-/// Decode `data` as the ABI encoding of the tuple `params`. Returns (values, bytes consumed by the heads).
+/// Decode `data` as the strict (canonical) ABI encoding of the tuple `params`: see the module doc and
+/// docs/ABI-STRICT.md. Data after the last tail is refused (`trailing_data`).
 pub fn decode(params: &[Param], data: &[u8]) -> Result<Vec<Value>, String> {
+    if params.iter().map(|p| ty_depth(&p.ty)).max().unwrap_or(0) >= MAX_DEPTH { return Err("too_deep".into()); }
     let ts: Vec<&Ty> = params.iter().map(|p| &p.ty).collect();
-    Dec { d: data, count: 0 }.tuple(&ts, 0, 0)
+    let (v, end) = Dec { d: data, count: 0 }.tuple(&ts, 0, 0)?;
+    if end != data.len() { return Err("trailing_data".into()); }
+    Ok(v)
 }
 
 /// Decode one 32-byte word (an indexed event topic) as a static type.
 pub fn decode_word(t: &Ty, w: &[u8]) -> Result<Value, String> {
-    Dec { d: w, count: 0 }.value(t, 0, 0)
+    Dec { d: w, count: 0 }.value(t, 0, 0).map(|r| r.0)
 }
 
 /// Pair decoded values with their params: `[{name?, type, value}]`.

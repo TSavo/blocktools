@@ -81,11 +81,12 @@ fn strict_decoder_refuses_malformed() {
     assert!(abi::decode(&p("(string)"), &d(&format!("{:064x}{:064x}{:0<64}", 32, 1, "ff"))).is_err(), "bad utf8");
     assert!(abi::decode(&p("(bytes)"), &d(&format!("{:064x}{:064x}{:0<62}01", 32, 1, "aa"))).is_err(), "dirty tail padding");
     assert!(abi::decode(&p("(uint256)"), &d(&w1[..62])).is_err(), "short");
-    // pointer aliasing: many array elements pointing at the same big array -> capped, not exponential
+    // pointer aliasing: many array elements pointing at the same big array -> refused (non-canonical
+    // since the strict-tail rule; before it, capped by the value budget), never exponential
     let mut s = format!("{:064x}{:064x}", 32, 3000);
     for _ in 0..3000 { s += &format!("{:064x}", 0); }
     let r = abi::decode(&p("(uint256[][][])"), &d(&s));
-    assert!(r.is_ok() || r.unwrap_err() == "too_many_values");
+    assert!(matches!(r.as_ref().map_err(String::as_str), Err("non_canonical_offset" | "too_many_values")), "{r:?}");
     assert!(Sig::parse("f(uint7)").is_err() && Sig::parse("f(bytes33)").is_err() && Sig::parse("f(uint256[0])").is_err());
     assert!(Sig::parse("f(uint256").is_err() && Sig::parse("1f()").is_err());
 }
