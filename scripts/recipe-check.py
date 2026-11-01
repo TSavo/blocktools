@@ -142,6 +142,9 @@ try:
             elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify|utxo-set|wallet-finder|multisig|bolt11) ", cmd):
                 # offline, secret-free filters on recorded fixtures (contract-call: against the $ETH fixture mock; utxo-set/wallet-finder: public UTXO dump, no keys out): bash with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
+            elif cmd.startswith("curl ") and "$ETH/" in cmd:
+                # fetch-then-decode examples: curl only to the 127.0.0.1 $ETH fixture mock, then the same offline filters
+                argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:
                 bad.append(f"{where}: untestable command form: {cmd}"); continue
             env_path = {"PATH": os.path.abspath(B) + os.pathsep + os.environ.get("PATH", "")} if argv[0] == "bash" and argv[1] == "-o" else {}
