@@ -53,6 +53,7 @@ neg H-cigate hygiene-check "ci-gate:" 'printf "      - run: cargo test\n" >> .gi
 neg G-yaml hygiene-check "not valid workflow YAML" 'printf "on: push\nconcurrency: { group: ci-\${{ github.ref }}, cancel-in-progress: false }\njobs: {}\n" > .github/workflows/broken.yml'
 neg G-stages hygiene-check "stage matrix" 'sed "s/stage: \[lint, test, negatives, e2e, package\]/stage: [lint, test, e2e, package]/" .github/workflows/ci.yml > t && mv t .github/workflows/ci.yml'
 neg H-selftest hygiene-check "hygiene self-test" 'sed "s/^WC_PAT=.*/WC_PAT=nevermatches_zz/" scripts/hygiene-check.sh > t && mv t scripts/hygiene-check.sh'
+neg R-curl hygiene-check "recipe-check curl self-test" 'sed "s/: return \"every curl URL must start with \$ETH\/\"/: pass/" scripts/recipe-check.py > t && mv t scripts/recipe-check.py'
 neg H-neg hygiene-check "has no negative test" 'printf "false # rule:Z-none\n" >> scripts/prepush-check.sh'
 # ---- docs-check.sh
 neg D-tooldoc docs-check "tool zzfake not documented" 'mkdir -p tools/zzfake && echo x > tools/zzfake/f'

@@ -15,6 +15,46 @@ every expect substring in stdout+stderr, and no secret value in stdout (public f
 Every recipe file except README.md must carry at least one tested example.
 usage: recipe-check.py BIN_DIR TMP_DIR"""
 import os, re, shlex, shutil, subprocess, sys, time
+# Offline filters a recipe pipeline may run (also the only commands allowed after `curl ... |`).
+TOOLS = ("jq", "sig-hash", "abi-decode", "abi-encode", "create-address", "abi-inspect", "bytecode-inspect", "typed-data-verify", "log-decode",
+         "contract-call", "contract-trace", "tx-build", "tx-verify", "utxo-set", "wallet-finder", "multisig", "bolt11")
+CURL_OPTS_ARG = {"-X", "-H", "--data", "--data-raw", "-d"}; CURL_OPTS = {"-s", "-sS", "-S", "--silent", "--fail", "-f"}
+def curl_shape(cmd, eth):
+    """None when `cmd` is exactly `curl [opts] $ETH/<prefix>... | FILTER ... [| FILTER ...]`, else the reason.
+    Only the 127.0.0.1 fixture mock ($ETH) may be fetched; no command lists, substitutions or redirects."""
+    if re.search(r"`|\$\(|\$\{", cmd): return "command substitution"
+    if any(m.group(0) != "$ETH/" for m in re.finditer(r"\$\w*/?", cmd)): return "only $ETH/ may be expanded"
+    lx = shlex.shlex(cmd, posix=True, punctuation_chars=";&|<>()"); lx.whitespace_split = True
+    try: toks = list(lx)
+    except ValueError as e: return f"unparsable: {e}"
+    segs = [[]]
+    for t in toks:
+        if t == "|": segs.append([])
+        elif t and set(t) <= set("|&;<>()"): return f"shell operator {t!r}"
+        else: segs[-1].append(t)
+    first, rest = segs[0], segs[1:]
+    if not first or first[0] != "curl" or not rest: return "must be: curl ... $ETH/PREFIX | FILTER"
+    urls, i = [], 1
+    while i < len(first):
+        t = first[i]
+        if t in CURL_OPTS_ARG and i + 1 < len(first): i += 2; continue
+        if t in CURL_OPTS: i += 1; continue
+        if t.startswith("-"): return f"curl option {t!r} not allowed"
+        urls.append(t); i += 1
+    if not urls or any(not u.startswith("$ETH/") or not (u.replace("$ETH", eth, 1)).startswith(eth + "/") for u in urls): return "every curl URL must start with $ETH/"
+    if re.search(r"https?://", cmd): return "literal http(s) URL"
+    for sg in rest:
+        if not sg or sg[0] not in TOOLS: return f"pipe target {sg[:1]} not an offline filter"
+    return None
+if sys.argv[1:] == ["--self-test"]:
+    E = "http://127.0.0.1:1"; good = "curl -s -X POST -H 'Content-Type: application/json' --data '{\"id\":1}' $ETH/01a | jq -r .result | abi-decode"
+    assert curl_shape(good, E) is None, curl_shape(good, E)
+    for b in ["curl https://example.com/x ; curl $ETH/01a | jq .", "curl $ETH/01a | jq . ; curl https://e.com", "curl $ETH/01a && rm -rf x | jq .",
+              "curl $ETH/01a || true | jq .", "curl $ETH/$(id) | jq .", "curl `id` $ETH/01a | jq .", "curl https://evil/ $ETH/01a | jq .", "curl evil.example $ETH/01a | jq .",
+              "curl $ETH/01a -o /tmp/x | jq .", "curl $ETH/01a | sh", "curl $ETH/01a > /tmp/x", "curl $HOME/x $ETH/01a | jq .",
+              "curl $ETH/01a | jq . & curl https://e.com", "curl -K cfg $ETH/01a | jq .", "curl $ETH/01a"]:
+        assert curl_shape(b, E) is not None, f"accepted: {b}"
+    print("recipe-check self-test ok"); sys.exit(0)
 B, T = sys.argv[1], sys.argv[2]
 VD = os.path.join(T, "recipes"); IN = os.path.join(VD, "in"); SEC = os.path.join(VD, "secrets")
 os.makedirs(IN, exist_ok=True); os.makedirs(SEC, mode=0o700, exist_ok=True)
@@ -139,11 +179,13 @@ try:
             elif cmd.startswith("recipes/recover.sh "):
                 argv = ["bash", "recipes/recover.sh"] + [sub(a) for a in shlex.split(cmd)[1:]]
                 if fund: open(ff, "w").write(fund + "\n"); argv += ["--url", RU]
-            elif re.match(r"(jq|sig-hash|abi-decode|abi-encode|create-address|abi-inspect|bytecode-inspect|typed-data-verify|log-decode|contract-call|contract-trace|tx-build|tx-verify|utxo-set|wallet-finder|multisig|bolt11) ", cmd):
+            elif re.match(r"(" + "|".join(TOOLS) + ") ", cmd):
                 # offline, secret-free filters on recorded fixtures (contract-call: against the $ETH fixture mock; utxo-set/wallet-finder: public UTXO dump, no keys out): bash with BIN on PATH
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
-            elif cmd.startswith("curl ") and "$ETH/" in cmd:
-                # fetch-then-decode examples: curl only to the 127.0.0.1 $ETH fixture mock, then the same offline filters
+            elif cmd.startswith("curl "):
+                # fetch-then-decode examples: one curl, only to the 127.0.0.1 $ETH fixture mock, piped into offline filters
+                why = curl_shape(cmd, ETH)
+                if why: bad.append(f"{where}: curl example refused ({why}): {cmd}"); continue
                 argv = ["bash", "-o", "pipefail", "-c", sub(cmd)]
             else:
                 bad.append(f"{where}: untestable command form: {cmd}"); continue

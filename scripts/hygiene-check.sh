@@ -32,6 +32,8 @@ printf '[ "$(%s -l < f)" = 100 ]\n' "$w" > "$st/a"; printf '%s -i s/a/b/ f\n' "$
 (cd "$st" && git grep --no-index -qE "$WC_PAT" -- a) || { echo "FAIL hygiene self-test: wc rule does not match on this git"; rc=1; }  # rule:H-selftest
 (cd "$st" && git grep --no-index -qE "$SED_PAT" -- b) || { echo "FAIL hygiene self-test: sed rule does not match on this git"; rc=1; }  # rule:H-selftest
 rm -rf "$st"
+# recipe-check.py runs `curl ... $ETH/...` recipe examples: only a single curl to the local fixture mock, piped into offline filters.
+python3 scripts/recipe-check.py --self-test > /dev/null 2>&1 || { echo "FAIL recipe-check curl self-test (a non-\$ETH fetch or a command list would run)"; rc=1; }  # rule:R-curl
 bad=$(git grep -nE "$WC_PAT" -- scripts recipes ':!scripts/hygiene-check.sh' ':!scripts/gate-negatives.sh' || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL BSD-unsafe wc string compare (use arithmetic \$((\$(wc …))) or -eq):"; echo "$bad"; rc=1; }  # rule:H-wc
 # in-place sed without backup ext (BSD needs an empty ext arg or a .bak suffix).
