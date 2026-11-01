@@ -178,7 +178,7 @@ What is measured (Linux x86_64, `scripts/e2e.d/recovery-real.sh`, run in CI's e2
   `scripts/electrum-bie1-gen.py`. btcrecover's test wallets (fetched by `scripts/fetch-fixtures.sh`)
   are third-party files but not ours to regenerate.
 
-Not covered: a swap (or typo) that still passes the BIP39 checksum (about 1 in 16 for a swap): seed-repair then reports `checksum_ok` and searches nothing, so the test picks a swap whose checksum fails; wallets damaged on disk (truncated or bit-flipped files), MetaMask's browser vault, Exodus,
+Not covered: a swap (or typo) that still passes the BIP39 checksum: seed-repair then reports `checksum_ok` and searches nothing, so the test picks a swap whose checksum fails; wallets damaged on disk (truncated or bit-flipped files), MetaMask's browser vault, Exodus,
 hardware-wallet passphrases, multisig, passwords not reachable from the tokens you give, seeds with more
 than two unknown words, and every wallet version other than those named above.
 
