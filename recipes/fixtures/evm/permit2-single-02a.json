@@ -1,0 +1,70 @@
+{
+ "typed_data": {
+  "types": {
+   "EIP712Domain": [
+    {
+     "name": "name",
+     "type": "string"
+    },
+    {
+     "name": "chainId",
+     "type": "uint256"
+    },
+    {
+     "name": "verifyingContract",
+     "type": "address"
+    }
+   ],
+   "PermitSingle": [
+    {
+     "name": "details",
+     "type": "PermitDetails"
+    },
+    {
+     "name": "spender",
+     "type": "address"
+    },
+    {
+     "name": "sigDeadline",
+     "type": "uint256"
+    }
+   ],
+   "PermitDetails": [
+    {
+     "name": "token",
+     "type": "address"
+    },
+    {
+     "name": "amount",
+     "type": "uint160"
+    },
+    {
+     "name": "expiration",
+     "type": "uint48"
+    },
+    {
+     "name": "nonce",
+     "type": "uint48"
+    }
+   ]
+  },
+  "primaryType": "PermitSingle",
+  "domain": {
+   "name": "Permit2",
+   "chainId": 1,
+   "verifyingContract": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+  },
+  "message": {
+   "details": {
+    "token": "0xc8fb80fcc03f699c70ff0cc08c09106288888888",
+    "amount": "713135902875675667654",
+    "expiration": "1792984331",
+    "nonce": "3270"
+   },
+   "spender": "0x66a9893cc07d91d95644aedd05d03f95e1dba8af",
+   "sigDeadline": "1792984331"
+  }
+ },
+ "signature": "0xb356fb9f56e6eb08556b0fb2d9c8474d105828536e7332028deeb515518ff7321836e9bb2b38bd7c4938487e62f7c404681dcdb9da4feb4f7ee0322ae4d72bc91b",
+ "signer": "0x7e9578235485f0e8cd0761ec6e570a2ab144f406"
+}
