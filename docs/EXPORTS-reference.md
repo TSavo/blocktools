@@ -849,7 +849,7 @@ Example (executed):
 
 ```js
 bt.evmTypedDataVerify("{\"types\":{\"EIP712Domain\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"version\",\"type\":\"string\"},{\"name\":\"chainId\",\"type\":\"uint256\"},{\"name\":\"verifyingContract\",\"type\":\"address\"}],\"Person\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"wallet\",\"type\":\"address\"}],\"Mail\":[{\"name\":\"from\",\"type\":\"Person\"},{\"name\":\"to\",\"type\":\"Person\"},{\"name\":\"contents\",\"type\":\"string\"}]},\"primaryType\":\"Mail\",\"domain\":{\"name\":\"Ether Mail\",\"version\":\"1\",\"chainId\":1,\"verifyingContract\":\"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC\"},\"message\":{\"from\":{\"name\":\"Cow\",\"wallet\":\"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826\"},\"to\":{\"name\":\"Bob\",\"wallet\":\"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB\"},\"contents\":\"Hello, Bob!\"}}")
-// -> {"chain_id":1,"digest":"0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2","domain_separator":"0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f","encode_type":"Mail(Person from,Person to,string contents)Person(string name,address wallet)","message_hash":"0xc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e","primary_type":"Mail","status":"ok"}
+// -> {"chain_id":1,"digest":"0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2","domain_separator":"0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f","encode_type":"Mail(Person from,Person to,string contents)Person(string name,address wallet)","message_hash":"0xc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e","primary_type":"Mail","status":"ok","verifying_contract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"}
 ```
 
 Error example (executed):

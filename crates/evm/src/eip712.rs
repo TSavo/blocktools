@@ -101,6 +101,7 @@ pub fn verify(td: &Value, sig_hex: Option<&str>, signer: Option<&str>) -> Result
         "domain_separator": hex(&ds), "message_hash": hex(&mh), "digest": hex(&d)});
     if primary == "EIP712Domain" { o.as_object_mut().unwrap().remove("message_hash"); }
     if let Some(cid) = td.get("domain").and_then(|x| x.get("chainId")) { o["chain_id"] = cid.clone(); }
+    if let Some(vc) = td.get("domain").and_then(|x| x.get("verifyingContract")) { o["verifying_contract"] = vc.clone(); }
     if let Some(s) = sig_hex {
         let (a, low_s) = recover(&d, &unhex(s)?)?;
         o["recovered"] = json!(checksum_address(&a)); o["low_s"] = json!(low_s);

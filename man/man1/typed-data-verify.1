@@ -3,7 +3,7 @@
 typed\-data\-verify \- EIP\-712 typed data \-> encodeType, domain separator, message hash and digest;
 .SH SYNOPSIS
 .nf
-typed\-data\-verify [\-\-sig HEX] [\-\-signer ADDR] [FILE]
+typed\-data\-verify [\-\-sig HEX] [\-\-signer ADDR] [\-\-expect\-chain\-id N] [\-\-expect\-verifying\-contract ADDR] [FILE]
 FILE (or stdin): EIP\-712 typed data {types, primaryType, domain, message}, an eth_signTypedData_v4
 request ({"params": [address, typedData]}, typedData as object or JSON string: the address becomes the
 expected signer), or {typed_data, signature, signer}. Without \-\-signer, prints the recovered address only.
@@ -15,12 +15,18 @@ with a signature, the recovered signer (65\-byte r||s||v or 64\-byte EIP\-2098);
 .RS 2
   typed\-data\-verify mail.json
   typed\-data\-verify \-\-sig 0x.. \-\-signer 0x.. < typed\-data.json
+  typed\-data\-verify \-\-expect\-chain\-id 1 \-\-expect\-verifying\-contract 0x.. FILE
 .RE
 .fi
+The domain's chainId and verifyingContract are printed as chain_id / verifying_contract. With an
+\-\-expect\-* assertion, a missing or different value sets status chain_id_mismatch /
+verifying_contract_mismatch (exit 1), whatever the signature verdict.
 .SH OPTIONS
 .nf
   \-\-sig HEX       signature: 65 bytes r||s||v (v 27/28 or 0/1) or 64 bytes EIP\-2098 compact
   \-\-signer ADDR   expected signer; status is valid (exit 0) or signer_mismatch (exit 1)
+  \-\-expect\-chain\-id N              domain.chainId must equal N, else status chain_id_mismatch (exit 1)
+  \-\-expect\-verifying\-contract ADDR domain.verifyingContract must equal ADDR, else verifying_contract_mismatch (exit 1)
 .fi
 .SH INPUT/OUTPUT
 .nf

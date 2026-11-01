@@ -97,7 +97,7 @@ def load_cases():
 
 # D1-14: one exit-code rule for every tool (docs/EXIT-CODES.md).
 EXIT_RULE = {**{k: 0 for k in ("ok", "done", "checksum_ok", "valid")},
-             **{k: 1 for k in ("failed", "refused", "aborted", "wrong_password", "checksum_fail", "no_candidates", "not_found", "too_many_candidates", "error", "http_error", "rpc_error", "signer_mismatch")},
+             **{k: 1 for k in ("failed", "refused", "aborted", "wrong_password", "checksum_fail", "no_candidates", "not_found", "too_many_candidates", "error", "http_error", "rpc_error", "signer_mismatch", "chain_id_mismatch", "verifying_contract_mismatch")},
              **{k: 2 for k in ("bad_input", "unsupported")}}
 
 def run_cases(cases):
