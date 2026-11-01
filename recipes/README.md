@@ -62,6 +62,13 @@ and see addresses and signed transactions only.
 | Stellar | ✅ | ✅ utxo-fetch (host-side, manual) | ✅ Payment / AccountMerge (acct-tx, TTY confirm) | [chain-stellar.md](chain-stellar.md) |
 | Monero | ✅ | ✅ xmr-wallet scan (stagenet) | ✅ xmr-wallet sweep (stagenet, TTY confirm) | [monero.md](monero.md) |
 
+## EVM contracts (any EVM chain)
+
+| Goal | Recipe | Status |
+|---|---|---|
+| Selectors, calldata, logs, return data, reverts, CREATE/CREATE2 addresses, ABI inspect, `eth_getCode`, EIP-712 (`abi-encode`, `abi-decode`, `sig-hash`, `log-decode`, `create-address`, `bytecode-inspect`, `typed-data-verify`, `contract-call`, `contract-trace`) | [evm-contract-data.md](evm-contract-data.md) | offline examples run in CI; `contract-call` and `contract-trace` tested against a mock RPC only |
+| Build, verify, sign and broadcast a contract call or a deployment (`tx-build --data/--create` → `tx-verify` → `tx-sign`) | [evm-contract-tx.md](evm-contract-tx.md) | build, verify, sign and broadcast covered by e2e against a mock that does not execute the EVM; the real-geth devnet script is untested |
+
 ## Cross-chain swaps (THORChain)
 
 | Goal | Recipe | Status |
