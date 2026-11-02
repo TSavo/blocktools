@@ -7,7 +7,7 @@ use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 fn hx(s: &str) -> Vec<u8> { blocktools::hex_dec(s).unwrap() }
 const N: Opts = Opts { format: None, pubkey: None };
 fn tron_addr() -> String {
-    // TWC's public test key (not a user secret); only its public key is used.
+    // public test vector: Trust Wallet Core's Tron message-signer test key (not a user secret); only its public key is used.
     let sk = SecretKey::from_slice(&hx("75065f100e38d3f3b4c5c4235834ba8216de62272a4f03532c44b31a5734360a")).unwrap();
     msgchain::tron_address(&PublicKey::from_secret_key(&Secp256k1::new(), &sk).serialize_uncompressed())
 }

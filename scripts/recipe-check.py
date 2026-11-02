@@ -17,7 +17,7 @@ usage: recipe-check.py BIN_DIR TMP_DIR"""
 import os, re, shlex, shutil, subprocess, sys, time
 # Offline filters a recipe pipeline may run (also the only commands allowed after `curl ... |`).
 TOOLS = ("jq", "sig-hash", "abi-decode", "abi-encode", "create-address", "abi-inspect", "bytecode-inspect", "typed-data-verify", "log-decode",
-         "contract-call", "contract-trace", "tx-build", "tx-verify", "utxo-set", "wallet-finder", "multisig", "bolt11")
+         "contract-call", "contract-trace", "tx-build", "tx-verify", "utxo-set", "wallet-finder", "multisig", "bolt11", "msg-verify")
 CURL_OPTS_ARG = {"-X", "-H", "--data", "--data-raw", "-d"}; CURL_OPTS = {"-s", "-sS", "-S", "--silent", "--fail", "-f"}
 def curl_shape(cmd, eth):
     """None when `cmd` is exactly `curl [opts] $ETH/<prefix>... | FILTER ... [| FILTER ...]`, else the reason.
