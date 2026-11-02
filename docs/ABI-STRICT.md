@@ -41,6 +41,42 @@ It is never the default, and no environment variable or config file can turn it 
 [REFUSALS.md](REFUSALS.md). The suffix cases are tested in `crates/evm/tests/abi_strict.rs`
 (`allow_trailing_*`), `bindings/wasm/test.mjs` and [recipes/evm-decode-calldata.md](../recipes/evm-decode-calldata.md).
 
+## Opt-in: accept gaps before dynamic tails (`--allow-gaps`)
+
+Decoding one parameter out of a longer argument list is a partial decode. One example is LI.FI's `BridgeData` tuple
+taken from multi-parameter calldata. Here the first head word, the tuple's offset, is `0x60` or `0x80`: the bytes in
+between are other parameters' head words that the declared types do not cover. The strict decoder refuses this with
+`non_canonical_offset`, and so does `--allow-trailing`.
+
+`abi-decode --allow-gaps` (wasm: `evmAbiDecode` request field `"allow_gaps": true`) is a separate opt-in. At every
+level, a dynamic member's tail may start **after** its canonical position (where the previous tail ended, or the
+end of the head for the first one). This covers a leading gap, unread words between the head and a tail, and holes
+between tails. The skipped bytes are never decoded or checked, and their total is reported as `gap_bytes`.
+
+What it does **not** lift:
+
+- **No backwards offsets.** A tail that starts before its canonical position still gets `non_canonical_offset`.
+  That covers an offset into the head, a tail that overlaps or aliases an earlier tail, and out-of-order tails. So
+  tails stay in head order and never overlap, and each byte is decoded at most once. The total work stays bounded
+  by the data length, and aliased or overlapping pointers cannot amplify it.
+- **Bounds and limits are unchanged.** Offsets and lengths are still bounds-checked, as are `too_many_values` and
+  `too_deep`.
+- **Value checks are unchanged.** Dirty padding is refused (`dirty_*`), and so are bools other than 0 or 1.
+- **Trailing bytes are still refused.** `trailing_data` applies unless `--allow-trailing` is also given. With both
+  options, `trailing_hex` is everything after the end of the last decoded tail.
+
+Presence rule: when the option is on, `gap_bytes` (a number) is always present, and it is `0` for canonical input.
+When the option is off, the key is absent. In wasm the field must be a JSON boolean; any other value throws
+`allow_gaps_must_be_bool`. It is never the default. Tests:
+
+- `crates/evm/tests/abi_strict.rs` (`allow_gaps_*`): three synthetic LI.FI-shaped cases at `0x60` and `0x80`, each
+  also checked to be refused in strict mode, plus the overlap and aliasing refusals.
+- `bindings/wasm/test.mjs`.
+- [recipes/evm-decode-calldata.md](../recipes/evm-decode-calldata.md).
+
+viem accepts some encodings that this mode still refuses: backwards, overlapping and aliased offsets. Those are
+UNTESTED against real LI.FI calldata and are not supported by design.
+
 ## How this compares with other decoders
 
 [`scripts/abi-fuzz/`](../scripts/abi-fuzz/) is a differential fuzz with a fixed seed, run by

@@ -624,7 +624,7 @@ evmAbiDecode(request_json: string): string
 
 Decode calldata / returndata / revert data / one log. Request JSON {input, sig?, abi?, types?, output?}.
 
-Calls in test.mjs: 10.
+Calls in test.mjs: 16.
 
 Example (executed):
 

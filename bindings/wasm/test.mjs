@@ -408,6 +408,18 @@ console.log('lift7 ok');
   assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: '0x01' + w(0).slice(2) + w(1) + sfx, types: '(address,uint256)', allow_trailing: true})), /dirty_address/);
   assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: input + sfx, sig: 'transfer(address,uint256)', allow_trailing: 'true'})), /allow_trailing_must_be_bool/);
   console.log('ok evm abi decode allow_trailing');
+  // allow_gaps (opt-in, separate): LI.FI-shaped partial decode, tuple offset 0x60 after two unconsumed head words
+  const tup = w(7) + w(0x40) + w(4) + '6e656172'.padEnd(64, '0');
+  const gIn = '0x' + w(0x60) + w(1) + w(2) + tup;
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: gIn, types: '((uint256,string))'})), /non_canonical_offset/);
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: gIn, types: '((uint256,string))', allow_trailing: true})), /non_canonical_offset/);
+  const gp = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: gIn, types: '((uint256,string))', allow_gaps: true})));
+  assert.equal(gp.args[0].value[1], 'near'); assert.equal(gp.gap_bytes, 64); assert.equal(gp.trailing_hex, undefined);
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: gIn + w(5), types: '((uint256,string))', allow_gaps: true})), /trailing_data/);
+  const gt = JSON.parse(bt.evmAbiDecode(JSON.stringify({input: gIn + w(5), types: '((uint256,string))', allow_gaps: true, allow_trailing: true})));
+  assert.equal(gt.trailing_hex, '0x' + w(5)); assert.equal(gt.gap_bytes, 64);
+  assert.throws(() => bt.evmAbiDecode(JSON.stringify({input: gIn, types: '((uint256,string))', allow_gaps: 1})), /allow_gaps_must_be_bool/);
+  console.log('ok evm abi decode allow_gaps');
 }
 
 { // evmAbiEncodePacked: Solidity ABI spec "Non-standard Packed Mode" examples
