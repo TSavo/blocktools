@@ -331,7 +331,7 @@ command = "cargo test -q --release -p blocktools --test msg_chains"
 expect = "test result: ok. 5 passed"
 date = "2026-11-02"
 cheap = false
-depends = ["crates/blocktools/src/msgchain.rs", "crates/blocktools/tests/msg_chains.rs"]
+depends = ["crates/tx/src/msgchain.rs", "crates/blocktools/tests/msg_chains.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "msg_chains.rs` (5 tests" }]
 
 [[claim]]

@@ -1,3 +1,4 @@
+# curve25519-dalek (+ its derive macro and build deps): Solana ed25519 verify, verify only (blocktools-tx feature msgchain); same crate already allowed for 18 CLIs incl. tx-verify, tx-sign, derive, sol-tron-tx
 arrayvec
 base58ck
 bech32
@@ -10,7 +11,11 @@ blocktools-core
 blocktools-io
 blocktools-monero
 blocktools-tx
+cfg-if
+cpufeatures
 crypto-common
+curve25519-dalek
+curve25519-dalek-derive
 digest
 generic-array
 groestl
@@ -19,11 +24,16 @@ hex_lit
 itoa
 keccak
 memchr
+proc-macro2
+quote
 secp256k1
 secp256k1-sys
 serde_core
 serde_json
 sha3
+subtle
+syn
 typenum
+unicode-ident
 zeroize
 zmij

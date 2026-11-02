@@ -413,6 +413,7 @@ version = "0.3.3"
 dependencies = [
  "bitcoin",
  "blocktools-core",
+ "curve25519-dalek",
  "secp256k1",
  "serde_json",
  "sha3",
@@ -1179,7 +1180,6 @@ dependencies = [
 name = "msg-verify"
 version = "0.3.3"
 dependencies = [
- "blocktools",
  "blocktools-core",
  "blocktools-io",
  "blocktools-tx",

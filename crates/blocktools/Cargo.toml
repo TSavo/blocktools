@@ -6,7 +6,7 @@ license.workspace = true
 description = "blocktools library facade: addresses, xpub watch-only derivation, path plans, address validation, transaction decode/build/verify. Default features take no private keys and do no I/O. DANGEROUS: use at your own risk; read and audit before trusting it with real funds."
 [dependencies]
 blocktools-core = { version = "0.3.3", path = "../core" }
-blocktools-tx = { version = "0.3.3", path = "../tx" }
+blocktools-tx = { version = "0.3.3", path = "../tx", features = ["msgchain"] }
 serde_json = { workspace = true }
 bitcoin = { workspace = true }
 curve25519-dalek = { workspace = true }

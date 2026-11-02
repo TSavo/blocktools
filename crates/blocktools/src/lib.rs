@@ -231,4 +231,4 @@ pub mod tron;
 pub mod soltron;
 pub mod verifier;
 pub mod build;
-pub mod msgchain;
+pub use blocktools_tx::msgchain;
