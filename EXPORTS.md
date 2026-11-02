@@ -74,7 +74,7 @@ This is the pinned set in `scripts/wasm-check.sh` (without the wasm-bindgen glue
 ### Loading the module
 
 - `pkg/node` (CommonJS, the package `main`): synchronous. `const bt = require("blocktools")` and call right away.
-- `pkg/web` (ES module, the package `./web` export and the non-Node default): call init once before anything else. Browser: `import init, * as bt from "blocktools/web"; await init();` (fetches `blocktools_wasm_bg.wasm` next to the JS). Node/Deno or your own fetch: `await init({ module_or_path: wasmBytesOrUrlOrResponse })`. Synchronous: `initSync({ module: wasmBytes })`. Any export called before init throws. Same 76 functions (unmeasured) as pkg/node (CI: `bindings/wasm/test-web.mjs` loads pkg/web with its wasm bytes, asserts the function set equals pkg/node's, and spot-checks results); wasm-check pins the exports of the pkg/web `.wasm`.
+- `pkg/web` (ES module, the package `./web` export and the non-Node default): call init once before anything else. Browser: `import init, * as bt from "blocktools/web"; await init();` (fetches `blocktools_wasm_bg.wasm` next to the JS). Node/Deno or your own fetch: `await init({ module_or_path: wasmBytesOrUrlOrResponse })`. Synchronous: `initSync({ module: wasmBytes })`. Any export called before init throws. Same 76 functions as pkg/node (CI: `bindings/wasm/test-web.mjs` loads pkg/web with its wasm bytes, asserts the function set equals pkg/node's, and spot-checks results); wasm-check pins the exports of the pkg/web `.wasm`.
 - Bundlers: there is no `--target bundler` build. Use `pkg/web` and hand the wasm URL to init: `await init(new URL("blocktools_wasm_bg.wasm", import.meta.url))`. This works in Vite and webpack 5 (asset modules). Bundler use is UNTESTED in CI (pkg/web itself is tested under Node).
 - Building it: `PATH=$HOME/.cargo/bin:$PATH bash scripts/wasm-check.sh` (needs rustup's wasm32 target and wasm-bindgen on PATH).
 
@@ -229,6 +229,9 @@ Failure codes are the CLI's: `unlimited_approval`, `spender_not_expected`, `amou
 `value_not_expected`, `spender_/recipient_/amount_not_checkable`, `inner_calls_not_asserted`, `delegatecall`,
 `bad_inner_calldata`. Differences: the CLI prints `status` and exits 1; wasm returns `ok:false`. A key given twice is
 a CLI bad-input error; JSON cannot repeat a key. tx-sign does not run these checks (see CHANGELOG Known limitations).
+
+Message signing is CLI-only: `msg-sign` (eth, btc, tron, sol, cosmos) needs a key and a typed code on /dev/tty, so wasm has
+`msgVerify` / `msgVerifyOpts` only (verify, no key) and no sign export.
 
 Account payments (xlm, algo, atom, ton, ada, dot) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
 the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.

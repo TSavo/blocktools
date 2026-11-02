@@ -1,3 +1,4 @@
+# curve25519-dalek + ed25519-dalek (ed25519, signature, sha2, + derive/build deps): Solana msg-sign ed25519 signing in the sealed CLI only (blocktools-tx feature msgchain); same crates already allowed for tx-sign, derive, sol-tron-tx
 arrayvec
 base58ck
 bech32
@@ -12,8 +13,14 @@ blocktools-monero
 blocktools-secrets
 blocktools-tty
 blocktools-tx
+cfg-if
+cpufeatures
 crypto-common
+curve25519-dalek
+curve25519-dalek-derive
 digest
+ed25519
+ed25519-dalek
 generic-array
 groestl
 hex-conservative
@@ -22,11 +29,18 @@ itoa
 keccak
 libc
 memchr
+proc-macro2
+quote
 secp256k1
 secp256k1-sys
 serde_core
 serde_json
+sha2
 sha3
+signature
+subtle
+syn
 typenum
+unicode-ident
 zeroize
 zmij
