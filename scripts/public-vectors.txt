@@ -1015,3 +1015,7 @@ d36bed5cb2be8e40dc65d5f975b5ea6af7920f9a666aaff167cf9308ad56ee7b
 79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
 # Foundry v1.8.7 foundry_v1.8.7_linux_amd64.tar.gz sha256 (pinned download in .github/workflows/abi-fuzz.yml)
 ba470eb718e779e4b0e3f1520b5284231b1bf98e9a39de07fb8f77ed70525bcf
+# Trust Wallet Core Tron message-signer test key (tests/chains/Tron/TronMessageSignerTests.cpp), public test vector
+75065f100e38d3f3b4c5c4235834ba8216de62272a4f03532c44b31a5734360a
+# Trust Wallet Core Solana message-signer test public key (tests/chains/Solana/SolanaMessageSigner.cpp), public test vector
+ee6d61a89fc8f9909585a996bb0d2b2ac69ae23b5acf39a19f32631239ba06f9
