@@ -3,28 +3,30 @@
 
 [[claim]]
 id = "fee-cap-evm-default"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "With no --max-fee, every signing route caps EVM total fee at 0.01 ETH-equivalent"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (test) runs cargo test --workspace (fee_cap_paths)"
 command = "cargo test -q --release -p blocktools --test fee_cap_paths"
 expect = "test result: ok"
-date = "2026-10-26"
+date = "2026-11-02"
 cheap = false
 depends = ["crates/tx/src/policy.rs"]
 doc = [{ file = "DESIGN.md", text = "0.01 ETH" }, { file = "EXPORTS.md", text = "0.01 ETH" }, { file = "docs/SECURITY.md", text = "0.01 ETH" }, { file = "docs/EXPORTS-reference.md", text = "0.01 ETH" }]
 
 [[claim]]
 id = "fee-cap-utxo-default"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "With no --max-fee, every signing route caps UTXO fee at max(100,000 base units, chain rate limit x vsize); 35 of 35 corpus sweeps pass (flat cap refused 9 of 35); cap+1 refused on each of 27 buildable chains; 240,000 sat on a 1-input BTC tx refused; fee over 10% of inputs refused without explicit --max-fee, 0 of 35 corpus sweeps trip it"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (test) runs cargo test --workspace (fee_cap_chains)"
 command = "cargo test -q --release -p blocktools-tx --test fee_cap_chains"
 expect = "test result: ok. 5 passed"
-date = "2026-10-26"
+date = "2026-11-02"
 cheap = false
 depends = ["crates/tx/src/policy.rs", "crates/core/src/chains.rs", "crates/tx/tests/fee_cap_chains.rs", "crates/tx/tests/data/feeprobe-corpus.jsonl"]
 doc = [{ file = "docs/CHAINS.md", text = "100,000 sat" }, { file = "docs/CHAINS.md", text = "35 legitimate sweeps" }, { file = "docs/CHAINS.md", text = "9 of 35" }, { file = "docs/CHAINS.md", text = "27 buildable chains" }, { file = "docs/CHAINS.md", text = "240,000 sat" }]
@@ -533,8 +535,10 @@ id = "wrapper-remote-refusal"
 statement = "./blocktools run/reveal refuse an ssh:// or tcp:// docker engine (DOCKER_HOST or current context) before docker run; BLOCKTOOLS_ALLOW_REMOTE=ssh permits only ssh:// (tcp/http(s) still exit 4); BLOCKTOOLS_ALLOW_REMOTE=1 permits any"
 kind = "security"
 platform = "linux"
-status = "untested"
-note = "depends changed: adds BLOCKTOOLS_ALLOW_REMOTE=ssh (ssh:// only); wrapper-remote.sh passes locally under dash and bash with its fake docker; unstampable until a green main commit contains it (K-ci); restamp in the follow-up"
+status = "measured"
+commit = "9c48627"
+date = "2026-11-02"
+env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run\""
 doc = [{ file = "README.md", text = "scripts/e2e.d/wrapper-remote.sh" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/wrapper-remote.sh)"
 expect = "wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run; local and explicit override run"
@@ -956,12 +960,13 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
-note = "re-measured passing at 70a7406 on the box; unstampable until a green main commit contains 039fa5c/70a7406 (K-ci); restamp in the follow-up"
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "untested"
-date = "2026-10-27"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) log: \"ok   amsterdam: recipe's old --gas 100000 -> status 0x0\""
+date = "2026-11-02"
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
 cheap = false
@@ -984,15 +989,16 @@ doc = [{ file = "README.md", text = "53 of its 55 binaries need glibc 2.34" }, {
 
 [[claim]]
 id = "sealed-tools-count"
-note = "41 -> 42 with siwe; restamp from the green main run after merge (was measured 41 at 50dbe77)"
 statement = "crates/io/sealed-tools.txt (the sealed-run allowlist the Dockerfile copies into the image) lists 42 tool entries (non-comment, non-blank lines)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success); crates/io/sealed-tools.txt at 9c48627 has 42 entries (siwe added)"
 command = "printf 'sealed-tools entries: %s\\n' \"$(grep -vcE '^[[:space:]]*(#|$)' crates/io/sealed-tools.txt)\""
 expect = "sealed-tools entries: 42"
-date = "2026-10-31"
-env = "cheap: re-run by claims-check (K-run) in every CI gate; first run on the box at 50dbe77"
+value = "42"
+date = "2026-11-02"
 cheap = true
 depends = ["crates/io/sealed-tools.txt"]
 doc = [{ file = "README.md", text = "the file now lists 42 entries" }]
@@ -1057,25 +1063,27 @@ doc = []
 
 [[claim]]
 id = "siwe-e2e"
-note = "passes on the box; stamp from the green main run after merge"
 statement = "siwe parse/build agree byte-exact with spruceid/siwe 911f6f2c vectors (parsing, URIs, verification via msg-verify) and the opt-in domain/nonce/time checks refuse"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   siwe checks: domain, nonce, expired, not_yet_valid, non_canonical\""
 command = "sh scripts/e2e.d/siwe.sh"
 expect = "ok   siwe checks"
 date = "2026-11-02"
 cheap = true
 depends = ["tools/siwe/src/lib.rs", "tools/siwe/src/main.rs", "scripts/e2e.d/siwe.sh"]
-doc = [{ file = "docs/PROVENANCE-siwe.md", text = "siwe-e2e (untested)" }]
+doc = [{ file = "docs/PROVENANCE-siwe.md", text = "claim siwe-e2e, measured" }]
 
 [[claim]]
 id = "msg-chains-sign-e2e"
 statement = "msg-sign (code typed on a pty) reproduces Trust Wallet Core's 2 Tron signMessageV2 signatures and its Solana raw signature byte for byte, round-trips Solana offchain-v0 and Cosmos ADR-036 through msg-verify, and refuses blind hashes, a missing --format, wrong-chain options, a mismatched key and a wrong code"
 kind = "security"
 platform = "linux"
-status = "untested"
-note = "new in the msg-sign-chains PR; stamp at a green main commit"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   msg-chains-sign refusals\"; the Cosmos ADR-036 case is a self round-trip, no published vector"
 command = "sh scripts/e2e.d/msg-chains-sign.sh"
 expect = "ok   msg-chains-sign refusals"
 date = "2026-11-02"
@@ -1085,11 +1093,12 @@ doc = [{ file = "docs/CHAINS.md", text = "msg-chains-sign.sh` (msg-chains-sign-e
 
 [[claim]]
 id = "tx-sign-presign-checks"
-note = "new in the tx-sign parity PR; passes on the box; stamp from a green main CI log (two-push)"
 statement = "tx-sign runs the tx-verify approval/transfer/batch checks (shared presign::apply) before reading a key and again on the signed bytes, deny by default: an unlimited approve fails unlimited_approval, a multicall hiding one fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall, also with --plan; with --expect-spender --expect-unlimited the approve is signed and the signed bytes pass tx-verify with the same assertions"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+commit = "9c48627"
+env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   tx-sign --plan with --expect-spender --expect-unlimited signs\""
 command = "sh scripts/e2e.d/tx-sign-presign.sh"
 expect = "ok   tx-sign --plan with --expect-spender --expect-unlimited signs"
 date = "2026-11-02"
