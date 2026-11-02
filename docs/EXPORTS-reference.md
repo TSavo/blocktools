@@ -209,13 +209,13 @@ buildEvmTransfer(req_json: string): string
 
 Unsigned EIP-155 transfer (ETH forks / extra EVM chains, native or ERC-20). Request JSON: {chainId, nonce, gas, gasPrice, to, value | balance, token?, maxPriorityFeePerGas?, from?}. Returns {unsigned, sighash, kind, chainId, nonce, gas, gasPrice, to, value, data, fee, ...}.
 
-Calls in test.mjs: 14.
+Calls in test.mjs: 17.
 
 Example (executed):
 
 ```js
-bt.buildEvmTransfer("{\"chainId\":61,\"nonce\":0,\"gas\":21000,\"gasPrice\":\"1000000000\",\"to\":\"0x0101010101010101010101010101010101010101\",\"balance\":\"1000000000000000000\"}")
-// -> {"chainId":61,"data":"0x","fee":"21000000000000","gas":"21000","gasPrice":"1000000000","kind":"legacy","nonce":"0","sighash":"0x430d776eab509c47ad7026e5e4f63872658ebfcda552f37f86df5d1ced2c3a02","to":"0x0101010101010101010101010101010101010101","unsigned":"0xeb80843b9aca00825208940101010101010101010101010101010101010101880de0a39a35d9b000803d8080","value":"999979000000000000"}
+bt.buildEvmTransfer("{\"chainId\":1,\"nonce\":0,\"gas\":21000,\"gasPrice\":\"1000000000\",\"to\":\"0x1111111111111111111111111111111111111111\",\"value\":\"1\"}")
+// -> {"chainId":1,"data":"0x","fee":"21000000000000","gas":"21000","gasPrice":"1000000000","kind":"legacy","nonce":"0","sighash":"0xbdc3d11246a079e1fc0db4edc11e131ee9adee966f0fd9471590ca197665b366","to":"0x1111111111111111111111111111111111111111","unsigned":"0xe380843b9aca008252089411111111111111111111111111111111111111110180018080","value":"1"}
 ```
 
 Error example (executed):
@@ -648,7 +648,7 @@ evmAbiEncode(request_json: string): string
 
 ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
 
-Calls in test.mjs: 17.
+Calls in test.mjs: 19.
 
 Example (executed):
 
@@ -843,7 +843,7 @@ evmTypedDataVerify(typed_data_json: string, sig_hex?: string | null, signer?: st
 
 EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict. `options_json` (optional) `{expect_chain_id?: "decimal", expect_verifying_contract?: "0x.."}`: the typed-data-verify --expect-chain-id / --expect-verifying-contract checks (status chain_id_mismatch / verifying_contract_mismatch). Wrong types throw `<key>_must_be_string`.
 
-Calls in test.mjs: 13.
+Calls in test.mjs: 15.
 
 Example (executed):
 
@@ -1498,7 +1498,7 @@ verifyTx(input: string, chain: string, expect_to: string[], change: string[], ch
 
 tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap) (untested). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata. `expected_memo` (UTF-8, optional): the only OP_RETURN payload accepted (one zero-value OP_RETURN, exact match); without it any OP_RETURN is refused (`unexpected_output`).
 
-Calls in test.mjs: 29.
+Calls in test.mjs: 34.
 
 Example (executed):
 
