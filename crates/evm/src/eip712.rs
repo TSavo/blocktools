@@ -93,6 +93,26 @@ pub fn recover(d: &[u8; 32], sig: &[u8]) -> Result<([u8; 20], bool), String> {
     let mut a = [0u8; 20]; a.copy_from_slice(&h[12..]); Ok((a, low_s))
 }
 
+/// typed-data-verify `--expect-chain-id` / `--expect-verifying-contract` on a [`verify`] result (shared by the CLI
+/// and the wasm `evmTypedDataVerify`): a missing or different domain value sets status `chain_id_mismatch` (with
+/// `expected_chain_id`) or `verifying_contract_mismatch` (chain id reported first); `expected_verifying_contract` is
+/// always added when asserted. Errors: `expect_chain_id_not_integer`, `expect_verifying_contract_bad_address`.
+pub fn apply_expect(o: &mut Value, chain_id: Option<&str>, verifying_contract: Option<&str>) -> Result<(), String> {
+    if let Some(w) = chain_id {
+        let w: u64 = w.parse().map_err(|_| "expect_chain_id_not_integer")?;
+        // EIP-712 chainId may be a JSON number or a decimal / 0x-hex string
+        let got = match &o["chain_id"] { Value::Number(n) => n.as_u64(), Value::String(s) => s.strip_prefix("0x").map_or_else(|| s.parse().ok(), |h| u64::from_str_radix(h, 16).ok()), _ => None };
+        if got != Some(w) { o["status"] = json!("chain_id_mismatch"); o["expected_chain_id"] = json!(w) }
+    }
+    if let Some(w) = verifying_contract {
+        let w = crate::parse_address(w).map_err(|_| "expect_verifying_contract_bad_address")?;
+        let got = o["verifying_contract"].as_str().and_then(|s| unhex(s).ok());
+        if got.as_deref() != Some(&w[..]) && o["status"] != "chain_id_mismatch" { o["status"] = json!("verifying_contract_mismatch") }
+        o["expected_verifying_contract"] = json!(checksum_address(&w));
+    }
+    Ok(())
+}
+
 /// {typed_data, signature, signer?} -> digests, recovered signer, and verdict when `signer` is given.
 pub fn verify(td: &Value, sig_hex: Option<&str>, signer: Option<&str>) -> Result<Value, String> {
     let (ds, mh, d) = digest(td)?;

@@ -118,16 +118,8 @@ fn content(d: &blocktools_tx::Decoded, f: &mut Vec<String>, o: &mut serde_json::
         inner: all("--allow-inner-call").iter().map(|s| blocktools_evm::approval::Expect::inner_arg(s).unwrap_or_else(|e| bad(&e))).collect(),
         delegatecall: all("--allow-delegatecall"),
     };
-    let asserted = e.spender.is_some() || e.amount.is_some() || e.unlimited || e.recipient.is_some() || e.value.is_some() || !e.inner.is_empty() || !e.delegatecall.is_empty();
+    let asserted = e.asserted();
     let e = e.normalized().unwrap_or_else(|x| bad(&x));
     let Some(t) = d.evm.as_ref() else { if asserted { bad("approval/transfer assertions are EVM only") } return };
-    let (r, mut g) = blocktools_evm::approval::check(t.to.as_ref(), &t.value.to_string(), &t.data, &e);
-    if let Some(to) = t.to.as_ref() {
-        if blocktools_evm::approval::fully_asserted_approval(&r, &g, &e, expect_to, to) {
-            f.retain(|x| !["token_call_not_transfer", "unknown_contract_call", "destination_not_expected"].contains(&x.as_str()));
-            if d.warnings.iter().all(|w| ["unsigned", "token_approve", "unlimited_approve", "unknown_calldata"].contains(w)) { f.retain(|x| x != "has_warnings") }
-        }
-    }
-    for k in ["approvals", "transfers", "inner_calls"] { if let Some(v) = r.get(k) { o[k] = v.clone() } }
-    f.append(&mut g); f.dedup();
+    blocktools_evm::approval::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, expect_to, f, o);
 }
