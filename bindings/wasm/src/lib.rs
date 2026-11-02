@@ -539,10 +539,31 @@ pub fn tx_plan_resolve(plan_json: &str, context_json: &str) -> Result<String, Js
 pub fn msg_verify(address: &str, message: &str, sig: &str, message_is_hex: bool) -> Result<String, JsError> {
     let msg = if message_is_hex { blocktools::hex_dec(message.trim()).ok_or_else(|| err("bad_hex_message"))? } else { message.as_bytes().to_vec() };
     if msg.len() > 1 << 20 { return Err(err("message_too_large")) }
-    let (chain, ok, recovered, v) = tx::message::verify(address, &msg, sig).map_err(err)?;
-    let mut o = json!({"status": if ok { "ok" } else { "signer_mismatch" }, "chain":chain, "address":address, "recovered":recovered});
-    if let Some(v) = v { o["v"] = json!(v) }
+    let o = blocktools::msgchain::verify(address, &msg, sig, &blocktools::msgchain::Opts { format: None, pubkey: None }).map_err(err)?;
     Ok(o.to_string())
+}
+
+/// As `msg-verify` with options, for the chains whose verify needs them. Input JSON:
+/// {"address", "message" | "message_hex", "signature", "format"? ("raw" | "offchain-v0", Solana, required there),
+/// "pubkey"? (base64 33-byte compressed key, Cosmos ADR-036, required there)}. Unknown keys and options that do
+/// not apply to the detected chain are refused. Returns the same JSON as `msgVerify`
+/// ({"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}). No keys.
+#[wasm_bindgen(js_name = msgVerifyOpts)]
+pub fn msg_verify_opts(input: &str) -> Result<String, JsError> {
+    let v: serde_json::Value = serde_json::from_str(input).map_err(|_| err("bad_json"))?;
+    let o = v.as_object().ok_or_else(|| err("bad_json"))?;
+    if let Some(k) = o.keys().find(|k| !["address", "message", "message_hex", "signature", "format", "pubkey"].contains(&k.as_str())) { return Err(err(&format!("unknown_key:{k}"))) }
+    let st = |k: &str| -> Result<Option<&str>, JsError> { match o.get(k) { None => Ok(None), Some(serde_json::Value::String(s)) => Ok(Some(s.as_str())), _ => Err(err(&format!("{k}_not_string"))) } };
+    let address = st("address")?.ok_or_else(|| err("address_required"))?;
+    let sig = st("signature")?.ok_or_else(|| err("signature_required"))?;
+    let msg = match (st("message")?, st("message_hex")?) {
+        (Some(m), None) => m.as_bytes().to_vec(),
+        (None, Some(h)) => blocktools::hex_dec(h.trim()).ok_or_else(|| err("bad_hex_message"))?,
+        _ => return Err(err("exactly_one_of_message_or_message_hex")),
+    };
+    if msg.len() > 1 << 20 { return Err(err("message_too_large")) }
+    let r = blocktools::msgchain::verify(address, &msg, sig, &blocktools::msgchain::Opts { format: st("format")?, pubkey: st("pubkey")? }).map_err(err)?;
+    Ok(r.to_string())
 }
 
 /// Decode a BOLT11 Lightning invoice, as `bolt11`: bech32 (BIP173) + tagged fields + the payee pubkey
