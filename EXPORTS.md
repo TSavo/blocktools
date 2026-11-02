@@ -226,6 +226,9 @@ Failure codes are the CLI's: `unlimited_approval`, `spender_not_expected`, `amou
 `bad_inner_calldata`. Differences: the CLI prints `status` and exits 1; wasm returns `ok:false`. A key given twice is
 a CLI bad-input error; JSON cannot repeat a key. tx-sign does not run these checks (see CHANGELOG Known limitations).
 
+Message signing is CLI-only: `msg-sign` (eth, btc, tron, sol, cosmos) needs a key and a typed code on /dev/tty, so wasm has
+`msgVerify` / `msgVerifyOpts` only (verify, no key) and no sign export.
+
 Account payments (xlm, algo, atom, ton, ada, dot) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
 the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.
 
