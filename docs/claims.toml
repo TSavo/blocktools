@@ -321,6 +321,20 @@ depends = ["crates/tx/src/evm.rs", "crates/tx/tests/twc_evm.rs", "crates/tx/test
 doc = [{ file = "docs/CHAINS.md", text = "7 legacy + 6 EIP-1559" }]
 
 [[claim]]
+id = "msg-chain-vectors"
+statement = "msg-verify (and wasm msgVerify/msgVerifyOpts) recovers Trust Wallet Core's 2 Tron signMessageV2 vectors and verifies its Solana raw vector, reproduces the solana-sdk off-chain v0 serialization hashes, round-trips Cosmos ADR-036 and refuses options for the wrong chain"
+kind = "security"
+platform = "linux"
+status = "untested"
+note = "new in the msg-verify-chains PR; stamp at a green main commit"
+command = "cargo test -q --release -p blocktools --test msg_chains"
+expect = "test result: ok. 5 passed"
+date = "2026-11-02"
+cheap = false
+depends = ["crates/blocktools/src/msgchain.rs", "crates/blocktools/tests/msg_chains.rs"]
+doc = [{ file = "docs/CHAINS.md", text = "msg_chains.rs` (5 tests" }]
+
+[[claim]]
 id = "twc-message-vectors"
 statement = "Trust Wallet Core message-signer vectors: 4 Ethereum personal_sign and 3 Bitcoin signmessage signatures reproduced byte for byte, 6 Bitcoin verify vectors recovered, TWC negatives refused"
 kind = "security"
@@ -898,19 +912,18 @@ doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
 
 [[claim]]
 id = "wasm-export-count"
-statement = "The wasm package exports 75 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
+statement = "The wasm package exports 76 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "10a1356"
-env = "main ci run 41507791388 at 10a1356 (success); its log prints 'ok exports-doc 75 functions'"
-date = "2026-11-02"
-value = "75"
+status = "untested"
+note = "msgVerifyOpts added by the msg-verify-chains PR (76 in a local build on the box) -- restamp at a green main commit (K-ci) in the follow-up"
+date = "2026-10-31"
+value = "76"
 command = "sh scripts/wasm-check.sh"
-expect = "ok exports-doc 75 functions"
+expect = "ok exports-doc 76 functions"
 cheap = false
 depends = ["bindings/wasm/src", "scripts/wasm-check.sh"]
-doc = [{ file = "EXPORTS.md", text = "Same 75 functions" }, { file = "README.md", text = "75 exported functions" }]
+doc = [{ file = "EXPORTS.md", text = "Same 76 functions" }, { file = "README.md", text = "76 exported functions" }]
 
 [[claim]]
 id = "tx-decode-evm-mainnet"
@@ -1000,14 +1013,13 @@ doc = [{ file = "docs/POLICY.md", text = "approval of 2^128 or more" }, { file =
 
 [[claim]]
 id = "wasm-verifytx-approval-checks"
+note = "passes in a local wasm build on the box (2026-11-02); stamp at the green main commit that contains it"
 statement = "The wasm verifyTx runs the tx-verify approval/transfer/batch checks (shared presign::apply): with no options an unlimited approval fails unlimited_approval, an unasserted multicall inner call fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall; the call_json opt-ins expect_spender/expect_amount/expect_unlimited/expect_recipient/expect_value/allow_inner_call/allow_delegatecall give the CLI's failure codes and wrong JSON types throw <key>_must_be_*"
 kind = "security"
 platform = "linux"
-status = "measured"
-commit = "10a1356"
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "verifyTx content checks ok"
-env = "main ci run 41507791388 at 10a1356 (success); its log prints 'verifyTx content checks ok'"
 date = "2026-11-02"
 cheap = false
 depends = ["crates/evm/src/presign.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
@@ -1015,14 +1027,13 @@ doc = []
 
 [[claim]]
 id = "wasm-typed-data-expect"
+note = "passes in a local wasm build on the box (2026-11-02); stamp at the green main commit that contains it"
 statement = "The wasm evmTypedDataVerify options_json {expect_chain_id, expect_verifying_contract} sets status chain_id_mismatch / verifying_contract_mismatch exactly as typed-data-verify --expect-chain-id / --expect-verifying-contract (shared eip712::apply_expect); wrong types throw <key>_must_be_string"
 kind = "security"
 platform = "linux"
-status = "measured"
-commit = "10a1356"
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify options ok"
-env = "main ci run 41507791388 at 10a1356 (success); its log prints 'evmTypedDataVerify options ok'"
 date = "2026-11-02"
 cheap = false
 depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]

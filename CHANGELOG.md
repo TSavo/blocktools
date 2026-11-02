@@ -26,11 +26,17 @@ Numbers and security statements here are only those registered as measured in do
   (bool), `allow_inner_call` (["TO:SELECTOR"]), `allow_delegatecall` (["TO"]); wrong types throw `<key>_must_be_*`.
   `evmTypedDataVerify` takes an optional 4th argument `options_json` `{expect_chain_id, expect_verifying_contract}`
   (strings; shared `eip712::apply_expect` with typed-data-verify). Behaviour change: a wasm `verifyTx` that passed an
-  unlimited approval, an unasserted batch or a Safe delegatecall now fails. Still 75 exports. Table: EXPORTS.md.
+  unlimited approval, an unasserted batch or a Safe delegatecall now fails. Table: EXPORTS.md.
+- `msg-verify` checks Tron signMessageV2, Solana (`--format raw|offchain-v0`, required) and Cosmos ADR-036
+  (`--pubkey`, required) message signatures, chain detected from the address; `--chain` gains `tron|sol|cosmos`.
+  Options for another chain are refused. The wasm `msgVerify` gains Tron; new export `msgVerifyOpts(inputJson)`
+  takes `format` / `pubkey` (76 exports, was 75). Vectors and sources: docs/PROVENANCE-msg.md.
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
 
 ### Known limitations
+- Message verify: Cosmos ADR-036 signatures and real `solana sign-offchain-message` signatures are UNTESTED
+  against wallet output (self round-trip and byte layout only). No msg-sign for Tron, Solana or Cosmos yet.
 - `tx-sign` does not run these approval checks yet (the wasm `verifyTx` does since this release): `tx-sign` can still sign a transaction
   `tx-verify` flags. Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
   ERC-20 selector, so a token id of 2^128 or more is reported as unlimited. UNTESTED on transactions from a live wallet.
