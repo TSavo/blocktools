@@ -35,7 +35,7 @@ code), not by the file. See [recipes/evm-contract-tx.md](../recipes/evm-contract
 approval of 2^128 or more, or of all tokens, fails with `unlimited_approval` unless `--expect-spender ADDR
 --expect-unlimited` are given; batch inner calls need `--allow-inner-call TO:SELECTOR`; a Safe delegatecall needs
 `--allow-delegatecall TO`. `--expect-spender`, `--expect-amount`, `--expect-recipient` and `--expect-value` are optional
-exact assertions. These are tx-verify flags only: tx-sign does not run them yet. See
+exact assertions. `tx-sign` runs the same checks with the same flags before reading a key and again on the signed bytes (also with `--plan`). See
 [recipes/evm-check-approval.md](../recipes/evm-check-approval.md).
 
 Numbers can be JSON integers or decimal strings (needed above 2^53). Unknown keys are errors
