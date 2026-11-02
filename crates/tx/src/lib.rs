@@ -49,6 +49,8 @@ pub mod multisig;
 pub mod taproot_multisig;
 pub mod rlp;
 pub mod message;
+#[cfg(feature = "msgchain")]
+pub mod msgchain;
 pub mod bolt11;
 use bitcoin::consensus::deserialize;
 use bitcoin::psbt::Psbt;

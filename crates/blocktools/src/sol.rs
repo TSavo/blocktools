@@ -149,20 +149,7 @@ impl SolTx {
         }).collect()
     }
 }
-/// Verify-only ed25519 (RFC 8032, cofactorless, strict: canonical S, non-small-order A and R),
-/// built on curve25519-dalek so the wasm build carries no signing code.
-pub fn ed25519_verify(pk: &[u8; 32], msg: &[u8], sig: &[u8; 64]) -> bool {
-    use curve25519_dalek::{edwards::EdwardsPoint, scalar::Scalar};
-    use bitcoin::hashes::{sha512, HashEngine};
-    let Some(a) = CompressedEdwardsY(*pk).decompress() else { return false };
-    let r_bytes: [u8; 32] = sig[..32].try_into().unwrap();
-    let Some(r) = CompressedEdwardsY(r_bytes).decompress() else { return false };
-    if a.is_small_order() || r.is_small_order() { return false }
-    let Some(s) = Option::<Scalar>::from(Scalar::from_canonical_bytes(sig[32..].try_into().unwrap())) else { return false };
-    let mut e = sha512::HashEngine::default(); e.input(&r_bytes); e.input(pk); e.input(msg);
-    let k = Scalar::from_bytes_mod_order_wide(&sha512::Hash::from_engine(e).to_byte_array());
-    EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &-a, &s).compress().to_bytes() == r_bytes
-}
+pub use blocktools_tx::msgchain::ed25519_verify;
 fn u64le(d: &[u8], o: usize) -> Option<u64> { d.get(o..o + 8).map(|b| u64::from_le_bytes(b.try_into().unwrap())) }
 /// Decode one instruction to {program, kind, ...}. Known: System, SPL Token / Token-2022, ATA, ComputeBudget, Memo.
 fn decode_ix(t: &SolTx, ix: &Ix) -> Value {

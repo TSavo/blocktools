@@ -262,7 +262,7 @@ Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_me
 
 ### msg-verify: Tron, Solana, Cosmos ADR-036
 
-`msg-verify` (and the wasm `msgVerify` / `msgVerifyOpts`) also checks Tron, Solana and Cosmos message signatures. No key is read. Code: `crates/blocktools/src/msgchain.rs`. Sources and what each vector proves: docs/PROVENANCE-msg.md.
+`msg-verify` (and the wasm `msgVerify` / `msgVerifyOpts`) also checks Tron, Solana and Cosmos message signatures. No key is read. Code: `crates/tx/src/msgchain.rs`. Sources and what each vector proves: docs/PROVENANCE-msg.md.
 
 - Tron (`T...` address): signMessageV2, keccak256("\x19TRON Signed Message:\n" + decimal byte length + message), 65-byte hex signature, v 27/28.
 - Solana (base58 32-byte key): `--format` is required. `raw` = ed25519 over the message bytes (wallet `signMessage`); `offchain-v0` = the solana-sdk layout signed by `solana sign-offchain-message` ("\xffsolana offchain", version 0, format 0/1/2, u16le length, message). Trust Wallet Core's 85-byte off-chain layout is refused.

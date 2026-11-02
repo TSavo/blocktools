@@ -34,7 +34,7 @@ fn main() {
     let one = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).last();
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
     let addr = one("--address").unwrap_or_else(|| bad("--address ADDR required"));
-    let chain = blocktools::msgchain::detect_chain(&addr).unwrap_or_else(|e| bad(e));
+    let chain = blocktools_tx::msgchain::detect_chain(&addr).unwrap_or_else(|e| bad(e));
     if let Some(c) = one("--chain") { if c != chain { bad(if ["eth", "btc", "tron", "sol", "cosmos"].contains(&c.as_str()) { "chain_does_not_match_address" } else { "message_prefix_unproven_for_chain" }) } }
     let msg = match (one("--message"), one("--message-file")) {
         (Some(m), None) => m.into_bytes(),
@@ -44,7 +44,7 @@ fn main() {
     let msg = if a.iter().any(|x| x == "--hex") { hexd(std::str::from_utf8(&msg).unwrap_or("")).unwrap_or_else(|| bad("bad_hex_message")) } else { msg };
     let sig = one("--sig").unwrap_or_else(|| bad("--sig SIG required"));
     let (format, pubkey) = (one("--format"), one("--pubkey"));
-    let r = blocktools::msgchain::verify(&addr, &msg, &sig, &blocktools::msgchain::Opts { format: format.as_deref(), pubkey: pubkey.as_deref() }).unwrap_or_else(|e| bad(e));
+    let r = blocktools_tx::msgchain::verify(&addr, &msg, &sig, &blocktools_tx::msgchain::Opts { format: format.as_deref(), pubkey: pubkey.as_deref() }).unwrap_or_else(|e| bad(e));
     let mut o = r.clone(); let st = o.as_object_mut().unwrap().remove("status").and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
     out(&st, o)
 }
