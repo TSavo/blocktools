@@ -14,7 +14,7 @@ All vectors are public test data from spruceid/siwe (MIT / Apache-2.0), commit
 | verification_positive.json / verification_negative.json | 4 / 10 | text built from the fields verifies (or not) with `msg-verify --chain eth` against spruce's published `personal_sign` signature, with spruce's `time` / `domainBinding` / `matchNonce` as `--now` / `--domain` / `--nonce` |
 
 `recipes/fixtures/siwe/example-message.json` is the "example message" entry of verification_positive.json
-without its signature. Run: `cargo test -p siwe` and `sh scripts/e2e.d/siwe.sh` (claim siwe-e2e (untested), not yet stamped).
+without its signature. Run: `cargo test -p siwe` and `sh scripts/e2e.d/siwe.sh` (claim siwe-e2e, measured at 9c48627).
 
 UNTESTED: messages from real wallets and dapps other than these vectors; spruce's `valid_chars` /
 `invalid_chars` files are not wired in. No wasm export.
