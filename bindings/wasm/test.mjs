@@ -586,6 +586,13 @@ console.log('lift7 ok');
   assert.throws(() => vt(unl, [USDC], {allow_delegatecall: [1]}), /allow_delegatecall_must_be_string_array/);
   assert.throws(() => vt(unl, [USDC], {expect_unlimited: true}), /expect_unlimited_needs_expect_spender/);
   assert.throws(() => bt.verifyTx(b170, 'btc', [], [], undefined, '', true, undefined, JSON.stringify({expect_value: '1'})), /EVM only/);
+  // "nothing to compare" codes, strict inner decoding, assertion conflicts (same codes as the CLI)
+  const tr = tx(USDC, enc('transfer(address,uint256)', [RCP, '5']));
+  has(vt(tr, [USDC], {expect_spender: P2}), 'spender_not_checkable');
+  has(vt(lim, [USDC], {expect_recipient: RCP}), 'recipient_not_checkable');
+  has(vt(JSON.parse(bt.buildEvmTransfer(JSON.stringify({chainId: 1, nonce: 0, gas: 21000, gasPrice: '1000000000', to: OTHER, value: '1'}))).unsigned, [OTHER], {expect_amount: '5'}), 'amount_not_checkable');
+  has(vt(tx(USDC, enc('multiSend(bytes)', ['0x' + '00'.repeat(60)])), [], {sigs: ['multiSend(bytes)']}), 'bad_inner_calldata');
+  assert.throws(() => vt(unl, [USDC], {expect_spender: P2, expect_unlimited: true, expect_amount: '1'}), /expect_unlimited_conflicts_with_expect_amount/);
   console.log('verifyTx content checks ok');
 }
 // evmTypedDataVerify options (same eip712::apply_expect as typed-data-verify)
@@ -598,6 +605,8 @@ console.log('lift7 ok');
   assert.equal(t({expect_verifying_contract: '0x1111111111111111111111111111111111111111'}).status, 'verifying_contract_mismatch');
   assert.equal(t({expect_chain_id: '137', expect_verifying_contract: '0x1111111111111111111111111111111111111111'}).status, 'chain_id_mismatch');
   assert.throws(() => t({expect_chain_id: 1}), /expect_chain_id_must_be_string/);
+  assert.throws(() => t({expect_chain_id: 'x'}), /expect_chain_id_not_integer/);
+  assert.throws(() => t({expect_verifying_contract: '0x12'}), /expect_verifying_contract_bad_address/);
   assert.throws(() => t({expect_chain_id: 'x'}), /expect_chain_id_not_integer/);
   assert.throws(() => t({expect_verifying_contract: '0x12'}), /expect_verifying_contract_bad_address/);
   assert.equal(JSON.parse(bt.evmTypedDataVerify(td)).status, 'ok');
