@@ -20,7 +20,7 @@ Numbers and security statements here are only those registered as measured in do
   (status `chain_id_mismatch` / `verifying_contract_mismatch`, exit 1). The wasm `evmTypedDataVerify` output gains
   `verifying_contract`; no wasm export added or removed.
 - The wasm `verifyTx` runs the same approval / transfer / batch checks as `tx-verify` (one shared function,
-  `approval::apply`), deny by default with no options: `unlimited_approval`, `inner_calls_not_asserted`, `delegatecall`
+  `presign::apply`), deny by default with no options: `unlimited_approval`, `inner_calls_not_asserted`, `delegatecall`
   now fail in wasm as in the CLI, and the result gains `approvals`, `transfers`, `inner_calls`. The opt-ins are new
   `call_json` keys `expect_spender`, `expect_amount`, `expect_recipient`, `expect_value` (strings), `expect_unlimited`
   (bool), `allow_inner_call` (["TO:SELECTOR"]), `allow_delegatecall` (["TO"]); wrong types throw `<key>_must_be_*`.
