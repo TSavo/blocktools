@@ -74,7 +74,7 @@ This is the pinned set in `scripts/wasm-check.sh` (without the wasm-bindgen glue
 ### Loading the module
 
 - `pkg/node` (CommonJS, the package `main`): synchronous. `const bt = require("blocktools")` and call right away.
-- `pkg/web` (ES module, the package `./web` export and the non-Node default): call init once before anything else. Browser: `import init, * as bt from "blocktools/web"; await init();` (fetches `blocktools_wasm_bg.wasm` next to the JS). Node/Deno or your own fetch: `await init({ module_or_path: wasmBytesOrUrlOrResponse })`. Synchronous: `initSync({ module: wasmBytes })`. Any export called before init throws. Same 75 functions as pkg/node (CI: `bindings/wasm/test-web.mjs` loads pkg/web with its wasm bytes, asserts the function set equals pkg/node's, and spot-checks results); wasm-check pins the exports of the pkg/web `.wasm`.
+- `pkg/web` (ES module, the package `./web` export and the non-Node default): call init once before anything else. Browser: `import init, * as bt from "blocktools/web"; await init();` (fetches `blocktools_wasm_bg.wasm` next to the JS). Node/Deno or your own fetch: `await init({ module_or_path: wasmBytesOrUrlOrResponse })`. Synchronous: `initSync({ module: wasmBytes })`. Any export called before init throws. Same 75 functions (unmeasured) as pkg/node (CI: `bindings/wasm/test-web.mjs` loads pkg/web with its wasm bytes, asserts the function set equals pkg/node's, and spot-checks results); wasm-check pins the exports of the pkg/web `.wasm`.
 - Bundlers: there is no `--target bundler` build. Use `pkg/web` and hand the wasm URL to init: `await init(new URL("blocktools_wasm_bg.wasm", import.meta.url))`. This works in Vite and webpack 5 (asset modules). Bundler use is UNTESTED in CI (pkg/web itself is tested under Node).
 - Building it: `PATH=$HOME/.cargo/bin:$PATH bash scripts/wasm-check.sh` (needs rustup's wasm32 target and wasm-bindgen on PATH).
 
@@ -198,7 +198,7 @@ returns `{"ok":bool,"failures":[..],"warnings":[..],"check_these":"..","fee_cap"
 (`explicit` = your max_fee, `floor`, `chain_rate_x_vsize`, `default_evm`). The envelope `verify` result and tx-verify output carry the same object. A nonzero ETH `value` alongside ERC-20
 `transfer` calldata fails with `eth_value_with_token_call` unless `allow_value_with_token` is true (CLI: `--allow-value-with-token`).
 
-Since 2026-11-02 `verifyTx` also runs the tx-verify approval / transfer / batch checks (`blocktools_evm::approval::apply`,
+Since 2026-11-02 `verifyTx` also runs the tx-verify approval / transfer / batch checks (`blocktools_evm::presign::apply`,
 the same function the CLI calls) on every EVM tx, with or without `call_json`. Deny by default, as the CLI: an approval
 of 2^128 or more or of all tokens fails `unlimited_approval`, a batch inner call not named fails
 `inner_calls_not_asserted`, a Safe delegatecall fails `delegatecall`. The result gains `approvals`, `transfers`,
