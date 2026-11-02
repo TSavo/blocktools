@@ -3,7 +3,7 @@
 abi\-decode \- decode Solidity ABI calldata, returndata, revert data or event logs, offline
 .SH SYNOPSIS
 .nf
-abi\-decode [\-\-sig SIGNATURE] [\-\-abi FILE] [\-\-types '(T,..)'] [\-\-output] [\-\-allow\-trailing] [INPUT]
+abi\-decode [\-\-sig SIGNATURE] [\-\-abi FILE] [\-\-types '(T,..)'] [\-\-output] [\-\-allow\-trailing] [\-\-allow\-gaps] [INPUT]
 Prints status no_match with the selector/topic when nothing matches; malformed data is bad_input (exit 2).
 .fi
 .SH DESCRIPTION
@@ -25,6 +25,8 @@ arrays of logs and receipts' `logs` give one JSON line per log. Error(string) an
   \-\-output         decode returndata with the first signature's returns (...) list
   \-\-allow\-trailing accept bytes after the last head/tail (e.g. an ERC\-2771 suffix, extra returndata words) and
                    print them as trailing_hex ("0x" if none); all other strict checks still apply (docs/ABI\-STRICT.md)
+  \-\-allow\-gaps     accept a dynamic tail that starts after its canonical position, never before it (e.g. one
+                   tuple decoded out of multi\-param calldata); prints gap_bytes; trailing bytes still need \-\-allow\-trailing
 .fi
 .SH INPUT/OUTPUT
 Input (stdin or last argument): hex, or a JSON\-RPC response/tx/receipt/log/getLogs result as\-is;
