@@ -166,3 +166,124 @@ fn allow_trailing_returns_exact_suffix() {
     let dirty = format!("0x{}{}{}", format!("01{:062x}", 0), w(1), suffix20);
     assert_eq!(decode_json(&json!({"input": dirty, "types": "(address,uint256)", "allow_trailing": true})).unwrap_err(), "dirty_address");
 }
+
+// ---- opt-in allow_gaps (abi-decode --allow-gaps, evmAbiDecode allow_gaps): a dynamic tail may start AFTER its ----
+// ---- canonical position (leading gap / unconsumed head words / gaps between tails), never before it.          ----
+
+const BRIDGE: &str = "(bytes32,string,string,address,address,address,uint256,uint256,bool,bool)";
+
+/// Synthetic LI.FI-BridgeData-shaped tuple (canonical inside): bridge "layerswap", integrator "keyrescue-test".
+fn bridge_tuple(bridge: &str) -> String {
+    let s = |x: &str| { let h = hex(x.as_bytes())[2..].to_string(); format!("{}{h:0<w$}", w(x.len() as u64), w = x.len().div_ceil(32) * 64) };
+    let (b, i) = (s(bridge), s("keyrescue-test"));
+    let addr = |c: &str| format!("{:0>64}", c.repeat(40));
+    let head = [
+        "ab".repeat(32), w(0x140), w(0x140 + b.len() as u64 / 2), addr("0"), addr("1"), addr("2"),
+        w(1_000_000), w(42161), w(0), w(1),
+    ].concat();
+    head + &b + &i
+}
+fn gaps(t: &str, h: &str, trailing: bool) -> Result<(Vec<serde_json::Value>, usize, usize), String> {
+    let d = unhex(h).unwrap();
+    let (v, end, skipped) = abi::decode_lenient(&p(t), &d, true)?;
+    if !trailing && end != d.len() { return Err("trailing_data".into()); }
+    Ok((v, end, skipped))
+}
+fn lifi_cases() -> Vec<(&'static str, String, usize)> {
+    let t = bridge_tuple("layerswap");
+    vec![
+        // 1. offset 0x60: tuple after two unconsumed head words (other params' heads); nothing after it
+        ("lifi_0x60_tuple_last", format!("0x{}{}{}{t}", w(0x60), w(7), w(8)), 64),
+        // 2. offset 0x80: three unconsumed head words, tuple last
+        ("lifi_0x80_tuple_last", format!("0x{}{}{}{}{t}", w(0x80), w(1), w(2), w(3)), 96),
+        // 3. offset 0x60 with a 1-word hole between the head and the tuple (non-contiguous)
+        ("lifi_0x60_hole", format!("0x{}{}{}{t}", w(0x60), w(9), w(0)), 64),
+    ]
+}
+
+#[test]
+fn allow_gaps_decodes_lifi_shaped_tuples_strict_rejects_them() {
+    let ty = format!("({BRIDGE})");
+    for (name, h, gap) in lifi_cases() {
+        assert_eq!(dec(&ty, &h).unwrap_err(), "non_canonical_offset", "{name}: strict must reject");
+        assert_eq!(abi::decode_prefix(&p(&ty), &unhex(&h).unwrap()).unwrap_err(), "non_canonical_offset", "{name}: allow_trailing alone must reject");
+        let (v, end, skipped) = gaps(&ty, &h, false).unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!((end, skipped), (unhex(&h).unwrap().len(), gap), "{name}");
+        let tup = v[0].as_array().unwrap();
+        assert_eq!(tup[1], serde_json::json!("layerswap"), "{name}");
+        assert_eq!(tup[2], serde_json::json!("keyrescue-test"), "{name}");
+        assert_eq!(tup[7], serde_json::json!("42161"), "{name}");
+        assert_eq!((tup[8].clone(), tup[9].clone()), (serde_json::json!(false), serde_json::json!(true)), "{name}");
+    }
+}
+
+#[test]
+fn allow_gaps_keeps_every_other_rejection() {
+    // every strict malformed case: same code (no panic); only non_canonical_offset/trailing_data may change
+    for (name, t, h, want) in cases() {
+        let r = std::panic::catch_unwind(|| gaps(t, &h, false));
+        match r {
+            Err(_) => panic!("{name}: PANIC under allow_gaps"),
+            Ok(Ok(_)) => assert_eq!(want, "non_canonical_offset", "{name}: allow_gaps accepted a case that must stay {want}"),
+            Ok(Err(e)) => if want != "non_canonical_offset" { assert_eq!(e, want, "{name}") },
+        }
+    }
+    let ty = format!("({BRIDGE})");
+    let t = bridge_tuple("layerswap");
+    // trailing bytes after the tuple: refused unless allow_trailing too
+    let h = format!("0x{}{}{}{t}{}", w(0x60), w(7), w(8), w(5));
+    assert_eq!(gaps(&ty, &h, false).unwrap_err(), "trailing_data");
+    let (_, end, _) = gaps(&ty, &h, true).unwrap();
+    assert_eq!(unhex(&h).unwrap().len() - end, 32);
+    // dirty bool / dirty address inside the gapped tuple still rejected
+    let bad_bool = format!("0x{}{}{}{}", w(0x60), w(7), w(8), t.replacen(&format!("{}{}", w(0), w(1)), &format!("{}{}", w(0), w(2)), 1));
+    assert_eq!(gaps(&ty, &bad_bool, false).unwrap_err(), "dirty_bool");
+    let bad_addr = format!("0x{}{}{}{}", w(0x60), w(7), w(8), t.replacen(&format!("{:0>64}", "1".repeat(40)), &format!("01{:0>62}", "1".repeat(40)), 1));
+    assert_eq!(gaps(&ty, &bad_addr, false).unwrap_err(), "dirty_address");
+    // backward offset (into the head) and offset past the end still rejected
+    assert_eq!(gaps("(bytes)", &format!("0x{}{}", w(0), w(0)), false).unwrap_err(), "non_canonical_offset");
+    assert_eq!(gaps("(bytes)", &format!("0x{}", w(0x40)), false).unwrap_err(), "offset_or_length_out_of_bounds");
+}
+
+#[test]
+fn allow_gaps_rejects_overlap_and_aliasing_so_work_is_bounded() {
+    // two tails pointing at the same bytes (aliasing) and second tail before the first (overlap/backward)
+    let one = format!("{}{}", w(1), format!("{:0<64}", "aa"));
+    assert_eq!(gaps("(bytes,bytes)", &format!("0x{}{}{one}", w(0x40), w(0x40)), false).unwrap_err(), "non_canonical_offset");
+    assert_eq!(gaps("(bytes,bytes)", &format!("0x{}{}{one}{one}", w(0x80), w(0x40)), false).unwrap_err(), "non_canonical_offset");
+    // amplification attempt: bytes[] whose N element offsets all alias one blob -> refused at the second element
+    let n = 2000u64;
+    let mut h = w(32) + &w(n);
+    for _ in 0..n { h += &w(n * 32); }
+    h += &one;
+    let t0 = std::time::Instant::now();
+    assert_eq!(gaps("(bytes[])", &format!("0x{h}"), false).unwrap_err(), "non_canonical_offset");
+    assert!(t0.elapsed().as_secs() < 2);
+    // forward-only gaps: each tail starts at or after the previous end, so every byte is decoded at most once
+    let ok = format!("0x{}{}{}{one}{}{one}", w(0x60), w(0xc0), w(0), w(0));
+    let (v, _, skipped) = gaps("(bytes,bytes,uint256)", &ok, false).unwrap();
+    assert_eq!((v[0].clone(), v[1].clone(), skipped), (serde_json::json!("0xaa"), serde_json::json!("0xaa"), 32));
+}
+
+#[test]
+fn allow_gaps_json_option() {
+    use blocktools_evm::api::decode_json;
+    use serde_json::json;
+    let ty = format!("({BRIDGE})");
+    let (_, h, _) = &lifi_cases()[1];
+    assert_eq!(decode_json(&json!({"input": h, "types": ty})).unwrap_err(), "non_canonical_offset");
+    assert_eq!(decode_json(&json!({"input": h, "types": ty, "allow_trailing": true})).unwrap_err(), "non_canonical_offset");
+    let v = decode_json(&json!({"input": h, "types": ty, "allow_gaps": true})).unwrap();
+    assert_eq!(v["gap_bytes"], json!(96));
+    assert!(v.get("trailing_hex").is_none());
+    let v = decode_json(&json!({"input": format!("{h}{}", w(5)), "types": ty, "allow_gaps": true, "allow_trailing": true})).unwrap();
+    assert_eq!((v["gap_bytes"].clone(), v["trailing_hex"].clone()), (json!(96), json!(format!("0x{}", w(5)))));
+    assert_eq!(decode_json(&json!({"input": format!("{h}{}", w(5)), "types": ty, "allow_gaps": true})).unwrap_err(), "trailing_data");
+    // canonical input under allow_gaps: gap_bytes 0; strict output has no gap_bytes key
+    let c = format!("0x{}{}", w(0x20), bridge_tuple("near"));
+    assert_eq!(decode_json(&json!({"input": c, "types": ty, "allow_gaps": true})).unwrap()["gap_bytes"], json!(0));
+    assert!(decode_json(&json!({"input": c, "types": ty})).unwrap().get("gap_bytes").is_none());
+    for bad in [json!("true"), json!(1), json!(null), json!([true])] {
+        assert_eq!(decode_json(&json!({"input": "0x", "types": "()", "allow_gaps": bad})).unwrap_err(), "allow_gaps_must_be_bool");
+    }
+}

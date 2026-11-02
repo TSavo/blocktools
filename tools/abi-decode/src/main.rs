@@ -16,17 +16,19 @@ fn die(e: &str) -> ! {
 }
 
 fn main() {
-    blocktools_io::help("abi-decode [--sig SIGNATURE] [--abi FILE] [--types '(T,..)'] [--output] [--allow-trailing] [INPUT]
+    blocktools_io::help("abi-decode [--sig SIGNATURE] [--abi FILE] [--types '(T,..)'] [--output] [--allow-trailing] [--allow-gaps] [INPUT]
   --sig SIGNATURE  function, event or error signature, e.g. 'transfer(address,uint256)' (repeatable)
   --abi FILE       ABI JSON file (array or {\"abi\": [...]}) or one signature per line
   --types (T,..)   decode raw data as a type list, no selector (returndata, constructor args)
   --output         decode returndata with the first signature's returns (...) list
   --allow-trailing accept bytes after the last head/tail (e.g. an ERC-2771 suffix, extra returndata words) and
                    print them as trailing_hex (\"0x\" if none); all other strict checks still apply (docs/ABI-STRICT.md)
+  --allow-gaps     accept a dynamic tail that starts after its canonical position, never before it (e.g. one
+                   tuple decoded out of multi-param calldata); prints gap_bytes; trailing bytes still need --allow-trailing
 Prints status no_match with the selector/topic when nothing matches; malformed data is bad_input (exit 2).");
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut sigs: Vec<blocktools_evm::sig::Sig> = vec![];
-    let (mut types, mut output, mut allow_trailing, mut input) = (None, false, false, None);
+    let (mut types, mut output, mut l, mut input) = (None, false, api::Lenient::default(), None);
     let mut i = 0;
     while i < a.len() {
         let next = |i: usize| a.get(i + 1).cloned().unwrap_or_else(|| die(&format!("{}_needs_a_value", a[i])));
@@ -39,7 +41,8 @@ Prints status no_match with the selector/topic when nothing matches; malformed d
             }
             "--types" => { types = Some(next(i)); i += 1; }
             "--output" => output = true,
-            "--allow-trailing" => allow_trailing = true,
+            "--allow-trailing" => l.allow_trailing = true,
+            "--allow-gaps" => l.allow_gaps = true,
             x if x.starts_with("--") => die("unknown_option"),
             x => input = Some(x.to_string()),
         }
@@ -64,7 +67,7 @@ Prints status no_match with the selector/topic when nothing matches; malformed d
     }
     let mut rc = 0;
     for it in items {
-        match api::decode_with(&it, &sigs, types.as_deref(), output, allow_trailing) {
+        match api::decode_with(&it, &sigs, types.as_deref(), output, l) {
             Ok(v) => outln!("{v}"),
             Err(e) => { rc = 2; outln!("{}", json!({"status": "bad_input", "error": e})); }
         }

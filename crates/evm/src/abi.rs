@@ -130,7 +130,7 @@ pub fn parse_types(s: &str) -> Result<Vec<Param>, String> {
 
 // ---------------------------------------------------------------- decode
 
-struct Dec<'a> { d: &'a [u8], count: usize }
+struct Dec<'a> { d: &'a [u8], count: usize, gaps: bool, skipped: usize }
 
 /// Type nesting depth (arrays and tuples), checked before decoding so empty containers cannot hide it.
 fn ty_depth(t: &Ty) -> usize {
@@ -171,7 +171,13 @@ impl<'a> Dec<'a> {
             if t.is_dynamic() {
                 let off = self.usize_at(head)?;
                 let at = base.checked_add(off).filter(|&a| a <= self.d.len()).ok_or("offset_out_of_bounds")?;
-                if at != tail { return Err("non_canonical_offset".into()); }
+                // strict: the tail starts exactly where the previous one ended. allow_gaps: it may also start later
+                // (forward gap, counted in `skipped`); never earlier, so tails cannot overlap, alias or go backwards
+                // and every byte is decoded at most once (no amplification).
+                if at != tail {
+                    if !(self.gaps && at > tail) { return Err("non_canonical_offset".into()); }
+                    self.skipped += at - tail;
+                }
                 let (v, e) = self.value(t, at, depth + 1)?;
                 out.push(v);
                 tail = e;
@@ -264,14 +270,23 @@ pub fn decode(params: &[Param], data: &[u8]) -> Result<Vec<Value>, String> {
 /// [`decode`] except that bytes after the last head/tail are not refused. Returns the values and the number of bytes
 /// consumed; `data[consumed..]` is the unconsumed suffix, which callers must report (`trailing_hex`), never drop.
 pub fn decode_prefix(params: &[Param], data: &[u8]) -> Result<(Vec<Value>, usize), String> {
+    decode_lenient(params, data, false).map(|(v, end, _)| (v, end))
+}
+
+/// [`decode_prefix`], and with `allow_gaps` (`abi-decode --allow-gaps`, evmAbiDecode `allow_gaps: true`) a dynamic
+/// tail may also start AFTER the canonical position (a leading gap, or gaps between tails), never before it.
+/// Returns (values, end of the last consumed byte, bytes skipped by gaps). Every other rule is unchanged.
+pub fn decode_lenient(params: &[Param], data: &[u8], allow_gaps: bool) -> Result<(Vec<Value>, usize, usize), String> {
     if params.iter().map(|p| ty_depth(&p.ty)).max().unwrap_or(0) >= MAX_DEPTH { return Err("too_deep".into()); }
     let ts: Vec<&Ty> = params.iter().map(|p| &p.ty).collect();
-    Dec { d: data, count: 0 }.tuple(&ts, 0, 0)
+    let mut dec = Dec { d: data, count: 0, gaps: allow_gaps, skipped: 0 };
+    let (v, end) = dec.tuple(&ts, 0, 0)?;
+    Ok((v, end, dec.skipped))
 }
 
 /// Decode one 32-byte word (an indexed event topic) as a static type.
 pub fn decode_word(t: &Ty, w: &[u8]) -> Result<Value, String> {
-    Dec { d: w, count: 0 }.value(t, 0, 0).map(|r| r.0)
+    Dec { d: w, count: 0, gaps: false, skipped: 0 }.value(t, 0, 0).map(|r| r.0)
 }
 
 /// Pair decoded values with their params: `[{name?, type, value}]`.
