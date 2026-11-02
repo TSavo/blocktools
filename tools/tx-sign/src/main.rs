@@ -18,6 +18,12 @@
 //!   decoded function and args are shown in the summary. Unknown selectors are refused (unknown_contract_call).
 //! EVM contract creation: --create-hash KECCAK (keccak256 of the init code) instead of --expect-to; the summary
 //!   shows the init code hash and the new contract address (CREATE from the signer and nonce).
+//! EVM content checks (same blocktools_evm::presign::apply as tx-verify, before signing and on the signed bytes):
+//!   an approval of 2^128 or more / setApprovalForAll(true) is refused (unlimited_approval) unless --expect-unlimited
+//!   (needs --expect-spender); --expect-spender/--expect-amount/--expect-recipient/--expect-value assert the decoded
+//!   values; batch inner calls (multicall, Multicall3, Safe multiSend, Universal Router) must each be named by
+//!   --allow-inner-call TO:SELECTOR (else inner_calls_not_asserted) and a Safe delegatecall target by
+//!   --allow-delegatecall TO (else delegatecall). Works with --plan too.
 //! Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with --max-fee.
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::Secp256k1;
@@ -31,7 +37,7 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] < keys   (asks for a code on the terminal)\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
+    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < keys   (asks for a code on the terminal)\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
@@ -84,16 +90,27 @@ fn main() {
     }
     let pol = one("--policy").map(|f| blocktools_tx::policy_file::parse(&std::fs::read_to_string(f).unwrap_or_else(|_| bad("cannot read --policy file"))).unwrap_or_else(|e| bad(e)));
     let pkey = one("--chain").unwrap_or(chain.clone());
-    let full = |d: &blocktools_tx::Decoded| -> Vec<String> {
+    let e = expect(&a);
+    if d.evm.is_none() && e.asserted() { bad("approval/transfer assertions are EVM only") }
+    // The tx-verify content step (approval / transfer / batch checks; blocktools_evm::presign::apply), run
+    // on the unsigned tx AND on the re-decoded signed bytes with the same assertions. Deny by default.
+    let full_o = |d: &blocktools_tx::Decoded| -> (Vec<String>, serde_json::Value) {
         let mut f: Vec<String> = check(d, &p).into_iter().map(String::from).collect();
         if let Some(pf) = &pol { blocktools_tx::policy_file::apply(d, &pkey, pf, &mut f) }
         approve(d, &mut f, &a);
+        let mut o = json!({});
+        if let Some(t) = d.evm.as_ref() { blocktools_evm::presign::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, &p.expect_to, &mut f, &mut o) }
         // Fail-closed: a Plan-derived finding (unparsable cap, unsupported/omitted assertion) refuses the sign.
         f.extend(plan_findings.iter().cloned());
-        f
+        (f, o)
     };
-    let f = full(&d);
-    if !f.is_empty() { out("refused", json!({"failures":f,"warnings":d.warnings})) }
+    let full = |d: &blocktools_tx::Decoded| full_o(d).0;
+    let (f, content) = full_o(&d);
+    if !f.is_empty() {
+        let mut r = json!({"failures":f,"warnings":d.warnings});
+        for k in ["approvals", "transfers", "inner_calls"] { if let Some(v) = content.get(k) { r[k] = v.clone() } }
+        out("refused", r)
+    }
 
     let mut keys = Vec::new();
     for l in std::io::stdin().lock().take(4 << 20).lines().map_while(Result::ok) {
@@ -257,4 +274,19 @@ fn approve(d: &blocktools_tx::Decoded, f: &mut Vec<String>, a: &[String]) -> Opt
         if d.warnings.iter().all(|w| ["unsigned", "unknown_calldata", "contract_creation"].contains(w)) { f.retain(|x| x != "has_warnings") }
     }
     Some(o)
+}
+
+/// --expect-spender / --expect-amount / --expect-unlimited / --expect-recipient / --expect-value /
+/// --allow-inner-call TO:SELECTOR / --allow-delegatecall TO: the same assertions (and bad-input codes) as tx-verify.
+fn expect(a: &[String]) -> blocktools_evm::approval::Expect {
+    let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
+    let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
+    let one = |k: &str| { let v = all(k); if v.len() > 1 { bad(&format!("{k} given twice")) } v.into_iter().next() };
+    let e = blocktools_evm::approval::Expect {
+        spender: one("--expect-spender"), amount: one("--expect-amount"), unlimited: a.iter().any(|x| x == "--expect-unlimited"),
+        recipient: one("--expect-recipient"), value: one("--expect-value"),
+        inner: all("--allow-inner-call").iter().map(|s| blocktools_evm::approval::Expect::inner_arg(s).unwrap_or_else(|e| bad(&e))).collect(),
+        delegatecall: all("--allow-delegatecall"),
+    };
+    e.normalized().unwrap_or_else(|x| bad(&x))
 }
