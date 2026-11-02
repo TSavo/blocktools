@@ -48,6 +48,20 @@ SHALLOW = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "TSavo/blocktools")
 
+def green_from_runs(runs):
+    """Client-side filter (rule:K-ci): only completed runs with conclusion success count. No server-side
+    status=success filter: GitHub's filtered listing was measured to omit a green run (a3af7f29, run 41518081756)."""
+    return [r["head_sha"] for r in runs if r.get("status") == "completed" and r.get("conclusion") == "success"]
+
+def kci_self_test():
+    """None when green_from_runs keeps only completed+success runs, else the reason."""
+    runs = [{"head_sha": "a", "status": "completed", "conclusion": "success"}, {"head_sha": "b", "status": "completed", "conclusion": "cancelled"},
+            {"head_sha": "c", "status": "completed", "conclusion": "failure"}, {"head_sha": "d", "status": "in_progress", "conclusion": None},
+            {"head_sha": "e", "status": "queued", "conclusion": None}, {"head_sha": "f", "status": "completed", "conclusion": "skipped"},
+            {"head_sha": "g", "status": "completed", "conclusion": "timed_out"}, {"head_sha": "h", "conclusion": "success"}]
+    got = green_from_runs(runs)
+    return None if got == ["a"] else f"green_from_runs kept {got}, want ['a'] (cancelled/failed/unfinished runs must not count)"
+
 def green_shas():
     """Head SHAs of completed successful runs of workflow ci.yml on main, or None if the API is unreachable.
     Cached in $CLAIMS_GREEN_CACHE when set (gate-negatives runs docs-check many times)."""
@@ -61,10 +75,10 @@ def green_shas():
     out = []
     try:
         for page in range(1, 6):
-            req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/actions/workflows/ci.yml/runs?branch=main&status=success&event=push&per_page=100&page={page}",
+            req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=100&page={page}",
                                          headers={"Accept": "application/vnd.github+json", **({"Authorization": f"Bearer {tok}"} if tok else {})})
             runs = json.load(urllib.request.urlopen(req, timeout=30))["workflow_runs"]
-            out += [r["head_sha"] for r in runs if r.get("conclusion") == "success" and r.get("status") == "completed"]
+            out += green_from_runs(runs)
             if len(runs) < 100: break
     except Exception as e:
         print(f"claims: GitHub API unreachable ({type(e).__name__})", file=sys.stderr); return None
@@ -85,6 +99,7 @@ def main():
     render = "--render" in sys.argv; run_all = "--run-all" in sys.argv
     reg = tomllib.load(open(REG, "rb"))["claim"]
     bad = []
+    if (e := kci_self_test()): bad.append(f"[K-ci] self-test: {e}")  # rule:K-ci
     global GREENS
     GREENS = green_shas() if any(c.get("status") == "measured" for c in reg) else []
     if GREENS is None and os.environ.get("GITHUB_ACTIONS") != "true": print("claims: K-ci skipped: GitHub API unreachable (CI fails closed)", file=sys.stderr)
