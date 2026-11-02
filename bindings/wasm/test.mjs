@@ -522,6 +522,18 @@ console.log('lift7 ok');
   assert.equal(JSON.parse(bt.msgVerify(e.recovered, '466f6f', '0x21a779d499957e7fd39392d49a079679009e60e492d9654a148829be43d2490736ec72bc4a5644047d979c3cf4ebe2c1c514044cf436b063cb89fc6676be71101b', true)).status, 'ok');
   assert.throws(() => bt.msgVerify('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'x', sig, false), /address_not_p2pkh/);
   assert.throws(() => bt.msgVerify('0x0000000000000000000000000000000000000001', 'x', '0x00', false), /signature_not_65_bytes/);
+  // Tron signMessageV2 (TWC TronMessageSignerTests.cpp), Solana raw (TWC SolanaMessageSigner.cpp); docs/PROVENANCE-msg.md
+  const tron = 'TWWb9EjUWai17YEVB7FR8hreupYJKG9sMR', tsig = 'bc0753c070cc55693097df11bc11e1a7c4bd5e1a40b9dc94c75568e59bcc9d6b50a7873ef25b469e494490a54de37327b4bc7fc825c81a377b555e34fb7261ba1c';
+  assert.deepEqual(JSON.parse(bt.msgVerify(tron, 'Hello World', tsig, false)), { status: 'ok', chain: 'tron', address: tron, recovered: tron });
+  assert.equal(JSON.parse(bt.msgVerify(tron, 'Hello world', tsig, false)).status, 'signer_mismatch');
+  const sol = 'H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg', ssig = '2iBZ6zrQRKHcbD8NWmm552gU5vGvh1dk3XV4jxnyEdRKm8up8AeQk1GFr9pJokSmchw7i9gMtNyFBdDt8tBxM1cG';
+  assert.throws(() => bt.msgVerify(sol, 'Hello world', ssig, false), /solana_format_required/);
+  assert.deepEqual(JSON.parse(bt.msgVerifyOpts(JSON.stringify({ address: sol, message: 'Hello world', signature: ssig, format: 'raw' }))), { status: 'ok', chain: 'sol', address: sol, format: 'raw' });
+  assert.equal(JSON.parse(bt.msgVerifyOpts(JSON.stringify({ address: sol, message: 'Hello world', signature: ssig, format: 'offchain-v0' }))).status, 'signer_mismatch');
+  assert.equal(JSON.parse(bt.msgVerifyOpts(JSON.stringify({ address: tron, message_hex: '48656c6c6f20576f726c64', signature: tsig }))).status, 'ok');
+  assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: tron, message: 'x', signature: tsig, format: 'raw' })), /format_only_for_solana/);
+  assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: sol, message: 'x', signature: ssig, format: 'raw', extra: 1 })), /unknown_key:extra/);
+  assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: 'cosmos1hftz5ugqmpg9243xeegsqqav62f8hnyw3gdu30', message: 'random', signature: 'AA==' })), /cosmos_pubkey_required/);
   console.log('ok msg verify');
 }
 

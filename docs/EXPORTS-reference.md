@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 75. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 76. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -918,7 +918,7 @@ msgVerify(address: string, message: string, sig: string, message_is_hex: boolean
 
 Message signature check, as `msg-verify`: EIP-191 personal_sign (0x address, 65-byte hex sig) or Bitcoin Core signmessage (P2PKH address, base64 sig). `message_is_hex`: message is hex bytes. Returns {status:"ok"|"signer_mismatch", chain, address, recovered, v?}; malformed input throws.
 
-Calls in test.mjs: 7.
+Calls in test.mjs: 10.
 
 Example (executed):
 
@@ -932,6 +932,30 @@ Error example (executed):
 ```js
 bt.msgVerify("0x0000000000000000000000000000000000000001", "x", "0x00", false)
 // throws signature_not_65_bytes
+```
+
+## `msgVerifyOpts`
+
+```ts
+msgVerifyOpts(input: string): string
+```
+
+As `msg-verify` with options, for the chains whose verify needs them. Input JSON: {"address", "message" | "message_hex", "signature", "format"? ("raw" | "offchain-v0", Solana, required there), "pubkey"? (base64 33-byte compressed key, Cosmos ADR-036, required there)}. Unknown keys and options that do not apply to the detected chain are refused. Returns the same JSON as `msgVerify` ({"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}). No keys.
+
+Calls in test.mjs: 6.
+
+Example (executed):
+
+```js
+bt.msgVerifyOpts("{\"address\":\"H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg\",\"message\":\"Hello world\",\"signature\":\"2iBZ6zrQRKHcbD8NWmm552gU5vGvh1dk3XV4jxnyEdRKm8up8AeQk1GFr9pJokSmchw7i9gMtNyFBdDt8tBxM1cG\",\"format\":\"raw\"}")
+// -> {"address":"H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg","chain":"sol","format":"raw","status":"ok"}
+```
+
+Error example (executed):
+
+```js
+bt.msgVerifyOpts("{\"address\":\"cosmos1hftz5ugqmpg9243xeegsqqav62f8hnyw3gdu30\",\"message\":\"random\",\"signature\":\"AA==\"}")
+// throws cosmos_pubkey_required
 ```
 
 ## `multisigAddress`
