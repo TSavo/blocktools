@@ -541,3 +541,65 @@ console.log('lift7 ok');
   assert.throws(() => bt.bolt11Decode('bc1qxyz'), /not_a_lightning_invoice/);
   console.log('ok bolt11');
 }
+// verifyTx pre-sign content checks (same approval::apply as tx-verify; mirrors recipes/evm-check-approval.md)
+{
+  const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', P2 = '0x000000000022d473030f116ddee9f6b43ac78ba3', OTHER = '0x1111111111111111111111111111111111111111';
+  const MAX = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+  const enc = (sig, args) => JSON.parse(bt.evmAbiEncode(JSON.stringify({sig, args}))).data;
+  const tx = (to, data, value) => JSON.parse(bt.buildEvmTransfer(JSON.stringify({chainId: 1, nonce: 0, gas: 200000, gasPrice: '1000000000', to, data, ...(value ? {value} : {})}))).unsigned;
+  const vt = (raw, exp, opts) => JSON.parse(bt.verifyTx(raw, 'eth', exp, [], 1, '', false, undefined, opts === undefined ? undefined : JSON.stringify(opts)));
+  const has = (v, c) => assert.ok(v.failures.includes(c), c + ' ' + JSON.stringify(v));
+  const unl = tx(USDC, enc('approve(address,uint256)', [P2, MAX]));
+  const a = vt(unl, [USDC]);
+  assert.equal(a.ok, false); has(a, 'unlimited_approval'); assert.equal(a.approvals[0].unlimited, true);
+  has(vt(unl, [USDC], {expect_spender: OTHER, expect_unlimited: true}), 'spender_not_expected');
+  const okUnl = vt(unl, [USDC], {expect_spender: P2, expect_unlimited: true});
+  assert.equal(okUnl.ok, true, JSON.stringify(okUnl));
+  const lim = tx(USDC, enc('approve(address,uint256)', [P2, '1000000']));
+  const ok = vt(lim, [USDC], {expect_spender: P2, expect_amount: '1000000'});
+  assert.equal(ok.ok, true, JSON.stringify(ok)); assert.equal(ok.approvals[0].amount, '1000000'); assert.equal(ok.approvals[0].unlimited, false);
+  has(vt(lim, [USDC], {expect_spender: P2, expect_amount: '999'}), 'amount_not_expected');
+  has(vt(lim, [USDC], {expect_spender: P2}), 'token_call_not_transfer'); // not fully asserted: generic refusal stays
+  // 2^128 threshold
+  assert.equal(vt(tx(USDC, enc('approve(address,uint256)', [P2, (2n ** 128n - 1n).toString()])), [USDC]).approvals[0].unlimited, false);
+  has(vt(tx(USDC, enc('approve(address,uint256)', [P2, (2n ** 128n).toString()])), [USDC]), 'unlimited_approval');
+  const nft = vt(tx('0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D', enc('setApprovalForAll(address,bool)', [P2, true])), []);
+  has(nft, 'unlimited_approval'); assert.equal(nft.approvals[0].amount, 'all');
+  // batches
+  const RCP = '0x264bd8291fae1d75db2c5f573b07faa6715997b5';
+  const mc = vt(tx(USDC, enc('multicall(bytes[])', [[enc('approve(address,uint256)', [P2, MAX])]])), [], {sigs: ['multicall(bytes[])']});
+  has(mc, 'inner_calls_not_asserted'); has(mc, 'unlimited_approval'); assert.equal(mc.approvals[0].path, 'multicall[0]');
+  const mt = tx(USDC, enc('multicall(bytes[])', [[enc('transfer(address,uint256)', [RCP, '5050510000'])]]));
+  const mok = vt(mt, [], {sigs: ['multicall(bytes[])'], allow_inner_call: [USDC + ':0xa9059cbb'], expect_recipient: RCP, expect_amount: '5050510000'});
+  assert.equal(mok.ok, true, JSON.stringify(mok)); assert.equal(mok.transfers[0].recipient, '0x264bd8291fAE1D75DB2c5F573b07faA6715997B5'); assert.equal(mok.inner_calls.length, 1);
+  has(vt(mt, [], {sigs: ['multicall(bytes[])'], allow_inner_call: [USDC + ':0xa9059cbb'], expect_recipient: OTHER}), 'recipient_not_expected');
+  has(vt(mt, [], {sigs: ['multicall(bytes[])'], allow_inner_call: [USDC + ':0xa9059cbb'], expect_value: '1'}), 'value_not_expected');
+  // Safe delegatecall
+  const MS = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D', Z = '0x0000000000000000000000000000000000000000';
+  const safe = tx('0x5555555555555555555555555555555555555555', enc('execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes)', [MS, '0', enc('multiSend(bytes)', ['0x']), '1', '0', '0', '0', Z, Z, '0x']));
+  const dc = vt(safe, []); has(dc, 'delegatecall'); assert.equal(dc.inner_calls[0].operation, 'delegatecall'); assert.equal(dc.inner_calls[0].selector, '0x8d80ff0a');
+  assert.ok(!vt(safe, [], {allow_delegatecall: [MS]}).failures.includes('delegatecall'));
+  // typed option errors, EVM only, normalization errors (same codes as the CLI)
+  assert.throws(() => vt(unl, [USDC], {expect_unlimited: 'yes'}), /expect_unlimited_must_be_bool/);
+  assert.throws(() => vt(unl, [USDC], {expect_spender: 1}), /expect_spender_must_be_string/);
+  assert.throws(() => vt(unl, [USDC], {allow_inner_call: USDC + ':0xa9059cbb'}), /allow_inner_call_must_be_string_array/);
+  assert.throws(() => vt(unl, [USDC], {allow_delegatecall: [1]}), /allow_delegatecall_must_be_string_array/);
+  assert.throws(() => vt(unl, [USDC], {expect_unlimited: true}), /expect_unlimited_needs_expect_spender/);
+  assert.throws(() => bt.verifyTx(b170, 'btc', [], [], undefined, '', true, undefined, JSON.stringify({expect_value: '1'})), /EVM only/);
+  console.log('verifyTx content checks ok');
+}
+// evmTypedDataVerify options (same eip712::apply_expect as typed-data-verify)
+{
+  const td = readFileSync(new URL('../../recipes/fixtures/evm/eip2612-permit-usdc.json', import.meta.url), 'utf8');
+  const t = (o) => JSON.parse(bt.evmTypedDataVerify(td, undefined, undefined, JSON.stringify(o)));
+  const ok = t({expect_chain_id: '1', expect_verifying_contract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'});
+  assert.equal(ok.status, 'ok', JSON.stringify(ok));
+  const m = t({expect_chain_id: '137'}); assert.equal(m.status, 'chain_id_mismatch'); assert.equal(m.expected_chain_id, 137);
+  assert.equal(t({expect_verifying_contract: '0x1111111111111111111111111111111111111111'}).status, 'verifying_contract_mismatch');
+  assert.equal(t({expect_chain_id: '137', expect_verifying_contract: '0x1111111111111111111111111111111111111111'}).status, 'chain_id_mismatch');
+  assert.throws(() => t({expect_chain_id: 1}), /expect_chain_id_must_be_string/);
+  assert.throws(() => t({expect_chain_id: 'x'}), /expect_chain_id_not_integer/);
+  assert.throws(() => t({expect_verifying_contract: '0x12'}), /expect_verifying_contract_bad_address/);
+  assert.equal(JSON.parse(bt.evmTypedDataVerify(td)).status, 'ok');
+  console.log('evmTypedDataVerify options ok');
+}
