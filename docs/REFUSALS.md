@@ -177,6 +177,13 @@ The calldata approves 2^128 or more tokens, or all of them (`setApprovalForAll(t
 tx-verify --chain-id 1 --expect-to "$EVM_TO" < "$FX/evm-approve.hex"
 ```
 
+`tx-sign` runs the same check before it reads a key (nothing is signed):
+
+<!-- run rc=1 expect=unlimited_approval,refused -->
+```sh
+tx-sign --tx "$FX/evm-approve.hex" --chain-id 1 --expect-to "$EVM_TO" < "$FX/key2"
+```
+
 ### `spender_not_expected`
 A decoded approval names a different spender than `--expect-spender`.
 
@@ -240,6 +247,13 @@ A batch (multicall, Multicall3, Universal Router, Safe, multiSend) has an inner 
 <!-- run rc=1 expect=inner_calls_not_asserted -->
 ```sh
 tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data $(abi-encode --raw 'multicall(bytes[])' '["0xa9059cbb00"]') | tx-verify --chain-id 1 --call 'multicall(bytes[])'
+```
+
+`tx-sign` refuses the same batch before it reads a key:
+
+<!-- run rc=1 expect=inner_calls_not_asserted,refused -->
+```sh
+tx-build --chain eth --chain-id 1 --nonce 0 --max-fee-per-gas 1000000000 --gas 200000 --to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --data $(abi-encode --raw 'multicall(bytes[])' '["0xa9059cbb00"]') > mc.json; tx-sign --tx mc.json --chain-id 1 --expect-to 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --call 'multicall(bytes[])' < "$FX/key2"
 ```
 
 ### `delegatecall`

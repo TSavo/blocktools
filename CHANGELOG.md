@@ -41,11 +41,17 @@ Numbers and security statements here are only those registered as measured in do
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
 
+### Changed
+- Behaviour change: `tx-sign` now runs the same approval/transfer/inner-call checks as `tx-verify` (shared
+  `presign::apply`) before it reads a key, and again on the signed bytes, deny by default. Batches (multicall,
+  Multicall3, Safe MultiSend) and unlimited approvals that `tx-sign` signed before are now refused unless asserted with
+  `--expect-spender ADDR --expect-unlimited`, `--allow-inner-call TO:SELECTOR` or `--allow-delegatecall TO`. The
+  optional `--expect-amount`, `--expect-recipient` and `--expect-value` flags work as in `tx-verify`, also with `--plan`.
+
 ### Known limitations
 - Message verify: Cosmos ADR-036 signatures and real `solana sign-offchain-message` signatures are UNTESTED
   against wallet output (self round-trip and byte layout only), for msg-sign as well as msg-verify.
-- `tx-sign` does not run these approval checks yet (the wasm `verifyTx` does since this release): `tx-sign` can still sign a transaction
-  `tx-verify` flags. Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
+- Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
   ERC-20 selector, so a token id of 2^128 or more is reported as unlimited. UNTESTED on transactions from a live wallet.
 
 ## [0.3.3] - 2026-10-30
