@@ -54,6 +54,11 @@ apt/apk/rpm repository signing work on the release signer's engine. Version 0.3.
 internal pin, the wasm package, lockfiles and man pages (version-check) (this release).
 
 ### Fixed
+- `msg-verify` / wasm `msgVerify`, `msgVerifyOpts`: a Cosmos address with a 4-letter prefix that is also a valid
+  32-byte on-curve Solana base58 key (e.g. `osmo148yundzwcr97np3s8c8yrx2p6p33ck6sd4stfm`) was detected as Solana,
+  so `--pubkey` was refused with `pubkey_only_for_cosmos`. Such strings are now refused with `ambiguous_address`
+  unless the chain is named: `--chain cosmos|sol`, or the new `msgVerifyOpts` key `"chain"` (JSON string). A wrong
+  named chain is refused with `chain_does_not_match_address` (msg-ambiguous-address, untested until a green main run).
 - The `repos` release job (signed apt/apk/rpm repositories) never completed for 0.3.0–0.3.2: the host
   signing scripts bind-mounted the private key and the package inputs into their one-shot signing
   containers with `docker run -v`, but the release signer's engine is Docker Desktop on Windows, which
