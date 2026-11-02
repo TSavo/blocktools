@@ -100,6 +100,7 @@ and see addresses and signed transactions only.
 | Fetch a tx from your bitcoind and decode it, fee included (`rpc \| tx-decode`) | [rpc-decode.md](rpc-decode.md) |
 | m-of-n multisig: build, carry into a Plan, each cosigner partial-signs, combine (P2WSH and Taproot script-path) | [multisig.md](multisig.md) |
 | Inspect a BOLT11 Lightning invoice (decode fields + recovered payee, re-encode) | [bolt11.md](bolt11.md) |
+| Check a signed message (proof of control) on Ethereum, Bitcoin, Tron, Solana or Cosmos | [msg-verify.md](msg-verify.md) |
 
 Fee warnings (`high_fee`, `high_fee_rate`) use per-coin limits from measured mainnet fee rates (docs/CHAINS.md "Fee-warning limits").
 | Verify, and sign on an offline machine | [goal-verify-and-offline.md](goal-verify-and-offline.md) |

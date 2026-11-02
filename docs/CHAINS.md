@@ -260,6 +260,16 @@ Measured (Linux only): `crates/tx/tests/twc_message.rs` (2 tests). It signs TWC'
 
 Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_message`; TWC signs its legacy_hex vector this way, and msg-verify checks it with `--hex`, but blocktools will not sign a hash it cannot show); hex or typed-data input (`only_text_messages_signed`); a message that decodes as a transaction or PSBT (`message_looks_like_transaction`); non-UTF-8, empty or oversized messages; segwit and taproot addresses (`address_not_p2pkh`; BIP137 segwit headers 35-42 and BIP322 are unsupported); other chains' message prefixes (`message_prefix_unproven_for_chain`, e.g. ltc, doge); EIP-712 (blocktools only verifies it, with `typed-data-verify`). A key that does not match `--address` gives `address_does_not_match_key`. Untested: testnet addresses, wallets other than TWC (no vectors from MetaMask, Electrum or Bitcoin Core were run here), and long messages (the multi-byte varint length prefix has no vector).
 
+### msg-verify: Tron, Solana, Cosmos ADR-036
+
+`msg-verify` (and the wasm `msgVerify` / `msgVerifyOpts`) also checks Tron, Solana and Cosmos message signatures. No key is read. Code: `crates/blocktools/src/msgchain.rs`. Sources and what each vector proves: docs/PROVENANCE-msg.md.
+
+- Tron (`T...` address): signMessageV2, keccak256("\x19TRON Signed Message:\n" + decimal byte length + message), 65-byte hex signature, v 27/28.
+- Solana (base58 32-byte key): `--format` is required. `raw` = ed25519 over the message bytes (wallet `signMessage`); `offchain-v0` = the solana-sdk layout signed by `solana sign-offchain-message` ("\xffsolana offchain", version 0, format 0/1/2, u16le length, message). Trust Wallet Core's 85-byte off-chain layout is refused.
+- Cosmos (bech32, 20-byte payload): ADR-036 (a draft spec), sha256 of the amino sign doc with one `sign/MsgSignData`; 64-byte base64 signature (low-s); `--pubkey` (base64 33-byte compressed key) is required and must hash to the address. Ethermint-style eth_secp256k1 keys are not supported.
+
+Linux only (untested): `crates/blocktools/tests/msg_chains.rs` (5 tests, not yet stamped): TWC's 2 Tron signMessageV2 vectors, TWC's Solana raw vector, the solana-sdk off-chain v0 serialization hashes, a Cosmos self round-trip, and option refusals. UNTESTED: a Cosmos signature from a real wallet (the ADR-036 spec example does not verify: its signer has a bad bech32 checksum), a real `solana sign-offchain-message` signature (only the byte layout has a vector), Tron v 0/1.
+
 ## Cosmos SDK: Trust Wallet Core MsgSend vectors
 
 `acct-tx --chain atom` builds, signs and decodes Cosmos SDK `MsgSend` (`/cosmos.bank.v1beta1.MsgSend`, SIGN_MODE_DIRECT, secp256k1 pubkey). Code: `crates/acct/src/atom.rs`. The chain is detected from the bech32 hrp of `--from` (and of the TxRaw on decode); `--to` must use the same hrp. The hrp picks the base denom and the default `--chain-id`; a different chain id or denom is a warning, not an error, so testnets still decode.
