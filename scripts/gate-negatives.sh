@@ -95,6 +95,8 @@ neg K-fallback docs-check "measured via a fallback path" 'mkdir -p target/x86_64
 neg K-macos docs-check "without a ci_run" 'printf "[[claim]]\nid = \"z\"\nstatement = \"z\"\nkind = \"platform\"\nplatform = \"macos\"\nstatus = \"measured\"\ncommand = \"true\"\nexpect = \"\"\ncommit = \"%s\"\ndate = \"d\"\ndoc = []\n" $(git rev-parse --short HEAD) >> docs/claims.toml'
 neg K-label docs-check "is not labelled" 'sed "/XPM 100,312 sat\/B buildable/s/ (unmeasured)//" docs/ROADMAP.md > t && mv t docs/ROADMAP.md'
 # K-ci: a claim stamped at a commit with no completed successful ci run on main (here a fresh commit) must fail.
+# K-ci self-test: a filter that also counts cancelled/failed runs as green must fail.
+neg K-ci-filter docs-check "K-ci] self-test" 'sed "s/r.get(\"status\") == \"completed\" and r.get(\"conclusion\") == \"success\"/r.get(\"status\") == \"completed\"/" scripts/claims-check.py > t && mv t scripts/claims-check.py'
 neg K-ci docs-check "no successful ci run on main" 'git -c user.name=n -c user.email=n@n commit -q --allow-empty -m plant && sed "0,/^commit = \"1f1fa71\"/s//commit = \"$(git rev-parse --short HEAD)\"/" docs/claims.toml > t && mv t docs/claims.toml'
 # K-agree (expect vs statement): the measured output in expect names a byte count the statement does not carry.
 neg K-agree docs-check "but the statement does not" 'sed "/^id = \"read-file-64mib\"/,/^expect/s/^expect = \"\(.*\)\"/expect = \"\1; 99999 bytes\"/" docs/claims.toml > t && mv t docs/claims.toml'  # a measured number claim; was redact-512, then image-size-readme (both pending re-stamp)
