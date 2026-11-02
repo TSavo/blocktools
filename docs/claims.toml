@@ -1040,3 +1040,17 @@ date = "2026-11-02"
 cheap = false
 depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
 doc = []
+
+[[claim]]
+id = "tx-sign-presign-checks"
+note = "new in the tx-sign parity PR; passes on the box; stamp from a green main CI log (two-push)"
+statement = "tx-sign runs the tx-verify approval/transfer/batch checks (shared presign::apply) before reading a key and again on the signed bytes, deny by default: an unlimited approve fails unlimited_approval, a multicall hiding one fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall, also with --plan; with --expect-spender --expect-unlimited the approve is signed and the signed bytes pass tx-verify with the same assertions"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/e2e.d/tx-sign-presign.sh"
+expect = "ok   tx-sign --plan with --expect-spender --expect-unlimited signs"
+date = "2026-11-02"
+cheap = false
+depends = ["crates/evm/src/presign.rs", "tools/tx-sign/src/main.rs", "scripts/e2e.d/tx-sign-presign.sh"]
+doc = []
