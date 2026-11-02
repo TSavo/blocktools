@@ -1179,6 +1179,7 @@ dependencies = [
 name = "msg-verify"
 version = "0.3.3"
 dependencies = [
+ "blocktools",
  "blocktools-core",
  "blocktools-io",
  "blocktools-tx",
