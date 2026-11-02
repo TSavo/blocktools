@@ -157,6 +157,10 @@ addresses are EIP-55. ABI values: `uint*`/`int*` decimal strings, `address` EIP-
 | `evmBytecodeInspect(codeHex)` | `bytecode::inspect` | `{status:"ok", kind:"empty"\|"code"\|"eip1167_proxy"\|"eip7702_delegation"\|"eof", size, exceeds_eip170, keccak256}`; proxies add `implementation`, delegations `delegate` (EIP-55). `code` adds `metadata` (Solidity CBOR trailer: `solc`, `ipfs`/`bzzr1`, …) and `metadata_bytes` when present, `instructions`, `opcodes` (counts of CALL, DELEGATECALL, CREATE2, PUSH0, TSTORE, …) and `selector_candidates` (PUSH4 values compared with EQ: a heuristic). Throws `bad_hex`, `odd_length_hex` |
 | `evmTypedDataVerify(typedDataJson, sigHex?, signer?, optionsJson?)` | `eip712::verify` + `eip712::apply_expect` | `{status:"ok"\|"valid"\|"signer_mismatch", primary_type, encode_type, chain_id, verifying_contract, domain_separator, message_hash, digest}` (`verifying_contract`: the domain field as given, only when the domain has one); with `sigHex` adds `recovered` (EIP-55) and `low_s`; with `signer` adds `expected`. Signature is r\|\|s\|\|v (v 27/28 or 0/1) or EIP-2098 compact r\|\|vs. `optionsJson` `{expect_chain_id?: "N", expect_verifying_contract?: "0x.."}` sets status `chain_id_mismatch` (+`expected_chain_id`) / `verifying_contract_mismatch` (+`expected_verifying_contract`), as typed-data-verify. Throws on bad JSON, missing fields, bad hex, `signature_not_64_or_65_bytes`, `<key>_must_be_string`, `expect_chain_id_not_integer`, `expect_verifying_contract_bad_address` |
 
+## Sign-In with Ethereum
+
+`siwe` (EIP-4361 build/parse) is CLI-only for now: no wasm export (deferred, export count unchanged).
+
 ## Multisig, Plan resolve and message verify (keyless, since 2026-10-28, additive)
 
 Same library paths as the CLIs (`multisig`, `taproot-multisig`, `tx-combine`, `tx-plan resolve`, `msg-verify`),

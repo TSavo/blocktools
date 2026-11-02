@@ -969,19 +969,18 @@ doc = [{ file = "README.md", text = "53 of its 55 binaries need glibc 2.34" }, {
 
 [[claim]]
 id = "sealed-tools-count"
-statement = "crates/io/sealed-tools.txt (the sealed-run allowlist the Dockerfile copies into the image) lists 41 tool entries (non-comment, non-blank lines)"
+note = "41 -> 42 with siwe; restamp from the green main run after merge (was measured 41 at 50dbe77)"
+statement = "crates/io/sealed-tools.txt (the sealed-run allowlist the Dockerfile copies into the image) lists 42 tool entries (non-comment, non-blank lines)"
 kind = "number"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "printf 'sealed-tools entries: %s\\n' \"$(grep -vcE '^[[:space:]]*(#|$)' crates/io/sealed-tools.txt)\""
-expect = "sealed-tools entries: 41"
-commit = "50dbe77"
+expect = "sealed-tools entries: 42"
 date = "2026-10-31"
-value = "41"
 env = "cheap: re-run by claims-check (K-run) in every CI gate; first run on the box at 50dbe77"
 cheap = true
 depends = ["crates/io/sealed-tools.txt"]
-doc = [{ file = "README.md", text = "the file now lists 41 entries" }]
+doc = [{ file = "README.md", text = "the file now lists 42 entries" }]
 
 [[claim]]
 id = "alpine-apk-install-0.1.1pre"
@@ -1040,3 +1039,17 @@ date = "2026-11-02"
 cheap = false
 depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
 doc = []
+
+[[claim]]
+id = "siwe-e2e"
+note = "passes on the box; stamp from the green main run after merge"
+statement = "siwe parse/build agree byte-exact with spruceid/siwe 911f6f2c vectors (parsing, URIs, verification via msg-verify) and the opt-in domain/nonce/time checks refuse"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/e2e.d/siwe.sh"
+expect = "ok   siwe checks"
+date = "2026-11-02"
+cheap = true
+depends = ["tools/siwe/src/lib.rs", "tools/siwe/src/main.rs", "scripts/e2e.d/siwe.sh"]
+doc = [{ file = "docs/PROVENANCE-siwe.md", text = "siwe-e2e (untested)" }]

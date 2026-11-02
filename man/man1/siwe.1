@@ -1,0 +1,65 @@
+.TH SIWE 1 2026-10-25 "blocktools 0.3.3" "blocktools manual"
+.SH NAME
+siwe \- EIP\-4361 Sign\-In with Ethereum messages, as a stdin/stdout filter. No keys, no signatures
+.SH SYNOPSIS
+.nf
+siwe build [\-\-raw] < fields.json  |  siwe parse [\-\-domain D] [\-\-nonce N] [\-\-now RFC3339 | \-\-check\-time] < message
+.fi
+.SH DESCRIPTION
+.nf
+.RS 2
+  siwe build [\-\-raw] < fields.json     JSON fields (siwe camelCase names) \-> the message text
+  siwe parse [\-\-domain D] [\-\-nonce N] [\-\-now RFC3339 | \-\-check\-time] < message
+.RE
+.fi
+build: stdout one JSON line {tool,status:"ok",message} (or, with \-\-raw, only the message bytes, no
+newline, for msg\-sign/msg\-verify \-\-message\-file). Unknown keys, missing fields and invalid values are
+bad_input (exit 2).
+parse: the text must be valid EIP\-4361 AND canonical (exactly what build prints for its fields: no CR,
+no trailing newline or spaces). stdout {tool,status:"ok",fields,checked,unchecked}; a bad message is
+{status:"refused",failures:[code]} (exit 1). Checks run only when asked: \-\-domain (exact match of the
+domain line's authority), \-\-nonce (exact), \-\-now/\-\-check\-time (expired at or after expirationTime,
+not_yet_valid before notBefore). The signature is never checked here: use msg\-verify on the same text.
+.SH OPTIONS
+.nf
+\-\-check\-time
+\-\-domain
+\-\-nonce
+\-\-now
+\-\-raw
+.fi
+Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
+.SH INPUT/OUTPUT
+siwe: EIP\-4361 Sign\-In with Ethereum messages, as a stdin/stdout filter. No keys, no signatures.
+.nf
+.RS 2
+  siwe build [\-\-raw] < fields.json     JSON fields (siwe camelCase names) \-> the message text
+.RE
+.fi
+build: stdout one JSON line {tool,status:"ok",message} (or, with \-\-raw, only the message bytes, no
+bad_input (exit 2).
+no trailing newline or spaces). stdout {tool,status:"ok",fields,checked,unchecked}; a bad message is
+.SH EXIT STATUS
+Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
+.TP
+0
+last status ok
+.TP
+1
+last status refused
+.PP
+Not every tool uses the same code for bad input: some exit 1, others exit 2 (docs/FINDINGS.md D1\-14). Always read the last JSON status line. Status and failure codes: docs/REFUSALS.md.
+.SH EXAMPLES
+.nf
+$ siwe build < $R/recipes/fixtures/siwe/example\-message.json
+# exit 0, last status: ok
+$ siwe build \-\-raw < $R/recipes/fixtures/siwe/example\-message.json | siwe parse \-\-domain evil.example
+# exit 1, last status: refused
+.fi
+.SH SECURITY NOTES
+DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
+Used incorrectly (wrong address, huge fee, lost keys, wrong chain) you lose funds; verify every transaction.
+It may open hostile wallet files and handle secrets: run it sealed and offline (./blocktools run; sealed\-run allows it).
+Unit tests are evidence, not a substitute for your own review. See docs/SECURITY.md.
+.SH SEE ALSO
+blocktools(7), docs/SECURITY.md, docs/getting\-started.md, recipes/README.md
