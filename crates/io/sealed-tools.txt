@@ -32,6 +32,7 @@ xpub-addresses
 sol-tron-tx
 msg-sign
 msg-verify
+siwe
 sig-hash
 abi-decode
 abi-encode

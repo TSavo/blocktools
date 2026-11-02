@@ -1019,3 +1019,5 @@ ba470eb718e779e4b0e3f1520b5284231b1bf98e9a39de07fb8f77ed70525bcf
 75065f100e38d3f3b4c5c4235834ba8216de62272a4f03532c44b31a5734360a
 # Trust Wallet Core Solana message-signer test public key (tests/chains/Solana/SolanaMessageSigner.cpp), public test vector
 ee6d61a89fc8f9909585a996bb0d2b2ac69ae23b5acf39a19f32631239ba06f9
+# Trust Wallet Core Solana message-signer test key (tests/chains/Solana/SolanaMessageSigner.cpp @2a8aa020), public test vector
+44f480ca27711895586074a14c552e58cc52e66a58edb6c58cf9b9b7295d4a2d

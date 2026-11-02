@@ -403,6 +403,16 @@ printf '%064x\n' 1 | msg-sign --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3
 printf '%064x\n' 1 | msg-sign --address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X --message hi
 ```
 
+<!-- run rc=1 expect=solana_format_required -->
+```sh
+printf '%064x\n' 1 | msg-sign --address H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg --message hi
+```
+
+<!-- run rc=1 expect=blind_hash_message -->
+```sh
+printf '%064x\n' 1 | msg-sign --address TWWb9EjUWai17YEVB7FR8hreupYJKG9sMR --message c0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
+```
+
 <!-- run rc=2 expect=address_not_p2pkh -->
 ```sh
 msg-verify --address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 --message hi --sig AA==
@@ -416,4 +426,14 @@ printf '%064x' 1 | acct-tx keys --chain atom --hrp canto
 <!-- run rc=1 expect=cosmos_hrp_without_vector -->
 ```sh
 acct-tx build --chain atom --from canto1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --to canto1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1
+```
+
+<!-- run rc=1 expect=bad_header -->
+```sh
+printf 'hello' | siwe parse
+```
+
+<!-- run rc=2 expect=missing chainId -->
+```sh
+printf '{"domain":"a"}' | siwe build
 ```

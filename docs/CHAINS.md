@@ -272,6 +272,12 @@ Linux only: `crates/blocktools/tests/msg_chains.rs` (7 tests, msg-chain-vectors 
 
 Ambiguous addresses (msg-ambiguous-address (untested)): some 4-letter-prefix Cosmos addresses (`osmo1…`, `juno1…`) are also canonical on-curve Solana base58 keys. Detection no longer guesses Solana for them: a string valid under both is refused with `ambiguous_address` unless the chain is named (`msg-verify --chain cosmos|sol`, or `"chain"` in `msgVerifyOpts`). A named chain that does not match the address is refused with `chain_does_not_match_address`.
 
+### msg-sign: Tron, Solana, Cosmos ADR-036
+
+`msg-sign` signs the same three formats (CLI only; the wasm build and the envelope do not sign). Code: `tools/msg-sign/src/chains.rs` (hashing and layouts reused from `crates/tx/src/msgchain.rs`). Same order as Ethereum/Bitcoin: refusals before any key is read (`blind_hash_message`, `only_text_messages_signed`, `message_looks_like_transaction`, empty/oversized/non-UTF-8; Solana without `--format`: `solana_format_required`; `--format` on another chain or `--v` off Ethereum: `bad_input`), then the key whose address is `--address` (else `address_does_not_match_key`), sign in memory, re-verify with msg-verify's code, show the message and wait for the typed code. Tron: 65-byte hex, v 27/28. Solana: base58 signature; key = 64-hex seed or a solana-keygen 64-byte JSON array whose public half must match. Cosmos: base64 low-s signature plus `pub_key` (base64 compressed) and `hrp`.
+
+Linux only (untested): `scripts/e2e.d/msg-chains-sign.sh` (msg-chains-sign-e2e, not yet stamped) runs the real CLI with the code typed on a pty: TWC's 2 Tron signMessageV2 signatures and TWC's Solana raw signature byte for byte, Solana offchain-v0 and Cosmos ADR-036 through msg-verify (round-trip only: UNTESTED against any wallet), and the refusals above plus the wrong-code abort.
+
 ## Cosmos SDK: Trust Wallet Core MsgSend vectors
 
 `acct-tx --chain atom` builds, signs and decodes Cosmos SDK `MsgSend` (`/cosmos.bank.v1beta1.MsgSend`, SIGN_MODE_DIRECT, secp256k1 pubkey). Code: `crates/acct/src/atom.rs`. The chain is detected from the bech32 hrp of `--from` (and of the TxRaw on decode); `--to` must use the same hrp. The hrp picks the base denom and the default `--chain-id`; a different chain id or denom is a warning, not an error, so testnets still decode.

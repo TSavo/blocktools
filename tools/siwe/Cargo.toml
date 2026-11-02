@@ -1,0 +1,16 @@
+[package]
+name = "siwe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "blocktools siwe: build an EIP-4361 Sign-In with Ethereum message from JSON fields, or parse one strictly (canonical text only) with opt-in domain, nonce and time checks. Offline, no keys, does not check signatures (use msg-verify)."
+[lib]
+path = "src/lib.rs"
+[[bin]]
+name = "siwe"
+path = "src/main.rs"
+[dependencies]
+blocktools-io = { version = "0.3.3", path = "../../crates/io" }
+# EIP-55 checksum (keccak) and hex only.
+blocktools-core = { version = "0.3.3", path = "../../crates/core", default-features = false }
+serde_json.workspace = true

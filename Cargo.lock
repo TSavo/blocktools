@@ -1172,6 +1172,7 @@ dependencies = [
  "blocktools-secrets",
  "blocktools-tty",
  "blocktools-tx",
+ "ed25519-dalek",
  "serde_json",
  "zeroize",
 ]
@@ -1783,6 +1784,15 @@ dependencies = [
  "group",
  "pasta_curves",
  "subtle",
+]
+
+[[package]]
+name = "siwe"
+version = "0.3.3"
+dependencies = [
+ "blocktools-core",
+ "blocktools-io",
+ "serde_json",
 ]
 
 [[package]]
