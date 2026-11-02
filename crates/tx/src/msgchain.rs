@@ -42,20 +42,41 @@ pub fn adr036_doc(signer: &str, msg: &[u8]) -> String {
 pub fn cosmos_addr(hrp: &str, pk33: &[u8]) -> String { blocktools_core::chains::cosmos_address(hrp, &hash160::Hash::hash(pk33).to_byte_array()) }
 
 /// "eth" | "btc" (from tx::message) | "tron" | "sol" | "cosmos".
-pub fn detect_chain(addr: &str) -> Result<&'static str, &'static str> {
-    match crate::message::detect_chain(addr) { Ok(c) => return Ok(c), Err("address_not_p2pkh") => return Err("address_not_p2pkh"), Err(_) => {} }
-    if addr.starts_with('T') { if let Ok(b) = bitcoin::base58::decode_check(addr) { if b.len() == 21 && b[0] == 0x41 { return Ok("tron") } } }
-    if let Ok(k) = sol_pubkey(addr) { if sol_on_curve(&k) && bitcoin::base58::encode(&k) == addr { return Ok("sol") } }
-    if let Ok((h, _)) = bitcoin::bech32::decode(addr) { if blocktools_core::chains::cosmos_decode(h.as_str(), addr).is_ok() { return Ok("cosmos") } }
-    Err("unrecognised_address")
+pub fn detect_chain(addr: &str) -> Result<&'static str, &'static str> { detect_chain_as(addr, None) }
+/// Detect the chain, honouring an explicit `chain` hint. A string that is BOTH a valid-checksum Cosmos
+/// bech32 address and a canonical on-curve Solana base58 key (e.g. some 4-letter-prefix `osmo1…`/`juno1…`)
+/// is refused as `ambiguous_address` unless the caller names the chain; never guessed.
+pub fn detect_chain_as(addr: &str, hint: Option<&str>) -> Result<&'static str, &'static str> {
+    match crate::message::detect_chain(addr) { Ok(c) => return hinted(c, hint), Err("address_not_p2pkh") => return Err("address_not_p2pkh"), Err(_) => {} }
+    if addr.starts_with('T') { if let Ok(b) = bitcoin::base58::decode_check(addr) { if b.len() == 21 && b[0] == 0x41 { return hinted("tron", hint) } } }
+    let cosmos = matches!(bitcoin::bech32::decode(addr), Ok((h, _)) if blocktools_core::chains::cosmos_decode(h.as_str(), addr).is_ok());
+    let sol = matches!(sol_pubkey(addr), Ok(k) if sol_on_curve(&k) && bitcoin::base58::encode(&k) == addr);
+    match (cosmos, sol, hint) {
+        (true, true, None) => Err("ambiguous_address"),
+        (true, true, Some("cosmos")) => Ok("cosmos"),
+        (true, true, Some("sol")) => Ok("sol"),
+        (true, true, Some(h)) => hinted("cosmos", Some(h)),
+        (true, false, h) => hinted("cosmos", h),
+        (false, true, h) => hinted("sol", h),
+        _ => Err("unrecognised_address"),
+    }
 }
-pub struct Opts<'a> { pub format: Option<&'a str>, pub pubkey: Option<&'a str> }
+fn hinted(c: &'static str, hint: Option<&str>) -> Result<&'static str, &'static str> {
+    match hint {
+        None => Ok(c),
+        Some(h) if h == c => Ok(c),
+        Some(h) if ["eth", "btc", "tron", "sol", "cosmos"].contains(&h) => Err("chain_does_not_match_address"),
+        Some(_) => Err("message_prefix_unproven_for_chain"),
+    }
+}
+#[derive(Default)]
+pub struct Opts<'a> { pub format: Option<&'a str>, pub pubkey: Option<&'a str>, pub chain: Option<&'a str> }
 fn hexsig(s: &str) -> Result<Vec<u8>, &'static str> { let t = s.trim(); blocktools_core::hex_dec(t.strip_prefix("0x").unwrap_or(t)).ok_or("bad_hex_signature") }
 
 /// Verify; returns {"status":"ok"|"signer_mismatch","chain","address","recovered"?, "v"?, "format"?, "hrp"?}.
 /// Options that do not apply to the detected chain are refused (no silent ignoring).
 pub fn verify(addr: &str, msg: &[u8], sig: &str, o: &Opts) -> Result<Value, &'static str> {
-    let chain = detect_chain(addr)?;
+    let chain = detect_chain_as(addr, o.chain)?;
     if o.format.is_some() && chain != "sol" { return Err("format_only_for_solana") }
     if o.pubkey.is_some() && chain != "cosmos" { return Err("pubkey_only_for_cosmos") }
     if msg.len() > 1 << 20 { return Err("message_too_large") }
