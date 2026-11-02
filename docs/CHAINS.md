@@ -268,7 +268,7 @@ Refused by msg-sign, before any key is read: a bare 32-byte hash (`blind_hash_me
 - Solana (base58 32-byte key): `--format` is required. `raw` = ed25519 over the message bytes (wallet `signMessage`); `offchain-v0` = the solana-sdk layout signed by `solana sign-offchain-message` ("\xffsolana offchain", version 0, format 0/1/2, u16le length, message). Trust Wallet Core's 85-byte off-chain layout is refused.
 - Cosmos (bech32, 20-byte payload): ADR-036 (a draft spec), sha256 of the amino sign doc with one `sign/MsgSignData`; 64-byte base64 signature (low-s); `--pubkey` (base64 33-byte compressed key) is required and must hash to the address. Ethermint-style eth_secp256k1 keys are not supported.
 
-Linux only (untested): `crates/blocktools/tests/msg_chains.rs` (5 tests, not yet stamped): TWC's 2 Tron signMessageV2 vectors, TWC's Solana raw vector, the solana-sdk off-chain v0 serialization hashes, a Cosmos self round-trip, and option refusals. UNTESTED: a Cosmos signature from a real wallet (the ADR-036 spec example does not verify: its signer has a bad bech32 checksum), a real `solana sign-offchain-message` signature (only the byte layout has a vector), Tron v 0/1.
+Linux only: `crates/blocktools/tests/msg_chains.rs` (5 tests, msg-chain-vectors): TWC's 2 Tron signMessageV2 vectors, TWC's Solana raw vector, the solana-sdk off-chain v0 serialization hashes, a Cosmos self round-trip, and option refusals. UNTESTED: a Cosmos signature from a real wallet (the ADR-036 spec example does not verify: its signer has a bad bech32 checksum), a real `solana sign-offchain-message` signature (only the byte layout has a vector), Tron v 0/1.
 
 ## Cosmos SDK: Trust Wallet Core MsgSend vectors
 
