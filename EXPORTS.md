@@ -155,7 +155,7 @@ addresses are EIP-55. ABI values: `uint*`/`int*` decimal strings, `address` EIP-
 | `evmCreateAddress(requestJson)` | `create_json` | CREATE: `{deployer, nonce}` (nonce number, decimal or `0x` string; a tx object or `{result: tx}` with `from`/`nonce` works) gives `{status:"ok", scheme:"create", deployer, nonce, address}`. CREATE2 (EIP-1014): `{deployer, salt, init_code_hash}` or `{…, init_code}` gives `{status:"ok", scheme:"create2", deployer, salt, init_code_hash, address}`. Addresses EIP-55. Throws `create_needs_nonce_or_salt`, `salt_not_32_bytes`, `nonce_out_of_range_eip2681`, … |
 | `evmAbiInspect(abiText)` | `inspect::inspect` | `abiText` as for `evmSigLookup`. `{status:"ok", functions, events, errors, items:[{kind, signature, selector\|topic, name?, state_mutability?, outputs?}], selector_collisions:[{selector, signatures}], interfaces:[{interface, complete, interface_id, missing?}]}`. Interfaces: ERC-165, ERC-20, ERC-721 (+Metadata, Enumerable), ERC-1155; ids are XORs of selectors, tested against the ids printed in the EIPs. Throws `bad_abi_json`, signature errors |
 | `evmBytecodeInspect(codeHex)` | `bytecode::inspect` | `{status:"ok", kind:"empty"\|"code"\|"eip1167_proxy"\|"eip7702_delegation"\|"eof", size, exceeds_eip170, keccak256}`; proxies add `implementation`, delegations `delegate` (EIP-55). `code` adds `metadata` (Solidity CBOR trailer: `solc`, `ipfs`/`bzzr1`, …) and `metadata_bytes` when present, `instructions`, `opcodes` (counts of CALL, DELEGATECALL, CREATE2, PUSH0, TSTORE, …) and `selector_candidates` (PUSH4 values compared with EQ: a heuristic). Throws `bad_hex`, `odd_length_hex` |
-| `evmTypedDataVerify(typedDataJson, sigHex?, signer?)` | `eip712::verify` | `{status:"ok"\|"valid"\|"signer_mismatch", primary_type, encode_type, chain_id, verifying_contract, domain_separator, message_hash, digest}` (`verifying_contract`: the domain field as given, only when the domain has one); with `sigHex` adds `recovered` (EIP-55) and `low_s`; with `signer` adds `expected`. Signature is r\|\|s\|\|v (v 27/28 or 0/1) or EIP-2098 compact r\|\|vs. Throws on bad JSON, missing fields, bad hex, `signature_not_64_or_65_bytes` |
+| `evmTypedDataVerify(typedDataJson, sigHex?, signer?, optionsJson?)` | `eip712::verify` + `eip712::apply_expect` | `{status:"ok"\|"valid"\|"signer_mismatch", primary_type, encode_type, chain_id, verifying_contract, domain_separator, message_hash, digest}` (`verifying_contract`: the domain field as given, only when the domain has one); with `sigHex` adds `recovered` (EIP-55) and `low_s`; with `signer` adds `expected`. Signature is r\|\|s\|\|v (v 27/28 or 0/1) or EIP-2098 compact r\|\|vs. `optionsJson` `{expect_chain_id?: "N", expect_verifying_contract?: "0x.."}` sets status `chain_id_mismatch` (+`expected_chain_id`) / `verifying_contract_mismatch` (+`expected_verifying_contract`), as typed-data-verify. Throws on bad JSON, missing fields, bad hex, `signature_not_64_or_65_bytes`, `<key>_must_be_string`, `expect_chain_id_not_integer`, `expect_verifying_contract_bad_address` |
 
 ## Multisig, Plan resolve and message verify (keyless, since 2026-10-28, additive)
 
@@ -192,11 +192,38 @@ no keys. The CLI wraps the same fields in a `{tool,status,..}` envelope.
 `validateAddress`, `listChains` (all rows, including unverified ones), `addressesFromXpub`, `explainPlan`, `decodeTx`, `describeTx`, `verifyTx`.
 
 `verifyTx(input: string, chain: string, expect_to: string[], change: string[], chain_id: number | null, max_fee: string, allow_warnings: boolean, allow_value_with_token?: boolean | null, call_json?: string | null, expected_memo?: string | null): string`
-returns `{"ok":bool,"failures":[..],"warnings":[..],"check_these":"..","fee_cap":{"chain","cap","source"}}` (+`call`). `call_json` (since 2026-10-26) is `{sigs?, abi?, createHash?}`, the tx-verify `--call` / `--abi` / `--create-hash` check: for an EVM tx with non-token calldata or a creation it adds `call` (the `evmApproveCall` result), and when `call.status` is `ok` it removes `unknown_contract_call`, `destination_not_expected` when `to` is in `expect_to`, and `has_warnings` when the only warnings are `unsigned`, `unknown_calldata` or `contract_creation`. Omitted, the result is unchanged. Since 2026-10-25: `max_fee` "" on EVM means the tx-sign default
+returns `{"ok":bool,"failures":[..],"warnings":[..],"check_these":"..","fee_cap":{"chain","cap","source"}}` (+`call`, +`approvals`/`transfers`/`inner_calls`, see below). `call_json` (since 2026-10-26) is `{sigs?, abi?, createHash?}`, the tx-verify `--call` / `--abi` / `--create-hash` check: for an EVM tx with non-token calldata or a creation it adds `call` (the `evmApproveCall` result), and when `call.status` is `ok` it removes `unknown_contract_call`, `destination_not_expected` when `to` is in `expect_to`, and `has_warnings` when the only warnings are `unsigned`, `unknown_calldata` or `contract_creation`. Omitted, the result is unchanged. Since 2026-10-25: `max_fee` "" on EVM means the tx-sign default
 (0.01 ETH = 10^16 wei, failure `fee_above_cap`) (untested); `expected_memo` (since 2026-10-27, UTXO) is the exact OP_RETURN payload to accept (one zero-value OP_RETURN, byte-for-byte; without it any OP_RETURN is `unexpected_output`, as before 70a7406); UTXO "" means the per-chain default cap (docs/CHAINS.md "Default fee cap").
 `fee_cap` (additive, 3ec1d1a) is the cap the verdict applied: `chain`, `cap` (decimal string, base units) and `source`
 (`explicit` = your max_fee, `floor`, `chain_rate_x_vsize`, `default_evm`). The envelope `verify` result and tx-verify output carry the same object. A nonzero ETH `value` alongside ERC-20
 `transfer` calldata fails with `eth_value_with_token_call` unless `allow_value_with_token` is true (CLI: `--allow-value-with-token`).
+
+Since 2026-11-02 `verifyTx` also runs the tx-verify approval / transfer / batch checks (`blocktools_evm::approval::apply`,
+the same function the CLI calls) on every EVM tx, with or without `call_json`. Deny by default, as the CLI: an approval
+of 2^128 or more or of all tokens fails `unlimited_approval`, a batch inner call not named fails
+`inner_calls_not_asserted`, a Safe delegatecall fails `delegatecall`. The result gains `approvals`, `transfers`,
+`inner_calls` (same objects as tx-verify; only when non-empty). The assertions go in the same `call_json` object
+(no new export); wrong JSON types throw `<key>_must_be_string` / `_must_be_bool` / `_must_be_string_array`, bad values throw
+the CLI's bad-input codes (e.g. `expect_unlimited_needs_expect_spender`, `--expect-spender: ...`); on a non-EVM chain any
+assertion throws `approval/transfer assertions are EVM only`:
+
+| tx-verify flag | `call_json` key | JSON type |
+|---|---|---|
+| `--call SIG` / `--abi FILE` / `--create-hash K` | `sigs` / `abi` / `createHash` | string[] / ABI JSON / string |
+| `--expect-spender ADDR` | `expect_spender` | string |
+| `--expect-amount N` | `expect_amount` | string (decimal) |
+| `--expect-unlimited` | `expect_unlimited` | bool |
+| `--expect-recipient ADDR` | `expect_recipient` | string |
+| `--expect-value WEI` | `expect_value` | string (decimal) |
+| `--allow-inner-call TO:SELECTOR` (repeatable) | `allow_inner_call` | string[] of `"TO:SELECTOR"` |
+| `--allow-delegatecall TO` (repeatable) | `allow_delegatecall` | string[] |
+| `typed-data-verify --expect-chain-id N` | `evmTypedDataVerify` `options_json.expect_chain_id` | string (decimal) |
+| `typed-data-verify --expect-verifying-contract ADDR` | `evmTypedDataVerify` `options_json.expect_verifying_contract` | string |
+
+Failure codes are the CLI's: `unlimited_approval`, `spender_not_expected`, `amount_not_expected`, `recipient_not_expected`,
+`value_not_expected`, `spender_/recipient_/amount_not_checkable`, `inner_calls_not_asserted`, `delegatecall`,
+`bad_inner_calldata`. Differences: the CLI prints `status` and exits 1; wasm returns `ok:false`. A key given twice is
+a CLI bad-input error; JSON cannot repeat a key. tx-sign does not run these checks (see CHANGELOG Known limitations).
 
 Account payments (xlm, algo, atom, ton, ada, dot) are CLI-only (`acct-tx`, crate blocktools-acct). There is no wasm export for them, and
 the `sweep build` column below covers only the UTXO builder, so it stays `no` for those rows.

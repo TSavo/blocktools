@@ -19,11 +19,19 @@ Numbers and security statements here are only those registered as measured in do
 - `typed-data-verify` prints `verifying_contract` and takes `--expect-chain-id` / `--expect-verifying-contract`
   (status `chain_id_mismatch` / `verifying_contract_mismatch`, exit 1). The wasm `evmTypedDataVerify` output gains
   `verifying_contract`; no wasm export added or removed.
+- The wasm `verifyTx` runs the same approval / transfer / batch checks as `tx-verify` (one shared function,
+  `approval::apply`), deny by default with no options: `unlimited_approval`, `inner_calls_not_asserted`, `delegatecall`
+  now fail in wasm as in the CLI, and the result gains `approvals`, `transfers`, `inner_calls`. The opt-ins are new
+  `call_json` keys `expect_spender`, `expect_amount`, `expect_recipient`, `expect_value` (strings), `expect_unlimited`
+  (bool), `allow_inner_call` (["TO:SELECTOR"]), `allow_delegatecall` (["TO"]); wrong types throw `<key>_must_be_*`.
+  `evmTypedDataVerify` takes an optional 4th argument `options_json` `{expect_chain_id, expect_verifying_contract}`
+  (strings; shared `eip712::apply_expect` with typed-data-verify). Behaviour change: a wasm `verifyTx` that passed an
+  unlimited approval, an unasserted batch or a Safe delegatecall now fails. Still 75 exports. Table: EXPORTS.md.
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
 
 ### Known limitations
-- `tx-sign` and the wasm `verifyTx` do not run these approval checks yet: `tx-sign` can still sign a transaction
+- `tx-sign` does not run these approval checks yet (the wasm `verifyTx` does since this release): `tx-sign` can still sign a transaction
   `tx-verify` flags. Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
   ERC-20 selector, so a token id of 2^128 or more is reported as unlimited. UNTESTED on transactions from a live wallet.
 
