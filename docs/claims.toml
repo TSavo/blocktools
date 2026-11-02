@@ -997,3 +997,31 @@ date = "2026-11-01"
 cheap = false
 depends = ["crates/evm/src/approval.rs"]
 doc = [{ file = "docs/POLICY.md", text = "approval of 2^128 or more" }, { file = "docs/REFUSALS.md", text = "approves 2^128 or more tokens" }]
+
+[[claim]]
+id = "wasm-verifytx-approval-checks"
+note = "passes in a local wasm build on the box (2026-11-02); stamp at the green main commit that contains it"
+statement = "The wasm verifyTx runs the tx-verify approval/transfer/batch checks (shared approval::apply): with no options an unlimited approval fails unlimited_approval, an unasserted multicall inner call fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall; the call_json opt-ins expect_spender/expect_amount/expect_unlimited/expect_recipient/expect_value/allow_inner_call/allow_delegatecall give the CLI's failure codes and wrong JSON types throw <key>_must_be_*"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/wasm-check.sh"
+expect = "verifyTx content checks ok"
+date = "2026-11-02"
+cheap = false
+depends = ["crates/evm/src/approval.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
+doc = []
+
+[[claim]]
+id = "wasm-typed-data-expect"
+note = "passes in a local wasm build on the box (2026-11-02); stamp at the green main commit that contains it"
+statement = "The wasm evmTypedDataVerify options_json {expect_chain_id, expect_verifying_contract} sets status chain_id_mismatch / verifying_contract_mismatch exactly as typed-data-verify --expect-chain-id / --expect-verifying-contract (shared eip712::apply_expect); wrong types throw <key>_must_be_string"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/wasm-check.sh"
+expect = "evmTypedDataVerify options ok"
+date = "2026-11-02"
+cheap = false
+depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
+doc = []

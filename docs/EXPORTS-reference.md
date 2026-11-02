@@ -209,7 +209,7 @@ buildEvmTransfer(req_json: string): string
 
 Unsigned EIP-155 transfer (ETH forks / extra EVM chains, native or ERC-20). Request JSON: {chainId, nonce, gas, gasPrice, to, value | balance, token?, maxPriorityFeePerGas?, from?}. Returns {unsigned, sighash, kind, chainId, nonce, gas, gasPrice, to, value, data, fee, ...}.
 
-Calls in test.mjs: 6.
+Calls in test.mjs: 14.
 
 Example (executed):
 
@@ -648,7 +648,7 @@ evmAbiEncode(request_json: string): string
 
 ABI-encode calldata or a bare type list. Request JSON {sig, args:[..]}.
 
-Calls in test.mjs: 6.
+Calls in test.mjs: 17.
 
 Example (executed):
 
@@ -838,12 +838,12 @@ bt.evmSigLookup("0xa9059cbb", "error LengthMismatch()")
 ## `evmTypedDataVerify`
 
 ```ts
-evmTypedDataVerify(typed_data_json: string, sig_hex?: string | null, signer?: string | null): string
+evmTypedDataVerify(typed_data_json: string, sig_hex?: string | null, signer?: string | null, options_json?: string | null): string
 ```
 
-EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict.
+EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict. `options_json` (optional) `{expect_chain_id?: "decimal", expect_verifying_contract?: "0x.."}`: the typed-data-verify --expect-chain-id / --expect-verifying-contract checks (status chain_id_mismatch / verifying_contract_mismatch). Wrong types throw `<key>_must_be_string`.
 
-Calls in test.mjs: 5.
+Calls in test.mjs: 13.
 
 Example (executed):
 
@@ -1498,7 +1498,7 @@ verifyTx(input: string, chain: string, expect_to: string[], change: string[], ch
 
 tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap) (untested). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata. `expected_memo` (UTF-8, optional): the only OP_RETURN payload accepted (one zero-value OP_RETURN, exact match); without it any OP_RETURN is refused (`unexpected_output`).
 
-Calls in test.mjs: 8.
+Calls in test.mjs: 29.
 
 Example (executed):
 
@@ -1510,8 +1510,8 @@ bt.verifyTx("02f20109843b9aca008701b0a8dd03bb6e825208943535353535353535353535353
 Error example (executed):
 
 ```js
-bt.verifyTx("810100011f000000cc490e928cd2e3873bb343fc95da33179ca60f4dbf46c2c36e91299d55d4e6b90103ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a0000000000000000000000000000000000000000000000000000000000000000611e000000000000400d0300000001000000010002020c000001020000008813000000000000b28e1fbd5898b73280f71909a504f13474152e16999f669450b734cf4c3c613844c746c2c6657204f62e4570bd3cc87715f5cf51dadf997033c96a91fb386901", "sol", [], [], , "", false, )
-// throws solana_use_solVerifyTx
+bt.verifyTx("0xf86980843b9aca0083030d4094a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b3000000000000000000000000000000000022d473030f116ddee9f6b43ac78ba3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff018080", "eth", ["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"], [], 1, "", false, , "{\"expect_spender\":1}")
+// throws expect_spender_must_be_string
 ```
 
 ## `version`
