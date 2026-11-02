@@ -93,9 +93,16 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
     let v = blocktools::tx::policy::verify(&d, &p);
     let mut f: Vec<String> = v.findings.iter().map(|x| x.to_string()).collect();
     // callJson {sigs?, abi?, createHash?}: the tx-verify --call/--abi/--create-hash check of an EVM contract call/creation.
+    // The same callJson object carries the tx-verify content assertions (approval::Expect::from_json):
+    // expect_spender/expect_amount/expect_recipient/expect_value strings, expect_unlimited bool,
+    // allow_inner_call ["TO:SELECTOR"], allow_delegatecall ["TO"]. Absent = deny by default, as the CLI.
+    let req = match call_json.as_deref().filter(|c| !c.is_empty()) { Some(cj) => Some(evm_req(cj)?), None => None };
+    let e = match &req { Some(r) => tx_expect(r)?, None => Default::default() };
+    let asserted = e.asserted();
+    let e = e.normalized().map_err(err)?;
+    if asserted && d.evm.is_none() { return Err(err("approval/transfer assertions are EVM only")) }
     let mut call = None;
-    if let Some(cj) = call_json.filter(|c| !c.is_empty()) {
-        let req = evm_req(&cj)?;
+    if let Some(req) = req.as_ref().filter(|r| r.get("sigs").is_some() || r.get("abi").is_some() || r.get("createHash").is_some() || !has_expect_keys(r)) {
         let sigs = evm_api::sigs_from_req(&req).map_err(err)?;
         let ch = evm_api::create_hash_from_req(&req).map_err(err)?;
         if let Some(t) = d.evm.as_ref().filter(|t| t.to.is_none() || !(t.data.is_empty() || tx::evm::token_call(&t.data).is_some())) {
@@ -105,7 +112,9 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
             call = Some(o);
         }
     }
-    let mut o = json!({"ok": f.is_empty(), "failures": f, "warnings": d.warnings, "check_these": v.check_these, "fee_cap": v.fee_cap.json()});
+    let mut o = json!({});
+    if let Some(t) = d.evm.as_ref() { blocktools::evm::approval::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, &ex, &mut f, &mut o) }
+    for (k, x) in [("ok", json!(f.is_empty())), ("failures", json!(f)), ("warnings", json!(d.warnings)), ("check_these", json!(v.check_these)), ("fee_cap", v.fee_cap.json())] { o[k] = x }
     if let Some(c) = call { o["call"] = c }
     Ok(o.to_string())
 }
@@ -413,6 +422,9 @@ pub fn select_utxos(utxos_json: &str, script_hex: &str, fee_rate: f64) -> Result
 // EVM contract data (blocktools::evm): JSON in, JSON out, same logic as the sig-hash / abi-decode /
 // abi-encode / create-address CLIs. Offline, no keys. Shapes: EXPORTS.md "EVM contract data".
 use blocktools::evm::api as evm_api;
+const EXPECT_KEYS: [&str; 7] = ["expect_spender", "expect_amount", "expect_unlimited", "expect_recipient", "expect_value", "allow_inner_call", "allow_delegatecall"];
+fn has_expect_keys(r: &serde_json::Value) -> bool { EXPECT_KEYS.iter().any(|k| r.get(k).is_some()) }
+fn tx_expect(r: &serde_json::Value) -> Result<blocktools::evm::approval::Expect, JsError> { blocktools::evm::approval::Expect::from_json(r).map_err(err) }
 fn evm_req(j: &str) -> Result<serde_json::Value, JsError> { serde_json::from_str(j).map_err(|_| err("bad_json")) }
 /// keccak256 of hex bytes -> "0x" + 64 hex.
 #[wasm_bindgen(js_name = evmKeccak256)]
@@ -456,10 +468,18 @@ pub fn evm_abi_inspect(abi_text: &str) -> Result<String, JsError> { Ok(blocktool
 pub fn evm_bytecode_inspect(code_hex: &str) -> Result<String, JsError> { Ok(blocktools::evm::bytecode::inspect(&blocktools::evm::unhex(code_hex).map_err(err)?).to_string()) }
 
 /// EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict.
+/// `options_json` (optional) `{expect_chain_id?: "decimal", expect_verifying_contract?: "0x.."}`: the
+/// typed-data-verify --expect-chain-id / --expect-verifying-contract checks (status chain_id_mismatch /
+/// verifying_contract_mismatch). Wrong types throw `<key>_must_be_string`.
 #[wasm_bindgen(js_name = evmTypedDataVerify)]
-pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, signer: Option<String>) -> Result<String, JsError> {
+pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, signer: Option<String>, options_json: Option<String>) -> Result<String, JsError> {
     let td: serde_json::Value = serde_json::from_str(typed_data_json).map_err(|_| JsError::new("bad_typed_data_json"))?;
-    Ok(blocktools::evm::eip712::verify(&td, sig_hex.as_deref(), signer.as_deref()).map_err(err)?.to_string())
+    let opt = match options_json.as_deref().filter(|c| !c.is_empty()) { Some(j) => evm_req(j)?, None => json!({}) };
+    let st = |k: &str| match opt.get(k) { None => Ok(None), Some(serde_json::Value::String(s)) => Ok(Some(s.clone())), _ => Err(err(&format!("{k}_must_be_string"))) };
+    let (cid, vc) = (st("expect_chain_id")?, st("expect_verifying_contract")?);
+    let mut o = blocktools::evm::eip712::verify(&td, sig_hex.as_deref(), signer.as_deref()).map_err(err)?;
+    blocktools::evm::eip712::apply_expect(&mut o, cid.as_deref(), vc.as_deref()).map_err(err)?;
+    Ok(o.to_string())
 }
 
 // ---- Keyless multisig / Plan / message tools (no private keys: the signers are behind `secrets`, never built here)
