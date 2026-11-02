@@ -31,6 +31,13 @@ Numbers and security statements here are only those registered as measured in do
   (`--pubkey`, required) message signatures, chain detected from the address; `--chain` gains `tron|sol|cosmos`.
   Options for another chain are refused. The wasm `msgVerify` gains Tron; new export `msgVerifyOpts(inputJson)`
   takes `format` / `pubkey` (76 exports, was 75). Vectors and sources: docs/PROVENANCE-msg.md.
+- `msg-sign` signs Tron signMessageV2, Solana (`--format raw|offchain-v0`, required) and Cosmos ADR-036 messages,
+  chain detected from the address; `--chain` gains `tron|sol|cosmos`. Same gate as Ethereum/Bitcoin: refusals
+  (blind 32-byte hash, hex, transaction-looking text) before any key is read, the signature re-verified, then the
+  message shown and a code typed on /dev/tty. Solana keys: 64-hex seed or a solana-keygen 64-byte JSON array (its
+  public half must match). Output `{"chain","address","signature"}` plus `format` (sol) or `pub_key`+`hrp` (cosmos).
+  CLI only: no wasm signing. Tron and Solana raw reproduce Trust Wallet Core's signatures byte for byte
+  (scripts/e2e.d/msg-chains-sign.sh, untested until stamped); Solana offchain-v0 and Cosmos are round-trip only (UNTESTED).
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
 
@@ -43,7 +50,7 @@ Numbers and security statements here are only those registered as measured in do
 
 ### Known limitations
 - Message verify: Cosmos ADR-036 signatures and real `solana sign-offchain-message` signatures are UNTESTED
-  against wallet output (self round-trip and byte layout only). No msg-sign for Tron, Solana or Cosmos yet.
+  against wallet output (self round-trip and byte layout only), for msg-sign as well as msg-verify.
 - Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the
   ERC-20 selector, so a token id of 2^128 or more is reported as unlimited. UNTESTED on transactions from a live wallet.
 

@@ -3,16 +3,20 @@
 msg\-sign \- sign ONE text message after a human reads it and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc] [\-\-v legacy|raw|eip155:N] < keys   (asks for a code on the terminal)
+msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc|tron|sol|cosmos] [\-\-v legacy|raw|eip155:N] [\-\-format raw|offchain\-v0] < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
 .RS 2
-  msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc] [\-\-v legacy|raw|eip155:N]  < keys
+  msg\-sign \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-chain eth|btc|tron|sol|cosmos]
+           [\-\-v legacy|raw|eip155:N] [\-\-format raw|offchain\-v0]  < keys
 .RE
 .fi
 The chain is detected from \-\-address (0x + 40 hex: Ethereum EIP\-191 personal_sign; base58 P2PKH
-starting with 1: Bitcoin Core signmessage); \-\-chain, if given, must agree. The key whose address is
+starting with 1: Bitcoin Core signmessage; T... base58check 0x41: Tron signMessageV2; base58 32\-byte
+ed25519 point: Solana, \-\-format required; bech32 cosmos\-family: Cosmos ADR\-036); \-\-chain, if given, must agree.
+Formats are the ones msg\-verify checks (crates/tx/src/msgchain.rs); Solana keys are a 64\-hex ed25519
+seed or a solana\-keygen JSON array of 64 bytes (its public half must match the seed). The key whose address is
 \-\-address is used (Bitcoin: compressed or uncompressed P2PKH, whichever matches); no match is refused.
 Ethereum \-\-v: legacy (27/28, default), raw (0/1, Immutable X style) or eip155:N (35 + 2N + rec).
 Refused before keys are read: a message that is a bare 32\-byte hash (64 hex chars) \-\- blind hash
@@ -28,12 +32,14 @@ Vectors: Trust Wallet Core EthMessageSigner and BitcoinMessageSigner, byte\-exac
 .nf
 \-\-address
 \-\-chain
+\-\-format
 \-\-message
 \-\-message\-file
 \-\-v
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
+seed or a solana\-keygen JSON array of 64 bytes (its public half must match the seed). The key whose address is
 Keys come ONLY on stdin (WIF or 64\-hex, or JSON lines with wif/private_key/key/secret).
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
@@ -47,6 +53,10 @@ Not every tool uses the same code for bad input: some exit 1, others exit 2 (doc
 $ printf '%064x\en' 1 | msg\-sign \-\-address 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH \-\-message 0xc0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
 # exit 1, last status: refused
 $ printf '%064x\en' 1 | msg\-sign \-\-address bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 \-\-message hi
+# exit 1, last status: refused
+$ printf '%064x\en' 1 | msg\-sign \-\-address H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg \-\-message hi
+# exit 1, last status: refused
+$ printf '%064x\en' 1 | msg\-sign \-\-address TWWb9EjUWai17YEVB7FR8hreupYJKG9sMR \-\-message c0a96273d5c3fbe4d4000491f08daef9c17f88df846c1d6f57eb5f33c1fbd035
 # exit 1, last status: refused
 .fi
 .SH SECURITY NOTES

@@ -1045,6 +1045,20 @@ depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/was
 doc = []
 
 [[claim]]
+id = "msg-chains-sign-e2e"
+statement = "msg-sign (code typed on a pty) reproduces Trust Wallet Core's 2 Tron signMessageV2 signatures and its Solana raw signature byte for byte, round-trips Solana offchain-v0 and Cosmos ADR-036 through msg-verify, and refuses blind hashes, a missing --format, wrong-chain options, a mismatched key and a wrong code"
+kind = "security"
+platform = "linux"
+status = "untested"
+note = "new in the msg-sign-chains PR; stamp at a green main commit"
+command = "sh scripts/e2e.d/msg-chains-sign.sh"
+expect = "ok   msg-chains-sign refusals"
+date = "2026-11-02"
+cheap = false
+depends = ["tools/msg-sign/src/chains.rs", "tools/msg-sign/src/main.rs", "scripts/e2e.d/msg-chains-sign.sh"]
+doc = [{ file = "docs/CHAINS.md", text = "msg-chains-sign.sh` (msg-chains-sign-e2e" }]
+
+[[claim]]
 id = "tx-sign-presign-checks"
 note = "new in the tx-sign parity PR; passes on the box; stamp from a green main CI log (two-push)"
 statement = "tx-sign runs the tx-verify approval/transfer/batch checks (shared presign::apply) before reading a key and again on the signed bytes, deny by default: an unlimited approve fails unlimited_approval, a multicall hiding one fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall, also with --plan; with --expect-spender --expect-unlimited the approve is signed and the signed bytes pass tx-verify with the same assertions"
