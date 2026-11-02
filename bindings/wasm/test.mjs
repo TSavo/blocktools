@@ -541,7 +541,7 @@ console.log('lift7 ok');
   assert.throws(() => bt.bolt11Decode('bc1qxyz'), /not_a_lightning_invoice/);
   console.log('ok bolt11');
 }
-// verifyTx pre-sign content checks (same approval::apply as tx-verify; mirrors recipes/evm-check-approval.md)
+// verifyTx pre-sign content checks (same presign::apply as tx-verify; mirrors recipes/evm-check-approval.md)
 {
   const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', P2 = '0x000000000022d473030f116ddee9f6b43ac78ba3', OTHER = '0x1111111111111111111111111111111111111111';
   const MAX = '115792089237316195423570985008687907853269984665640564039457584007913129639935';

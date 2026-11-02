@@ -93,7 +93,7 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
     let v = blocktools::tx::policy::verify(&d, &p);
     let mut f: Vec<String> = v.findings.iter().map(|x| x.to_string()).collect();
     // callJson {sigs?, abi?, createHash?}: the tx-verify --call/--abi/--create-hash check of an EVM contract call/creation.
-    // The same callJson object carries the tx-verify content assertions (approval::Expect::from_json):
+    // The same callJson object carries the tx-verify content assertions (presign (Expect::from_json)):
     // expect_spender/expect_amount/expect_recipient/expect_value strings, expect_unlimited bool,
     // allow_inner_call ["TO:SELECTOR"], allow_delegatecall ["TO"]. Absent = deny by default, as the CLI.
     let req = match call_json.as_deref().filter(|c| !c.is_empty()) { Some(cj) => Some(evm_req(cj)?), None => None };
@@ -113,7 +113,7 @@ pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<S
         }
     }
     let mut o = json!({});
-    if let Some(t) = d.evm.as_ref() { blocktools::evm::approval::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, &ex, &mut f, &mut o) }
+    if let Some(t) = d.evm.as_ref() { blocktools::evm::presign::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, &ex, &mut f, &mut o) }
     for (k, x) in [("ok", json!(f.is_empty())), ("failures", json!(f)), ("warnings", json!(d.warnings)), ("check_these", json!(v.check_these)), ("fee_cap", v.fee_cap.json())] { o[k] = x }
     if let Some(c) = call { o["call"] = c }
     Ok(o.to_string())

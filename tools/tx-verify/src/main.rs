@@ -121,5 +121,5 @@ fn content(d: &blocktools_tx::Decoded, f: &mut Vec<String>, o: &mut serde_json::
     let asserted = e.asserted();
     let e = e.normalized().unwrap_or_else(|x| bad(&x));
     let Some(t) = d.evm.as_ref() else { if asserted { bad("approval/transfer assertions are EVM only") } return };
-    blocktools_evm::approval::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, expect_to, f, o);
+    blocktools_evm::presign::apply(t.to.as_ref(), &t.value.to_string(), &t.data, &d.warnings, &e, expect_to, f, o);
 }
