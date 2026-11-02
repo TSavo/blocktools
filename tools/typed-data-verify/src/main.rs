@@ -57,18 +57,7 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
     if signer.is_some() && sig.is_none() { die("signer_needs_sig"); }
     match eip712::verify(&td, sig.as_deref(), signer.as_deref()) {
         Ok(mut o) => {
-            if let Some(w) = &want_cid {
-                let w: u64 = w.parse().unwrap_or_else(|_| die("expect_chain_id_not_integer"));
-                // EIP-712 chainId may be a JSON number or a decimal / 0x-hex string
-                let got = match &o["chain_id"] { Value::Number(n) => n.as_u64(), Value::String(s) => s.strip_prefix("0x").map_or_else(|| s.parse().ok(), |h| u64::from_str_radix(h, 16).ok()), _ => None };
-                if got != Some(w) { o["status"] = json!("chain_id_mismatch"); o["expected_chain_id"] = json!(w) }
-            }
-            if let Some(w) = &want_vc {
-                let w = blocktools_evm::parse_address(w).unwrap_or_else(|_| die("expect_verifying_contract_bad_address"));
-                let got = o["verifying_contract"].as_str().and_then(|s| blocktools_evm::unhex(s).ok());
-                if got.as_deref() != Some(&w[..]) && o["status"] != "chain_id_mismatch" { o["status"] = json!("verifying_contract_mismatch") }
-                o["expected_verifying_contract"] = json!(blocktools_evm::checksum_address(&w));
-            }
+            eip712::apply_expect(&mut o, want_cid.as_deref(), want_vc.as_deref()).unwrap_or_else(|e| die(&e));
             outln!("{o}");
             if ["signer_mismatch", "chain_id_mismatch", "verifying_contract_mismatch"].contains(&o["status"].as_str().unwrap_or("")) { std::process::exit(1) }
         }
