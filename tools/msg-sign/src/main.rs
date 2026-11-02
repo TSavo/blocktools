@@ -1,7 +1,11 @@
 //! msg-sign: sign ONE text message after a human reads it and types a code on /dev/tty.
-//!   msg-sign --address ADDR (--message TEXT | --message-file FILE) [--chain eth|btc] [--v legacy|raw|eip155:N]  < keys
+//!   msg-sign --address ADDR (--message TEXT | --message-file FILE) [--chain eth|btc|tron|sol|cosmos]
+//!            [--v legacy|raw|eip155:N] [--format raw|offchain-v0]  < keys
 //! The chain is detected from --address (0x + 40 hex: Ethereum EIP-191 personal_sign; base58 P2PKH
-//! starting with 1: Bitcoin Core signmessage); --chain, if given, must agree. The key whose address is
+//! starting with 1: Bitcoin Core signmessage; T... base58check 0x41: Tron signMessageV2; base58 32-byte
+//! ed25519 point: Solana, --format required; bech32 cosmos-family: Cosmos ADR-036); --chain, if given, must agree.
+//! Formats are the ones msg-verify checks (crates/tx/src/msgchain.rs); Solana keys are a 64-hex ed25519
+//! seed or a solana-keygen JSON array of 64 bytes (its public half must match the seed). The key whose address is
 //! --address is used (Bitcoin: compressed or uncompressed P2PKH, whichever matches); no match is refused.
 //! Ethereum --v: legacy (27/28, default), raw (0/1, Immutable X style) or eip155:N (35 + 2N + rec).
 //! Refused before keys are read: a message that is a bare 32-byte hash (64 hex chars) — blind hash
@@ -14,22 +18,27 @@
 //! or with the wrong code, nothing but "aborted" is printed.
 //! Vectors: Trust Wallet Core EthMessageSigner and BitcoinMessageSigner, byte-exact (crates/tx/tests/twc_message.rs).
 use blocktools_tx::message::{self, EthV};
+use blocktools_tx::msgchain;
+mod chains;
 use serde_json::json;
 use std::io::{BufRead, Read};
 use zeroize::Zeroizing;
-fn out(status: &str, extra: serde_json::Value) -> ! {
+pub(crate) fn out(status: &str, extra: serde_json::Value) -> ! {
     let mut v = json!({"tool":"msg-sign","status":status}); v.as_object_mut().unwrap().extend(extra.as_object().cloned().unwrap_or_default());
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("msg-sign --address ADDR (--message TEXT | --message-file FILE) [--chain eth|btc] [--v legacy|raw|eip155:N] < keys   (asks for a code on the terminal)");
+    blocktools_io::help("msg-sign --address ADDR (--message TEXT | --message-file FILE) [--chain eth|btc|tron|sol|cosmos] [--v legacy|raw|eip155:N] [--format raw|offchain-v0] < keys   (asks for a code on the terminal)");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("msg-sign");
     let one = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).last();
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
     let refuse = |e: &str| -> ! { out("refused", json!({"failures":[e]})) };
     let addr = one("--address").unwrap_or_else(|| bad("--address ADDR required"));
-    let chain = message::detect_chain(&addr).unwrap_or_else(|e| refuse(e));
-    if let Some(c) = one("--chain") { if c != chain { refuse(if ["eth", "btc"].contains(&c.as_str()) { "chain_does_not_match_address" } else { "message_prefix_unproven_for_chain" }) } }
+    let chain = msgchain::detect_chain(&addr).unwrap_or_else(|e| refuse(e));
+    if let Some(c) = one("--chain") { if c != chain { refuse(if ["eth", "btc", "tron", "sol", "cosmos"].contains(&c.as_str()) { "chain_does_not_match_address" } else { "message_prefix_unproven_for_chain" }) } }
+    let format = one("--format");
+    if format.is_some() && chain != "sol" { bad("--format is for Solana only") }
+    if chain == "sol" { match format.as_deref() { Some(f) if msgchain::SOL_FORMATS.contains(&f) => {}, None => refuse("solana_format_required"), _ => bad("--format raw|offchain-v0") } }
     if a.iter().any(|x| x == "--hex" || x == "--typed-data") { refuse("only_text_messages_signed") }
     let msg = match (one("--message"), one("--message-file")) {
         (Some(m), None) => m.into_bytes(),
@@ -43,10 +52,11 @@ fn main() {
     let v = match (chain, one("--v").as_deref()) {
         ("eth", None | Some("legacy")) => EthV::Legacy, ("eth", Some("raw")) => EthV::Raw,
         ("eth", Some(s)) if s.starts_with("eip155:") => EthV::Eip155(s[7..].parse().ok().filter(|c: &u64| *c <= 0x7fff_fff0).unwrap_or_else(|| bad("--v eip155:N"))),
-        ("btc", None) => EthV::Legacy, _ => bad("--v legacy|raw|eip155:N (Ethereum only)"),
+        (_, None) if chain != "eth" => EthV::Legacy, _ => bad("--v legacy|raw|eip155:N (Ethereum only)"),
     };
     if let EthV::Eip155(c) = v { if 35 + 2 * c + 1 > 255 { refuse("eip155_v_exceeds_one_byte") } }
 
+    if !["eth", "btc"].contains(&chain) { chains::run(chain, &addr, &msg, text, format.as_deref()) }
     let secp = bitcoin::secp256k1::Secp256k1::new();
     let mut found = None;
     for l in std::io::stdin().lock().take(4 << 20).lines().map_while(Result::ok) {
