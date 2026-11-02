@@ -33,7 +33,7 @@ wasm build for JavaScript/TypeScript. MIT licensed.
 * **Wallet-file and seed recovery**: readers for old wallet formats, seed repair and password
   candidates. Tested on synthetic wallets only; see
   [Key and wallet recovery](#key-and-wallet-recovery) below.
-* **Library**: a wasm build with 76 exported functions (unmeasured, restamp pending) (`bindings/wasm`, list in
+* **Library**: a wasm build with 76 exported functions (unmeasured) (`bindings/wasm`, list in
   [EXPORTS.md](EXPORTS.md)); no wasm call accepts a private key, seed or password. A C ABI too.
 
 See [DESIGN.md](DESIGN.md) for the pipe rules and [docs/SECURITY.md](docs/SECURITY.md) for the
