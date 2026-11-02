@@ -3,36 +3,52 @@
 msg\-verify \- check a message signature against an address. No keys are read
 .SH SYNOPSIS
 .nf
-msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc]
+msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc|tron|sol|cosmos] [\-\-format raw|offchain\-v0] [\-\-pubkey B64]
 .fi
 .SH DESCRIPTION
 .nf
 .RS 2
-  msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc]
+  msg\-verify \-\-address ADDR (\-\-message TEXT | \-\-message\-file FILE) [\-\-hex] \-\-sig SIG [\-\-chain eth|btc|tron|sol|cosmos]
+             [\-\-format raw|offchain\-v0 (Solana, required)] [\-\-pubkey B64 (Cosmos, required)]
 .RE
 .fi
-The chain is detected from the address: 0x + 40 hex is Ethereum, a base58 P2PKH address starting
-with 1 is Bitcoin (\-\-chain, if given, must agree). Ethereum: EIP\-191 personal_sign, SIG is 65 bytes hex
-(0x optional) with v = 27/28, 0/1 (Immutable X style) or 35 + 2*chain_id + rec (EIP\-155 style).
-Bitcoin: Bitcoin Core signmessage, SIG is base64 (header 27\-34, compressed or uncompressed key).
+The chain is detected from the address (\-\-chain, if given, must agree):
+.IP \(bu 2
+0x + 40 hex: Ethereum EIP\-191 personal_sign, SIG 65 bytes hex, v = 27/28, 0/1 or 35 + 2*chain_id + rec.
+.IP \(bu 2
+base58 P2PKH starting with 1: Bitcoin Core signmessage, SIG base64 (header 27\-34).
+.IP \(bu 2
+base58check T... (0x41): Tron signMessageV2 (TIP\-191 style "\ex19TRON Signed Message:\en" + byte length),
+SIG 65 bytes hex, v = 27/28.
+.IP \(bu 2
+base58 32\-byte ed25519 key: Solana, SIG base58 64 bytes; \-\-format is required: `raw` (the message bytes
+as they are, wallet signMessage) or `offchain\-v0` (solana\-sdk / `solana sign\-offchain\-message` layout).
+.IP \(bu 2
+bech32 with a 20\-byte payload: Cosmos ADR\-036 (draft spec, Keplr signArbitrary), SIG base64 64 bytes,
+\-\-pubkey (base64 33\-byte compressed key) required and must hash to the address.
+.PP
+Options that do not apply to the detected chain are refused, not ignored.
 \-\-message\-file uses the file's exact bytes (no newline trimming); \-\-hex reads the message as hex bytes.
 Refused: segwit/taproot addresses and BIP137 segwit headers (35\-42), BIP322, other chains' message
-prefixes (ltc, doge, ...), EIP\-712 (use typed\-data\-verify).
-Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"[,"v"]}; exit 0 only on ok.
-Vectors: Trust Wallet Core EthMessageSigner (legacy, legacy_hex, eip155, immutable_x) and
-BitcoinMessageSigner (6 verify vectors, messageToHash, negatives), crates/tx/tests/twc_message.rs.
+prefixes (ltc, doge, ...), EIP\-712 (use typed\-data\-verify), the Trust Wallet Core 85\-byte Solana
+off\-chain layout, Ethermint\-style (eth_secp256k1) Cosmos keys.
+Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}; exit 0 only on ok.
+Vectors: crates/tx/tests/twc_message.rs (eth, btc) and crates/blocktools/tests/msg_chains.rs (tron, sol,
+cosmos round\-trip only); provenance in docs/PROVENANCE\-msg.md.
 .SH OPTIONS
 .nf
 \-\-address
 \-\-chain
+\-\-format
 \-\-hex
 \-\-message
 \-\-message\-file
+\-\-pubkey
 \-\-sig
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT
-Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"[,"v"]}; exit 0 only on ok.
+Output: {"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}; exit 0 only on ok.
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP
@@ -52,6 +68,12 @@ $ msg\-verify \-\-address 19cAJn4Ms8jodBBGtroBNNpCZiHAWGAq7X \-\-message "test s
 # exit 0, last status: ok
 $ msg\-verify \-\-address 1HZwkjkeaoZfTSaJxDw6aKkxp45agDiEzN \-\-message "test signature" \-\-sig ILH5K7JQLaRGaKGXXH5mYM6FIIy9IWyY4JUPI+PHYY4WaupxUbg+zy0bhBCrDuehy9x4WidwjkRR1GSLnWvOXBo=
 # exit 1, last status: signer_mismatch
+$ msg\-verify \-\-address TWWb9EjUWai17YEVB7FR8hreupYJKG9sMR \-\-message "Hello World" \-\-sig bc0753c070cc55693097df11bc11e1a7c4bd5e1a40b9dc94c75568e59bcc9d6b50a7873ef25b469e494490a54de37327b4bc7fc825c81a377b555e34fb7261ba1c
+# exit 0, last status: ok
+$ msg\-verify \-\-address H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg \-\-message "Hello world" \-\-format raw \-\-sig 2iBZ6zrQRKHcbD8NWmm552gU5vGvh1dk3XV4jxnyEdRKm8up8AeQk1GFr9pJokSmchw7i9gMtNyFBdDt8tBxM1cG
+# exit 0, last status: ok
+$ msg\-verify \-\-address H3imdwa5VQMB5V6yBNyrWwPdSKs4k9Pcpsu4diogoAcg \-\-message "Hello world" \-\-sig 2iBZ6zrQRKHcbD8NWmm552gU5vGvh1dk3XV4jxnyEdRKm8up8AeQk1GFr9pJokSmchw7i9gMtNyFBdDt8tBxM1cG
+# exit 2, last status: bad_input
 $ msg\-verify \-\-address bc1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8 \-\-message hi \-\-sig AA==
 # exit 2, last status: bad_input
 .fi
