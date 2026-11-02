@@ -1787,6 +1787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "siwe"
+version = "0.3.3"
+dependencies = [
+ "blocktools-core",
+ "blocktools-io",
+ "serde_json",
+]
+
+[[package]]
 name = "sol-tron-tx"
 version = "0.3.3"
 dependencies = [

@@ -8,6 +8,11 @@ Numbers and security statements here are only those registered as measured in do
 ## [Unreleased]
 
 ### Added
+- New tool `siwe`: builds an EIP-4361 Sign-In with Ethereum message from JSON fields (`siwe build [--raw]`) and
+  parses one strictly (`siwe parse`): only valid, canonical text is accepted, otherwise `refused` (exit 1). Opt-in
+  checks `--domain`, `--nonce`, `--now RFC3339` / `--check-time` (`domain_mismatch`, `nonce_mismatch`, `expired`,
+  `not_yet_valid`). No keys; the signature is not checked (use `msg-verify`). CLI only, no wasm export (76 exports,
+  unchanged). Vectors: spruceid/siwe 911f6f2c, docs/PROVENANCE-siwe.md.
 - `tx-verify` checks approvals and transfers in the calldata: `approve`, `increaseAllowance`, EIP-2612 and DAI
   `permit`, Permit2 `approve`/`permit`, `setApprovalForAll`, `transfer`, `transferFrom`, at top level and inside
   `multicall`, Multicall3 `aggregate*`, Universal Router `execute`, Safe `execTransaction` and Safe `multiSend`.
@@ -49,6 +54,7 @@ Numbers and security statements here are only those registered as measured in do
   optional `--expect-amount`, `--expect-recipient` and `--expect-value` flags work as in `tx-verify`, also with `--plan`.
 
 ### Known limitations
+- `siwe`: UNTESTED on messages from real wallets or dapps beyond spruceid's published vectors; no wasm export.
 - Message verify: Cosmos ADR-036 signatures and real `solana sign-offchain-message` signatures are UNTESTED
   against wallet output (self round-trip and byte layout only), for msg-sign as well as msg-verify.
 - Universal Router command bytes are surfaced, not named or decoded. ERC-721 `approve` shares the

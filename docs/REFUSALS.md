@@ -427,3 +427,13 @@ printf '%064x' 1 | acct-tx keys --chain atom --hrp canto
 ```sh
 acct-tx build --chain atom --from canto1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --pubkey 0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798 --to canto1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgfwgkv --amount 1 --fee 1 --gas 1 --sequence 0 --account-number 1
 ```
+
+<!-- run rc=1 expect=bad_header -->
+```sh
+printf 'hello' | siwe parse
+```
+
+<!-- run rc=2 expect=missing chainId -->
+```sh
+printf '{"domain":"a"}' | siwe build
+```
