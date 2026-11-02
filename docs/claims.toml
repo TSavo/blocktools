@@ -395,11 +395,12 @@ id = "evm-encode-packed"
 statement = "evmAbiEncodePacked / abi::encode_packed reproduce the Solidity ABI spec Non-standard Packed Mode examples and refuse tuples, nested arrays and arrays of dynamic types"
 kind = "security"
 platform = "linux"
-status = "untested"
-note = "depends (crates/evm/src/abi.rs) changed by the strict-decoder PR (canonical tails, trailing data); encode_packed itself is unchanged -- restamp at a green main commit (K-ci) in the follow-up"
+status = "measured"
+commit = "20e452a"
 command = "cargo test -q --release -p blocktools-evm --test kat_packed"
 expect = "test result: ok. 3 passed"
-date = "2026-10-26"
+env = "main ci run 41359894298 at 20e452a (success); command re-run on the box at 20e452a: test result: ok. 3 passed"
+date = "2026-11-01"
 cheap = false
 depends = ["crates/evm/src/abi.rs", "crates/evm/tests/kat_packed.rs"]
 
@@ -987,10 +988,12 @@ id = "approve-unlimited-threshold"
 statement = "tx-verify / verifyTx approval checks flag an approval of 2^128 or more as unlimited_approval: approve(spender, 2^128-1) passes with unlimited=false and approve(spender, 2^128) fails unlimited_approval (also increaseAllowance)"
 kind = "security"
 platform = "linux"
-status = "untested"
-note = "registered in the allow-trailing PR; stamp at a green main commit (K-ci) in the follow-up"
+status = "measured"
+commit = "20e452a"
 command = "cargo test -q --release -p blocktools-evm --lib approval::tests::threshold_is_2_pow_128"
 expect = "test result: ok. 1 passed"
+env = "main ci run 41359894298 at 20e452a (success); command re-run on Battleaxe (SwapChan) and on the box: test result: ok. 1 passed"
 date = "2026-11-01"
 cheap = false
 depends = ["crates/evm/src/approval.rs"]
+doc = [{ file = "docs/POLICY.md", text = "approval of 2^128 or more" }, { file = "docs/REFUSALS.md", text = "approves 2^128 or more tokens" }]
