@@ -34,8 +34,7 @@ fn main() {
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
     let refuse = |e: &str| -> ! { out("refused", json!({"failures":[e]})) };
     let addr = one("--address").unwrap_or_else(|| bad("--address ADDR required"));
-    let chain = msgchain::detect_chain(&addr).unwrap_or_else(|e| refuse(e));
-    if let Some(c) = one("--chain") { if c != chain { refuse(if ["eth", "btc", "tron", "sol", "cosmos"].contains(&c.as_str()) { "chain_does_not_match_address" } else { "message_prefix_unproven_for_chain" }) } }
+    let chain = msgchain::detect_chain_as(&addr, one("--chain").as_deref()).unwrap_or_else(|e| refuse(e));
     let format = one("--format");
     if format.is_some() && chain != "sol" { bad("--format is for Solana only") }
     if chain == "sol" { match format.as_deref() { Some(f) if msgchain::SOL_FORMATS.contains(&f) => {}, None => refuse("solana_format_required"), _ => bad("--format raw|offchain-v0") } }
