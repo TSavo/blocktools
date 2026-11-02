@@ -3,7 +3,7 @@
 tx\-sign \- sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-partial] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] < keys   (asks for a code on the terminal)
+tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-partial] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] [\-\-expect\-spender ADDR] [\-\-expect\-amount N | \-\-expect\-unlimited] [\-\-expect\-recipient ADDR] [\-\-expect\-value WEI] [\-\-allow\-inner\-call TO:SELECTOR]... [\-\-allow\-delegatecall TO]... < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
@@ -39,6 +39,16 @@ EVM contract creation: \-\-create\-hash KECCAK (keccak256 of the init code) inst
 .nf
 .RS 2
   shows the init code hash and the new contract address (CREATE from the signer and nonce).
+.RE
+.fi
+EVM content checks (same blocktools_evm::presign::apply as tx\-verify, before signing and on the signed bytes):
+.nf
+.RS 2
+  an approval of 2^128 or more / setApprovalForAll(true) is refused (unlimited_approval) unless \-\-expect\-unlimited
+  (needs \-\-expect\-spender); \-\-expect\-spender/\-\-expect\-amount/\-\-expect\-recipient/\-\-expect\-value assert the decoded
+  values; batch inner calls (multicall, Multicall3, Safe multiSend, Universal Router) must each be named by
+  \-\-allow\-inner\-call TO:SELECTOR (else inner_calls_not_asserted) and a Safe delegatecall target by
+  \-\-allow\-delegatecall TO (else delegatecall). Works with \-\-plan too.
 .RE
 .fi
 Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with \-\-max\-fee.
