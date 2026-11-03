@@ -42,7 +42,7 @@ Numbers and security statements here are only those registered as measured in do
   message shown and a code typed on /dev/tty. Solana keys: 64-hex seed or a solana-keygen 64-byte JSON array (its
   public half must match). Output `{"chain","address","signature"}` plus `format` (sol) or `pub_key`+`hrp` (cosmos).
   CLI only: no wasm signing. Tron and Solana raw reproduce Trust Wallet Core's signatures byte for byte
-  (scripts/e2e.d/msg-chains-sign.sh, untested until stamped); Solana offchain-v0 and Cosmos are round-trip only (UNTESTED).
+  (scripts/e2e.d/msg-chains-sign.sh, msg-chains-sign-e2e); Solana offchain-v0 and Cosmos are round-trip only (UNTESTED).
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
 
@@ -71,7 +71,7 @@ internal pin, the wasm package, lockfiles and man pages (version-check) (this re
   32-byte on-curve Solana base58 key (e.g. `osmo148yundzwcr97np3s8c8yrx2p6p33ck6sd4stfm`) was detected as Solana,
   so `--pubkey` was refused with `pubkey_only_for_cosmos`. Such strings are now refused with `ambiguous_address`
   unless the chain is named: `--chain cosmos|sol`, or the new `msgVerifyOpts` key `"chain"` (JSON string). A wrong
-  named chain is refused with `chain_does_not_match_address` (msg-ambiguous-address, untested until a green main run).
+  named chain is refused with `chain_does_not_match_address` (msg-ambiguous-address).
 - The `repos` release job (signed apt/apk/rpm repositories) never completed for 0.3.0–0.3.2: the host
   signing scripts bind-mounted the private key and the package inputs into their one-shot signing
   containers with `docker run -v`, but the release signer's engine is Docker Desktop on Windows, which
