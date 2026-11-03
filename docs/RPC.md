@@ -282,6 +282,9 @@ The agent must never see keys, seeds or passwords. Every refusal exits 1 (status
 | `wallet_sign_undecodable` | the flagged request cannot be decoded completely into a summary |
 | `wallet_sign_chain_mismatch` | the flagged request's chain id differs from the endpoint's `eth_chainId` (or from `--chain-id`) |
 | `wallet_sign_chain_unknown` | the flagged request has no chain id and none was given with `--chain-id` |
+| `wallet_sign_permit_unasserted` | `eth_signTypedData_v4` is a recognised permit (EIP-2612, DAI, Permit2) and `--expect-spender` was not given |
+| `wallet_sign_spender_unrecognised` | `eth_signTypedData_v4` is not a recognised permit but has address fields named like a spender (spender, operator, delegate, approved, allowed) |
+| `spender_not_expected` / `amount_not_expected` / `unlimited_approval` | the permit's spender or an amount differs from `--expect-spender` / `--expect-amount`, or an amount is unlimited (>= 2^128, uint160 max, DAI `allowed=true`) without `--expect-unlimited` |
 | `method_not_allowlisted` | the method or REST path is not in the protocol's read allowlist (below) and `--allow-unlisted` was not given |
 | `method_denied_by_policy` | the method is in the `--policy` file's `rpc.deny` list |
 | `request_contains_secret_field` | the params contain a field named privateKey, password, mnemonic, seed, wif, xprv, ... |
@@ -413,6 +416,12 @@ UI is the human confirmation. Before anything is sent, `rpc`:
      refused. Quantities must be hex, and `data` and `input` must agree.
    - For typed data, `types`, `primaryType`, `domain` and `message` are required, and the message fields must equal the primary
      type's fields exactly. No hidden or extra fields are allowed.
+   - For typed data, a recognised permit (EIP-2612, DAI, Permit2 PermitSingle / PermitBatch / PermitTransferFrom /
+     PermitBatchTransferFrom) is refused unless `--expect-spender ADDR` matches its spender (and every batch entry
+     matches `--expect-amount N`, if given); an unlimited amount also needs `--expect-unlimited`. A permit for exactly
+     your balance is below 2^128, so only the spender catches a drainer. Typed data with spender-like address fields
+     that is not a recognised permit is refused (`wallet_sign_spender_unrecognised`); there is no blanket allow. The
+     same check is `typed-data-verify --expect-spender` (shared `permit::apply`).
 2. Fetches the endpoint's `eth_chainId`. The call is refused if it differs from the request's chain id (or from `--chain-id`),
    or if neither one gives a chain id.
 3. Prints this summary on stderr, then sends the exact stdin or argument bytes:

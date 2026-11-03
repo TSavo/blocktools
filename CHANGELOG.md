@@ -17,6 +17,13 @@ Numbers and security statements here are only those registered as measured in do
   `spender_not_checkable`, `amount_not_checkable` (exit 1). An exact-balance drainer permit (below 2^128) is caught
   by the spender. Without assertions the status is unchanged (advisory fields only). No wasm export added.
 
+### Changed
+- **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)
+  unless `--expect-spender` matches (`wallet_sign_permit_unasserted`, `spender_not_expected`, `amount_not_expected`,
+  `unlimited_approval` unless `--expect-unlimited`), and refuses typed data with spender-like address fields that is
+  not a recognised permit (`wallet_sign_spender_unrecognised`). Nothing is sent when refused. `rpc` now depends on
+  `blocktools-evm` (deps/rpc.allow: blocktools-evm, sha2, cpufeatures).
+
 ## [0.4.0] - 2026-11-02
 
 Minor release, not tagged yet. Highlights:
