@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "abi-decode"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "abi-encode"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "abi-inspect"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "acct-tx"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-acct",
  "blocktools-core",
@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "armory-read"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -118,7 +118,7 @@ checksum = "32637268377fc7b10a8c6d51de3e7fba1ce5dd371a96e342b34e6078db558e7f"
 
 [[package]]
 name = "bip38-open"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-io",
@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "blockchain-read"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -266,7 +266,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-acct"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-c"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools",
  "blocktools-core",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-core"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bip39",
  "bitcoin",
@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-evm"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "secp256k1",
  "serde_json",
@@ -334,11 +334,11 @@ dependencies = [
 
 [[package]]
 name = "blocktools-io"
-version = "0.3.3"
+version = "0.4.0"
 
 [[package]]
 name = "blocktools-monero"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "curve25519-dalek",
  "sha3",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-net"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "minreq",
  "serde_json",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-plan"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools",
@@ -369,7 +369,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-schema"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bip39",
  "serde_json",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-secrets"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "aes",
  "bip39",
@@ -401,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-tty"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "libc",
  "zeroize",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "blocktools-tx"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -421,14 +421,14 @@ dependencies = [
 
 [[package]]
 name = "blocktools-utxo"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
 ]
 
 [[package]]
 name = "blocktools-xrp"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "ed25519-dalek",
@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "bolt11"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-tx",
@@ -470,7 +470,7 @@ dependencies = [
 
 [[package]]
 name = "bytecode-inspect"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -534,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "chain-table"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "chainstate-dump"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -574,7 +574,7 @@ dependencies = [
 
 [[package]]
 name = "classify"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -601,7 +601,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "contract-call"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "contract-trace"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -647,7 +647,7 @@ dependencies = [
 
 [[package]]
 name = "create-address"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -720,7 +720,7 @@ dependencies = [
 
 [[package]]
 name = "dat-read"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -739,7 +739,7 @@ dependencies = [
 
 [[package]]
 name = "derive"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -803,7 +803,7 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "electrum-read"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -1052,7 +1052,7 @@ dependencies = [
 
 [[package]]
 name = "key-to-addresses"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1063,7 +1063,7 @@ dependencies = [
 
 [[package]]
 name = "keystore-open"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -1101,7 +1101,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "log-decode"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "msg-sign"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -1179,7 +1179,7 @@ dependencies = [
 
 [[package]]
 name = "msg-verify"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1189,7 +1189,7 @@ dependencies = [
 
 [[package]]
 name = "multibit-read"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "multisig"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-tx",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "new-seed"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-schema",
@@ -1326,7 +1326,7 @@ dependencies = [
 
 [[package]]
 name = "phrase-to-key"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "pw-candidates"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
 ]
@@ -1413,14 +1413,14 @@ dependencies = [
 
 [[package]]
 name = "read-file"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
 ]
 
 [[package]]
 name = "redact"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-schema",
@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "rpc"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "sealed-run"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-schema",
@@ -1621,7 +1621,7 @@ dependencies = [
 
 [[package]]
 name = "seed-repair"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -1630,7 +1630,7 @@ dependencies = [
 
 [[package]]
 name = "seed-to-master"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1750,7 +1750,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "sig-hash"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -1768,7 +1768,7 @@ dependencies = [
 
 [[package]]
 name = "signum-account"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-secrets",
@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "siwe"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1797,7 +1797,7 @@ dependencies = [
 
 [[package]]
 name = "sol-tron-tx"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools",
  "blocktools-io",
@@ -1862,7 +1862,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "taproot-multisig"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-tx",
@@ -1893,7 +1893,7 @@ checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 
 [[package]]
 name = "tx-broadcast"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -1906,7 +1906,7 @@ dependencies = [
 
 [[package]]
 name = "tx-build"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-evm",
@@ -1917,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "tx-combine"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -1928,7 +1928,7 @@ dependencies = [
 
 [[package]]
 name = "tx-decode"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1938,7 +1938,7 @@ dependencies = [
 
 [[package]]
 name = "tx-envelope"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools",
  "blocktools-io",
@@ -1946,7 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "tx-plan"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -1956,7 +1956,7 @@ dependencies = [
 
 [[package]]
 name = "tx-sign"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -1972,7 +1972,7 @@ dependencies = [
 
 [[package]]
 name = "tx-verify"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-evm",
@@ -1984,7 +1984,7 @@ dependencies = [
 
 [[package]]
 name = "typed-data-verify"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-evm",
  "blocktools-io",
@@ -2030,7 +2030,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "utxo-fetch"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "utxo-set"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -2068,7 +2068,7 @@ dependencies = [
 
 [[package]]
 name = "wallet-finder"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "blocktools-core",
@@ -2174,7 +2174,7 @@ dependencies = [
 
 [[package]]
 name = "xmr-keys"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-monero",
@@ -2183,7 +2183,7 @@ dependencies = [
 
 [[package]]
 name = "xmr-wallet"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-monero",
@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "xpub-addresses"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-core",
  "blocktools-io",
@@ -2203,7 +2203,7 @@ dependencies = [
 
 [[package]]
 name = "xrp-tx"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "blocktools-io",
  "blocktools-tty",
@@ -2272,7 +2272,7 @@ dependencies = [
 
 [[package]]
 name = "zec-sapling"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "bech32",
  "bip39",
