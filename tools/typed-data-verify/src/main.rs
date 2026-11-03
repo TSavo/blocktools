@@ -6,7 +6,13 @@
 //! The domain's chainId and verifyingContract are printed as chain_id / verifying_contract. With an
 //! --expect-* assertion, a missing or different value sets status chain_id_mismatch /
 //! verifying_contract_mismatch (exit 1), whatever the signature verdict.
-use blocktools_evm::eip712;
+//!   typed-data-verify --expect-spender 0x.. [--expect-amount N | --expect-unlimited] FILE
+//! A recognised permit (EIP-2612, DAI, Permit2 PermitSingle/PermitBatch/PermitTransferFrom/PermitBatchTransferFrom)
+//! is summarized as `permit`; with --expect-spender / --expect-amount a different spender or amount, an unlimited
+//! amount without --expect-unlimited, or a typed data that is not a recognised permit sets status
+//! spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable
+//! (exit 1). Without them the fields spender_unasserted / unlimited_approval are advisory (status unchanged).
+use blocktools_evm::{eip712, permit};
 use blocktools_io::outln;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -22,6 +28,11 @@ fn main() {
   --signer ADDR   expected signer; status is valid (exit 0) or signer_mismatch (exit 1)
   --expect-chain-id N              domain.chainId must equal N, else status chain_id_mismatch (exit 1)
   --expect-verifying-contract ADDR domain.verifyingContract must equal ADDR, else verifying_contract_mismatch (exit 1)
+  --expect-spender ADDR   a recognised permit's spender must equal ADDR, else spender_not_expected (exit 1)
+  --expect-amount N       every permit amount must equal N (decimal), else amount_not_expected (exit 1)
+  --expect-unlimited      accept an unlimited amount (>= 2^128, DAI allowed=true); needs --expect-spender
+  With an --expect-spender/--expect-amount on typed data that is not a recognised permit: spender_not_checkable /
+  amount_not_checkable (exit 1). Unknown shapes list spender-like fields in unrecognised_spender_fields.
 FILE (or stdin): EIP-712 typed data {types, primaryType, domain, message}, an eth_signTypedData_v4
 request ({\"params\": [address, typedData]}, typedData as object or JSON string: the address becomes the
 expected signer), or {typed_data, signature, signer}. Without --signer, prints the recovered address only.
@@ -29,6 +40,7 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
     let a: Vec<String> = std::env::args().skip(1).collect();
     let (mut sig, mut signer, mut file) = (None, None, None);
     let (mut want_cid, mut want_vc): (Option<String>, Option<String>) = (None, None);
+    let (mut want_sp, mut want_amt, mut want_unl): (Option<String>, Option<String>, bool) = (None, None, false);
     let mut it = a.into_iter();
     while let Some(x) = it.next() {
         match x.as_str() {
@@ -36,6 +48,9 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
             "--signer" => signer = Some(it.next().unwrap_or_else(|| die("signer_needs_value"))),
             "--expect-chain-id" => want_cid = Some(it.next().unwrap_or_else(|| die("expect_chain_id_needs_value"))),
             "--expect-verifying-contract" => want_vc = Some(it.next().unwrap_or_else(|| die("expect_verifying_contract_needs_value"))),
+            "--expect-spender" => want_sp = Some(it.next().unwrap_or_else(|| die("expect_spender_needs_value"))),
+            "--expect-amount" => want_amt = Some(it.next().unwrap_or_else(|| die("expect_amount_needs_value"))),
+            "--expect-unlimited" => want_unl = true,
             s if s.starts_with("--") => die("unknown_option"),
             _ => { if file.is_some() { die("one_file_only") } file = Some(x) }
         }
@@ -55,11 +70,13 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
         parse(t)
     } else { v };
     if signer.is_some() && sig.is_none() { die("signer_needs_sig"); }
+    let pe = permit::PermitExpect::new(want_sp.as_deref(), want_amt.as_deref(), want_unl).unwrap_or_else(|e| die(&e));
     match eip712::verify(&td, sig.as_deref(), signer.as_deref()) {
         Ok(mut o) => {
             eip712::apply_expect(&mut o, want_cid.as_deref(), want_vc.as_deref()).unwrap_or_else(|e| die(&e));
+            permit::apply(&mut o, &td, &pe);
             outln!("{o}");
-            if ["signer_mismatch", "chain_id_mismatch", "verifying_contract_mismatch"].contains(&o["status"].as_str().unwrap_or("")) { std::process::exit(1) }
+            if permit::FAIL_STATUSES.contains(&o["status"].as_str().unwrap_or("")) { std::process::exit(1) }
         }
         Err(e) => die(&e),
     }

@@ -631,3 +631,58 @@ console.log('lift7 ok');
   assert.equal(JSON.parse(bt.evmTypedDataVerify(td)).status, 'ok');
   console.log('evmTypedDataVerify options ok');
 }
+// evmTypedDataVerify permit spender checks (same permit::apply as typed-data-verify --expect-spender)
+{
+  const fx = (f) => readFileSync(new URL('../../recipes/fixtures/evm/' + f, import.meta.url), 'utf8');
+  const v = (td, o, sig, signer) => JSON.parse(bt.evmTypedDataVerify(typeof td === 'string' ? td : JSON.stringify(td), sig, signer, o === undefined ? undefined : JSON.stringify(o)));
+  const P2 = '0x000000000022d473030f116ddee9f6b43ac78ba3';
+  // headline: an exact-balance drainer is below 2^128, so only the spender catches it
+  const dr = v(fx('permit-drainer-exact-balance.json'), {expect_spender: P2});
+  assert.equal(dr.status, 'spender_not_expected', JSON.stringify(dr)); assert.equal(dr.unlimited_approval, false);
+  assert.equal(dr.permit.kind, 'eip2612'); assert.equal(dr.permit.entries[0].amount, '1234567890');
+  const dd = v(fx('permit-drainer-exact-balance.json')); // default: status unchanged, advisory flags
+  assert.equal(dd.status, 'ok'); assert.equal(dd.spender_unasserted, true); assert.equal(dd.unlimited_approval, false);
+  const usdc = fx('eip2612-permit-usdc.json');
+  assert.equal(v(usdc, {expect_spender: P2}).status, 'unlimited_approval');
+  assert.equal(v(usdc, {expect_spender: P2.toUpperCase().replace('0X', '0x'), expect_unlimited: true}).status, 'ok');
+  assert.equal(v(usdc, {expect_spender: P2, expect_chain_id: '137'}).status, 'chain_id_mismatch');
+  // Permit2 PermitSingle, a real signed one: valid signature, right spender ok, wrong spender / amount fail
+  const p2 = JSON.parse(fx('permit2-single-02a.json'));
+  const UR = '0x66a9893cc07d91d95644aedd05d03f95e1dba8af';
+  const s1 = v(p2.typed_data, {expect_spender: UR, expect_amount: '713135902875675667654'}, p2.signature, p2.signer);
+  assert.equal(s1.status, 'valid', JSON.stringify(s1)); assert.equal(s1.permit.kind, 'permit2_single');
+  assert.equal(v(p2.typed_data, {expect_spender: P2}, p2.signature, p2.signer).status, 'spender_not_expected');
+  assert.equal(v(p2.typed_data, {expect_spender: UR, expect_amount: '1'}, p2.signature, p2.signer).status, 'amount_not_expected');
+  // Permit2 PermitBatch: every entry must match
+  const pb = JSON.parse(JSON.stringify(p2.typed_data));
+  pb.types.PermitBatch = [{name: 'details', type: 'PermitDetails[]'}, {name: 'spender', type: 'address'}, {name: 'sigDeadline', type: 'uint256'}];
+  delete pb.types.PermitSingle; pb.primaryType = 'PermitBatch';
+  pb.message.details = [p2.typed_data.message.details, {...p2.typed_data.message.details, amount: '5'}];
+  const b = v(pb, {expect_spender: UR, expect_amount: '713135902875675667654'});
+  assert.equal(b.permit.kind, 'permit2_batch'); assert.equal(b.status, 'amount_not_expected');
+  pb.message.details[1].amount = '1461501637330902918203684832716283019655932542975'; // uint160 max
+  assert.equal(v(pb, {expect_spender: UR}).status, 'unlimited_approval');
+  // DAI permit: allowed=true is unlimited
+  const dai = {types: {EIP712Domain: [{name: 'name', type: 'string'}, {name: 'version', type: 'string'}, {name: 'chainId', type: 'uint256'}, {name: 'verifyingContract', type: 'address'}],
+    Permit: [{name: 'holder', type: 'address'}, {name: 'spender', type: 'address'}, {name: 'nonce', type: 'uint256'}, {name: 'expiry', type: 'uint256'}, {name: 'allowed', type: 'bool'}]},
+    primaryType: 'Permit', domain: {name: 'Dai Stablecoin', version: '1', chainId: 1, verifyingContract: '0x6B175474E89094C44Da98b954EedeAC495271d0F'},
+    message: {holder: '0x7e9578235485f0e8cd0761ec6e570a2ab144f406', spender: UR, nonce: 0, expiry: 1792984331, allowed: true}};
+  const d1 = v(dai); assert.equal(d1.permit.kind, 'dai'); assert.equal(d1.unlimited_approval, true); assert.equal(d1.status, 'ok');
+  assert.equal(v(dai, {expect_spender: UR}).status, 'unlimited_approval');
+  assert.equal(v(dai, {expect_spender: UR, expect_unlimited: true}).status, 'ok');
+  assert.equal(v(dai, {expect_spender: P2, expect_unlimited: true}).status, 'spender_not_expected');
+  // not a permit: not checkable, never guessed
+  const mail = fx('eip712-mail.json');
+  assert.equal(v(mail, {expect_spender: UR}).status, 'spender_not_checkable');
+  assert.equal(v(mail, {expect_amount: '1'}).status, 'amount_not_checkable');
+  assert.equal(v(mail).status, 'ok');
+  // wrong types and bad values, the verifyTx conventions
+  assert.throws(() => v(usdc, {expect_spender: 1}), /expect_spender_must_be_string/);
+  assert.throws(() => v(usdc, {expect_amount: 5}), /expect_amount_must_be_string/);
+  assert.throws(() => v(usdc, {expect_spender: P2, expect_unlimited: 'yes'}), /expect_unlimited_must_be_bool/);
+  assert.throws(() => v(usdc, {expect_unlimited: true}), /expect_unlimited_needs_expect_spender/);
+  assert.throws(() => v(usdc, {expect_spender: P2, expect_amount: '1', expect_unlimited: true}), /expect_unlimited_conflicts_with_expect_amount/);
+  assert.throws(() => v(usdc, {expect_spender: '0x12'}), /expect_spender_bad_address/);
+  assert.throws(() => v(usdc, {expect_amount: '-1'}), /expect_amount_not_decimal/);
+  console.log('evmTypedDataVerify permit spender ok');
+}

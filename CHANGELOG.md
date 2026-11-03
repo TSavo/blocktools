@@ -7,6 +7,16 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [Unreleased]
 
+### Added
+- Spender checks for signed permits (EIP-712 typed data), shared by `typed-data-verify` and the wasm
+  `evmTypedDataVerify` (`permit::apply`): EIP-2612, DAI and Permit2 `PermitSingle`, `PermitBatch`,
+  `PermitTransferFrom`, `PermitBatchTransferFrom`, recognised by primaryType and exact field set. New output
+  `permit`, `unlimited_approval`, `spender_unasserted`, `permit_findings`, and `unrecognised_spender_fields` for other
+  shapes. New opt-in `--expect-spender`, `--expect-amount`, `--expect-unlimited` / options `expect_spender`,
+  `expect_amount`, `expect_unlimited`: status `spender_not_expected`, `amount_not_expected`, `unlimited_approval`,
+  `spender_not_checkable`, `amount_not_checkable` (exit 1). An exact-balance drainer permit (below 2^128) is caught
+  by the spender. Without assertions the status is unchanged (advisory fields only). No wasm export added.
+
 ## [0.4.0] - 2026-11-02
 
 Minor release, not tagged yet. Highlights:

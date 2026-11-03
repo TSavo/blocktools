@@ -470,7 +470,16 @@ pub fn evm_bytecode_inspect(code_hex: &str) -> Result<String, JsError> { Ok(bloc
 /// EIP-712 typed data: encodeType, domain separator, message hash, digest; with a signature (65-byte or EIP-2098 64-byte) the recovered signer; with an expected signer a verdict.
 /// `options_json` (optional) `{expect_chain_id?: "decimal", expect_verifying_contract?: "0x.."}`: the
 /// typed-data-verify --expect-chain-id / --expect-verifying-contract checks (status chain_id_mismatch /
-/// verifying_contract_mismatch). Wrong types throw `<key>_must_be_string`.
+/// verifying_contract_mismatch). Permit checks (typed-data-verify --expect-spender / --expect-amount /
+/// --expect-unlimited, shared permit::apply): `{expect_spender?: "0x..", expect_amount?: "decimal", expect_unlimited?: bool}`
+/// (expect_unlimited needs expect_spender). Recognised permits (EIP-2612, DAI, Permit2 PermitSingle / PermitBatch /
+/// PermitTransferFrom / PermitBatchTransferFrom; primaryType plus exact field set) add `permit {kind, primary_type,
+/// spender, entries:[{token, amount, unlimited, allowed?, expiration?}], deadline, owner?}`, `unlimited_approval`,
+/// `spender_unasserted` and `permit_findings`; other shapes add `unrecognised_spender_fields`. With an assertion the
+/// status becomes spender_not_expected / amount_not_expected / unlimited_approval (>= 2^128, uint160 max, DAI
+/// allowed=true) or, for typed data that is not a recognised permit, spender_not_checkable / amount_not_checkable;
+/// every batch entry must match. Without assertions the status is unchanged (advisory fields only). Wrong types
+/// throw `<key>_must_be_string` / `expect_unlimited_must_be_bool`.
 #[wasm_bindgen(js_name = evmTypedDataVerify)]
 pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, signer: Option<String>, options_json: Option<String>) -> Result<String, JsError> {
     let td: serde_json::Value = serde_json::from_str(typed_data_json).map_err(|_| JsError::new("bad_typed_data_json"))?;
@@ -479,6 +488,8 @@ pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, sig
     let (cid, vc) = (st("expect_chain_id")?, st("expect_verifying_contract")?);
     let mut o = blocktools::evm::eip712::verify(&td, sig_hex.as_deref(), signer.as_deref()).map_err(err)?;
     blocktools::evm::eip712::apply_expect(&mut o, cid.as_deref(), vc.as_deref()).map_err(err)?;
+    let pe = blocktools::evm::permit::PermitExpect::from_json(&opt).map_err(err)?;
+    blocktools::evm::permit::apply(&mut o, &td, &pe);
     Ok(o.to_string())
 }
 
