@@ -108,34 +108,34 @@ doc = [{ file = "DESIGN.md", text = "64 MiB" }]
 
 [[claim]]
 id = "net-8mib"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "Network body cap 8 MiB (in-process mock serving more than 8 MiB; the 30 s timeout is measured in rpc-timeout-30s)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
 value = "8"
-env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1); boundary test, no timing"
-commit = "3c8c354"
-date = "2026-10-27"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (test) cargo test --workspace green (Linux, GitHub-hosted runner); targeted rerun at 05140c97 on the Linux box: \"test result: ok. 1 passed\"; boundary test, no timing"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "DESIGN.md", text = "8 MiB" }]
 
 [[claim]]
 id = "rpc-timeout-30s"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "rpc default timeout 30 s: a mock-bitcoind reply held open for 40 s gives stderr status timeout (timeout_secs 30) after 30.0 s wall clock"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/e2e.d/rpc-timeout.sh"
 expect = "default timeout measured 30"
 value = "30"
-env = "Linux x86_64 (the box), scripts/mock-bitcoind.py MOCK_SLOW=40, release build; mock, not bitcoind"
-commit = "3c8c354"
-date = "2026-10-27"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"ok   rpc-timeout: default timeout measured 30.0 s (status timeout, timeout_secs 30)\"; scripts/mock-bitcoind.py slow mock, not bitcoind"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs", "scripts/mock-bitcoind.py"]
 doc = [{ file = "docs/RPC.md", text = "status `timeout` at 30.0 s" }]
@@ -240,62 +240,65 @@ doc = [{ file = "docs/EXPORTS-reference.md", text = "16 bytes" }, { file = "docs
 
 [[claim]]
 id = "rpc-response-size-cap"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "rpc reads at most 8 MiB of any response and refuses a 3xx instead of following it (in-process mock, Linux box)"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (test) cargo test --workspace green; targeted rerun at 05140c97 on the Linux box: \"test result: ok. 1 passed\""
 command = "cargo test -q -p rpc --test cli redirect_not_followed_and_size_capped"
 expect = "test result: ok. 1 passed"
-commit = "3c8c354"
-date = "2026-10-27"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = true
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "8 MiB" }]
 
 [[claim]]
 id = "rpc-wallet-sign-summary"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "The --allow-wallet-sign summary in docs/RPC.md (ERC-20 transfer, selector 0xa9059cbb, 68 bytes) is the code's own output for that request"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "cargo test -q -p rpc --lib summary_capture"
 value = "68"
-env = "cargo test on the Linux box (Linux 6.12.94+ x86_64)"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (test) cargo test --workspace green; targeted rerun at 05140c97 on the Linux box: \"test result: ok. 1 passed\""
 expect = "test result: ok. 1 passed"
-commit = "1f1fa71"
-date = "2026-10-25"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = true
 depends = ["tools/rpc/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "68 bytes" }]
 
 [[claim]]
 id = "rpc-deny-list"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "Secret export/import/unlock and wallet-signing methods exit 1 (status refused) with a stable code and no request reaches the server; auth never appears in output (in-process mock, Linux box); fail closed: methods and paths outside the per-protocol read allowlist are refused with zero connections to a recording mock (17 unlisted methods, 3 REST paths, a mixed batch)"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (test) log \"test result: ok. 25 passed\" (rpc cli suite, 25 tests)"
 command = "cargo test -q -p rpc"
-expect = "test result: ok. 24 passed"
-commit = "3c8c354"
-date = "2026-10-27"
+expect = "test result: ok. 25 passed"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = true
 depends = ["tools/rpc/src/lib.rs", "tools/rpc/src/main.rs"]
 doc = [{ file = "docs/RPC.md", text = "Safety: what is refused" }]
 
 [[claim]]
 id = "rpc-publicnode-read-linux"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "Read-only eth_blockNumber and `rpc URL height` (eth_blockNumber shortcut) against https://ethereum-rpc.publicnode.com returned a block number (Linux 6.12.94+ x86_64 box, 2026-10-25 20:39 and 20:56 PDT; re-run 2026-10-26 18:20 PDT at 62027dc, eth_blockNumber 0x19102ee, height 26280693); no broadcast was made"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
+env = "release build of 05140c97 (main run 41734105937 conclusion success) on the Linux box, live read of ethereum-rpc.publicnode.com 2026-11-03: {\"jsonrpc\":\"2.0\",\"result\":\"0x191e100\",\"id\":1}"
 command = "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' | ./target/release/rpc https://ethereum-rpc.publicnode.com"
 expect = "\"result\":\"0x"
-commit = "3c8c354"
-date = "2026-10-27"
+commit = "05140c97"
+date = "2026-11-03"
 cheap = false
 depends = ["tools/rpc/src/main.rs", "crates/net/src/lib.rs"]
 doc = [{ file = "docs/RPC.md", text = "eth_blockNumber" }]
@@ -345,15 +348,15 @@ doc = [{ file = "docs/CHAINS.md", text = "msg_chains.rs` (7 tests" }]
 
 [[claim]]
 id = "msg-ambiguous-address"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "msg-verify (CLI and wasm msgVerify/msgVerifyOpts) refuses a string that is both a valid-checksum Cosmos bech32 address and a canonical on-curve Solana key with ambiguous_address unless the chain is named; 4000 generated 4-letter/5-letter-prefix bech32 addresses never route to Solana"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/e2e.d/msg-ambiguous.sh"
 expect = "ok   msg-ambiguous"
-commit = "6ba59bda"
-env = "main ci run 41726434308 at 6ba59bda (gate (e2e) job success; run failure only from these stale stamps in gate lint/negatives), gate (e2e) log \"ok   msg-ambiguous osmo1/juno1 ...\""
+commit = "05140c97"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"ok   msg-ambiguous osmo1/juno1 cosmos-or-solana ...\""
 date = "2026-11-03"
 cheap = false
 depends = ["crates/tx/src/msgchain.rs", "tools/msg-verify/src/main.rs", "scripts/e2e.d/msg-ambiguous.sh", "crates/blocktools/tests/msg_chains.rs", "bindings/wasm/test.mjs"]
@@ -474,35 +477,36 @@ doc = []
 
 [[claim]]
 id = "rpc-decode-mock-fee"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "recipes/rpc-decode.md pipeline (rpc blockinfo/block/rawtx/prevtxs | tx-decode --prevtxs) against scripts/mock-bitcoind.py, a deterministic fake pruned regtest bitcoind (not a real node): the mock spend of 50000 sat in, 49000 sat out decodes with fee 1000 sat; pruned mode needs the block hash and prevtxs fails with -5; rpc dumpprivkey | cat exits 0 with PIPESTATUS 1 0 (Linux box)"
 kind = "number"
 platform = "linux"
-status = "untested"
+status = "measured"
 doc = [{ file = "recipes/rpc-decode.md", text = "50000 sat in, 49000 sat out, fee 1000 sat" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/rpc-decode.sh)"
 expect = "rpc-decode recipe script (-txindex mock): fee 1000"
 cheap = false
-env = "Linux, GitHub-hosted ubuntu runner, ci run 40430463509 e2e job"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"ok   rpc-decode recipe script (-txindex mock): fee 1000\""
 value = "1000"
 depends = ["scripts/e2e.d/rpc-decode.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
-commit = "3c8c354"
-date = "2026-10-27"
+commit = "05140c97"
+date = "2026-11-03"
 
 [[claim]]
 id = "sendraw-fee-shown"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "rpc sendraw against scripts/mock-bitcoind.py (fake regtest bitcoind, not a real node): with -txindex or --prevtxs the terminal confirmation shows fee 0.00001000 btc; pruned without --prevtxs it shows a FEE UNKNOWN banner, and answering the code but not ACK FEE-UNKNOWN aborts with no sendrawtransaction sent (scripts/e2e.d/sendraw-fee.sh, Linux box)"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"ok   rpc sendraw unknown fee: loud banner, refusing the ACK aborts, nothing sent\""
 doc = [{ file = "docs/RPC.md", text = "refusing the ACK sends nothing" }]
 command = "bash scripts/e2e-local.sh (CI e2e stage, scripts/e2e.d/sendraw-fee.sh)"
 expect = "rpc sendraw unknown fee: loud banner, refusing the ACK aborts, nothing sent"
 cheap = false
 depends = ["scripts/e2e.d/sendraw-fee.sh", "scripts/mock-bitcoind.py", "tools/rpc/src/main.rs", "tools/rpc/src/lib.rs"]
-commit = "3c8c354"
-date = "2026-10-27"
+commit = "05140c97"
+date = "2026-11-03"
 
 [[claim]]
 id = "recovery-synthetic-thirdparty"
@@ -941,13 +945,13 @@ doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
 
 [[claim]]
 id = "wasm-export-count"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "The wasm package exports 76 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "untested"
-commit = "6ba59bda"
-env = "main ci run 41726434308 at 6ba59bda (gate (e2e) job success; run failure only from these stale stamps in gate lint/negatives), gate (e2e) log \"ok exports-doc 76 functions\""
+status = "measured"
+commit = "05140c97"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"ok exports-doc 76 functions\" and \"wasm web ok (76 exports)\""
 date = "2026-11-03"
 value = "76"
 command = "sh scripts/wasm-check.sh"
@@ -1046,15 +1050,15 @@ doc = [{ file = "docs/POLICY.md", text = "approval of 2^128 or more" }, { file =
 
 [[claim]]
 id = "wasm-verifytx-approval-checks"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "The wasm verifyTx runs the tx-verify approval/transfer/batch checks (shared presign::apply): with no options an unlimited approval fails unlimited_approval, an unasserted multicall inner call fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall; the call_json opt-ins expect_spender/expect_amount/expect_unlimited/expect_recipient/expect_value/allow_inner_call/allow_delegatecall give the CLI's failure codes and wrong JSON types throw <key>_must_be_*"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/wasm-check.sh"
 expect = "verifyTx content checks ok"
-commit = "6ba59bda"
-env = "main ci run 41726434308 at 6ba59bda (gate (e2e) job success; run failure only from these stale stamps in gate lint/negatives), gate (e2e) log \"verifyTx content checks ok\""
+commit = "05140c97"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"verifyTx content checks ok\""
 date = "2026-11-03"
 cheap = false
 depends = ["crates/evm/src/presign.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
@@ -1062,15 +1066,15 @@ doc = []
 
 [[claim]]
 id = "wasm-typed-data-expect"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "The wasm evmTypedDataVerify options_json {expect_chain_id, expect_verifying_contract} sets status chain_id_mismatch / verifying_contract_mismatch exactly as typed-data-verify --expect-chain-id / --expect-verifying-contract (shared eip712::apply_expect); wrong types throw <key>_must_be_string"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify options ok"
-commit = "6ba59bda"
-env = "main ci run 41726434308 at 6ba59bda (gate (e2e) job success; run failure only from these stale stamps in gate lint/negatives), gate (e2e) log \"evmTypedDataVerify options ok\""
+commit = "05140c97"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify options ok\""
 date = "2026-11-03"
 cheap = false
 depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
@@ -1123,15 +1127,15 @@ doc = []
 
 [[claim]]
 id = "permit-expect-spender"
-note = "Parked 2026-11-03: depends changed in #63/#64 (permit spender checks); earlier stamp from non-green run 41726434308 withdrawn. Re-measure from a completed green main run and set status measured."
+
 statement = "typed-data-verify --expect-spender / --expect-amount / --expect-unlimited and the wasm evmTypedDataVerify options expect_spender / expect_amount / expect_unlimited (shared permit::apply) fail closed with spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable for EIP-2612, DAI and Permit2 single/batch/transfer permits; an exact-balance drainer permit below 2^128 fails spender_not_expected; wrong types throw <key>_must_be_string"
 kind = "security"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify permit spender ok"
-commit = "6ba59bda"
-env = "main ci run 41726434308 at 6ba59bda (gate (e2e) job success; run failure only from these stale stamps in gate lint/negatives), gate (e2e) log \"evmTypedDataVerify permit spender ok\""
+commit = "05140c97"
+env = "main ci run 41734105937 at 05140c97 (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify permit spender ok\""
 date = "2026-11-03"
 cheap = false
 depends = ["crates/evm/src/permit.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs"]
