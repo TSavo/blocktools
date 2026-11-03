@@ -463,7 +463,7 @@ commit = "1f1fa71"
 date = "2026-10-26"
 cheap = false
 depends = []
-doc = [{ file = "docs/getting-started.md", text = "41 tools" }, { file = "docs/troubleshooting.md", text = "41 tools" }]
+doc = []
 
 [[claim]]
 id = "rpc-decode-mock-fee"
@@ -988,7 +988,7 @@ commit = "50dbe77"
 date = "2026-10-31"
 cheap = false
 depends = []
-doc = [{ file = "README.md", text = "53 of its 55 binaries need glibc 2.34" }, { file = "README.md", text = "53 of its 55 binaries need 2.34+" }]
+doc = [{ file = "README.md", text = "53 of its 55 binaries need glibc 2.34" }, { file = "README.md", text = "53 of its 55 binaries need 2.34+" }, { file = "docs/getting-started.md", text = "53 of the v0.3.3 tarball's 55 binaries need glibc 2.34" }, { file = "docs/troubleshooting.md", text = "53 of its 55 binaries need glibc 2.34" }]
 
 [[claim]]
 id = "sealed-tools-count"
