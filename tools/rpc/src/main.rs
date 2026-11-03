@@ -22,6 +22,11 @@
 //!   --policy FILE         {"version":1,"rpc":{"deny":["method","prefix_*"]}}: adds refusals, cannot remove any
 //!   --allow-wallet-sign   open eth_sendTransaction / eth_signTypedData_v4 only: prints a decoded summary to stderr first,
 //!                         refuses undecodable requests and chain ids that differ from the endpoint's; the wallet UI confirms
+//!   --expect-spender ADDR, --expect-amount N, --expect-unlimited
+//!                         eth_signTypedData_v4 permits (EIP-2612, DAI, Permit2) are refused unless --expect-spender
+//!                         matches (wallet_sign_permit_unasserted, spender_not_expected, amount_not_expected,
+//!                         unlimited_approval unless --expect-unlimited); spender-like fields in an unrecognised shape
+//!                         are refused (wallet_sign_spender_unrecognised)
 //!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
 //!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
 //!   --prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
@@ -53,7 +58,7 @@ use rpc::*;
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Read};
 
-struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: std::cell::Cell<u64>, timeout_set: bool, prevtxs: Option<String> }
+struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, permit: blocktools_evm::permit::PermitExpect, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: std::cell::Cell<u64>, timeout_set: bool, prevtxs: Option<String> }
 
 fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
@@ -413,6 +418,7 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
             Err(r) => refused(cx, r),
             Ok(Pass::WalletSign) => {
                 let (summary, cid) = wallet_sign_summary(m, &params).unwrap_or_else(|r| refused(cx, r));
+                wallet_sign_permit_check(m, &params, &cx.permit).unwrap_or_else(|r| { eprint!("{summary}"); refused(cx, r) });
                 let got = endpoint_chain_id(cx);
                 let want = cid.or(cx.chain_id).unwrap_or_else(|| refused(cx, Refusal { code: "wallet_sign_chain_unknown", detail: "request carries no chain id; give --chain-id N".into() }));
                 if want != got || cx.chain_id.is_some_and(|c| c != got) { refused(cx, Refusal { code: "wallet_sign_chain_mismatch", detail: format!("request chain id {want}, endpoint eth_chainId {got}") }) }
@@ -452,7 +458,7 @@ fn main() {
     let usage = header();
     blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
-    let mut deny = vec![]; let mut wallet_sign = false; let mut allow_unlisted = false; let mut timeout = 30; let mut timeout_set = false; let mut prevtxs = None;
+    let mut deny = vec![]; let mut wallet_sign = false; let (mut want_sp, mut want_amt, mut want_unl): (Option<String>, Option<String>, bool) = (None, None, false); let mut allow_unlisted = false; let mut timeout = 30; let mut timeout_set = false; let mut prevtxs = None;
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         let mut val = |k: &str| it.next().unwrap_or_else(|| bad(None, &format!("{k} needs a value")));
@@ -464,6 +470,9 @@ fn main() {
             "--auth-env" => { let n = val("--auth-env"); auth = Some(std::env::var(&n).unwrap_or_else(|_| bad(None, "--auth-env variable is not set"))) }
             "--policy" => { let f = val("--policy"); deny = parse_policy(&std::fs::read_to_string(&f).unwrap_or_else(|_| bad(None, "cannot read --policy"))).unwrap_or_else(|e| bad(None, &e)) }
             "--allow-wallet-sign" => wallet_sign = true,
+            "--expect-spender" => want_sp = Some(val("--expect-spender")),
+            "--expect-amount" => want_amt = Some(val("--expect-amount")),
+            "--expect-unlimited" => want_unl = true,
             "--allow-unlisted" => allow_unlisted = true,
             "--prevtxs" => prevtxs = Some(val("--prevtxs")),
             "--timeout" => { timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=MAX_TIMEOUT).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..86400")); timeout_set = true }
@@ -484,7 +493,8 @@ fn main() {
     let (headers, secrets) = match &auth { Some(a) => parse_auth(a).unwrap_or_else(|e| bad(None, e)), None => (vec![], vec![]) };
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
-    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, allow_unlisted, chain_id, chain, timeout: std::cell::Cell::new(timeout), timeout_set, prevtxs };
+    let permit = blocktools_evm::permit::PermitExpect::new(want_sp.as_deref(), want_amt.as_deref(), want_unl).unwrap_or_else(|e| bad(None, &e));
+    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, permit, allow_unlisted, chain_id, chain, timeout: std::cell::Cell::new(timeout), timeout_set, prevtxs };
     if pos.len() > 4 || (pos.len() == 4 && pos[1] != "rawtx") { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {
