@@ -95,6 +95,23 @@ Assert the domain instead of reading it: `--expect-chain-id` and `--expect-verif
 <!-- e2e: expect="status":"chain_id_mismatch" ; expect="expected_chain_id":137 ; rc=1 -->
     typed-data-verify --expect-chain-id 137 recipes/fixtures/evm/eip2612-permit-usdc.json
 
+The amount alone does not catch a drainer: a permit for exactly your balance is below 2^128 and looks "limited".
+What matters is the spender. `--expect-spender` (and optionally `--expect-amount N`, or `--expect-unlimited` to
+accept an unlimited amount) fails closed with `spender_not_expected` / `amount_not_expected` / `unlimited_approval`
+(exit 1) for EIP-2612, DAI and Permit2 (PermitSingle, PermitBatch, PermitTransferFrom, PermitBatchTransferFrom; every
+batch entry must match). [fixtures/evm/permit-drainer-exact-balance.json](fixtures/evm/permit-drainer-exact-balance.json)
+is the same USDC permit with a small amount and another spender:
+
+<!-- e2e: expect="status":"spender_not_expected" ; expect="spender":"0x1111111111111111111111111111111111111111" ; expect="unlimited_approval":false ; rc=1 -->
+    typed-data-verify --expect-spender 0x000000000022d473030f116ddee9f6b43ac78ba3 recipes/fixtures/evm/permit-drainer-exact-balance.json
+
+<!-- e2e: expect="status":"ok" ; expect="kind":"eip2612" ; expect="spender_unasserted":false ; rc=0 -->
+    typed-data-verify --expect-spender 0x000000000022d473030f116ddee9f6b43ac78ba3 --expect-unlimited recipes/fixtures/evm/eip2612-permit-usdc.json
+
+Without `--expect-*` the status is unchanged; the output still has `permit`, `spender_unasserted:true` and
+`unlimited_approval` as advice. Typed data that is not a recognised permit fails `spender_not_checkable` /
+`amount_not_checkable` when asserted, and lists address fields named like a spender in `unrecognised_spender_fields`.
+
 Then the fields that matter:
 
 <!-- e2e: expect="spender":"0x000000000022d473030f116ddee9f6b43ac78ba3" ; expect="unlimited":true ; rc=0 -->

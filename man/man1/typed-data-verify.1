@@ -21,12 +21,27 @@ with a signature, the recovered signer (65\-byte r||s||v or 64\-byte EIP\-2098);
 The domain's chainId and verifyingContract are printed as chain_id / verifying_contract. With an
 \-\-expect\-* assertion, a missing or different value sets status chain_id_mismatch /
 verifying_contract_mismatch (exit 1), whatever the signature verdict.
+.nf
+.RS 2
+  typed\-data\-verify \-\-expect\-spender 0x.. [\-\-expect\-amount N | \-\-expect\-unlimited] FILE
+.RE
+.fi
+A recognised permit (EIP\-2612, DAI, Permit2 PermitSingle/PermitBatch/PermitTransferFrom/PermitBatchTransferFrom)
+is summarized as `permit`; with \-\-expect\-spender / \-\-expect\-amount a different spender or amount, an unlimited
+amount without \-\-expect\-unlimited, or a typed data that is not a recognised permit sets status
+spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable
+(exit 1). Without them the fields spender_unasserted / unlimited_approval are advisory (status unchanged).
 .SH OPTIONS
 .nf
   \-\-sig HEX       signature: 65 bytes r||s||v (v 27/28 or 0/1) or 64 bytes EIP\-2098 compact
   \-\-signer ADDR   expected signer; status is valid (exit 0) or signer_mismatch (exit 1)
   \-\-expect\-chain\-id N              domain.chainId must equal N, else status chain_id_mismatch (exit 1)
   \-\-expect\-verifying\-contract ADDR domain.verifyingContract must equal ADDR, else verifying_contract_mismatch (exit 1)
+  \-\-expect\-spender ADDR   a recognised permit's spender must equal ADDR, else spender_not_expected (exit 1)
+  \-\-expect\-amount N       every permit amount must equal N (decimal), else amount_not_expected (exit 1)
+  \-\-expect\-unlimited      accept an unlimited amount (>= 2^128, DAI allowed=true); needs \-\-expect\-spender
+  With an \-\-expect\-spender/\-\-expect\-amount on typed data that is not a recognised permit: spender_not_checkable /
+  amount_not_checkable (exit 1). Unknown shapes list spender\-like fields in unrecognised_spender_fields.
 .fi
 .SH INPUT/OUTPUT
 .nf
@@ -41,6 +56,9 @@ Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 0
 last status valid
 .TP
+1
+last status spender_not_expected
+.TP
 2
 last status bad_input
 .PP
@@ -51,6 +69,8 @@ $ typed\-data\-verify "$R/recipes/fixtures/evm/eip712\-mail\-signed.json"
 # exit 0, last status: valid
 $ typed\-data\-verify \-\-sig 0x00 "$R/recipes/fixtures/evm/eip712\-mail.json"
 # exit 2, last status: bad_input
+$ typed\-data\-verify \-\-expect\-spender 0x000000000022d473030f116ddee9f6b43ac78ba3 "$R/recipes/fixtures/evm/permit\-drainer\-exact\-balance.json"
+# exit 1, last status: spender_not_expected
 .fi
 .SH SECURITY NOTES
 DANGEROUS: use at your own risk. Code that handles keys and signs transactions should always be read and audited by you before you trust it with real funds. Used incorrectly, it can destroy your money.
