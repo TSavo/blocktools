@@ -61,7 +61,7 @@ pub fn run(chain: &str, addr: &str, msg: &[u8], text: &str, format: Option<&str>
         sig = Some(blocktools_core::b64::encode(&s.serialize_compact())); pubkey = Some(blocktools_core::b64::encode(&pk.serialize())); break
     }
     let sig = sig.unwrap_or_else(|| refuse("address_does_not_match_key"));
-    let o = Opts { format, pubkey: pubkey.as_deref() };
+    let o = Opts { format, pubkey: pubkey.as_deref(), chain: Some(chain) };
     if !msgchain::verify(addr, msg, &sig, &o).map(|v| v["status"] == "ok").unwrap_or(false) { out("error", json!({"error":"signature_failed_recheck"})) }
     let scheme = match (chain, format) { ("tron", _) => "Tron signMessageV2".to_string(), ("sol", Some(f)) => format!("Solana ed25519, format {f}"), _ => format!("Cosmos ADR-036 ({hrp})") };
     let summary = format!("Sign MESSAGE ({scheme}, {} bytes) as {addr}:\n{text:?}\nThis signs text only; it cannot move funds by itself, but whoever asked for it may use it as proof you control this address.\n", msg.len());

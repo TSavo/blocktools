@@ -918,7 +918,7 @@ msgVerify(address: string, message: string, sig: string, message_is_hex: boolean
 
 Message signature check, as `msg-verify`: EIP-191 personal_sign (0x address, 65-byte hex sig) or Bitcoin Core signmessage (P2PKH address, base64 sig). `message_is_hex`: message is hex bytes. Returns {status:"ok"|"signer_mismatch", chain, address, recovered, v?}; malformed input throws.
 
-Calls in test.mjs: 10.
+Calls in test.mjs: 12.
 
 Example (executed):
 
@@ -940,9 +940,9 @@ bt.msgVerify("0x0000000000000000000000000000000000000001", "x", "0x00", false)
 msgVerifyOpts(input: string): string
 ```
 
-As `msg-verify` with options, for the chains whose verify needs them. Input JSON: {"address", "message" | "message_hex", "signature", "format"? ("raw" | "offchain-v0", Solana, required there), "pubkey"? (base64 33-byte compressed key, Cosmos ADR-036, required there)}. Unknown keys and options that do not apply to the detected chain are refused. Returns the same JSON as `msgVerify` ({"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}). No keys.
+As `msg-verify` with options, for the chains whose verify needs them. Input JSON: {"address", "message" | "message_hex", "signature", "format"? ("raw" | "offchain-v0", Solana, required there), "pubkey"? (base64 33-byte compressed key, Cosmos ADR-036, required there), "chain"? ("eth"|"btc"|"tron"|"sol"|"cosmos", required when the address is both valid Cosmos bech32 and a valid Solana key, else `ambiguous_address`)}. Unknown keys and options that do not apply to the detected chain are refused. Returns the same JSON as `msgVerify` ({"status":"ok"|"signer_mismatch","chain","address","recovered"?,"v"?,"format"?,"hrp"?}). No keys.
 
-Calls in test.mjs: 6.
+Calls in test.mjs: 14.
 
 Example (executed):
 

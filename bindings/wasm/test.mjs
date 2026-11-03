@@ -534,6 +534,13 @@ console.log('lift7 ok');
   assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: tron, message: 'x', signature: tsig, format: 'raw' })), /format_only_for_solana/);
   assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: sol, message: 'x', signature: ssig, format: 'raw', extra: 1 })), /unknown_key:extra/);
   assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: 'cosmos1hftz5ugqmpg9243xeegsqqav62f8hnyw3gdu30', message: 'random', signature: 'AA==' })), /cosmos_pubkey_required/);
+  for (const a of ['osmo148yundzwcr97np3s8c8yrx2p6p33ck6sd4stfm', 'juno1av6j5wgy64cwknm75pwyvegpwduf753uytqkwk']) {
+    assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: a, message: 'x', signature: 'AA==', pubkey: 'AA==' })), /ambiguous_address/);
+    assert.throws(() => bt.msgVerify(a, 'x', 'AA==', false), /ambiguous_address/);
+    assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: a, message: 'x', signature: 'AA==', pubkey: 'AA==', chain: 'cosmos' })), /pubkey_not_33_bytes/);
+    assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: a, message: 'x', signature: 'AA==', chain: 'eth' })), /chain_does_not_match_address/);
+    assert.throws(() => bt.msgVerifyOpts(JSON.stringify({ address: a, message: 'x', signature: 'AA==', chain: 1 })), /chain_not_string/);
+  }
   console.log('ok msg verify');
 }
 
