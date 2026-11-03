@@ -164,6 +164,10 @@ the commit before it, and the newest commit starts as soon as a runner is free. 
 - While pushes keep arriving faster than a run takes (about 7 min after the overhead removal), nothing
   finishes. A bot that waits for green before its next push gets one as soon as it waits one run-length.
 - Same-repo pull requests use the PR's own ref, so they do not cancel main's run.
+- Since 2026-11-02 main is the exception: `cancel-in-progress` is false for `refs/heads/main`, so a
+  merge never cancels main's running run. GitHub still keeps at most one pending run per group: a third
+  main commit arriving while one runs and one waits replaces the waiting one (cancelled while pending,
+  as measured above). Stamp claims only from a main run that completed with success.
 
 Checking out with `clean: false` keeps `target` between jobs (it is the per-ref symlink above), so each
 stage's `cargo build --release` is incremental from the last commit built on that ref. Before this,
