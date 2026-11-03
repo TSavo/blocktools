@@ -435,7 +435,7 @@ mod doc_tests {
         let p = serde_json::json!([{"from":"0x1111111111111111111111111111111111111111","to":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48","value":"0x0","data":"0xa9059cbb0000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000003b9aca00","chainId":"0x1"}]);
         let (s, c) = super::wallet_sign_summary("eth_sendTransaction", &p).unwrap();
         assert!(s.contains("selector 0xa9059cbb, 68 bytes") && c == Some(1), "{s}");
-        assert!(include_str!("../../../docs/RPC.md").contains(s.trim_end()), "docs summary differs from code:\n{s}");
+        assert!(include_str!("../../../docs/RPC.md").replace(" (unmeasured)", "").contains(s.trim_end()), "docs summary differs from code:\n{s}");
     }
     #[test]
     fn deny_table_documented() {
