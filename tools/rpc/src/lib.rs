@@ -272,6 +272,28 @@ pub fn wallet_sign_summary(method: &str, params: &Value) -> Result<(String, Opti
     }
 }
 
+/// Deny by default for eth_signTypedData_v4 (shared blocktools_evm::permit, as typed-data-verify --expect-spender):
+/// a recognised permit (EIP-2612, DAI, Permit2) is refused unless --expect-spender is given and matches
+/// (wallet_sign_permit_unasserted, spender_not_expected, amount_not_expected; unlimited_approval unless
+/// --expect-unlimited); typed data that is not a recognised permit but has spender-like address fields is refused
+/// (wallet_sign_spender_unrecognised), and with --expect-spender / --expect-amount it is spender_not_checkable /
+/// amount_not_checkable. No blanket allow. Other methods pass unchanged.
+pub fn wallet_sign_permit_check(method: &str, params: &Value, e: &blocktools_evm::permit::PermitExpect) -> Result<(), Refusal> {
+    use blocktools_evm::permit;
+    if norm(method) != "eth_signtypeddata_v4" { return Ok(()) }
+    let td: Value = match params.get(1) { Some(Value::String(s)) => serde_json::from_str(s).map_err(|_| refuse("wallet_sign_undecodable", String::from("typedData string is not JSON")))?, Some(v) => v.clone(), None => return Err(refuse("wallet_sign_undecodable", String::from("params[1] missing"))) };
+    let mut o = json!({"status": "ok"});
+    permit::apply(&mut o, &td, e);
+    let code = |f: &str| -> &'static str { match f { "spender_not_expected" => "spender_not_expected", "amount_not_expected" => "amount_not_expected", "unlimited_approval" => "unlimited_approval", "spender_not_checkable" => "spender_not_checkable", _ => "amount_not_checkable" } };
+    if let Some(p) = o.get("permit") {
+        let who = format!("{} permit to spender {}", p["kind"].as_str().unwrap_or(""), p["spender"].as_str().unwrap_or(""));
+        if e.spender.is_none() { return Err(refuse("wallet_sign_permit_unasserted", format!("{who}; pass --expect-spender ADDR (and --expect-amount N or --expect-unlimited)"))) }
+    }
+    if let Some(f) = o["permit_findings"].as_array().and_then(|a| a.first()).and_then(|f| f.as_str()) { return Err(refuse(code(f), o.get("permit").map_or(String::new(), |p| p.to_string()))) }
+    if let Some(u) = o.get("unrecognised_spender_fields") { return Err(refuse("wallet_sign_spender_unrecognised", format!("not a recognised permit, spender-like fields {u}; refused (cannot check the spender)"))) }
+    Ok(())
+}
+
 /// Field names that mean a response is carrying a secret.
 pub const RESPONSE_SECRET_FIELDS: &[&str] = &["privkey", "privatekey", "private_key", "hdseed", "mnemonic", "seed_phrase", "spend_key", "spendingkey", "secret_key", "wif", "xprv"];
 const XPRV: &[&str] = &["xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "Yprv", "Zprv", "Ltpv"];

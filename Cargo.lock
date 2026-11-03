@@ -1472,6 +1472,7 @@ name = "rpc"
 version = "0.4.0"
 dependencies = [
  "blocktools-core",
+ "blocktools-evm",
  "blocktools-io",
  "blocktools-net",
  "blocktools-tty",

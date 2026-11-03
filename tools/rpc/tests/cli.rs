@@ -134,10 +134,17 @@ fn flagged_typed_data_summary_and_undecodable_refused() {
     let td = r#"{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"chainId","type":"uint256"}],"Permit":[{"name":"spender","type":"address"},{"name":"value","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"USD Coin","chainId":1},"message":{"spender":"0x3333333333333333333333333333333333333333","value":"115792089237316195423570985008687907853269984665640564039457584007913129639935"}}"#;
     let params = serde_json::json!(["0x1111111111111111111111111111111111111111", td]).to_string();
     let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0xsig"}"#.into())]);
+    // not a recognised permit shape but a spender field: refused before anything is sent
     let (c, _, err) = run(&["--allow-wallet-sign", &url, "eth_signTypedData_v4", &params], "");
-    assert_eq!(c, 0, "{err}");
+    assert_eq!(c, 1, "{err}"); assert!(err.contains("wallet_sign_spender_unrecognised"), "{err}");
     for s in ["Permit", "USD Coin", "spender", "0x3333333333333333333333333333333333333333"] { assert!(err.contains(s), "{s}: {err}") }
-    assert_eq!(log.lock().unwrap().len(), 2);
+    assert_eq!(log.lock().unwrap().len(), 0);
+    // a typed data without spender-like fields is summarized and sent
+    let mail = r#"{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"chainId","type":"uint256"}],"Mail":[{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","chainId":1},"message":{"contents":"Hello"}}"#;
+    let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0xsig"}"#.into())]);
+    let p = serde_json::json!(["0x1111111111111111111111111111111111111111", mail]).to_string();
+    let (c, _, err) = run(&["--allow-wallet-sign", &url, "eth_signTypedData_v4", &p], "");
+    assert_eq!(c, 0, "{err}"); assert!(err.contains("Ether Mail"), "{err}"); assert_eq!(log.lock().unwrap().len(), 2);
     for bad in [r#""not json""#, r#"{"primaryType":"Permit"}"#, r#"{"types":{"Permit":[{"name":"a","type":"uint256"}]},"primaryType":"Permit","domain":{},"message":{"a":1,"hidden":2}}"#] {
         let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into())]);
         let p = format!(r#"["0x1111111111111111111111111111111111111111",{bad}]"#);
@@ -360,4 +367,25 @@ fn empty_auth_file_fails_closed_exit_2() {
     assert!(!out.contains("hunter2") && !err.contains("hunter2"));
     let _ = std::fs::remove_file(&d);
     assert!(log.lock().unwrap().is_empty());
+}
+
+#[test]
+fn typed_data_permit_deny_by_default() {
+    let usdc = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../recipes/fixtures/evm/eip2612-permit-usdc.json")).unwrap();
+    let drainer = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../recipes/fixtures/evm/permit-drainer-exact-balance.json")).unwrap();
+    let p2 = "0x000000000022d473030f116ddee9f6b43ac78ba3";
+    let case = |td: &str, extra: &[&str]| {
+        let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0xsig"}"#.into())]);
+        let params = serde_json::json!(["0x7e9578235485f0e8cd0761ec6e570a2ab144f406", td]).to_string();
+        let mut a = vec!["--allow-wallet-sign"]; a.extend_from_slice(extra); a.extend([url.as_str(), "eth_signTypedData_v4", params.as_str()]);
+        let (c, _, err) = run(&a, "");
+        let n = log.lock().unwrap().len(); (c, err, n)
+    };
+    let (c, err, n) = case(&usdc, &[]); assert_eq!(c, 1); assert!(err.contains("wallet_sign_permit_unasserted"), "{err}"); assert_eq!(n, 0);
+    let (c, err, n) = case(&drainer, &["--expect-spender", p2]); assert_eq!(c, 1); assert!(err.contains("spender_not_expected"), "{err}"); assert_eq!(n, 0);
+    let (c, err, _) = case(&usdc, &["--expect-spender", p2]); assert_eq!(c, 1); assert!(err.contains("unlimited_approval"), "{err}");
+    let (c, err, n) = case(&usdc, &["--expect-spender", p2, "--expect-unlimited"]); assert_eq!(c, 0, "{err}"); assert_eq!(n, 2);
+    let (c, err, _) = case(&drainer, &["--expect-spender", "0x1111111111111111111111111111111111111111", "--expect-amount", "5"]); assert_eq!(c, 1); assert!(err.contains("amount_not_expected"), "{err}");
+    let (c, err, n) = case(&drainer, &["--expect-spender", "0x1111111111111111111111111111111111111111", "--expect-amount", "1234567890"]); assert_eq!(c, 0, "{err}"); assert_eq!(n, 2);
+    let (c, err, _) = case(&usdc, &["--expect-unlimited"]); assert_eq!(c, 2); assert!(err.contains("expect_unlimited_needs_expect_spender"), "{err}");
 }
