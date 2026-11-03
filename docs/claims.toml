@@ -1108,3 +1108,15 @@ date = "2026-11-02"
 cheap = false
 depends = ["crates/evm/src/presign.rs", "tools/tx-sign/src/main.rs", "scripts/e2e.d/tx-sign-presign.sh"]
 doc = []
+
+[[claim]]
+id = "permit-expect-spender"
+statement = "typed-data-verify --expect-spender / --expect-amount / --expect-unlimited and the wasm evmTypedDataVerify options expect_spender / expect_amount / expect_unlimited (shared permit::apply) fail closed with spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable for EIP-2612, DAI and Permit2 single/batch/transfer permits; an exact-balance drainer permit below 2^128 fails spender_not_expected; wrong types throw <key>_must_be_string"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/wasm-check.sh"
+expect = "evmTypedDataVerify permit spender ok"
+cheap = false
+depends = ["crates/evm/src/permit.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs"]
+doc = []

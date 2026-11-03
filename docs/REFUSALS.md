@@ -186,6 +186,9 @@ tx-sign --tx "$FX/evm-approve.hex" --chain-id 1 --expect-to "$EVM_TO" < "$FX/key
 
 ### `spender_not_expected`
 A decoded approval names a different spender than `--expect-spender`.
+`typed-data-verify --expect-spender` (and the wasm `evmTypedDataVerify` option `expect_spender`) gives the same status
+for a signed permit (EIP-2612, DAI, Permit2): a permit for exactly your balance is below 2^128, so only the spender
+catches a drainer. Typed data that is not a recognised permit gives `spender_not_checkable` / `amount_not_checkable`.
 
 <!-- run rc=1 expect=spender_not_expected -->
 ```sh
