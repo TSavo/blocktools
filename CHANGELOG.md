@@ -7,6 +7,18 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-02
+
+Minor release, not tagged yet. Highlights:
+- **Behaviour change:** `tx-sign` and the wasm `verifyTx` now refuse unlimited approvals, unasserted batch inner calls
+  and Safe delegatecalls by default (see Changed).
+- `msg-verify` and `msg-sign` support Tron signMessageV2, Solana (raw / offchain-v0) and Cosmos ADR-036.
+- New `siwe` tool (EIP-4361).
+- `abi-decode --allow-gaps` / `evmAbiDecode` `allow_gaps`.
+- Fixed: Cosmos addresses that were also valid Solana keys were misdetected; they now give `ambiguous_address`
+  unless the chain is named (new `msgVerifyOpts` key `"chain"`).
+- 76 wasm exports (was 75; new `msgVerifyOpts`).
+
 ### Added
 - New tool `siwe`: builds an EIP-4361 Sign-In with Ethereum message from JSON fields (`siwe build [--raw]`) and
   parses one strictly (`siwe parse`): only valid, canonical text is accepted, otherwise `refused` (exit 1). Opt-in
@@ -45,6 +57,10 @@ Numbers and security statements here are only those registered as measured in do
   (scripts/e2e.d/msg-chains-sign.sh, msg-chains-sign-e2e); Solana offchain-v0 and Cosmos are round-trip only (UNTESTED).
 - `scripts/recipe-check.py` runs a recipe `curl` example only in the exact shape `curl [opts] $ETH/... | filters`
   (shlex-parsed; `;`, `&&`, `||`, `$(`, backticks, other URLs refused), with a self-test in hygiene-check.
+- `abi-decode --allow-gaps` (wasm `evmAbiDecode` request field `"allow_gaps": true`, must be a bool, else
+  `allow_gaps_must_be_bool`): opt-in partial decode where a dynamic tail may start after its canonical position (e.g.
+  one LI.FI `BridgeData` parameter out of longer calldata). Skipped bytes are reported as `gap_bytes` and never decoded;
+  backwards/overlapping offsets, bounds, dirty padding and `trailing_data` are still refused. docs/ABI-STRICT.md.
 
 ### Changed
 - Behaviour change: `tx-sign` now runs the same approval/transfer/inner-call checks as `tx-verify` (shared
@@ -52,6 +68,15 @@ Numbers and security statements here are only those registered as measured in do
   Multicall3, Safe MultiSend) and unlimited approvals that `tx-sign` signed before are now refused unless asserted with
   `--expect-spender ADDR --expect-unlimited`, `--allow-inner-call TO:SELECTOR` or `--allow-delegatecall TO`. The
   optional `--expect-amount`, `--expect-recipient` and `--expect-value` flags work as in `tx-verify`, also with `--plan`.
+- `scripts/claims-check.py` K-ci: lists main push runs unfiltered and keeps completed+success runs client-side
+  (the `status=success` listing had omitted a green run), with a self-test and a negative case.
+
+### Fixed
+- `msg-verify` / wasm `msgVerify`, `msgVerifyOpts`: a Cosmos address with a 4-letter prefix that is also a valid
+  32-byte on-curve Solana base58 key (e.g. `osmo148yundzwcr97np3s8c8yrx2p6p33ck6sd4stfm`) was detected as Solana,
+  so `--pubkey` was refused with `pubkey_only_for_cosmos`. Such strings are now refused with `ambiguous_address`
+  unless the chain is named: `--chain cosmos|sol`, or the new `msgVerifyOpts` key `"chain"` (JSON string). A wrong
+  named chain is refused with `chain_does_not_match_address` (msg-ambiguous-address).
 
 ### Known limitations
 - `siwe`: UNTESTED on messages from real wallets or dapps beyond spruceid's published vectors; no wasm export.
@@ -67,11 +92,6 @@ apt/apk/rpm repository signing work on the release signer's engine. Version 0.3.
 internal pin, the wasm package, lockfiles and man pages (version-check) (this release).
 
 ### Fixed
-- `msg-verify` / wasm `msgVerify`, `msgVerifyOpts`: a Cosmos address with a 4-letter prefix that is also a valid
-  32-byte on-curve Solana base58 key (e.g. `osmo148yundzwcr97np3s8c8yrx2p6p33ck6sd4stfm`) was detected as Solana,
-  so `--pubkey` was refused with `pubkey_only_for_cosmos`. Such strings are now refused with `ambiguous_address`
-  unless the chain is named: `--chain cosmos|sol`, or the new `msgVerifyOpts` key `"chain"` (JSON string). A wrong
-  named chain is refused with `chain_does_not_match_address` (msg-ambiguous-address).
 - The `repos` release job (signed apt/apk/rpm repositories) never completed for 0.3.0–0.3.2: the host
   signing scripts bind-mounted the private key and the package inputs into their one-shot signing
   containers with `docker run -v`, but the release signer's engine is Docker Desktop on Windows, which
