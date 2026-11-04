@@ -685,6 +685,7 @@ console.log('lift7 ok');
   assert.throws(() => v(usdc, {expect_spender: '0x12'}), /expect_spender_bad_address/);
   assert.throws(() => v(usdc, {expect_amount: '-1'}), /expect_amount_not_decimal/);
   console.log('evmTypedDataVerify permit spender ok');
+  {
   // Seaport orders (shared seaport::apply): fail closed on no / dust consideration and unknown deployments
   const sl = JSON.parse(fx('seaport-listing-1.6.json')), sd = JSON.parse(fx('seaport-drainer-zero-consideration.json'));
   const s1 = v(sl); assert.equal(s1.status, 'ok'); assert.equal(s1.seaport.version, '1.6'); assert.equal(s1.seaport.canonical_deployment, true);
@@ -699,4 +700,5 @@ console.log('lift7 ok');
   assert.throws(() => v(sl, {expect_min_consideration: 'native:x'}), /expect_min_consideration_bad_amount/);
   assert.throws(() => v(sl, {expect_min_consideration: '0x12:1'}), /expect_min_consideration_bad_token/);
   console.log('evmTypedDataVerify seaport ok');
+  }
 }
