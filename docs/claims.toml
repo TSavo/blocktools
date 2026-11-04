@@ -1143,14 +1143,13 @@ doc = []
 
 [[claim]]
 id = "seaport-order-check"
-note = "Parked: BulkOrder recognition extended to heights 1..24; restamp from a green main run."
 statement = "typed-data-verify (exit 1) and the wasm evmTypedDataVerify (shared seaport::apply) report Seaport 1.5 / 1.6 OrderComponents and BulkOrder (tree heights 1..24) orders as seaport_no_consideration when nothing nonzero comes back to the offerer, seaport_unknown_deployment for another version or a non-canonical verifyingContract, and with expect_min_consideration seaport_dust_consideration / seaport_not_checkable; rpc --allow-wallet-sign refuses Seaport orders unless --allow-seaport-order or --expect-min-consideration is given"
 kind = "security"
 platform = "linux"
-status = "untested"
-commit = "2cacc446"
+status = "measured"
+commit = "a6c08e1b"
 date = "2026-11-04"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify seaport ok\"; gate (test) rpc cli suite green incl. typed_data_seaport_deny_by_default"
+env = "main ci run 41908412908 at a6c08e1b (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify seaport ok\"; gate (test) green incl. seaport::tests::bulk_every_official_height (heights 1,2,3,7,10 built in full, 1..24 type strings, 0/25/odd shapes not checkable)"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify seaport ok"
 cheap = false
