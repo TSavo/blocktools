@@ -283,6 +283,8 @@ The agent must never see keys, seeds or passwords. Every refusal exits 1 (status
 | `wallet_sign_chain_mismatch` | the flagged request's chain id differs from the endpoint's `eth_chainId` (or from `--chain-id`) |
 | `wallet_sign_chain_unknown` | the flagged request has no chain id and none was given with `--chain-id` |
 | `wallet_sign_permit_unasserted` | `eth_signTypedData_v4` is a recognised permit (EIP-2612, DAI, Permit2) and `--expect-spender` was not given |
+| `wallet_sign_seaport_unasserted` | `eth_signTypedData_v4` is a Seaport order (OrderComponents / BulkOrder, or domain name Seaport) and neither `--allow-seaport-order` nor `--expect-min-consideration` was given |
+| `seaport_no_consideration` / `seaport_dust_consideration` / `seaport_unknown_deployment` / `seaport_not_checkable` | the Seaport order returns nothing nonzero to the offerer, less than every `--expect-min-consideration` floor, is not Seaport 1.5 / 1.6 at its canonical address, or cannot be read |
 | `wallet_sign_spender_unrecognised` | `eth_signTypedData_v4` is not a recognised permit but has address fields named like a spender (spender, operator, delegate, approved, allowed) |
 | `spender_not_expected` / `amount_not_expected` / `unlimited_approval` | the permit's spender or an amount differs from `--expect-spender` / `--expect-amount`, or an amount is unlimited (>= 2^128, uint160 max, DAI `allowed=true`) without `--expect-unlimited` |
 | `method_not_allowlisted` | the method or REST path is not in the protocol's read allowlist (below) and `--allow-unlisted` was not given |
@@ -422,6 +424,12 @@ UI is the human confirmation. Before anything is sent, `rpc`:
      your balance is below 2^128, so only the spender catches a drainer. Typed data with spender-like address fields
      that is not a recognised permit is refused (`wallet_sign_spender_unrecognised`); there is no blanket allow. The
      same check is `typed-data-verify --expect-spender` (shared `permit::apply`).
+   - A Seaport order (1.5 / 1.6 `OrderComponents` or `BulkOrder`) is refused (`wallet_sign_seaport_unasserted`) unless
+     `--allow-seaport-order` or `--expect-min-consideration SPEC` is given (SPEC: `N` or `native:N` for the native
+     currency, `0xTOKEN:N` for an ERC20, smallest units, comma-separated; at least one floor must be met). Even then an
+     order that returns nothing to the signer (`seaport_no_consideration`), one below every floor
+     (`seaport_dust_consideration`), another version or address (`seaport_unknown_deployment`) or an unreadable one
+     (`seaport_not_checkable`) is refused. Same check: `typed-data-verify --expect-min-consideration`.
 2. Fetches the endpoint's `eth_chainId`. The call is refused if it differs from the request's chain id (or from `--chain-id`),
    or if neither one gives a chain id.
 3. Prints this summary on stderr, then sends the exact stdin or argument bytes:

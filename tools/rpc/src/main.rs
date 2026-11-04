@@ -27,6 +27,11 @@
 //!                         matches (wallet_sign_permit_unasserted, spender_not_expected, amount_not_expected,
 //!                         unlimited_approval unless --expect-unlimited); spender-like fields in an unrecognised shape
 //!                         are refused (wallet_sign_spender_unrecognised)
+//!   --expect-min-consideration SPEC, --allow-seaport-order
+//!                         eth_signTypedData_v4 Seaport orders are refused (wallet_sign_seaport_unasserted) unless one
+//!                         is given, and then still refused when the offerer receives nothing or (SPEC: N | native:N |
+//!                         0xTOKEN:N, smallest units) less than every floor: seaport_no_consideration,
+//!                         seaport_dust_consideration, seaport_unknown_deployment, seaport_not_checkable
 //!   --allow-unlisted      send a method or REST path that is not in the per-protocol read allowlist (default: refused,
 //!                         method_not_allowlisted, nothing sent); the deny-list, secret-field and broadcast refusals still apply
 //!   --prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
@@ -58,7 +63,7 @@ use rpc::*;
 use serde_json::{json, Value};
 use std::io::{IsTerminal, Read};
 
-struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, permit: blocktools_evm::permit::PermitExpect, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: std::cell::Cell<u64>, timeout_set: bool, prevtxs: Option<String> }
+struct Cx { url: String, proto: Option<Proto>, headers: Vec<(String, String)>, secrets: Vec<String>, deny: Vec<String>, wallet_sign: bool, permit: blocktools_evm::permit::PermitExpect, seaport: blocktools_evm::seaport::SeaportExpect, allow_seaport: bool, allow_unlisted: bool, chain_id: Option<u64>, chain: String, timeout: std::cell::Cell<u64>, timeout_set: bool, prevtxs: Option<String> }
 
 fn fail(cx: Option<&Cx>, status: &str, extra: Value) -> ! {
     let mut v = json!({"tool":"rpc","status":status});
@@ -419,6 +424,7 @@ fn passthrough(cx: &Cx, body: Vec<u8>) {
             Ok(Pass::WalletSign) => {
                 let (summary, cid) = wallet_sign_summary(m, &params).unwrap_or_else(|r| refused(cx, r));
                 wallet_sign_permit_check(m, &params, &cx.permit).unwrap_or_else(|r| { eprint!("{summary}"); refused(cx, r) });
+                wallet_sign_seaport_check(m, &params, &cx.seaport, cx.allow_seaport).unwrap_or_else(|r| { eprint!("{summary}"); refused(cx, r) });
                 let got = endpoint_chain_id(cx);
                 let want = cid.or(cx.chain_id).unwrap_or_else(|| refused(cx, Refusal { code: "wallet_sign_chain_unknown", detail: "request carries no chain id; give --chain-id N".into() }));
                 if want != got || cx.chain_id.is_some_and(|c| c != got) { refused(cx, Refusal { code: "wallet_sign_chain_mismatch", detail: format!("request chain id {want}, endpoint eth_chainId {got}") }) }
@@ -459,6 +465,7 @@ fn main() {
     blocktools_io::help(&usage);
     let mut pos = vec![]; let mut proto = None; let mut chain_id = None; let mut chain = "btc".to_string(); let mut auth: Option<String> = None;
     let mut deny = vec![]; let mut wallet_sign = false; let (mut want_sp, mut want_amt, mut want_unl): (Option<String>, Option<String>, bool) = (None, None, false); let mut allow_unlisted = false; let mut timeout = 30; let mut timeout_set = false; let mut prevtxs = None;
+    let (mut want_min, mut allow_seaport): (Option<String>, bool) = (None, false);
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         let mut val = |k: &str| it.next().unwrap_or_else(|| bad(None, &format!("{k} needs a value")));
@@ -473,6 +480,8 @@ fn main() {
             "--expect-spender" => want_sp = Some(val("--expect-spender")),
             "--expect-amount" => want_amt = Some(val("--expect-amount")),
             "--expect-unlimited" => want_unl = true,
+            "--expect-min-consideration" => want_min = Some(val("--expect-min-consideration")),
+            "--allow-seaport-order" => allow_seaport = true,
             "--allow-unlisted" => allow_unlisted = true,
             "--prevtxs" => prevtxs = Some(val("--prevtxs")),
             "--timeout" => { timeout = val("--timeout").parse::<u64>().ok().filter(|t| (1..=MAX_TIMEOUT).contains(t)).unwrap_or_else(|| bad(None, "--timeout 1..86400")); timeout_set = true }
@@ -494,7 +503,8 @@ fn main() {
     let method = pos.get(1).cloned();
     let proto = proto.or_else(|| detect_url(&url)).or_else(|| method.as_deref().filter(|m| !SHORTCUTS.contains(m) && !m.starts_with('/')).and_then(detect_method));
     let permit = blocktools_evm::permit::PermitExpect::new(want_sp.as_deref(), want_amt.as_deref(), want_unl).unwrap_or_else(|e| bad(None, &e));
-    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, permit, allow_unlisted, chain_id, chain, timeout: std::cell::Cell::new(timeout), timeout_set, prevtxs };
+    let seaport = blocktools_evm::seaport::SeaportExpect::new(want_min.as_deref()).unwrap_or_else(|e| bad(None, &e));
+    let cx = Cx { url, proto, headers, secrets, deny, wallet_sign, permit, seaport, allow_seaport, allow_unlisted, chain_id, chain, timeout: std::cell::Cell::new(timeout), timeout_set, prevtxs };
     if pos.len() > 4 || (pos.len() == 4 && pos[1] != "rawtx") { bad(Some(&cx), "too many arguments") }
     match method.as_deref() {
         None => {

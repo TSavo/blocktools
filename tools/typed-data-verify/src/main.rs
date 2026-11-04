@@ -12,7 +12,12 @@
 //! amount without --expect-unlimited, or a typed data that is not a recognised permit sets status
 //! spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable
 //! (exit 1). Without them the fields spender_unasserted / unlimited_approval are advisory (status unchanged).
-use blocktools_evm::{eip712, permit};
+//!   typed-data-verify [--expect-min-consideration SPEC] seaport-order.json
+//! A Seaport order (OrderComponents / BulkOrder, Seaport 1.5 / 1.6) is summarized as `seaport` (what the offerer
+//! gives, what comes back to the offerer, what goes to others) and fails closed (exit 1) when the offerer receives
+//! nothing (seaport_no_consideration), the deployment is not canonical (seaport_unknown_deployment), the shape is not
+//! checkable (seaport_not_checkable), or with SPEC no listed currency reaches its floor (seaport_dust_consideration).
+use blocktools_evm::{eip712, permit, seaport};
 use blocktools_io::outln;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -33,6 +38,10 @@ fn main() {
   --expect-unlimited      accept an unlimited amount (>= 2^128, DAI allowed=true); needs --expect-spender
   With an --expect-spender/--expect-amount on typed data that is not a recognised permit: spender_not_checkable /
   amount_not_checkable (exit 1). Unknown shapes list spender-like fields in unrecognised_spender_fields.
+  --expect-min-consideration SPEC  Seaport orders: floors in smallest units, comma-separated: N or native:N (native
+                  currency), 0xTOKEN:N (ERC20); the offerer must receive at least one floor, else
+                  seaport_dust_consideration (exit 1). Seaport orders always fail closed (exit 1) on
+                  seaport_no_consideration / seaport_unknown_deployment / seaport_not_checkable.
 FILE (or stdin): EIP-712 typed data {types, primaryType, domain, message}, an eth_signTypedData_v4
 request ({\"params\": [address, typedData]}, typedData as object or JSON string: the address becomes the
 expected signer), or {typed_data, signature, signer}. Without --signer, prints the recovered address only.
@@ -41,6 +50,7 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
     let (mut sig, mut signer, mut file) = (None, None, None);
     let (mut want_cid, mut want_vc): (Option<String>, Option<String>) = (None, None);
     let (mut want_sp, mut want_amt, mut want_unl): (Option<String>, Option<String>, bool) = (None, None, false);
+    let mut want_min: Option<String> = None;
     let mut it = a.into_iter();
     while let Some(x) = it.next() {
         match x.as_str() {
@@ -51,6 +61,7 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
             "--expect-spender" => want_sp = Some(it.next().unwrap_or_else(|| die("expect_spender_needs_value"))),
             "--expect-amount" => want_amt = Some(it.next().unwrap_or_else(|| die("expect_amount_needs_value"))),
             "--expect-unlimited" => want_unl = true,
+            "--expect-min-consideration" => want_min = Some(it.next().unwrap_or_else(|| die("expect_min_consideration_needs_value"))),
             s if s.starts_with("--") => die("unknown_option"),
             _ => { if file.is_some() { die("one_file_only") } file = Some(x) }
         }
@@ -71,12 +82,15 @@ Prints domain_separator, message_hash and digest so you can compare them with wh
     } else { v };
     if signer.is_some() && sig.is_none() { die("signer_needs_sig"); }
     let pe = permit::PermitExpect::new(want_sp.as_deref(), want_amt.as_deref(), want_unl).unwrap_or_else(|e| die(&e));
+    let se = seaport::SeaportExpect::new(want_min.as_deref()).unwrap_or_else(|e| die(&e));
     match eip712::verify(&td, sig.as_deref(), signer.as_deref()) {
         Ok(mut o) => {
             eip712::apply_expect(&mut o, want_cid.as_deref(), want_vc.as_deref()).unwrap_or_else(|e| die(&e));
             permit::apply(&mut o, &td, &pe);
+            seaport::apply(&mut o, &td, &se);
             outln!("{o}");
-            if permit::FAIL_STATUSES.contains(&o["status"].as_str().unwrap_or("")) { std::process::exit(1) }
+            let st = o["status"].as_str().unwrap_or("");
+            if permit::FAIL_STATUSES.contains(&st) || seaport::FAIL_STATUSES.contains(&st) { std::process::exit(1) }
         }
         Err(e) => die(&e),
     }

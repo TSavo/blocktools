@@ -1140,3 +1140,16 @@ date = "2026-11-03"
 cheap = false
 depends = ["crates/evm/src/permit.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs"]
 doc = []
+
+[[claim]]
+id = "seaport-order-check"
+note = "New check, not yet run on a green main; restamp from a green run's wasm-check log line."
+statement = "typed-data-verify (exit 1) and the wasm evmTypedDataVerify (shared seaport::apply) report Seaport 1.5 / 1.6 OrderComponents and BulkOrder orders as seaport_no_consideration when nothing nonzero comes back to the offerer, seaport_unknown_deployment for another version or a non-canonical verifyingContract, and with expect_min_consideration seaport_dust_consideration / seaport_not_checkable; rpc --allow-wallet-sign refuses Seaport orders unless --allow-seaport-order or --expect-min-consideration is given"
+kind = "security"
+platform = "linux"
+status = "untested"
+command = "sh scripts/wasm-check.sh"
+expect = "evmTypedDataVerify seaport ok"
+cheap = false
+depends = ["crates/evm/src/seaport.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs", "tools/rpc/src/lib.rs"]
+doc = []

@@ -14,6 +14,7 @@ pub mod inspect;
 pub mod metadata;
 pub mod permit;
 pub mod presign;
+pub mod seaport;
 pub mod sig;
 pub mod u256;
 

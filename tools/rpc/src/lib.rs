@@ -294,6 +294,22 @@ pub fn wallet_sign_permit_check(method: &str, params: &Value, e: &blocktools_evm
     Ok(())
 }
 
+/// Deny by default for Seaport orders in eth_signTypedData_v4 (shared blocktools_evm::seaport, as typed-data-verify
+/// --expect-min-consideration): a Seaport order (OrderComponents / BulkOrder, or domain name "Seaport") is refused
+/// (wallet_sign_seaport_unasserted) unless --allow-seaport-order or --expect-min-consideration SPEC is given, and then
+/// still refused on seaport_no_consideration / seaport_dust_consideration / seaport_unknown_deployment /
+/// seaport_not_checkable. Other typed data and other methods pass unchanged.
+pub fn wallet_sign_seaport_check(method: &str, params: &Value, e: &blocktools_evm::seaport::SeaportExpect, allow: bool) -> Result<(), Refusal> {
+    use blocktools_evm::seaport;
+    if norm(method) != "eth_signtypeddata_v4" { return Ok(()) }
+    let td: Value = match params.get(1) { Some(Value::String(s)) => serde_json::from_str(s).map_err(|_| refuse("wallet_sign_undecodable", String::from("typedData string is not JSON")))?, Some(v) => v.clone(), None => return Err(refuse("wallet_sign_undecodable", String::from("params[1] missing"))) };
+    let Some(c) = seaport::check(&td, e) else { return Ok(()) };
+    let code = |s: &str| -> &'static str { seaport::FAIL_STATUSES.iter().copied().find(|x| *x == s).unwrap_or("seaport_not_checkable") };
+    if !allow && !e.asserted() { return Err(refuse("wallet_sign_seaport_unasserted", format!("Seaport order {}; pass --expect-min-consideration SPEC (or --allow-seaport-order)", c["seaport"]))) }
+    if let Some(s) = c["status"].as_str() { return Err(refuse(code(s), c["seaport"].to_string())) }
+    Ok(())
+}
+
 /// Field names that mean a response is carrying a secret.
 pub const RESPONSE_SECRET_FIELDS: &[&str] = &["privkey", "privatekey", "private_key", "hdseed", "mnemonic", "seed_phrase", "spend_key", "spendingkey", "secret_key", "wif", "xprv"];
 const XPRV: &[&str] = &["xprv", "tprv", "yprv", "zprv", "uprv", "vprv", "Yprv", "Zprv", "Ltpv"];

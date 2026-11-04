@@ -396,3 +396,25 @@ fn typed_data_permit_deny_by_default() {
     let (c, err, n) = case(&drainer, &["--expect-spender", "0x1111111111111111111111111111111111111111", "--expect-amount", "1234567890"]); assert_eq!(c, 0, "{err}"); assert_eq!(n, 2);
     let (c, err, _) = case(&usdc, &["--expect-unlimited"]); assert_eq!(c, 2); assert!(err.contains("expect_unlimited_needs_expect_spender"), "{err}");
 }
+
+#[test]
+fn typed_data_seaport_deny_by_default() {
+    let listing = std::fs::read_to_string(fixture("seaport-listing-1.6.json")).unwrap();
+    let drainer = std::fs::read_to_string(fixture("seaport-drainer-zero-consideration.json")).unwrap();
+    let case = |td: &str, extra: &[&str]| {
+        let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0xsig"}"#.into())]);
+        let params = serde_json::json!(["0x2222222222222222222222222222222222222222", td]).to_string();
+        let mut a = vec!["--allow-wallet-sign"]; a.extend_from_slice(extra); a.extend([url.as_str(), "eth_signTypedData_v4", params.as_str()]);
+        let (c, _, err) = run(&a, "");
+        let n = log.lock().unwrap().len(); (c, err, n)
+    };
+    // no opt-in: refused, nothing sent, even for a legit listing
+    let (c, err, n) = case(&listing, &[]); assert_eq!(c, 1); assert!(err.contains("wallet_sign_seaport_unasserted"), "{err}"); assert_eq!(n, 0);
+    let (c, err, n) = case(&drainer, &[]); assert_eq!(c, 1); assert!(err.contains("wallet_sign_seaport_unasserted"), "{err}"); assert_eq!(n, 0);
+    // opted in: the drainer still fails closed
+    let (c, err, n) = case(&drainer, &["--allow-seaport-order"]); assert_eq!(c, 1); assert!(err.contains("seaport_no_consideration"), "{err}"); assert_eq!(n, 0);
+    let (c, err, n) = case(&listing, &["--expect-min-consideration", "native:2000000000000000000"]); assert_eq!(c, 1); assert!(err.contains("seaport_dust_consideration"), "{err}"); assert_eq!(n, 0);
+    let (c, err, n) = case(&listing, &["--expect-min-consideration", "native:900000000000000000"]); assert_eq!(c, 0, "{err}"); assert_eq!(n, 2);
+    let (c, err, n) = case(&listing, &["--allow-seaport-order"]); assert_eq!(c, 0, "{err}"); assert_eq!(n, 2);
+    let (c, err, _) = case(&listing, &["--expect-min-consideration", "native:x"]); assert_eq!(c, 2); assert!(err.contains("expect_min_consideration_bad_amount"), "{err}");
+}
