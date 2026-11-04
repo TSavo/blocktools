@@ -24,7 +24,10 @@ Numbers and security statements here are only those registered as measured in do
   `seaport_no_consideration`, `seaport_unknown_deployment`, `seaport_not_checkable` and, with the new
   `--expect-min-consideration SPEC` / option `expect_min_consideration` (`N`, `native:N`, `0xTOKEN:N`),
   `seaport_dust_consideration` (exit 1). NFT-for-NFT swaps pass and are listed (`nft_consideration`). No wasm export
-  added (seaport-order-check, untested).
+  added (seaport-order-check, untested). `BulkOrder` is recognised at every official tree height 1..24 (seaport-js
+  bulk-orders.ts, seaport-core Verifiers.sol), each by its exact `OrderComponents[2]…` type string; every leaf is
+  checked, empty padding leaves are skipped, one drainer leaf fails the whole signature; other shapes stay
+  `seaport_not_checkable`.
 
 ### Changed
 - **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)

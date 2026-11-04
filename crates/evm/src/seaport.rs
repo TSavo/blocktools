@@ -7,6 +7,10 @@
 //!   eip-712-types/order.js, bulkOrder.js, domain.js       the typed-data definitions used here
 //!   reference/lib/ReferenceConsiderationBase.sol           the same type strings (OfferItem, ConsiderationItem,
 //!                                                          OrderComponents, BulkOrder(OrderComponents[2]x7 tree))
+//!   seaport-js src/utils/eip712/bulk-orders.ts (main e635c29): BulkOrder `tree` type is `OrderComponents` + `[2]`
+//!   repeated `height` times, height = max(ceil(log2(order count)), 1); seaport-core src/lib/Verifiers.sol (main)
+//!   accepts bulk proofs of 1..=24 siblings ("(1 <= y <= 24)"), and seaport-types TypehashDirectory.sol holds the 24
+//!   BulkOrder typehashes. So heights 1..=24 are recognised, each as its exact type string; any other is not checkable.
 //!   contracts/Seaport.sol `_nameString` = "Seaport"; ConsiderationConstants.sol information_versionWithLength
 //!   0x03312e35 ("1.5", tag 1.5) and 0x03312e36 ("1.6", seaport-types main)
 //!   README.md deployments: Seaport 1.5 0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC,
@@ -41,7 +45,15 @@ const OFFER_ITEM: &[(&str, &str)] = &[("itemType", "uint8"), ("token", "address"
 const CONS_ITEM: &[(&str, &str)] = &[("itemType", "uint8"), ("token", "address"), ("identifierOrCriteria", "uint256"), ("startAmount", "uint256"), ("endAmount", "uint256"), ("recipient", "address")];
 const ORDER: &[(&str, &str)] = &[("offerer", "address"), ("zone", "address"), ("offer", "OfferItem[]"), ("consideration", "ConsiderationItem[]"), ("orderType", "uint8"),
     ("startTime", "uint256"), ("endTime", "uint256"), ("zoneHash", "bytes32"), ("salt", "uint256"), ("conduitKey", "bytes32"), ("counter", "uint256")];
-const BULK_TREE: &str = "OrderComponents[2][2][2][2][2][2][2]";
+/// Official BulkOrder tree heights (seaport-core Verifiers.sol: 1 <= height <= 24).
+pub const BULK_MIN_HEIGHT: usize = 1;
+pub const BULK_MAX_HEIGHT: usize = 24;
+/// The exact `tree` type string for a BulkOrder of height `h`.
+pub fn bulk_tree_type(h: usize) -> String { format!("OrderComponents{}", "[2]".repeat(h)) }
+/// The BulkOrder height declared by `types`, when BulkOrder is exactly {tree: OrderComponents[2]^h} for an official h.
+fn bulk_height(types: &serde_json::Map<String, Value>) -> Option<usize> {
+    (BULK_MIN_HEIGHT..=BULK_MAX_HEIGHT).find(|&h| is_shape(types, "BulkOrder", &[("tree", bulk_tree_type(h).as_str())]))
+}
 const ITEM: &[&str] = &["native", "erc20", "erc721", "erc1155", "erc721_with_criteria", "erc1155_with_criteria"];
 const ORDER_TYPE: &[&str] = &["full_open", "partial_open", "full_restricted", "partial_restricted", "contract"];
 const YEAR_PLUS: u128 = 366 * 86400;
@@ -178,11 +190,11 @@ fn order(m: &Value, e: &SeaportExpect) -> Option<OrderResult> {
     Some((s, status, f))
 }
 
-fn leaves<'a>(v: &'a Value, depth: usize, out: &mut Vec<&'a Value>) -> Option<()> {
-    if depth == 7 { out.push(v); return Some(()) }
+fn leaves<'a>(v: &'a Value, depth: usize, h: usize, out: &mut Vec<&'a Value>) -> Option<()> {
+    if depth == h { out.push(v); return Some(()) }
     let a = v.as_array()?;
     if a.len() != 2 { return None }
-    for x in a { leaves(x, depth + 1, out)? }
+    for x in a { leaves(x, depth + 1, h, out)? }
     Some(())
 }
 
@@ -195,9 +207,10 @@ pub fn check(td: &Value, e: &SeaportExpect) -> Option<Value> {
     let Some(m) = td.get("message") else { return nc("no_message") };
     let orders: Vec<&Value> = match p {
         "OrderComponents" if shapes => vec![m],
-        "BulkOrder" if shapes && is_shape(types, "BulkOrder", &[("tree", BULK_TREE)]) => {
+        "BulkOrder" if shapes && bulk_height(types).is_some() => {
+            let h = bulk_height(types).unwrap_or(0);
             let mut o = vec![];
-            if m.get("tree").and_then(|t| leaves(t, 0, &mut o)).is_none() { return nc("bad_bulk_tree") }
+            if m.get("tree").and_then(|t| leaves(t, 0, h, &mut o)).is_none() { return nc("bad_bulk_tree") }
             o
         }
         _ => return nc("not_a_seaport_order_shape"),
@@ -344,14 +357,45 @@ mod tests {
         let o = run(&td("1.6", SEAPORT_1_6, m), None);
         assert_eq!(o["status"], "ok");
         for f in ["zone_set", "restricted_order_type", "criteria_item", "far_future_end_time"] { assert!(o["seaport_findings"].as_array().unwrap().contains(&json!(f)), "{f}") }
-        // BulkOrder: 128 leaves; one drainer leaf fails the whole signature; empty padding leaves pass
-        let mut ty = types(); ty["BulkOrder"] = json!([{"name":"tree","type":BULK_TREE}]);
+    }
+    fn bulk(h: usize, at: usize, x: &Value) -> Value {
+        let mut ty = types(); ty["BulkOrder"] = json!([{"name":"tree","type":bulk_tree_type(h)}]);
         let pad = msg(json!([]), json!([]));
-        fn tree(d: usize, n: &mut usize, x: &Value, pad: &Value) -> Value { if d == 7 { *n += 1; return if *n == 77 { x.clone() } else { pad.clone() } } json!([tree(d + 1, n, x, pad), tree(d + 1, n, x, pad)]) }
-        let mk = |x: &Value| json!({"types":ty,"primaryType":"BulkOrder","domain":{"name":"Seaport","version":"1.6","chainId":1,"verifyingContract":SEAPORT_1_6},"message":{"tree":tree(0, &mut 0, x, &pad)}});
-        let o = run(&mk(&listing()), None);
-        assert_eq!(o["status"], "ok", "{}", o["status"]); assert_eq!(o["seaport"]["orders"].as_array().unwrap().len(), 128);
-        assert_eq!(run(&mk(&msg(nft_offer(), json!([eth("1", DRAINER)]))), None)["status"], "seaport_no_consideration");
+        fn tree(d: usize, h: usize, n: &mut usize, at: usize, x: &Value, pad: &Value) -> Value {
+            if d == h { *n += 1; return if *n == at { x.clone() } else { pad.clone() } }
+            json!([tree(d + 1, h, n, at, x, pad), tree(d + 1, h, n, at, x, pad)])
+        }
+        json!({"types":ty,"primaryType":"BulkOrder","domain":{"name":"Seaport","version":"1.6","chainId":1,"verifyingContract":SEAPORT_1_6},"message":{"tree":tree(0, h, &mut 0, at, x, &pad)}})
+    }
+    #[test]
+    fn bulk_every_official_height() {
+        // heights 1, 2, 3, 7, 10 built in full: one real leaf + padding passes, one drainer leaf fails the whole signature
+        let drainer = msg(nft_offer(), json!([eth("1", DRAINER)]));
+        for h in [1usize, 2, 3, 7, 10] {
+            let n = 1usize << h;
+            let o = run(&bulk(h, n, &listing()), None);
+            assert_eq!(o["status"], "ok", "h={h} {}", o["status"]); assert_eq!(o["seaport"]["orders"].as_array().unwrap().len(), n);
+            assert_eq!(o["seaport"]["kind"], "bulk_order");
+            assert_eq!(run(&bulk(h, 1, &drainer), None)["status"], "seaport_no_consideration", "h={h}");
+            // padding-only tree: nothing is offered, so nothing to fail on (padding leaves are skipped)
+            assert_eq!(run(&bulk(h, 0, &listing()), None)["status"], "ok", "h={h}");
+            // tree depth must match the declared height exactly
+            let mut t = bulk(h, 1, &listing()); t["message"]["tree"] = json!([t["message"]["tree"].clone(), t["message"]["tree"].clone()]);
+            assert_eq!(check(&t, &SeaportExpect::default()).unwrap()["status"], "seaport_not_checkable", "h={h}");
+            let mut t = bulk(h, 1, &listing()); t["message"]["tree"] = json!([t["message"]["tree"][0].clone()]);
+            assert_eq!(check(&t, &SeaportExpect::default()).unwrap()["seaport"]["reason"], "bad_bulk_tree", "h={h}");
+        }
+        // every official height 1..=24 is recognised by its exact type string (24 = 2^24 leaves: a full tree is far too
+        // large to build in a test, so the max is checked at the type level and with a wrong-depth tree)
+        let mut ty = types();
+        for h in BULK_MIN_HEIGHT..=BULK_MAX_HEIGHT { ty["BulkOrder"] = json!([{"name":"tree","type":bulk_tree_type(h)}]); assert_eq!(bulk_height(ty.as_object().unwrap()), Some(h)) }
+        let mut t = bulk(1, 1, &listing()); t["types"]["BulkOrder"][0]["type"] = json!(bulk_tree_type(24));
+        assert_eq!(check(&t, &SeaportExpect::default()).unwrap()["seaport"]["reason"], "bad_bulk_tree");
+        // unofficial heights and odd shapes stay fail-closed
+        for bad in [bulk_tree_type(0), bulk_tree_type(25), "OrderComponents[3]".into(), "OrderComponents[2][]".into(), "OrderComponents[]".into()] {
+            let mut t = bulk(1, 1, &listing()); t["types"]["BulkOrder"][0]["type"] = json!(bad);
+            assert_eq!(check(&t, &SeaportExpect::default()).unwrap()["status"], "seaport_not_checkable", "{bad}");
+        }
     }
     #[test]
     fn malformed_and_not_seaport() {
