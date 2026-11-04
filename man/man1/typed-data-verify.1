@@ -31,6 +31,15 @@ is summarized as `permit`; with \-\-expect\-spender / \-\-expect\-amount a diffe
 amount without \-\-expect\-unlimited, or a typed data that is not a recognised permit sets status
 spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable
 (exit 1). Without them the fields spender_unasserted / unlimited_approval are advisory (status unchanged).
+.nf
+.RS 2
+  typed\-data\-verify [\-\-expect\-min\-consideration SPEC] seaport\-order.json
+.RE
+.fi
+A Seaport order (OrderComponents / BulkOrder, Seaport 1.5 / 1.6) is summarized as `seaport` (what the offerer
+gives, what comes back to the offerer, what goes to others) and fails closed (exit 1) when the offerer receives
+nothing (seaport_no_consideration), the deployment is not canonical (seaport_unknown_deployment), the shape is not
+checkable (seaport_not_checkable), or with SPEC no listed currency reaches its floor (seaport_dust_consideration).
 .SH OPTIONS
 .nf
   \-\-sig HEX       signature: 65 bytes r||s||v (v 27/28 or 0/1) or 64 bytes EIP\-2098 compact
@@ -42,12 +51,17 @@ spender_not_expected / amount_not_expected / unlimited_approval / spender_not_ch
   \-\-expect\-unlimited      accept an unlimited amount (>= 2^128, DAI allowed=true); needs \-\-expect\-spender
   With an \-\-expect\-spender/\-\-expect\-amount on typed data that is not a recognised permit: spender_not_checkable /
   amount_not_checkable (exit 1). Unknown shapes list spender\-like fields in unrecognised_spender_fields.
+  \-\-expect\-min\-consideration SPEC  Seaport orders: floors in smallest units, comma\-separated: N or native:N (native
+                  currency), 0xTOKEN:N (ERC20); the offerer must receive at least one floor, else
+                  seaport_dust_consideration (exit 1). Seaport orders always fail closed (exit 1) on
+                  seaport_no_consideration / seaport_unknown_deployment / seaport_not_checkable.
 .fi
 .SH INPUT/OUTPUT
 .nf
 .RS 2
   typed\-data\-verify mail.json
   typed\-data\-verify \-\-sig 0x.. \-\-signer 0x.. < typed\-data.json
+  typed\-data\-verify [\-\-expect\-min\-consideration SPEC] seaport\-order.json
 .RE
 .fi
 .SH EXIT STATUS

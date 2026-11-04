@@ -58,6 +58,11 @@ Options:
                         matches (wallet_sign_permit_unasserted, spender_not_expected, amount_not_expected,
                         unlimited_approval unless \-\-expect\-unlimited); spender\-like fields in an unrecognised shape
                         are refused (wallet_sign_spender_unrecognised)
+  \-\-expect\-min\-consideration SPEC, \-\-allow\-seaport\-order
+                        eth_signTypedData_v4 Seaport orders are refused (wallet_sign_seaport_unasserted) unless one
+                        is given, and then still refused when the offerer receives nothing or (SPEC: N | native:N |
+                        0xTOKEN:N, smallest units) less than every floor: seaport_no_consideration,
+                        seaport_dust_consideration, seaport_unknown_deployment, seaport_not_checkable
   \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                         method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
   \-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
@@ -102,6 +107,11 @@ Bounds: 30 s timeout (3600 s for slow methods; \-\-timeout), redirects never fol
                       matches (wallet_sign_permit_unasserted, spender_not_expected, amount_not_expected,
                       unlimited_approval unless \-\-expect\-unlimited); spender\-like fields in an unrecognised shape
                       are refused (wallet_sign_spender_unrecognised)
+\-\-expect\-min\-consideration SPEC, \-\-allow\-seaport\-order
+                      eth_signTypedData_v4 Seaport orders are refused (wallet_sign_seaport_unasserted) unless one
+                      is given, and then still refused when the offerer receives nothing or (SPEC: N | native:N |
+                      0xTOKEN:N, smallest units) less than every floor: seaport_no_consideration,
+                      seaport_dust_consideration, seaport_unknown_deployment, seaport_not_checkable
 \-\-allow\-unlisted      send a method or REST path that is not in the per\-protocol read allowlist (default: refused,
                       method_not_allowlisted, nothing sent); the deny\-list, secret\-field and broadcast refusals still apply
 \-\-prevtxs FILE        sendraw: previous txs (rpc URL prevtxs lines, or one hex tx per line) for the fee line
