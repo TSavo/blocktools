@@ -180,8 +180,13 @@ def main():
                         done = {x["name"] for x in j["jobs"] if x["conclusion"] == "success"}
                         ok = j["headSha"].startswith(com) and need <= done
                     if not ok: bad.append(f"[K-macos] {cid}: ci_run {run} has no successful macos job (and {c.get('ci_job', 'no extra jobs')}) at {com}")  # rule:K-macos
-            if c.get("command") and (c.get("cheap") or run_all):
-                r = subprocess.run(c["command"], shell=True, capture_output=True, text=True)
+            # a trailing "(...)" in command is an annotation, not shell; "(CI job ...)" claims rest on that CI job (ci_run), not a local re-run
+            cmd = re.sub(r"\s*\([^()]*\)\s*$", "", c.get("command", ""))
+            ci_only = "(CI job " in c.get("command", "") or (c.get("platform") == "macos" and sys.platform != "darwin")
+            if cmd and (c.get("cheap") or run_all) and ci_only and not c.get("cheap"):
+                print(f"claims: skip {cid}: measured by its CI job, not re-run locally", file=sys.stderr)
+            elif cmd and (c.get("cheap") or run_all):
+                r = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
                 if "FALLBACK" in r.stdout + r.stderr:
                     bad.append(f"[K-fallback] {cid}: `{c['command']}` measured via a fallback path, not the property")  # rule:K-fallback
                 elif r.returncode or c.get("expect", "\0") not in r.stdout:
