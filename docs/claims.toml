@@ -548,10 +548,11 @@ doc = [{ file = "README.md", text = "hand-measured once, not re-run in CI" }]
 
 [[claim]]
 id = "wrapper-remote-refusal"
+note = "Parked 2026-11-03: blocktools wrapper changed in #70 (--version); re-measure from a completed green main run."
 statement = "./blocktools run/reveal refuse an ssh:// or tcp:// docker engine (DOCKER_HOST or current context) before docker run; BLOCKTOOLS_ALLOW_REMOTE=ssh permits only ssh:// (tcp/http(s) still exit 4); BLOCKTOOLS_ALLOW_REMOTE=1 permits any"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
 commit = "9c48627"
 date = "2026-11-02"
 env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   wrapper-remote: ssh/tcp engines and DOCKER_HOST refused before docker run\""
