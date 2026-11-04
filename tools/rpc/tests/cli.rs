@@ -369,10 +369,17 @@ fn empty_auth_file_fails_closed_exit_2() {
     assert!(log.lock().unwrap().is_empty());
 }
 
+// Runtime CARGO_MANIFEST_DIR (set by cargo test), not the compile-time env!(): the lint gate shares
+// CARGO_TARGET_DIR with throwaway worktrees (check-deps-regress), so a baked-in path can point at a removed tree.
+fn fixture(name: &str) -> std::path::PathBuf {
+    let m = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").into());
+    std::path::Path::new(&m).join("../../recipes/fixtures/evm").join(name)
+}
+
 #[test]
 fn typed_data_permit_deny_by_default() {
-    let usdc = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../recipes/fixtures/evm/eip2612-permit-usdc.json")).unwrap();
-    let drainer = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../recipes/fixtures/evm/permit-drainer-exact-balance.json")).unwrap();
+    let usdc = std::fs::read_to_string(fixture("eip2612-permit-usdc.json")).unwrap();
+    let drainer = std::fs::read_to_string(fixture("permit-drainer-exact-balance.json")).unwrap();
     let p2 = "0x000000000022d473030f116ddee9f6b43ac78ba3";
     let case = |td: &str, extra: &[&str]| {
         let (url, log) = mock(vec![(200, r#"{"id":1,"result":"0x1"}"#.into()), (200, r#"{"id":1,"result":"0xsig"}"#.into())]);
