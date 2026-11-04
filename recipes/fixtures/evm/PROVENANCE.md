@@ -10,3 +10,10 @@
 - `permit2-single-02a.json`: the Permit2 `PermitSingle` and its signature carried inside the public mainnet Universal
   Router tx in `../evm-mainnet/02a-swap-tx.json` (first `execute` input, command 0x0a). The values and signature are
   copied from that tx's calldata; `signer` is that tx's `from`. Nothing here was signed by us.
+- `seaport-listing-1.6.json`: a constructed, UNSIGNED Seaport 1.6 `OrderComponents` listing (domain and types from
+  ProjectOpenSea/seaport eip-712-types, canonical 1.6 address from its README): one ERC721 offered for 0.975 ETH to
+  the offerer plus 0.025 ETH to another recipient. Written by hand; never signed or sent.
+- `seaport-drainer-zero-consideration.json`: the same order with the only consideration (1 wei) going to
+  0x1111111111111111111111111111111111111111: the offerer gets nothing back. UNSIGNED, never sent.
+  Their EIP-712 digests (listing 0x1372f9ee…090b, drainer 0x0ab96a6c…d09f) were checked once against viem 2.57.14
+  `hashTypedData` (scripts/abi-fuzz pin); this is a one-off local check, not a CI gate.

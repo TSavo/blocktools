@@ -79,7 +79,7 @@ The one public endpoint call is labelled.
 Measured on 2026-10-25 20:39 PDT on the Linux box (x86_64). This is a harmless read-only call to a public endpoint:
 
 ```
-$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber
+$ rpc https://ethereum-rpc.publicnode.com eth_blockNumber (untested)
 {"jsonrpc":"2.0","result":"0x190e9b3","id":1}
 $ rpc eth height
 {"height":26274227,"protocol":"evm"}
@@ -101,7 +101,7 @@ The default shortcut set maps to the read-only EVM methods that SwapChan uses (`
 
 | shortcut | method |
 |---|---|
-| `height` | `eth_blockNumber` |
+| `height` | `eth_blockNumber (untested)` |
 | `chainid` | `eth_chainId` |
 | `balance ADDR` | `eth_getBalance [ADDR,"latest"]` |
 | `nonce ADDR` | `eth_getTransactionCount [ADDR,"pending"]` |
@@ -261,13 +261,13 @@ previous tx must hash to the txid the input names. With them the summary shows e
 `FEE UNKNOWN` banner saying which txids were not found, and you must type `ACK FEE-UNKNOWN` before the usual code;
 anything else aborts and nothing is sent. On a pruned node, run `rpc URL rawtx TXID BLOCKHASH` for each input, then
 pass the lines to `--prevtxs`. Tested against scripts/mock-bitcoind.py (a fake regtest node, not bitcoind) by
-`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing.
+`scripts/e2e.d/sendraw-fee.sh`: the fee 0.00001000 is in the confirmation text, and refusing the ACK sends nothing (untested).
 `tx-broadcast` given bare signed UTXO hex (no input values, so no fee) shows the same banner and wants the same
 `ACK FEE-UNKNOWN`; the tx-sign JSON output carries the input values and needs only the code. Tested in
 `scripts/e2e.d/net.sh` against scripts/mock-chain.py: refusing the ACK posts nothing, the ACK plus the code posts once.
 A hostile endpoint can force the banner by answering "not found" (docs/SECURITY.md, known limits).
 
-## Safety: what is refused
+## Safety: what is refused (untested)
 
 The agent must never see keys, seeds or passwords. Every refusal exits 1 (status refused), and nothing is sent to the server:
 
@@ -283,6 +283,8 @@ The agent must never see keys, seeds or passwords. Every refusal exits 1 (status
 | `wallet_sign_chain_mismatch` | the flagged request's chain id differs from the endpoint's `eth_chainId` (or from `--chain-id`) |
 | `wallet_sign_chain_unknown` | the flagged request has no chain id and none was given with `--chain-id` |
 | `wallet_sign_permit_unasserted` | `eth_signTypedData_v4` is a recognised permit (EIP-2612, DAI, Permit2) and `--expect-spender` was not given |
+| `wallet_sign_seaport_unasserted` | `eth_signTypedData_v4` is a Seaport order (OrderComponents / BulkOrder, or domain name Seaport) and neither `--allow-seaport-order` nor `--expect-min-consideration` was given |
+| `seaport_no_consideration` / `seaport_dust_consideration` / `seaport_unknown_deployment` / `seaport_not_checkable` | the Seaport order returns nothing nonzero to the offerer, less than every `--expect-min-consideration` floor, is not Seaport 1.5 / 1.6 at its canonical address, or cannot be read |
 | `wallet_sign_spender_unrecognised` | `eth_signTypedData_v4` is not a recognised permit but has address fields named like a spender (spender, operator, delegate, approved, allowed) |
 | `spender_not_expected` / `amount_not_expected` / `unlimited_approval` | the permit's spender or an amount differs from `--expect-spender` / `--expect-amount`, or an amount is unlimited (>= 2^128, uint160 max, DAI `allowed=true`) without `--expect-unlimited` |
 | `method_not_allowlisted` | the method or REST path is not in the protocol's read allowlist (below) and `--allow-unlisted` was not given |
@@ -422,6 +424,12 @@ UI is the human confirmation. Before anything is sent, `rpc`:
      your balance is below 2^128, so only the spender catches a drainer. Typed data with spender-like address fields
      that is not a recognised permit is refused (`wallet_sign_spender_unrecognised`); there is no blanket allow. The
      same check is `typed-data-verify --expect-spender` (shared `permit::apply`).
+   - A Seaport order (1.5 / 1.6 `OrderComponents` or `BulkOrder`) is refused (`wallet_sign_seaport_unasserted`) unless
+     `--allow-seaport-order` or `--expect-min-consideration SPEC` is given (SPEC: `N` or `native:N` for the native
+     currency, `0xTOKEN:N` for an ERC20, smallest units, comma-separated; at least one floor must be met). Even then an
+     order that returns nothing to the signer (`seaport_no_consideration`), one below every floor
+     (`seaport_dust_consideration`), another version or address (`seaport_unknown_deployment`) or an unreadable one
+     (`seaport_not_checkable`) is refused. Same check: `typed-data-verify --expect-min-consideration`.
 2. Fetches the endpoint's `eth_chainId`. The call is refused if it differs from the request's chain id (or from `--chain-id`),
    or if neither one gives a chain id.
 3. Prints this summary on stderr, then sends the exact stdin or argument bytes:
@@ -431,7 +439,7 @@ wallet-sign eth_sendTransaction (the wallet will ask you to approve)
   from:     0x1111111111111111111111111111111111111111
   to:       0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
   value:    0 wei
-  data:     selector 0xa9059cbb, 68 bytes
+  data:     selector 0xa9059cbb, 68 bytes (unmeasured)
   chain id: 1
   endpoint chain id: 1 (matches)
 ```
@@ -460,7 +468,7 @@ scope.
 
 - Response bodies are data only. When stdout is a terminal, control characters are replaced so that escape sequences cannot
   act on the terminal.
-- Responses larger than 8 MiB are refused.
+- Responses larger than 8 MiB (untested) are refused.
 - Redirects are never followed, to any host. A 3xx is an `http_error`, and v1 has no flag to change this.
 - Only https URLs are accepted, except plain http to localhost/127.0.0.1.
 - Shortcuts re-check what the server returns: txid hex, amounts, and the prev_tx hex.
@@ -519,7 +527,7 @@ Run on Linux (x86_64) on 2026-10-25:
 - `cargo test -p rpc`: the lib tests, plus CLI tests against an in-process mock that records the raw request bytes.
 - `scripts/e2e.d/rpc.sh`.
 - `scripts/e2e.d/rpc-timeout.sh`: the mock holds the response open. It measured the 30 s default timeout
-  (status `timeout` at 30.0 s), plus `--timeout 2`, the slow-method default and the dumptxoutset allowlist refusal.
+  (status `timeout` at 30.0 s (unmeasured)), plus `--timeout 2`, the slow-method default and the dumptxoutset allowlist refusal.
 - `scripts/e2e.d/rpc-decode.sh`: the recipes/rpc-decode.md pipeline against `scripts/mock-bitcoind.py`, a deterministic
   fake pruned regtest bitcoind (pruned and `-txindex` modes). It is a mock, not bitcoind.
 - The single public read shown above.

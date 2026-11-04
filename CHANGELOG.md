@@ -16,6 +16,15 @@ Numbers and security statements here are only those registered as measured in do
   `expect_amount`, `expect_unlimited`: status `spender_not_expected`, `amount_not_expected`, `unlimited_approval`,
   `spender_not_checkable`, `amount_not_checkable` (exit 1). An exact-balance drainer permit (below 2^128) is caught
   by the spender. Without assertions the status is unchanged (advisory fields only). No wasm export added.
+- Seaport order check (`seaport::apply`, shared by `typed-data-verify` and the wasm `evmTypedDataVerify`):
+  `OrderComponents` and `BulkOrder` for Seaport 1.5 and 1.6 at their canonical addresses (ProjectOpenSea/seaport
+  README). New output `seaport` (offer, consideration to the offerer, consideration to others, received per currency,
+  with the smaller of start/end amounts) and advisory `seaport_findings` (zone, zoneHash, conduitKey, restricted or
+  contract order type, criteria items, NFT consideration, far-future endTime, consideration to others). Statuses
+  `seaport_no_consideration`, `seaport_unknown_deployment`, `seaport_not_checkable` and, with the new
+  `--expect-min-consideration SPEC` / option `expect_min_consideration` (`N`, `native:N`, `0xTOKEN:N`),
+  `seaport_dust_consideration` (exit 1). NFT-for-NFT swaps pass and are listed (`nft_consideration`). No wasm export
+  added (seaport-order-check, untested).
 
 ### Changed
 - **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)
@@ -23,6 +32,10 @@ Numbers and security statements here are only those registered as measured in do
   `unlimited_approval` unless `--expect-unlimited`), and refuses typed data with spender-like address fields that is
   not a recognised permit (`wallet_sign_spender_unrecognised`). Nothing is sent when refused. `rpc` now depends on
   `blocktools-evm` (deps/rpc.allow: blocktools-evm, sha2, cpufeatures).
+- **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` Seaport order
+  (`wallet_sign_seaport_unasserted`) unless `--allow-seaport-order` or `--expect-min-consideration SPEC` is given, and
+  then still refuses `seaport_no_consideration`, `seaport_dust_consideration`, `seaport_unknown_deployment`,
+  `seaport_not_checkable`. Nothing is sent when refused.
 
 ## [0.4.0] - 2026-11-02
 

@@ -685,4 +685,18 @@ console.log('lift7 ok');
   assert.throws(() => v(usdc, {expect_spender: '0x12'}), /expect_spender_bad_address/);
   assert.throws(() => v(usdc, {expect_amount: '-1'}), /expect_amount_not_decimal/);
   console.log('evmTypedDataVerify permit spender ok');
+  // Seaport orders (shared seaport::apply): fail closed on no / dust consideration and unknown deployments
+  const sl = JSON.parse(fx('seaport-listing-1.6.json')), sd = JSON.parse(fx('seaport-drainer-zero-consideration.json'));
+  const s1 = v(sl); assert.equal(s1.status, 'ok'); assert.equal(s1.seaport.version, '1.6'); assert.equal(s1.seaport.canonical_deployment, true);
+  assert.equal(s1.seaport.consideration_to_offerer[0].amount, '975000000000000000'); assert.ok(s1.seaport_findings.includes('conduit_key_set'));
+  assert.equal(v(sd).status, 'seaport_no_consideration');
+  assert.equal(v(sl, {expect_min_consideration: 'native:2000000000000000000'}).status, 'seaport_dust_consideration');
+  assert.equal(v(sl, {expect_min_consideration: '900000000000000000'}).status, 'ok');
+  const s15 = JSON.parse(JSON.stringify(sl)); s15.domain.version = '1.5'; assert.equal(v(s15).status, 'seaport_unknown_deployment');
+  s15.domain.verifyingContract = '0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC'; assert.equal(v(s15).status, 'ok');
+  assert.equal(v(mail, {expect_min_consideration: '1'}).status, 'seaport_not_checkable');
+  assert.throws(() => v(sl, {expect_min_consideration: 1}), /expect_min_consideration_must_be_string/);
+  assert.throws(() => v(sl, {expect_min_consideration: 'native:x'}), /expect_min_consideration_bad_amount/);
+  assert.throws(() => v(sl, {expect_min_consideration: '0x12:1'}), /expect_min_consideration_bad_token/);
+  console.log('evmTypedDataVerify seaport ok');
 }

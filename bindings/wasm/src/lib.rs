@@ -480,6 +480,13 @@ pub fn evm_bytecode_inspect(code_hex: &str) -> Result<String, JsError> { Ok(bloc
 /// allowed=true) or, for typed data that is not a recognised permit, spender_not_checkable / amount_not_checkable;
 /// every batch entry must match. Without assertions the status is unchanged (advisory fields only). Wrong types
 /// throw `<key>_must_be_string` / `expect_unlimited_must_be_bool`.
+/// Seaport orders (typed-data-verify --expect-min-consideration, shared seaport::apply; OrderComponents / BulkOrder,
+/// Seaport 1.5 / 1.6 at their canonical addresses) add `seaport {kind, version, canonical_deployment, offerer, zone,
+/// conduit_key, order_type, start_time, end_time, offer[], consideration_to_offerer[], consideration_to_others[],
+/// received_by_currency[]}` (bulk: `orders[]`) and `seaport_findings`, and fail closed whatever the options:
+/// seaport_no_consideration / seaport_unknown_deployment / seaport_not_checkable, and with
+/// `{expect_min_consideration?: "N | native:N | 0xTOKEN:N, ..."}` (smallest units) seaport_dust_consideration.
+/// Option errors: expect_min_consideration_must_be_string / _empty / _bad_amount / _bad_token / _duplicate_token.
 #[wasm_bindgen(js_name = evmTypedDataVerify)]
 pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, signer: Option<String>, options_json: Option<String>) -> Result<String, JsError> {
     let td: serde_json::Value = serde_json::from_str(typed_data_json).map_err(|_| JsError::new("bad_typed_data_json"))?;
@@ -490,6 +497,8 @@ pub fn evm_typed_data_verify(typed_data_json: &str, sig_hex: Option<String>, sig
     blocktools::evm::eip712::apply_expect(&mut o, cid.as_deref(), vc.as_deref()).map_err(err)?;
     let pe = blocktools::evm::permit::PermitExpect::from_json(&opt).map_err(err)?;
     blocktools::evm::permit::apply(&mut o, &td, &pe);
+    let se = blocktools::evm::seaport::SeaportExpect::from_json(&opt).map_err(err)?;
+    blocktools::evm::seaport::apply(&mut o, &td, &se);
     Ok(o.to_string())
 }
 
