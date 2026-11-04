@@ -16,6 +16,8 @@ bad=$(grep -L "\"blocktools $v\"" man/man1/*.1 man/man7/*.7 || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL version-check: man headers not $v: $bad"; rc=1; }
 bad=$(grep -nE '[0-9]+\.[0-9]+\.[0-9]+-(1|r0)|^ver=[0-9]' scripts/package-native.sh scripts/package-test.sh scripts/package-dist.sh 2>/dev/null || [ $? -eq 1 ])
 [ -z "$bad" ] || { echo "FAIL version-check: packaging scripts hardcode a version:"; echo "$bad"; rc=1; }
+b=$(sed -n 's/^BLOCKTOOLS_VERSION=\([^ ]*\).*/\1/p' blocktools); [ "$b" = "$v" ] || { echo "FAIL version-check: blocktools wrapper $b != $v"; rc=1; }
+o=$(cd "${TMPDIR:-/tmp}" && sh "$root/blocktools" --version 2>&1) || true; [ "$o" = "blocktools $v" ] || { echo "FAIL version-check: blocktools --version printed: $o"; rc=1; }
 if [ $# -gt 0 ]; then [ "$1" = "v$v" ] || { echo "FAIL version-check: tag $1 != v$v"; rc=1; }; fi
 [ $rc -eq 0 ] && echo "ok   version-check: $v everywhere${1:+, tag $1}"
 exit $rc
