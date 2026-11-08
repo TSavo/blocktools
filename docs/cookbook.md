@@ -23,7 +23,11 @@ snippets from chat logs.
 ## By chain
 
 See the chain table in [recipes/README.md](../recipes/README.md) and [CHAINS.md](CHAINS.md).
-Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON) use `acct-tx`; XRP uses `xrp-tx`; Monero uses `xmr-keys` / `xmr-wallet`.
+Account-model chains (XLM, ALGO, ATOM, ADA, DOT, TON, RUNE) use `acct-tx`; XRP uses `xrp-tx`; Monero uses `xmr-keys` / `xmr-wallet`.
+The parent `tx-build` and `tx-sign` verbs also accept `--chain` to hand off to those account/XRP backends.
+Solana/Tron use `tx-build --chain sol|tron` and `tx-verify --chain sol|tron` (or `sol-tron-tx` directly),
+not `tx-sign` or `tx-broadcast`. See [VERB-CHAIN.md](VERB-CHAIN.md) for backend flags and unsupported steps;
+these CLI hand-offs do not add wasm exports.
 
 ## By goal
 

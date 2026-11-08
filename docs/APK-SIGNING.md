@@ -71,7 +71,7 @@ apk update && apk add blocktools
 ```
 
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
-(same SHA-256). Current package: `blocktools-0.4.0-r0`, from tag v0.4.0 (live APKINDEX `V:0.4.0-r0` fetched 2026-11-08, not install-tested in that check). It replaced `0.1.1-r0`, which had replaced the pre-release
+(same SHA-256). Current package: `blocktools-0.4.0-r0`, from tag v0.4.0 (live APKINDEX `V:0.4.0-r0` fetched 2026-11-08; install measurement below). It replaced `0.1.1-r0`, which had replaced the pre-release
 `0.1.1_pre20261026-r0` (apk orders that below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
@@ -82,7 +82,21 @@ the same tmpfs, read-only-bind, output-suppressed flow as `apk-sign-host.sh`, an
 trusts it with the repo key and flags it UNTRUSTED without. The published files were scanned for PEM
 private-key blocks before the push (none).
 
-Measured 2026-10-26 in fresh `alpine:latest` containers (Alpine 3.24.3, apk-tools 3.0.8, x86_64):
+### Current package: 0.4.0-r0
+
+Measured 2026-11-08 on Battleaxe in `alpine:latest` (Alpine 3.24.3, apk-tools 3.0.8-r0, x86_64):
+- live Pages URL, repository key installed: `apk update` and `apk add blocktools` succeeded;
+- 56 of 58 executables ran `--help` with exit 0; `/usr/bin/blocktools` and `/usr/bin/recover.sh`
+  printed wrapper usage and exited 2;
+- without the repository key, `apk update` and `apk add` exited 1 (`UNTRUSTED signature`).
+
+Evidence: [alpine-apk-install-0.4.0](CLAIMS.md), measured at `55d8cad1`.
+This does not re-measure the historical packages below or the tampered-package case.
+
+### Historical package measurements
+
+Measured 2026-10-26 on `0.1.1_pre20261026-r0` in fresh `alpine:latest` containers
+(Alpine 3.24.3, apk-tools 3.0.8, x86_64); historical pin, currently untested in the claims ledger:
 - live Pages URL, key from the raw GitHub URL: `apk update` and `apk add blocktools` succeeded, and
   43 of 43 installed executables ran `--help` (exit below 126);
 - live Pages URL without the key: `UNTRUSTED signature`, and `apk add blocktools` failed;

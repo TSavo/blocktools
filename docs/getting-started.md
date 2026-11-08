@@ -30,9 +30,11 @@ cargo build --locked --release --workspace     # binaries in target/release/
 ./blocktools build                             # sealed Docker image blocktools:local
 ```
 
-**DEB / RPM / APK (dry-run packaging only, nothing is published):** `scripts/package-dist.sh` and
-`scripts/package-native.sh`; install-tested in debian/fedora/alpine containers, man pages under
-`/usr/share/man`.
+**DEB / RPM / APK:** published package repositories serve v0.4.0; follow the
+[repository install instructions](RELEASE-REPOS.md). Local packaging uses
+`scripts/package-dist.sh` and `scripts/package-native.sh`; man pages go under `/usr/share/man`.
+See [APK-SIGNING.md](APK-SIGNING.md) for the current Alpine install measurement and
+[APT-SIGNING.md](APT-SIGNING.md) for the older, version-pinned Debian/Ubuntu measurements.
 
 ## 2. The security model in plain words
 

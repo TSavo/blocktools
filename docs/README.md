@@ -16,7 +16,8 @@ Measured results are Linux-only unless labelled.
 - Man pages: `man -l man/man1/<tool>.1`, overview `man -l man/man7/blocktools.7`. Every man page
   example is run by `scripts/gen-man.py --check`.
 - [Offline policy file](POLICY.md) for tx-verify / tx-sign.
-- [Supported chains](CHAINS.md), [chain spec files](CHAIN-SPEC.md), [adding a chain](ADDING-A-CHAIN.md).
+- [Supported chains](CHAINS.md), [verb × chain coverage](VERB-CHAIN.md) (`--chain` hand-offs and unavailable steps),
+  [chain spec files](CHAIN-SPEC.md), [adding a chain](ADDING-A-CHAIN.md).
 
 ## Trust it
 - [Security](SECURITY.md): threat model, sealed runs, what is and is not protected.

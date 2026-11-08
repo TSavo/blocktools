@@ -1,7 +1,9 @@
 # Release package repositories (Alpine, apt, RPM)
 
 Served from the `gh-pages` branch at `https://tsavo.github.io/blocktools/{alpine,apt,rpm}`, x86_64 only.
-Current version in all three: 0.4.0 (from tag v0.4.0; apt and rpm advertise `0.4.0-1`, alpine advertises `0.4.0-r0`, read from the published indexes on 2026-11-08). Those index versions were not install-tested in that check. Signing keys live only in the maintainer's Vault;
+Current version in all three: 0.4.0 (from tag v0.4.0; apt and rpm advertise `0.4.0-1`, alpine advertises `0.4.0-r0`, read from the published indexes on 2026-11-08). The index-version check did not test installs; Alpine `0.4.0-r0` was subsequently install-tested
+(see [APK-SIGNING.md](APK-SIGNING.md)). The apt/rpm v0.4.0 installs remain unmeasured.
+Signing keys live only in the maintainer's Vault;
 see [APK-SIGNING.md](APK-SIGNING.md) and [APT-SIGNING.md](APT-SIGNING.md).
 
 ## Install
