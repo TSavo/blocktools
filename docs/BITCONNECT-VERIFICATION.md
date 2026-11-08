@@ -27,7 +27,7 @@ an explorer repository README rather than a usable live RPC endpoint.
 
 A public [bootstrap release](https://github.com/bitconnectCore/bitconnect-blockchain-bootstrap/releases/tag/1.0)
 survives: [bitconnect.zip](https://github.com/bitconnectCore/bitconnect-blockchain-bootstrap/releases/download/1.0/bitconnect.zip),
-952185431 bytes, SHA-256
+SHA-256
 `fa28f1c06e1ce1b4d66db10046806d4e4d71298e224e6a30412ca1b0ff183992`, matching the
 publisher's checksum. Only public `bitconnect/blk0001.dat` was parsed; no wallet or executable
 was opened. The release describes a height-1083000 snapshot; this check only reads through 1337.
