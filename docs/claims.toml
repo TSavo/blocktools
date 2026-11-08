@@ -536,11 +536,15 @@ doc = [{ file = "README.md", text = "macOS sealed path is unverified" }, { file 
 
 [[claim]]
 id = "macos-remote-context-empty-in"
-statement = "On macOS 26.3.1 x86_64 with an ssh:// docker context, ./blocktools run executed on the remote host and the container saw an empty /in (hand check once, 2026-10-26, not re-runnable in CI)"
+statement = "On macOS 26.3.1 x86_64 at 2efe6ae2, ssh://battleaxe (Docker Desktop 29.8.2 linux/x86_64): ./blocktools run refuses without override (exit 4); with BLOCKTOOLS_ALLOW_REMOTE=ssh, classify /in/probe.txt returns status ok and the container sees the Mac's ./in file. Hand check 2026-11-08, not re-runnable in CI"
 kind = "platform"
 platform = "macos"
 status = "untested"
-doc = [{ file = "README.md", text = "hand-measured once, not re-run in CI" }]
+note = "Replaces the 2026-10-26 empty-/in observation. The wrapper streams ./in over docker exec stdin into tmpfs; the container read the Mac's probe file. Left untested because a measured macos claim needs a GitHub macos CI job, and GitHub macos runners have no Docker."
+doc = [
+  { file = "README.md", text = "the container saw the Mac's `./in` file" },
+  { file = "docs/MACOS.md", text = "classify read `./in/probe.txt`" },
+]
 
 [[claim]]
 id = "wrapper-remote-refusal"
