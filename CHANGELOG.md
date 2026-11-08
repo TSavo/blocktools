@@ -40,6 +40,8 @@ Numbers and security statements here are only those registered as measured in do
   (`wallet_sign_seaport_unasserted`) unless `--allow-seaport-order` or `--expect-min-consideration SPEC` is given, and
   then still refuses `seaport_no_consideration`, `seaport_dust_consideration`, `seaport_unknown_deployment`,
   `seaport_not_checkable`. Nothing is sent when refused.
+- `docs/COVERAGE.md` lists the `tx-build --chain` overlaps with `sol-tron-tx`, `xrp-tx`, and `acct-tx`.
+- The sealed image Dockerfile copies `fixtures/evm-mainnet`, which `crates/tx/tests/evm_decode.rs` reads.
 
 ## [0.4.0] - 2026-11-02
 
