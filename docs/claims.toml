@@ -977,10 +977,11 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
+note = "Parked 2026-11-08: depends include tools/tx-build, tools/tx-sign and tools/tx-broadcast, which changed in 5e973a7b (--chain delegation). Last measured at 9c48627 / main CI 41542526072. Restamp from the next green main run of `sh scripts/e2e.d/evm-devnet.sh`."
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
 commit = "9c48627"
 env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) log: \"ok   amsterdam: recipe's old --gas 100000 -> status 0x0\""
 date = "2026-11-02"
@@ -1112,10 +1113,11 @@ doc = [{ file = "docs/CHAINS.md", text = "msg-chains-sign.sh` (msg-chains-sign-e
 
 [[claim]]
 id = "tx-sign-presign-checks"
+note = "Parked 2026-11-08: depends include tools/tx-sign/src/main.rs, which changed in 5e973a7b (--chain delegation). Last measured at 9c48627 / main CI 41542526072. Restamp from the next green main run of `sh scripts/e2e.d/tx-sign-presign.sh`."
 statement = "tx-sign runs the tx-verify approval/transfer/batch checks (shared presign::apply) before reading a key and again on the signed bytes, deny by default: an unlimited approve fails unlimited_approval, a multicall hiding one fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall, also with --plan; with --expect-spender --expect-unlimited the approve is signed and the signed bytes pass tx-verify with the same assertions"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
 commit = "9c48627"
 env = "main ci run 41542526072 at 9c48627 (success), gate (e2e) and macos logs: \"ok   tx-sign --plan with --expect-spender --expect-unlimited signs\""
 command = "sh scripts/e2e.d/tx-sign-presign.sh"

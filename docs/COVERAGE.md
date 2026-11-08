@@ -17,7 +17,7 @@ in the script's `NO_TX_VERB`; a new tool binary in neither list fails the gate. 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | decode | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>tx-envelope **(2+)** | tx-decode<br>sol-tron-tx<br>tx-envelope **(2+)** | tx-decode<br>sol-tron-tx<br>tx-envelope **(2+)** | tx-decode<br>xrp-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | tx-decode<br>acct-tx **(2+)** | - |
 | verify | tx-verify<br>tx-envelope **(2+)** | tx-verify<br>tx-envelope **(2+)** | tx-verify<br>tx-envelope **(2+)** | tx-verify<br>tx-envelope **(2+)** | tx-verify<br>tx-envelope **(2+)** | tx-verify<br>tx-envelope **(2+)** | sol-tron-tx<br>tx-envelope **(2+)** | sol-tron-tx | - | - | - | - | - | - | - | - |
-| build | tx-build | tx-build | tx-build | tx-build | tx-build | tx-build | sol-tron-tx | sol-tron-tx | xrp-tx | acct-tx | acct-tx | acct-tx | acct-tx | acct-tx | acct-tx | - |
+| build | tx-build | tx-build | tx-build | tx-build | tx-build | tx-build | tx-build<br>sol-tron-tx **(2+)** | tx-build<br>sol-tron-tx **(2+)** | tx-build<br>xrp-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build<br>acct-tx **(2+)** | tx-build |
 | sign | tx-sign | tx-sign | tx-sign | tx-sign | tx-sign | tx-sign | - | - | xrp-tx | acct-tx | acct-tx | acct-tx | acct-tx | acct-tx | acct-tx | - |
 | broadcast | tx-broadcast | tx-broadcast | tx-broadcast | - | - | tx-broadcast | - | - | - | - | - | - | - | - | - | - |
 | sweep | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | xmr-wallet |
@@ -32,13 +32,18 @@ in the script's `NO_TX_VERB`; a new tool binary in neither list fails the gate. 
 - `decode/btc,ltc,doge,bch,zec,eth`: tx-decode, tx-envelope - same engine (`blocktools_tx::decode`); tx-envelope is the library API's JSON face (EXPORTS.md, vendored by SwapChan), tx-decode the CLI.
 - `verify/btc,ltc,doge,bch,zec,eth`: tx-envelope, tx-verify - same engine; tx-envelope is the library API's JSON face.
 - `verify/sol`: sol-tron-tx, tx-envelope - same engine; tx-envelope is the library API's JSON face. (tron verify: sol-tron-tx only; tx-envelope answers unsupported_family.)
+- `build/xlm,algo,atom,ton,ada,dot`: acct-tx, tx-build - alias: `tx-build --chain C` runs `acct-tx build --chain C` (same directory); stdout byte-identical (scripts/e2e.d/verb-chain.sh). acct-tx keeps its verb for existing scripts.
+- `build/sol,tron`: sol-tron-tx, tx-build - alias: `tx-build --chain C` runs `sol-tron-tx build --chain C` (verb-chain.sh).
+- `build/xrp`: tx-build, xrp-tx - alias: `tx-build --chain xrp` runs `xrp-tx build` (verb-chain.sh).
 
 ## Findings from the audit
 
 - `tx-decode --chain xmr` (and any chain-table name that is not a UTXO chain, zec, eth or a delegated chain) used to parse
   the bytes as a UTXO transaction; it now refuses with `unsupported_chain` before reading input (e2e tx-decode.sh).
-- `tx-verify` and `tx-sign` take the chain from the tx file (`resolve_chain`), so they are listed from their
-  documented chains, not probed: a dummy input fails on the bytes before the chain is checked.
+- `tx-verify` and `tx-sign` are still listed from their documented UTXO/EVM chains, not probed: a dummy input fails
+  on the bytes before the chain is checked. They also take `--chain` for delegation (`tx-verify --chain sol|tron`
+  execs `sol-tron-tx verify`; `tx-sign --chain xrp` and the account chains exec the backend; sol|tron and xmr fail
+  closed). coverage.py does not probe those rows, so those cells are not double-counted here.
 - `tron verify` exists only in sol-tron-tx; `tx-envelope` refuses it.
 - `broadcast` covers btc, ltc, doge, eth only (tx-broadcast --help); every other chain is decode/sign here and broadcast elsewhere.
 
@@ -50,12 +55,12 @@ moves the split from the tool name into the help text. Proposal per tool:
 
 | tool | proposal | rationale |
 |---|---|---|
-| sol-tron-tx | **unify decode (done, alias)**; keep build/verify separate | decode is input-only, so `tx-decode --chain sol|tron` forwards it with no new flags. build takes a `--plan` (Solana recent blockhash and account metas, Tron ref-block bytes) and verify takes `--expect`; neither is like a PSBT or `tx-build --utxos`. Moving them into tx-build/tx-verify would bring in a second flag set and a second policy engine. |
-| xrp-tx | **unify decode (done, alias)**; keep keys/build/sign separate | XRP has an account sequence, a destination tag and X-addresses; its family seed is not BIP39/BIP32. tx-sign's `--expect-to`/typed-code flow could later take the xrp blob. That needs its own review because the signing path would get wider, so not now. |
-| acct-tx | **unify decode (done, alias)**; keep build/sign as they are | acct-tx is already "one verb, chain as a parameter" for six account chains. Folding it into tx-build/tx-sign would mix account-sequence flags (`--seq`, `--seqno`, `--first-round`, `--ttl`) into the UTXO/EVM tools. |
+| sol-tron-tx | **unify decode and build (done, alias)**; verify via `tx-verify --chain sol|tron` | decode and build forward to `sol-tron-tx` (`--plan` still belongs to that backend). `tx-verify --chain sol|tron` execs `sol-tron-tx verify` rather than inventing a mapping from `--expect-to`. |
+| xrp-tx | **unify decode, build, and sign (done, alias)**; keep keys separate | `tx-build --chain xrp` and `tx-sign --chain xrp` exec `xrp-tx`. Keys (family seed, not BIP39/BIP32) stay on `xrp-tx`. |
+| acct-tx | **unify decode, build, and sign (done, alias)** | `tx-build --chain C` and `tx-sign --chain C` exec `acct-tx`. acct-tx keeps its verb and account-sequence flags for existing scripts. |
 | sol-v1 | **keep separate** (not a command) | It is a Node dev oracle (`gen.mjs`) that produces the Solana v1 parity corpus. It has no verb to unify. |
 | zec-sapling | **keep separate** | Shielded key/address derivation (ZIP-32, unified addresses, viewing keys written to a 0600 file) is a different secret model from `derive`. Transparent zec already goes through tx-build/tx-decode/tx-verify/tx-sign. There is no shielded tx verb to unify. |
 | xmr-keys / xmr-wallet | **keep separate** | Monero needs a view-key scan and builds transactions inside monero-wallet-rpc (ring signatures, decoys). xmr-wallet is host-side and needs the network, and sealed-run refuses it. Putting it under tx-build/tx-broadcast would put a networked tool in the sealed set's verbs. |
 
-Net effect: `decode` is the one verb that takes every chain (tx-decode, measured above). build/sign/verify stay
-grouped by transaction model, and the overlaps that remain are listed above with their reasons.
+Net effect: `decode`, `build`, and `sign` take `--chain` and exec the existing backend (sign fails closed for
+sol|tron and xmr). The overlaps that remain are listed above with their reasons.

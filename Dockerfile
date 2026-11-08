@@ -10,10 +10,12 @@ COPY tools tools
 COPY deps deps
 COPY docs/CHAINS.md docs/RPC.md docs/
 COPY recipes/fixtures/evm-mainnet recipes/fixtures/evm-mainnet
+COPY fixtures/evm-mainnet fixtures/evm-mainnet
 COPY fixtures/utxo fixtures/utxo
 COPY fixtures/leveldb fixtures/leveldb
 COPY recipes/fixtures/evm-sol recipes/fixtures/evm-sol
-# quirks test reads docs/CHAINS.md, rpc deny/summary tests read docs/RPC.md (doc/table drift checks)
+# quirks test reads docs/CHAINS.md, rpc deny/summary tests read docs/RPC.md (doc/table drift checks).
+# evm_decode tests read fixtures/evm-mainnet/*.raw.json
 COPY scripts/check-deps.sh scripts/check-deps.sh
 RUN sh scripts/check-deps.sh && cargo test --release --locked -- --skip every_policy_entry_point_uses_shared_verifier && cargo build --release --locked
 # Ship exactly the sealed-run allowlist (crates/io/sealed-tools.txt) plus sealed-run itself: host-side
