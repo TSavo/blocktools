@@ -77,7 +77,7 @@ cmp bcc_mainnet.json crates/tx/tests/data/bcc_mainnet.json
 cargo test -p blocktools-tx --test pos
 cargo test -p blocktools-tx --features secrets --test pos
 cargo test -p blocktools --test coins
-cargo test -p blocktools-core every_utxo_row_matches_independent_vector
+cargo test -p blocktools-core --features secrets every_utxo_row_matches_independent_vector
 ```
 
 The extractor checks the archive checksum before parsing and never extracts wallet data.
