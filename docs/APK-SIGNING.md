@@ -71,8 +71,8 @@ apk update && apk add blocktools
 ```
 
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
-(same SHA-256). Current package: `blocktools-0.1.1-r0`, built from tag v0.1.1 (it replaced the pre-release
-`0.1.1_pre20261026-r0`, which apk orders below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
+(same SHA-256). Current package: `blocktools-0.4.0-r0`, from tag v0.4.0 (live APKINDEX `V:0.4.0-r0` fetched 2026-11-08, not install-tested in that check). It replaced `0.1.1-r0`, which had replaced the pre-release
+`0.1.1_pre20261026-r0` (apk orders that below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
 How it is built (Battleaxe host only, by `scripts/release-repos.sh build`, see RELEASE-REPOS.md):
@@ -95,8 +95,8 @@ prints usage and exits 2; `recover.sh` exits non-zero); a fetched copy with one 
 
 ## Limits (what is not there or not measured)
 
-- The repo holds one x86_64 package (0.1.1-r0); there is no arm64 build. From the next v* tag on,
-  release.yml's `repos` job rebuilds and re-signs it; that job has not yet run on a real tag.
+- The repo holds one x86_64 package (`0.4.0-r0`); there is no arm64 build. release.yml's `repos`
+  job rebuilt and re-signed it on the v0.4.0 tag (GitHub Actions run 41572772693, conclusion success).
 - Signed APKs are not attached to the GitHub release (they are only in the Pages repo).
 - Measured: signing and `apk verify` in `alpine:3.20` containers on x86_64. `apk add` from a
   signed index measured in an Alpine 3.24 container (apk-tools v3, v2 package format). Not measured:

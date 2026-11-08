@@ -1022,7 +1022,7 @@ doc = [{ file = "README.md", text = "the file now lists 42 entries" }]
 
 [[claim]]
 id = "alpine-apk-install-0.1.1pre"
-note = "Hand measurement on 2026-10-26 against the 0.1.1_pre20261026 apk; needs Docker and network (alpine:latest container installing from the live repo), which the CI gate does not run, so it is not stamped. The repo now serves 0.3.3-r0, never install-tested"
+note = "Hand measurement on 2026-10-26 against the 0.1.1_pre20261026 apk; needs Docker and network (alpine:latest container installing from the live repo), which the CI gate does not run, so it is not stamped. The live APKINDEX advertised 0.4.0-r0 on 2026-11-08; that 0.4.0 package was not install-tested here"
 statement = "In an alpine:latest (3.24.3) container, apk add blocktools from the live repo (0.1.1_pre20261026) installed, 43 of 43 executables ran, and the install was refused without the repo key"
 kind = "platform"
 platform = "linux"

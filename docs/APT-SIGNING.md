@@ -88,6 +88,6 @@ installed; an edited `InRelease` gives `BADSIG 607A66058B6C256E`.
 ## Limits (not measured or not there)
 
 - amd64 only; no arm64 package. Not tested on a real (non-container) Debian or Ubuntu host.
-- The repository holds the latest release only (0.1.1-1). From the next v* tag on, release.yml's `repos`
-  job rebuilds and re-signs it (see RELEASE-REPOS.md); that job has not yet run on a real tag.
+- The repository holds the latest release only (`0.4.0-1`, from the live apt Packages file on 2026-11-08). release.yml's `repos`
+  job rebuilt and re-signed it on the v0.4.0 tag (GitHub Actions run 41572772693, conclusion success; see RELEASE-REPOS.md).
 - The key has no expiry. Rotation means a new keyring file here and a new Vault version.

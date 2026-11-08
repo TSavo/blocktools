@@ -42,7 +42,7 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [0.4.0] - 2026-11-02
 
-Minor release, not tagged yet. Highlights:
+Minor release, tagged v0.4.0 on 2026-11-03. Highlights:
 - **Behaviour change:** `tx-sign` and the wasm `verifyTx` now refuse unlimited approvals, unasserted batch inner calls
   and Safe delegatecalls by default (see Changed).
 - `msg-verify` and `msg-sign` support Tron signMessageV2, Solana (raw / offchain-v0) and Cosmos ADR-036.
