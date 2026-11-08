@@ -31,6 +31,7 @@ Numbers and security statements here are only those registered as measured in do
   `seaport_not_checkable`.
 
 ### Changed
+- Restamped sealed image size [image-size-readme], Linux sealed-run [sealed-run-linux], and live Alpine 0.4.0-r0 install [alpine-apk-install-0.4.0] from Battleaxe measurements at 55d8cad1. Restamped evm-devnet-create-call and tx-sign-presign-checks from main CI run 42504158970.
 - **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)
   unless `--expect-spender` matches (`wallet_sign_permit_unasserted`, `spender_not_expected`, `amount_not_expected`,
   `unlimited_approval` unless `--expect-unlimited`), and refuses typed data with spender-like address fields that is
