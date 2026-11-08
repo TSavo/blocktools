@@ -3,7 +3,7 @@
 tx\-build \- build an UNSIGNED transaction offline from files and flags. Never touches the network
 .SH SYNOPSIS
 .nf
-tx\-build \-\-chain btc|ltc|doge|eth ... (see \-\-help in source docs / recipes) \-> unsigned PSBT or EVM tx
+tx\-build \-\-chain btc|ltc|doge|eth|zec|sol|tron|xrp|xlm|algo|atom|ton|ada|dot|rune|xmr ... \-> unsigned tx (sol/tron/xrp/account chains exec the existing backend; \-\-chain xmr is refused: use host xmr\-wallet; zec is transparent v5 here, not zec\-sapling)
 .fi
 .SH DESCRIPTION
 UTXO chains \-> {"psbt": base64}; EVM \-> {"unsigned_tx": hex}. Pipe the result to tx\-decode.
@@ -31,10 +31,19 @@ Build calldata with abi\-encode; check it with tx\-verify \-\-call SIGNATURE (or
 \-\-account FILE is one JSON object with chain_id (required, must equal \-\-chain\-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 (utxo\-fetch writes it); flags override it. ERC\-20 sends need native gas at the old address:
 build the gas top\-up first with \-\-topup GAS_UNITS from a funded address.
+.nf
+.RS 2
+  tx\-build \-\-chain sol|tron \-\-plan FILE  \-> execs sol\-tron\-tx build (unsigned; takes no keys)
+  tx\-build \-\-chain xrp ...               \-> execs xrp\-tx build (same flags, without \-\-chain)
+  tx\-build \-\-chain xlm|algo|atom|ton|ada|dot|rune ... \-> execs acct\-tx build \-\-chain C
+  tx\-build \-\-chain xmr is refused (xmr_requires_wallet_rpc): there is no offline unsigned builder;
+   host\-side monero\-wallet\-rpc signing stays on `xmr\-wallet sweep`. zec\-sapling is address
+   derivation only; transparent ZEC stays in this tool (`\-\-chain zec \-\-sweep`).
+.RE
+.fi
 .SH OPTIONS
 .nf
 \-\-chain
-\-\-help
 .fi
 Each flag's meaning is in the SYNOPSIS usage line(s) above (taken from \-\-help).
 .SH INPUT/OUTPUT

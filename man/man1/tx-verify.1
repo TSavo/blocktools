@@ -4,6 +4,7 @@ tx\-verify \- check a transaction (stdin; any format tx\-decode reads) against w
 .SH SYNOPSIS
 .nf
 tx\-verify [\-\-chain C] (\-\-plan FILE | [\-\-expect\-to ADDR]... [\-\-change ADDR]... [\-\-chain\-id N] [\-\-max\-fee N] [\-\-expect\-memo MEMO] [\-\-policy FILE]) [\-\-allow\-warnings] [\-\-allow\-value\-with\-token] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] [\-\-expect\-spender ADDR] [\-\-expect\-amount N | \-\-expect\-unlimited] [\-\-expect\-recipient ADDR] [\-\-expect\-value WEI] [\-\-allow\-inner\-call TO:SELECTOR]... [\-\-allow\-delegatecall TO]... < tx
+  sol|tron execs sol\-tron\-tx verify (pass \-\-expect JSON); xrp and account chains: verify_not_available; xmr: xmr_requires_wallet_rpc.
 .fi
 .SH DESCRIPTION
 .nf
@@ -44,6 +45,9 @@ EVM content checks (blocktools_evm::approval; deny by default, opt\-in exact ass
 .fi
 EVM default fee cap: 0.01 ETH (same as tx\-sign); UTXO: no cap unless \-\-max\-fee.
 Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
+`\-\-chain sol|tron` execs `sol\-tron\-tx verify` (pass that tool's `\-\-expect JSON`).
+`\-\-chain xrp` and account chains have no verify backend (`verify_not_available`).
+`\-\-chain xmr` is refused (`xmr_requires_wallet_rpc`).
 .SH OPTIONS
 .nf
 \-\-abi
@@ -56,6 +60,7 @@ Exit 0 and status "ok" only when every check passes; otherwise status "failed", 
 \-\-chain\-id
 \-\-change
 \-\-create\-hash
+\-\-expect
 \-\-expect\-amount
 \-\-expect\-memo
 \-\-expect\-recipient
@@ -75,6 +80,7 @@ tx\-verify: check a transaction (stdin; any format tx\-decode reads) against wha
   equals MEMO byte\-for\-byte (UTF\-8); without it every OP_RETURN is refused (unexpected_output).
 .RE
 .fi
+`\-\-chain sol|tron` execs `sol\-tron\-tx verify` (pass that tool's `\-\-expect JSON`).
 .SH EXIT STATUS
 Measured on Linux by the EXAMPLES below (scripts/gen\-man.py runs them):
 .TP

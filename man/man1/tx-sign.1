@@ -3,7 +3,7 @@
 tx\-sign \- sign ONE transaction after a human reads its summary and types a code on /dev/tty
 .SH SYNOPSIS
 .nf
-tx\-sign \-\-tx FILE (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-partial] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] [\-\-expect\-spender ADDR] [\-\-expect\-amount N | \-\-expect\-unlimited] [\-\-expect\-recipient ADDR] [\-\-expect\-value WEI] [\-\-allow\-inner\-call TO:SELECTOR]... [\-\-allow\-delegatecall TO]... < keys   (asks for a code on the terminal)
+tx\-sign \-\-tx FILE [\-\-chain C] (\-\-plan FILE | \-\-expect\-to ADDR [...] [\-\-max\-fee N] [\-\-policy FILE]) [\-\-partial] [\-\-call SIGNATURE]... [\-\-abi FILE] [\-\-create\-hash KECCAK] [\-\-expect\-spender ADDR] [\-\-expect\-amount N | \-\-expect\-unlimited] [\-\-expect\-recipient ADDR] [\-\-expect\-value WEI] [\-\-allow\-inner\-call TO:SELECTOR]... [\-\-allow\-delegatecall TO]... < keys   (asks for a code on the terminal)
 .fi
 .SH DESCRIPTION
 .nf
@@ -52,8 +52,13 @@ EVM content checks (same blocktools_evm::presign::apply as tx\-verify, before si
 .RE
 .fi
 Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with \-\-max\-fee.
+`\-\-chain sol|tron` is refused (`signing_not_available`): those backends take no keys.
+`\-\-chain xrp` execs `xrp\-tx sign`; `\-\-chain xlm|algo|atom|ton|ada|dot|rune` execs `acct\-tx sign`.
+`\-\-chain xmr` is refused (`xmr_requires_wallet_rpc`); signing stays on host `xmr\-wallet`.
+`\-\-chain zec` stays transparent here; `zec\-sapling` is address derivation, not a signer.
 .SH OPTIONS
 .nf
+  \-\-chain sol|tron: refused (signing_not_available; sol\-tron\-tx builds and verifies only). \-\-chain xrp \-> xrp\-tx sign. \-\-chain xlm|algo|atom|ton|ada|dot|rune \-> acct\-tx sign. \-\-chain xmr: refused (xmr_requires_wallet_rpc; use host xmr\-wallet). \-\-chain zec: transparent only (unchanged; zec\-sapling does not sign).
   \-\-partial: m\-of\-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx\-combine. No finalize, no signed tx.
 .fi
 .SH INPUT/OUTPUT

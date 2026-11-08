@@ -4,6 +4,7 @@
 //! UTXO chains: POST {esplora}/tx; EVM: eth_sendRawTransaction. The id the server returns must
 //! equal the id computed locally, or status is "error". Defaults as utxo-fetch.
 //! Bare signed UTXO hex (no input values, so no fee): a FEE UNKNOWN banner and you must type ACK FEE-UNKNOWN first.
+//! `--chain sol|tron|xrp|xmr` and account chains are refused (`broadcast_not_available`).
 use bitcoin::psbt::Psbt;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -17,6 +18,12 @@ fn main() {
     let a: Vec<String> = std::env::args().collect();
     let one = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).last();
     let chain = one("--chain").unwrap_or("btc".into());
+    match chain.as_str() {
+        "sol" | "tron" | "xrp" | "xmr" | "xlm" | "algo" | "atom" | "ton" | "ada" | "dot" | "rune" => {
+            out("bad_input", json!({"error":"broadcast_not_available"}))
+        }
+        _ => {}
+    }
     let mut s = String::new();
     if std::io::stdin().take(blocktools_tx::MAX_INPUT as u64 + 1).read_to_string(&mut s).is_err() { out("bad_input", json!({})) }
     let shown = blocktools_tx::decode(&s, if chain == "eth" { "btc" } else { &chain }).unwrap_or_else(|e| out("bad_input", json!({"error":e})));
