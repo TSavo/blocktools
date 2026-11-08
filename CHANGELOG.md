@@ -42,6 +42,7 @@ Numbers and security statements here are only those registered as measured in do
   `seaport_not_checkable`. Nothing is sent when refused.
 - `docs/COVERAGE.md` lists the `tx-build --chain` overlaps with `sol-tron-tx`, `xrp-tx`, and `acct-tx`.
 - The sealed image Dockerfile copies `fixtures/evm-mainnet`, which `crates/tx/tests/evm_decode.rs` reads.
+- The sealed image Dockerfile copies the `fixtures/` and `recipes/fixtures/` trees (`tools/rpc/tests/cli.rs` permit/seaport tests read `recipes/fixtures/evm`; copying subdirs one at a time kept breaking the image build).
 
 ## [0.4.0] - 2026-11-02
 
