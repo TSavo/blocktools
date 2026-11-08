@@ -53,7 +53,9 @@ const M: &str = "caution juice atom organ advance problem want pledge someone se
     assert_eq!(r.address, "2HqjMm2goapWvXQBqjjEdVaTZsUmunWwEq1TSToDR1pDzQ1F");
     assert!(blocktools_core::validate::validate("polyx", &r.address).is_ok());
     let hx = |h: &str| { let v = blocktools_core::hex_dec(h).unwrap(); let mut k = [0u8; 32]; k.copy_from_slice(&v); k };
+    // public test vector: TWC tests/chains/Kusama FromPrivateKey
     assert_eq!(chains::ss58_ed25519_row(ksm, "", &hx("a21981f3bb990c40837df44df639541ff57c5e600f9eb4ac00ed8d1f718364e5")).address, "CeVXtoU4py9e7F6upfM2ZarVave299TjcdaTSxhDDZrYgnM");
+    // public test vector: TWC tests/chains/Polymesh FromPrivateKey
     assert_eq!(chains::ss58_ed25519_row(polyx, "", &hx("612d82bc053d1b4729057688ecb1ebf62745d817ddd9b595bc822f5f2ba0e41a")).address, "2GmLy7KywpsV5fDpZfJMcgGgzoJWyrEA3Wc3fDmsoq5iqtBT");
     let rows = blocktools_secrets::keys::rows_for(ksm, &dummy, None);
     assert!(rows.iter().any(|r| r.kind == "sr25519"));
