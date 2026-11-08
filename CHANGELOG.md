@@ -9,7 +9,7 @@ Numbers and security statements here are only those registered as measured in do
 
 ### Added
 - Kusama (`ksm`) and Polymesh (`polyx`) emit a Trust Wallet Core ed25519 row (kind `ed25519`) alongside the existing substrate sr25519 row. `key-to-addresses` treats a 32-byte seed as TWC does (tests/chains/{Kusama,Polymesh} FromPrivateKey and CoinAddressDerivationTests.cpp dummy key 0x46×32 at adf80f8). `derive --chain ksm|polyx` (presets `common`, `exhaustive`, `recovery`) walks registry paths `m/44'/434'/0'/0'/0'` and `m/44'/595'/0'/0'/0'` via SLIP-10. Existing sr25519 / subkey addresses are unchanged; `dot` is still sr25519-only.
-- wasm `tronVerifyTx(hex, expectJson)` — the existing `tron::verify_tx` policy (`sol-tron-tx verify --chain tron`). `decodeTx`/`verifyTx` with chain `tron` now route to `tronDecodeTx` / refuse with `tron_use_tronVerifyTx` (same pattern as Solana). wasm-export-count parked at 77 (unmeasured).
+- wasm `tronVerifyTx(hex, expectJson)` — the existing `tron::verify_tx` policy (`sol-tron-tx verify --chain tron`). `decodeTx`/`verifyTx` with chain `tron` now route to `tronDecodeTx` / refuse with `tron_use_tronVerifyTx` (same pattern as Solana). 77 exports [wasm-export-count], measured at 1572c714.
 
 ### Fixed
 - `key-to-addresses` treated an all-digit 64-hex key as a JSON number and silently skipped it (no `unsupported` line). Only JSON objects are read as `{key|wif|private_key}` now, matching `keys::parse_key_line`.
@@ -30,12 +30,13 @@ Numbers and security statements here are only those registered as measured in do
   `seaport_no_consideration`, `seaport_unknown_deployment`, `seaport_not_checkable` and, with the new
   `--expect-min-consideration SPEC` / option `expect_min_consideration` (`N`, `native:N`, `0xTOKEN:N`),
   `seaport_dust_consideration` (exit 1). NFT-for-NFT swaps pass and are listed (`nft_consideration`). No wasm export
-  added (seaport-order-check, untested). `BulkOrder` is recognised at every official tree height 1..24 (seaport-js
+  added (seaport-order-check). `BulkOrder` is recognised at every official tree height 1..24 (seaport-js
   bulk-orders.ts, seaport-core Verifiers.sol), each by its exact `OrderComponents[2]…` type string; every leaf is
   checked, empty padding leaves are skipped, one drainer leaf fails the whole signature; other shapes stay
   `seaport_not_checkable`.
 
 ### Changed
+- Restamped the claims parked after PR #90 (tronVerifyTx / TWC ksm-polyx ed25519) at green main 1572c714 (CI 42518495268): wasm-export-count, fee-cap-utxo-default, redact-512, msg-ambiguous-address, twc-cosmos-addresses, bch-cashaddr-destinations, twc-ed25519-aptos-sui-near, wasm-verifytx-approval-checks, wasm-typed-data-expect, permit-expect-spender, and seaport-order-check. CI logs and independent local test runs matched; no runtime or signing changes.
 - docs/CHAINS.md: Solana wasm already has unsigned `solBuildTransfer`; removed the stale "No Solana builder yet" line.
 - Restamped sealed image size [image-size-readme], Linux sealed-run [sealed-run-linux], and live Alpine 0.4.0-r0 install [alpine-apk-install-0.4.0] from Battleaxe measurements at 55d8cad1. Restamped evm-devnet-create-call and tx-sign-presign-checks from main CI run 42504158970.
 - **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)
