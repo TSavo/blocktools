@@ -1,7 +1,7 @@
 # Release package repositories (Alpine, apt, RPM)
 
 Served from the `gh-pages` branch at `https://tsavo.github.io/blocktools/{alpine,apt,rpm}`, x86_64 only.
-Current version in all three: 0.1.1 (from tag v0.1.1). Signing keys live only in the maintainer's Vault;
+Current version in all three: 0.4.0 (from tag v0.4.0; apt and rpm advertise `0.4.0-1`, alpine advertises `0.4.0-r0`, read from the published indexes on 2026-11-08). Those index versions were not install-tested in that check. Signing keys live only in the maintainer's Vault;
 see [APK-SIGNING.md](APK-SIGNING.md) and [APT-SIGNING.md](APT-SIGNING.md).
 
 ## Install
@@ -49,7 +49,7 @@ and layout with `REPOS_UNSIGNED=1`: no AppRole login, no signature, no push.
 
 ## Limits
 
-- The signed path inside the workflow (`repos`) has not run on a real tag yet. The same scripts were run
+- The signed path inside the workflow (`repos`) ran on the v0.4.0 tag (GitHub Actions run 41572772693, conclusion success). The same scripts were earlier run
   by hand on the host for v0.1.1.
 - The container runners hold the host Docker socket, so the signer hook limits what the signer runner
   runs; it does not stop a container job from reaching the host through Docker.
