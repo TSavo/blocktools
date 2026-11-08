@@ -121,8 +121,10 @@ apk update && apk add blocktools
 ```
 
 Static musl binaries; the repo serves 0.4.0-r0. Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
-`alpine:latest` (3.24.3) container on 2026-10-26, not re-run for 0.4.0 (untested): install from the live URL, 43 of 43 executables run,
-refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md).
+`alpine:latest` (3.24.3) container on 2026-10-26 (untested): install from the live URL, 43 of 43 executables run,
+refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md). Re-measured on 2026-11-08 against live `0.4.0-r0`
+in `alpine:latest` (3.24.3) with apk-tools 3.0.8-r0: 56 of 58 executables ran (`blocktools` and `recover.sh` wrappers
+exit 2); apk update and apk add without the repo key were refused (UNTRUSTED signature).
 
 ### From source
 
@@ -260,7 +262,7 @@ picks the pipeline for you:
 
 ## Status
 
-Status: the sealed image builds on Linux docker (47.9 MB (unmeasured) of uncompressed layers via `docker save` on a containerd image store at 189e40f, 40 binaries: the 39 entries of `crates/io/sealed-tools.txt` plus sealed-run at 189e40f; the file now lists 42 entries (measured at 9c48627), so a current image would hold 43 binaries (inferred, not built); host tools such as contract-call are not in the image; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container (untested since chainstate-dump joined the image): network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only) (untested). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
+Status: the sealed image builds on Linux docker (52.1 MB of uncompressed layers via `docker save` on a containerd image store at 55d8cad1, 43 binaries: the 42 entries of `crates/io/sealed-tools.txt` plus sealed-run; the file now lists 42 entries (measured at 9c48627); host tools such as contract-call are not in the image; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container: network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
 
 Host-side network tools (`utxo-fetch`, `tx-broadcast`, `rpc`) never enter the sealed image, and `sealed-run` refuses them (status `unsupported`, exit 2, measured 2026-10-26): run them on the host, after the sealed steps. `rpc` is a pipe filter for node and wallet RPC endpoints (EVM, bitcoind and forks, Solana, Tron, Cosmos LCD, Esplora, Blockbook) that refuses key-export, unlock and wallet-signing methods by default; see `docs/RPC.md` (mock-tested; one measured public read).
 
