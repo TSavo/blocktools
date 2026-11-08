@@ -38,7 +38,12 @@ pub fn rows_for(c: &Chain, bytes: &[u8; 32], comp: Option<bool>) -> Vec<Row> {
         #[cfg(feature = "ed25519")]
         (Enc::Ton, _) => vec![chains::ton_row("", bytes)],
         #[cfg(feature = "sr25519")]
-        (Enc::Ss58 { .. }, _) => vec![chains::ss58_row(c, "", bytes)],
+        (Enc::Ss58 { .. }, _) => {
+            let mut v = vec![chains::ss58_row(c, "", bytes)];
+            #[cfg(feature = "ed25519")]
+            if matches!(c.name, "ksm" | "polyx") { v.push(chains::ss58_ed25519_row(c, "", bytes)) }
+            v
+        }
         #[cfg(feature = "ed25519")]
         (Enc::Sol | Enc::Xlm | Enc::Ed(_), _) => vec![chains::ed_row(c, "", bytes)],
         #[cfg(not(feature = "ed25519"))]

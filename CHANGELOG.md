@@ -8,6 +8,11 @@ Numbers and security statements here are only those registered as measured in do
 ## [Unreleased]
 
 ### Added
+- Kusama (`ksm`) and Polymesh (`polyx`) emit a Trust Wallet Core ed25519 row (kind `ed25519`) alongside the existing substrate sr25519 row. `key-to-addresses` treats a 32-byte seed as TWC does (tests/chains/{Kusama,Polymesh} FromPrivateKey and CoinAddressDerivationTests.cpp dummy key 0x46×32 at adf80f8). `derive --chain ksm|polyx` (presets `common`, `exhaustive`, `recovery`) walks registry paths `m/44'/434'/0'/0'/0'` and `m/44'/595'/0'/0'/0'` via SLIP-10. Existing sr25519 / subkey addresses are unchanged; `dot` is still sr25519-only.
+- wasm `tronVerifyTx(hex, expectJson)` — the existing `tron::verify_tx` policy (`sol-tron-tx verify --chain tron`). `decodeTx`/`verifyTx` with chain `tron` now route to `tronDecodeTx` / refuse with `tron_use_tronVerifyTx` (same pattern as Solana). wasm-export-count parked at 77 (unmeasured).
+
+### Fixed
+- `key-to-addresses` treated an all-digit 64-hex key as a JSON number and silently skipped it (no `unsupported` line). Only JSON objects are read as `{key|wif|private_key}` now, matching `keys::parse_key_line`.
 - `tx-build`, `tx-sign`, and `tx-verify` take `--chain sol|tron|xrp|xlm|algo|atom|ton|ada|dot|rune` and exec the existing backend (`sol-tron-tx`, `xrp-tx`, `acct-tx`) from the same directory (`blocktools_io::sibling_exit`). `tx-sign --chain sol|tron` fails closed (`signing_not_available`; those backends take no keys). `--chain xmr` fails closed (`xmr_requires_wallet_rpc`; signing stays on host `xmr-wallet`, never pulled into the sealed image). `--chain zec` is unchanged (transparent v5); `zec-sapling` is address derivation, not a tx backend. `tx-verify --chain sol|tron` execs `sol-tron-tx verify`; other delegated chains without a verify backend fail `verify_not_available`. `tx-broadcast` refuses those chains (`broadcast_not_available`). Coverage is listed in `docs/VERB-CHAIN.md` and checked by `scripts/verb-chain-check.py` and `scripts/e2e.d/verb-chain.sh`. No wasm export added.
 - Spender checks for signed permits (EIP-712 typed data), shared by `typed-data-verify` and the wasm
   `evmTypedDataVerify` (`permit::apply`): EIP-2612, DAI and Permit2 `PermitSingle`, `PermitBatch`,
@@ -31,6 +36,7 @@ Numbers and security statements here are only those registered as measured in do
   `seaport_not_checkable`.
 
 ### Changed
+- docs/CHAINS.md: Solana wasm already has unsigned `solBuildTransfer`; removed the stale "No Solana builder yet" line.
 - Restamped sealed image size [image-size-readme], Linux sealed-run [sealed-run-linux], and live Alpine 0.4.0-r0 install [alpine-apk-install-0.4.0] from Battleaxe measurements at 55d8cad1. Restamped evm-devnet-create-call and tx-sign-presign-checks from main CI run 42504158970.
 - **Behaviour change:** `rpc --allow-wallet-sign` now refuses an `eth_signTypedData_v4` permit (EIP-2612, DAI, Permit2)
   unless `--expect-spender` matches (`wallet_sign_permit_unasserted`, `spender_not_expected`, `amount_not_expected`,

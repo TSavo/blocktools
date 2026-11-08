@@ -950,20 +950,16 @@ doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
 
 [[claim]]
 id = "wasm-export-count"
-
-statement = "The wasm package exports 76 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
+note = "Parked 2026-11-08: adding tronVerifyTx as the 77th export. Previous measured stamp was 76 at 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/wasm-check.sh."
+statement = "The wasm package exports 77 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"ok exports-doc 76 functions\" and \"wasm web ok (76 exports)\""
-date = "2026-11-04"
-value = "76"
+status = "untested"
 command = "sh scripts/wasm-check.sh"
-expect = "ok exports-doc 76 functions"
+expect = "ok exports-doc 77 functions"
 cheap = false
 depends = ["bindings/wasm/src", "scripts/wasm-check.sh"]
-doc = [{ file = "EXPORTS.md", text = "Same 76 functions" }, { file = "README.md", text = "76 exported functions" }]
+doc = [{ file = "EXPORTS.md", text = "Same 77 functions (unmeasured)" }, { file = "README.md", text = "77 exported functions (unmeasured)" }]
 
 [[claim]]
 id = "tx-decode-evm-mainnet"
