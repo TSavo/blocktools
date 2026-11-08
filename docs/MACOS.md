@@ -20,11 +20,13 @@ no-new-privileges, a read-only `/in` whose files reach the tools, and agent outp
 `scripts/macos-sealed-check.sh` checks exactly that (it wraps `scripts/sealed-check.sh`) and prints the
 macOS version, the engine endpoint and the server OS/arch it measured.
 
-A remote engine is not "sealed on macOS". With an `ssh://` context (for example Battleaxe), the container
-and its `/in` bind mount are on the Linux host, so the tools see that host's directory, not the Mac's (seen
-once by hand: empty `/in`). `./blocktools run`/`reveal` refuse such an engine unless
-`BLOCKTOOLS_ALLOW_REMOTE=ssh` (only `ssh://`) or `BLOCKTOOLS_ALLOW_REMOTE=1` (any remote engine) (the wrapper now streams `./in` and `./secrets` over `docker exec` stdin into tmpfs instead of bind-mounting,
-so with the override they would be copied to that host), and `macos-sealed-check.sh` refuses it outright. That refusal runs in the
+A remote engine is not "sealed on macOS". With an `ssh://` context (for example Battleaxe),
+`./blocktools run`/`reveal` refuse such an engine unless `BLOCKTOOLS_ALLOW_REMOTE=ssh` (only `ssh://`)
+or `BLOCKTOOLS_ALLOW_REMOTE=1` (any remote engine). The wrapper streams `./in` and `./secrets` over
+`docker exec` stdin into tmpfs of the sealed container on that host instead of bind-mounting. A hand
+check on 2026-11-08 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2 linux/x86_64,
+commit 2efe6ae2) saw that: without the override the wrapper refused (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
+classify read `./in/probe.txt` (untested). `macos-sealed-check.sh` refuses a remote engine outright. That refusal runs in the
 macos job with a fake docker (`scripts/e2e.d/wrapper-remote.sh`, `scripts/e2e.d/macos-sealed-refuse.sh`).
 With the override, sealing is the Linux host's, which the Linux gate measures (claim sealed-run-linux).
 
@@ -39,8 +41,9 @@ BLOCKTOOLS_ALLOW_REMOTE=ssh ./blocktools run '<pipeline>'
 `./in` and `./secrets` go over `docker exec` stdin (tar) inside the ssh connection into tmpfs mounts of the
 sealed container on Battleaxe (Docker Desktop on Windows): no host bind mounts, no volumes, nothing written to
 the engine's disk (tmpfs can still be swapped by the engine VM). `=ssh` refuses a `tcp://`/`http(s)://`
-engine with exit 4. Checked only with a fake docker (`scripts/e2e.d/wrapper-remote.sh`); a real run of this
-recipe against Docker Desktop on Windows is (untested).
+engine with exit 4. Measured once on 2026-11-08 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2
+linux/x86_64, commit 2efe6ae2): refused without the override (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
+classify read `./in/probe.txt` (untested). Also checked with a fake docker (`scripts/e2e.d/wrapper-remote.sh`).
 
 ## What is needed from a Mac
 
