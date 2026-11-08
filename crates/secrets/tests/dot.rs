@@ -36,3 +36,39 @@ const M: &str = "caution juice atom organ advance problem want pledge someone se
     let r = chains::ss58_row(chains::chain("ksm").unwrap(), "", &mk);
     assert_eq!(chains::ss58_decode(2, &r.address).unwrap(), chains::ss58_decode(0, "15rRgsWxz4H5LTnNGcCFsszfXD8oeAFd8QRsR6MbQE2f6XFF").unwrap());
 }
+
+/// Trust Wallet Core ed25519 rows for ksm/polyx (dummy key 0x46×32 and FromPrivateKey hexes)
+/// alongside the existing sr25519 row. `derive --explain` uses the TWC registry paths.
+#[cfg(feature = "ed25519")]
+#[test] fn twc_ss58_ed25519() {
+    let dummy = [0x46u8; 32];
+    let ksm = chains::chain("ksm").unwrap();
+    let polyx = chains::chain("polyx").unwrap();
+    let dot = chains::chain("dot").unwrap();
+    let r = chains::ss58_ed25519_row(ksm, "", &dummy);
+    assert_eq!(r.kind, "ed25519");
+    assert_eq!(r.address, "Hy8mqcexg5FMwMYnQvzrUvD723qMxDjMRU9HdNCnTsMAypY");
+    assert!(blocktools_core::validate::validate("ksm", &r.address).is_ok());
+    let r = chains::ss58_ed25519_row(polyx, "", &dummy);
+    assert_eq!(r.address, "2HqjMm2goapWvXQBqjjEdVaTZsUmunWwEq1TSToDR1pDzQ1F");
+    assert!(blocktools_core::validate::validate("polyx", &r.address).is_ok());
+    let hx = |h: &str| { let v = blocktools_core::hex_dec(h).unwrap(); let mut k = [0u8; 32]; k.copy_from_slice(&v); k };
+    // public test vector: TWC tests/chains/Kusama FromPrivateKey
+    assert_eq!(chains::ss58_ed25519_row(ksm, "", &hx("a21981f3bb990c40837df44df639541ff57c5e600f9eb4ac00ed8d1f718364e5")).address, "CeVXtoU4py9e7F6upfM2ZarVave299TjcdaTSxhDDZrYgnM");
+    // public test vector: TWC tests/chains/Polymesh FromPrivateKey
+    assert_eq!(chains::ss58_ed25519_row(polyx, "", &hx("612d82bc053d1b4729057688ecb1ebf62745d817ddd9b595bc822f5f2ba0e41a")).address, "2GmLy7KywpsV5fDpZfJMcgGgzoJWyrEA3Wc3fDmsoq5iqtBT");
+    let rows = blocktools_secrets::keys::rows_for(ksm, &dummy, None);
+    assert!(rows.iter().any(|r| r.kind == "sr25519"));
+    assert!(rows.iter().any(|r| r.kind == "ed25519" && r.address == "Hy8mqcexg5FMwMYnQvzrUvD723qMxDjMRU9HdNCnTsMAypY"));
+    let rows = blocktools_secrets::keys::rows_for(dot, &dummy, None);
+    assert!(rows.iter().any(|r| r.kind == "sr25519"));
+    assert!(!rows.iter().any(|r| r.kind == "ed25519"));
+    let plan = blocktools_core::plan::from_args(&["--chain".into(), "ksm".into(), "--explain".into()]).unwrap();
+    let s = plan.specs.iter().find(|s| s.kind == "ed25519").unwrap();
+    assert_eq!(s.template, "m/44'/{coin}'/{account}'/0'/{i}'");
+    assert_eq!(blocktools_core::plan::expand(&s.template, s, 0, 0, 0).unwrap(), "m/44'/434'/0'/0'/0'");
+    let plan = blocktools_core::plan::from_args(&["--chain".into(), "polyx".into()]).unwrap();
+    let s = plan.specs.iter().find(|s| s.kind == "ed25519").unwrap();
+    assert_eq!(blocktools_core::plan::expand(&s.template, s, 0, 0, 0).unwrap(), "m/44'/595'/0'/0'/0'");
+    assert!(blocktools_core::plan::from_args(&["--chain".into(), "dot".into()]).is_err());
+}

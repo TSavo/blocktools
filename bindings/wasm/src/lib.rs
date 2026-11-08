@@ -60,10 +60,12 @@ pub fn explain_plan(args: Vec<String>) -> Result<String, JsError> {
 
 /// Decode a transaction (hex/base64 raw, PSBT, EVM RLP, or a JSON line): JSON array of the tx-decode lines.
 fn is_sol(chain: &str) -> bool { matches!(chain.to_ascii_lowercase().as_str(), "sol" | "solana") }
+fn is_tron(chain: &str) -> bool { matches!(chain.to_ascii_lowercase().as_str(), "tron" | "trx") }
 
 #[wasm_bindgen(js_name = decodeTx)]
 pub fn decode_tx(input: &str, chain: &str) -> Result<String, JsError> {
     if is_sol(chain) { return sol_decode_tx(input) } // tx::decode has no Solana path; it used to fall through to the bitcoin parser (bad_transaction)
+    if is_tron(chain) { return tron_decode_tx(input) } // tx::decode has no Tron path; use tronDecodeTx JSON
     let mut v = json!(tx::decode(input, chain).map_err(err)?.json_lines()); twins(&mut v); Ok(v.to_string())
 }
 
@@ -86,6 +88,7 @@ pub fn describe_tx(input: &str, chain: &str) -> Result<String, JsError> { Ok(tx:
 #[allow(clippy::too_many_arguments)]
 pub fn verify_tx(input: &str, chain: &str, expect_to: Vec<String>, change: Vec<String>, chain_id: Option<u32>, max_fee: &str, allow_warnings: bool, allow_value_with_token: Option<bool>, call_json: Option<String>, expected_memo: Option<String>) -> Result<String, JsError> {
     if is_sol(chain) { return Err(err("solana_use_solVerifyTx")) } // different policy shape (owner/lamports/mint/allow_programs)
+    if is_tron(chain) { return Err(err("tron_use_tronVerifyTx")) } // different policy shape (owner/to/amount_sun/contract)
     let d = tx::decode(input, chain).map_err(err)?;
     let max_fee = if max_fee.is_empty() { None } else { Some(max_fee.parse::<u128>().map_err(|_| err("max_fee"))?) };
     let ex = expect_to.clone();
@@ -370,6 +373,14 @@ pub fn tron_tx_id(raw_data_hex: &str) -> Result<String, JsError> { Ok(blocktools
 /// Decode Tron raw_data hex or a full signed Transaction hex. JSON: see EXPORTS.md.
 #[wasm_bindgen(js_name = tronDecodeTx)]
 pub fn tron_decode_tx(hex: &str) -> Result<String, JsError> { Ok(blocktools::tron::decode(&hx(hex)?).map_err(err)?.to_string()) }
+/// Verify a Tron raw_data or full Transaction hex against `expect_json`
+/// {owner?, to?, amount_sun?, contract?, amount?, max_fee_limit_sun?, now_ms?}.
+/// Same policy as `tron::verify_tx` / `sol-tron-tx verify --chain tron`. No keys.
+#[wasm_bindgen(js_name = tronVerifyTx)]
+pub fn tron_verify_tx(hex: &str, expect_json: &str) -> Result<String, JsError> {
+    let e: serde_json::Value = if expect_json.trim().is_empty() { json!({}) } else { serde_json::from_str(expect_json).map_err(|_| err("bad_expect"))? };
+    Ok(blocktools::tron::verify_tx(&hx(hex)?, &e).map_err(err)?.to_string())
+}
 
 fn js_u64(x: f64, what: &str) -> Result<u64, JsError> {
     if x.is_finite() && x >= 0.0 && x.fract() == 0.0 && x <= 9007199254740991.0 { Ok(x as u64) } else { Err(err(format!("bad_{what}"))) }

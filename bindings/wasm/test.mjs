@@ -17,6 +17,12 @@ assert.ok(JSON.parse(bt.chainTable()).find(c => c.name === 'btc').coin_type === 
 assert.equal(JSON.parse(bt.supportedChains()).find(c => c.name === 'zec').scope, 'transparent');
 const plan = JSON.parse(bt.explainPlan(['--chain', 'btc', '--preset', 'common']));
 assert.ok(plan.length > 0 && plan.every(p => p.path.startsWith('m/')));
+{
+  const k = JSON.parse(bt.explainPlan(['--chain', 'ksm']));
+  assert.ok(k.some(e => e.chain === 'ksm' && e.kind === 'ed25519' && e.path === "m/44'/434'/0'/0'/0'"), JSON.stringify(k));
+  const x = JSON.parse(bt.explainPlan(['--chain', 'polyx']));
+  assert.ok(x.some(e => e.chain === 'polyx' && e.kind === 'ed25519' && e.path === "m/44'/595'/0'/0'/0'"), JSON.stringify(x));
+}
 const b170 = readFileSync(new URL('../../crates/tx/tests/vectors/block170.hex', import.meta.url), 'utf8');
 const lines = JSON.parse(bt.decodeTx(b170, 'btc'));
 { // Novacoin explorer JSON -> raw hex, hash-checked
@@ -223,6 +229,12 @@ console.log('wasm grs ok');
   assert.equal(bt.tronTxId(T), '07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00');
   const d = JSON.parse(bt.tronDecodeTx(T)); assert.equal(d.contracts[0].type, 'TransferContract'); assert.equal(d.contracts[0].amount_sun, '1');
   assert.equal(bt.validateAddress('tron', d.contracts[0].to), 'Tron');
+  const tv = JSON.parse(bt.tronVerifyTx(T, JSON.stringify({ to: d.contracts[0].to, amount_sun: '1' })));
+  assert.equal(tv.ok, true, JSON.stringify(tv));
+  assert.ok(tv.warnings.includes('unsigned'));
+  assert.ok(JSON.parse(bt.tronVerifyTx(T, JSON.stringify({ to: d.contracts[0].to, amount_sun: '2' }))).failures.includes('amount_sun_mismatch'));
+  assert.equal(JSON.parse(bt.decodeTx(T, 'tron')).txid, d.txid);
+  assert.throws(() => bt.verifyTx(T, 'tron', [], [], undefined, '', false, undefined), /tron_use_tronVerifyTx/);
   console.log('wasm psbt-memo + tron ok');
 }
 
