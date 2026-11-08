@@ -15,6 +15,16 @@ pub const MAX_TRIED: u64 = 5_000_000;
 pub struct Walker<'a> { secp: Secp256k1<All>, master: &'a Xpriv, seed: Option<&'a [u8]>, cache: HashMap<String, Xpriv>, only_uncompressed: bool }
 impl Walker<'_> {
     pub fn rows(&mut self, s: &Spec, path: &str) -> Vec<Row> {
+        // Before enc.ed25519(): Enc::Ss58 is not that (would call ed_row and emit a Solana address).
+        if matches!(s.chain.enc, chains::Enc::Ss58 { .. }) {
+            let Some(seed) = self.seed else { return vec![] };
+            let Ok(dp) = DerivationPath::from_str(path) else { return vec![] };
+            let idx: Option<Vec<u32>> = dp.into_iter().map(|c| match c { ChildNumber::Hardened { index } => Some(*index), _ => None }).collect();
+            #[cfg(feature = "ed25519")]
+            return idx.map(|ix| vec![chains::ss58_ed25519_row(s.chain, path, &Zeroizing::new(chains::slip10_ed25519(seed, &ix)))]).unwrap_or_default();
+            #[cfg(not(feature = "ed25519"))]
+            { let _ = (seed, idx); return vec![] }
+        }
         if s.chain.enc.ed25519() {
             let Some(seed) = self.seed else { return vec![] };
             let Ok(dp) = DerivationPath::from_str(path) else { return vec![] };
@@ -166,6 +176,8 @@ mod tests {
         let has = |c: &str, k: &str, t: &str| r.iter().any(|s| s.chain.name == c && s.kind == k && s.template == t);
         assert!(has("btc", "p2wpkh", "m/44'/{coin}'/{account}'/{change}/{i}"));   // BIP44 path as P2WPKH
         assert!(has("sol", "sol", "m/44'/{coin}'/{i}'/{change}'"));
+        assert!(has("ksm", "ed25519", "m/44'/{coin}'/{account}'/0'/{i}'"));
+        assert!(has("polyx", "ed25519", "m/44'/{coin}'/{account}'/0'/{i}'"));
         assert_eq!(plan::preset_ranges("recovery").1, vec![0, 1]);              // treasury /1/x
     }
     fn bip39_seed() -> Vec<u8> {

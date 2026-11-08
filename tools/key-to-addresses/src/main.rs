@@ -27,8 +27,8 @@ fn main() {
         let line = Zeroizing::new(line);
         let t = line.trim();
         let tok = Zeroizing::new(match serde_json::from_str::<serde_json::Value>(t) {
-            Ok(v) => match v.get("key").or_else(|| v.get("wif")).or_else(|| v.get("private_key")).and_then(|k| k.as_str()) { Some(k) => k.to_string(), None => continue },
-            Err(_) => t.to_string(),
+            Ok(v) if v.is_object() => match v.get("key").or_else(|| v.get("wif")).or_else(|| v.get("private_key")).and_then(|k| k.as_str()) { Some(k) => k.to_string(), None => continue },
+            _ => t.to_string(),
         });
         if tok.is_empty() { continue }
         let ds = keys::decodings(&tok);

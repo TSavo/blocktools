@@ -21,12 +21,10 @@ id = "fee-cap-utxo-default"
 statement = "With no --max-fee, every signing route caps UTXO fee at max(100,000 base units, chain rate limit x vsize); 35 of 35 corpus sweeps pass (flat cap refused 9 of 35); cap+1 refused on each of 27 buildable chains; 240,000 sat on a 1-input BTC tx refused; fee over 10% of inputs refused without explicit --max-fee, 0 of 35 corpus sweeps trip it"
 kind = "security"
 platform = "linux"
-status = "measured"
-commit = "9c48627"
-env = "main ci run 41542526072 at 9c48627 (success), gate (test) runs cargo test --workspace (fee_cap_chains)"
+note = "Parked 2026-11-08: crates/core/src/chains.rs changed for ksm/polyx TWC ed25519 source strings (policy.rs and fee tests unchanged). Previous measured stamp was 9c48627 (main CI 41542526072). Restamp from a green main run of cargo test -p blocktools-tx --test fee_cap_chains."
+status = "untested"
 command = "cargo test -q --release -p blocktools-tx --test fee_cap_chains"
 expect = "test result: ok. 5 passed"
-date = "2026-11-02"
 cheap = false
 depends = ["crates/tx/src/policy.rs", "crates/core/src/chains.rs", "crates/tx/tests/fee_cap_chains.rs", "crates/tx/tests/data/feeprobe-corpus.jsonl"]
 doc = [{ file = "docs/CHAINS.md", text = "100,000 sat" }, { file = "docs/CHAINS.md", text = "35 legitimate sweeps" }, { file = "docs/CHAINS.md", text = "9 of 35" }, { file = "docs/CHAINS.md", text = "27 buildable chains" }, { file = "docs/CHAINS.md", text = "240,000 sat" }]
@@ -81,16 +79,14 @@ id = "redact-512"
 statement = "Redacted JSON lines are at most 512 bytes: a 512-byte line passes unchanged, a 513+ byte line is dropped (boundary test, k = 0..32 warnings)"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "6237930"
-date = "2026-10-28"
+note = "Parked 2026-11-08: crates/schema/src/lib.rs gained kind ed25519. Previous measured stamp was 6237930. Restamp from a green main run of cargo test -p blocktools-schema --test redact_512."
+status = "untested"
 command = "cargo test -q -p blocktools-schema --test redact_512"
 expect = "test result: ok. 1 passed"
 value = "512"
-env = "Linux (GitHub-hosted ubuntu runner and the box, rustc 1.99.1; re-run on the box at d733eda); boundary test, no timing"
 cheap = true
 depends = ["crates/schema/src/lib.rs", "crates/schema/tests/redact_512.rs"]
-doc = [{ file = "DESIGN.md", text = "512 bytes" }]
+doc = [{ file = "DESIGN.md", text = "512 bytes (unmeasured)" }]
 
 [[claim]]
 id = "read-file-64mib"
@@ -357,12 +353,10 @@ id = "msg-ambiguous-address"
 statement = "msg-verify (CLI and wasm msgVerify/msgVerifyOpts) refuses a string that is both a valid-checksum Cosmos bech32 address and a canonical on-curve Solana key with ambiguous_address unless the chain is named; 4000 generated 4-letter/5-letter-prefix bech32 addresses never route to Solana"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: bindings/wasm/test.mjs changed for tronVerifyTx and TWC path asserts (msgchain unchanged). Previous measured stamp was 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/e2e.d/msg-ambiguous.sh."
+status = "untested"
 command = "sh scripts/e2e.d/msg-ambiguous.sh"
 expect = "ok   msg-ambiguous"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"ok   msg-ambiguous osmo1/juno1 cosmos-or-solana ...\""
-date = "2026-11-04"
 cheap = false
 depends = ["crates/tx/src/msgchain.rs", "tools/msg-verify/src/main.rs", "scripts/e2e.d/msg-ambiguous.sh", "crates/blocktools/tests/msg_chains.rs", "bindings/wasm/test.mjs"]
 doc = [{ file = "docs/CHAINS.md", text = "msg-ambiguous-address" }]
@@ -400,11 +394,10 @@ id = "twc-cosmos-addresses"
 statement = "24 Cosmos SDK chain rows and 4 Ethermint rows (inj, evmos, canto, zeta) derive Trust Wallet Core's 0x46-key addresses, auto-detect uniquely, and match 23 TWC pubkey-to-address vectors"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: crates/core/src/chains.rs changed for ksm/polyx TWC ed25519 source strings (cosmos rows unchanged). Previous measured stamp was 1f1fa71. Restamp from a green main run of cargo test -p blocktools --test twc_cosmos_addr."
+status = "untested"
 command = "cargo test -q --release -p blocktools --test twc_cosmos_addr"
 expect = "test result: ok. 4 passed"
-commit = "1f1fa71"
-date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/blocktools/tests/twc_cosmos_addr.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "(4 tests)" }]
@@ -428,11 +421,10 @@ id = "bch-cashaddr-destinations"
 statement = "bch CashAddr (prefixed, bare, upper case) maps to the same output script as its legacy address; bad checksum, mixed case and bchtest are refused"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: crates/core/src/chains.rs changed for ksm/polyx TWC ed25519 source strings (cashaddr.rs unchanged). Previous measured stamp was 1f1fa71. Restamp from a green main run of cargo test -p blocktools-core --test cashaddr_script."
+status = "untested"
 command = "cargo test -q --release -p blocktools-core --test cashaddr_script"
 expect = "test result: ok. 2 passed"
-commit = "1f1fa71"
-date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/cashaddr.rs", "crates/core/src/chains.rs", "crates/core/tests/cashaddr_script.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "cashaddr_script.rs` (2 tests" }]
@@ -457,11 +449,10 @@ id = "twc-ed25519-aptos-sui-near"
 statement = "aptos, sui, near, xtz and egld rows derive Trust Wallet Core's 0x46-key addresses, reproduce TWC's AptosKey/NearKey/DeriveMultiversX HD keys at the registry paths, and accept/refuse TWC's Aptos, Sui, Tezos and MultiversX address lists"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: crates/core/src/chains.rs changed for ksm/polyx TWC ed25519 source strings (aptos/sui/near rows unchanged). Previous measured stamp was 1f1fa71. Restamp from a green main run of cargo test -p blocktools --features secrets,ed25519 --test twc_ed25519."
+status = "untested"
 command = "cargo test -q --release -p blocktools --features secrets,ed25519 --test twc_ed25519"
 expect = "test result: ok. 5 passed"
-commit = "1f1fa71"
-date = "2026-10-26"
 cheap = false
 depends = ["crates/core/src/chains.rs", "crates/core/src/validate.rs", "crates/blocktools/tests/twc_ed25519.rs"]
 doc = [{ file = "docs/CHAINS.md", text = "twc_ed25519.rs` (5 tests)" }]
@@ -950,20 +941,16 @@ doc = [{ file = "docs/CHAINS.md", text = "utxo-set --write-dump file" }]
 
 [[claim]]
 id = "wasm-export-count"
-
-statement = "The wasm package exports 76 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
+note = "Parked 2026-11-08: adding tronVerifyTx as the 77th export. Previous measured stamp was 76 at 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/wasm-check.sh."
+statement = "The wasm package exports 77 JS functions (pkg/node; pkg/web is asserted equal by test-web.mjs), every one documented in EXPORTS.md; wasm-check fails if EXPORTS.md's count or rows disagree with the built wasm's exports"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"ok exports-doc 76 functions\" and \"wasm web ok (76 exports)\""
-date = "2026-11-04"
-value = "76"
+status = "untested"
 command = "sh scripts/wasm-check.sh"
-expect = "ok exports-doc 76 functions"
+expect = "ok exports-doc 77 functions"
 cheap = false
 depends = ["bindings/wasm/src", "scripts/wasm-check.sh"]
-doc = [{ file = "EXPORTS.md", text = "Same 76 functions" }, { file = "README.md", text = "76 exported functions" }]
+doc = [{ file = "EXPORTS.md", text = "Same 77 functions (unmeasured)" }, { file = "README.md", text = "77 exported functions (unmeasured)" }]
 
 [[claim]]
 id = "tx-decode-evm-mainnet"
@@ -1076,12 +1063,10 @@ id = "wasm-verifytx-approval-checks"
 statement = "The wasm verifyTx runs the tx-verify approval/transfer/batch checks (shared presign::apply): with no options an unlimited approval fails unlimited_approval, an unasserted multicall inner call fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall; the call_json opt-ins expect_spender/expect_amount/expect_unlimited/expect_recipient/expect_value/allow_inner_call/allow_delegatecall give the CLI's failure codes and wrong JSON types throw <key>_must_be_*"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: bindings/wasm/src/lib.rs added tronVerifyTx and tron decode/verify routing (presign.rs unchanged). Previous measured stamp was 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/wasm-check.sh."
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "verifyTx content checks ok"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"verifyTx content checks ok\""
-date = "2026-11-04"
 cheap = false
 depends = ["crates/evm/src/presign.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
 doc = []
@@ -1092,12 +1077,10 @@ id = "wasm-typed-data-expect"
 statement = "The wasm evmTypedDataVerify options_json {expect_chain_id, expect_verifying_contract} sets status chain_id_mismatch / verifying_contract_mismatch exactly as typed-data-verify --expect-chain-id / --expect-verifying-contract (shared eip712::apply_expect); wrong types throw <key>_must_be_string"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: bindings/wasm/src/lib.rs added tronVerifyTx and tron decode/verify routing (eip712.rs unchanged). Previous measured stamp was 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/wasm-check.sh."
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify options ok"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify options ok\""
-date = "2026-11-04"
 cheap = false
 depends = ["crates/evm/src/eip712.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs"]
 doc = []
@@ -1154,12 +1137,10 @@ id = "permit-expect-spender"
 statement = "typed-data-verify --expect-spender / --expect-amount / --expect-unlimited and the wasm evmTypedDataVerify options expect_spender / expect_amount / expect_unlimited (shared permit::apply) fail closed with spender_not_expected / amount_not_expected / unlimited_approval / spender_not_checkable / amount_not_checkable for EIP-2612, DAI and Permit2 single/batch/transfer permits; an exact-balance drainer permit below 2^128 fails spender_not_expected; wrong types throw <key>_must_be_string"
 kind = "security"
 platform = "linux"
-status = "measured"
+note = "Parked 2026-11-08: bindings/wasm/src/lib.rs added tronVerifyTx and tron decode/verify routing (permit.rs unchanged). Previous measured stamp was 2cacc446 (main CI 41898239244). Restamp from a green main run of scripts/wasm-check.sh."
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify permit spender ok"
-commit = "2cacc446"
-env = "main ci run 41898239244 at 2cacc446 (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify permit spender ok\""
-date = "2026-11-04"
 cheap = false
 depends = ["crates/evm/src/permit.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs"]
 doc = []
@@ -1169,10 +1150,8 @@ id = "seaport-order-check"
 statement = "typed-data-verify (exit 1) and the wasm evmTypedDataVerify (shared seaport::apply) report Seaport 1.5 / 1.6 OrderComponents and BulkOrder (tree heights 1..24) orders as seaport_no_consideration when nothing nonzero comes back to the offerer, seaport_unknown_deployment for another version or a non-canonical verifyingContract, and with expect_min_consideration seaport_dust_consideration / seaport_not_checkable; rpc --allow-wallet-sign refuses Seaport orders unless --allow-seaport-order or --expect-min-consideration is given"
 kind = "security"
 platform = "linux"
-status = "measured"
-commit = "a6c08e1b"
-date = "2026-11-04"
-env = "main ci run 41908412908 at a6c08e1b (completed, conclusion success), gate (e2e) log \"evmTypedDataVerify seaport ok\"; gate (test) green incl. seaport::tests::bulk_every_official_height (heights 1,2,3,7,10 built in full, 1..24 type strings, 0/25/odd shapes not checkable)"
+note = "Parked 2026-11-08: bindings/wasm/src/lib.rs added tronVerifyTx and tron decode/verify routing (seaport.rs unchanged). Previous measured stamp was a6c08e1b (main CI 41908412908). Restamp from a green main run of scripts/wasm-check.sh."
+status = "untested"
 command = "sh scripts/wasm-check.sh"
 expect = "evmTypedDataVerify seaport ok"
 cheap = false

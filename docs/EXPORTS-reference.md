@@ -11,7 +11,7 @@ Conventions (from the code): functions return strings, usually JSON text, so `JS
 `Error` whose message is a short code such as `bad_hex` or `bad_json`. `checkTx` never throws: it returns `{"ok":false,"reasons":[...]}`.
 The package has no private-key code (enforced by wasm-check.sh): nothing here signs.
 
-Exports: 76. Exports never called by test.mjs have no example and are listed as untested.
+Exports: 77. Exports never called by test.mjs have no example and are listed as untested.
 
 ## `addressToScript`
 
@@ -379,7 +379,7 @@ Example (executed):
 
 ```js
 bt.chainTable()
-// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 26331 chars total]
+// -> [{"name":"btc","ticker":"BTC","title":"Bitcoin","coin_type":0,"curve":"secp256k1","encoding":"utxo","p2pkh":0,"p2sh":5,"wif":128,"hrp":"bc","taproot":true,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"bitcoin/bitcoin src/kernel/chainparams.cpp"},{"name":"ltc","ticker":"LTC","title":"Litecoin","coin_type":2,"curve":"secp256k1","encoding":"utxo","p2pkh":48,"p2sh":50,"wif":176,"hrp":"ltc","taproot":false,"native_seed":false,"sign":"standard","buildable":true,"default_count":10,"verified":true,"source":"litecoin-project/litecoin src/chainparams … [cut: 26497 chars total]
 ```
 
 ## `checkTx`
@@ -518,7 +518,7 @@ bt.decodeAccountInfo("0000000000000000000000000000000000000000000000000000000000
 decodeTx(input: string, chain: string): string
 ```
 
-Calls in test.mjs: 5.
+Calls in test.mjs: 6.
 
 Example (executed):
 
@@ -867,13 +867,13 @@ explainPlan(args: string[]): string
 
 `derive --explain` for the given derive flags: JSON [{chain,kind,template,path,count}]. No keys.
 
-Calls in test.mjs: 1.
+Calls in test.mjs: 3.
 
 Example (executed):
 
 ```js
-bt.explainPlan(["--chain","btc","--preset","common"])
-// -> [{"chain":"btc","count":10,"kind":"p2pkh","path":"m/44'/0'/0'/0/0","template":"m/{purpose}'/{coin}'/{account}'/{change}/{i}"},{"chain":"btc","count":10,"kind":"p2sh-p2wpkh","path":"m/49'/0'/0'/0/0","template":"m/{purpose}'/{coin}'/{account}'/{change}/{i}"},{"chain":"btc","count":10,"kind":"p2wpkh","path":"m/84'/0'/0'/0/0","template":"m/{purpose}'/{coin}'/{account}'/{change}/{i}"},{"chain":"btc","count":10,"kind":"p2tr","path":"m/86'/0'/0'/0/0","template":"m/{purpose}'/{coin}'/{account}'/{change}/{i}"}]
+bt.explainPlan(["--chain","ksm"])
+// -> [{"chain":"ksm","count":1,"kind":"ed25519","path":"m/44'/434'/0'/0'/0'","template":"m/44'/{coin}'/{account}'/0'/{i}'"}]
 ```
 
 ## `legacyToCashAddr`
@@ -1340,6 +1340,23 @@ bt.tronTxId("0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652
 // -> 07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00
 ```
 
+## `tronVerifyTx`
+
+```ts
+tronVerifyTx(hex: string, expect_json: string): string
+```
+
+Verify a Tron raw_data or full Transaction hex against `expect_json` {owner?, to?, amount_sun?, contract?, amount?, max_fee_limit_sun?, now_ms?}. Same policy as `tron::verify_tx` / `sol-tron-tx verify --chain tron`. No keys.
+
+Calls in test.mjs: 2.
+
+Example (executed):
+
+```js
+bt.tronVerifyTx("0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431", "{\"to\":\"TXfrRsqwPbMi4Leb4EGB7dv5NMMWmkdRwk\",\"amount_sun\":\"1\"}")
+// -> {"amount_sun":"1","contract_type":"TransferContract","expiration":1710640770000,"failures":[],"fee_limit_sun":null,"fully_signed":false,"ok":true,"owner":"TMxXrJ5u3Qsh7scpn4zRUzrxYtBoPCW5GM","signatures":[],"to":"TXfrRsqwPbMi4Leb4EGB7dv5NMMWmkdRwk","token_amount":null,"txid":"07755381b660a83a2767b8de974e88257797d2865c6dde14eccfe69c23717d00","warnings":["unsigned"]}
+```
+
 ## `twox128`
 
 ```ts
@@ -1522,7 +1539,7 @@ verifyTx(input: string, chain: string, expect_to: string[], change: string[], ch
 
 tx-verify: JSON {ok, failures, warnings}. `max_fee` is a decimal string (sats or wei) or "" (the tx-sign default: 0.01 ETH-equivalent for EVM; UTXO per chain, see policy::default_fee_cap) (untested). `allow_value_with_token` (default false) accepts ETH value alongside ERC-20 transfer calldata. `expected_memo` (UTF-8, optional): the only OP_RETURN payload accepted (one zero-value OP_RETURN, exact match); without it any OP_RETURN is refused (`unexpected_output`).
 
-Calls in test.mjs: 34.
+Calls in test.mjs: 35.
 
 Example (executed):
 
@@ -1534,8 +1551,8 @@ bt.verifyTx("02f20109843b9aca008701b0a8dd03bb6e825208943535353535353535353535353
 Error example (executed):
 
 ```js
-bt.verifyTx("0xf86980843b9aca0083030d4094a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4880b844095ea7b3000000000000000000000000000000000022d473030f116ddee9f6b43ac78ba3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff018080", "eth", ["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"], [], 1, "", false, , "{\"expect_spender\":1}")
-// throws expect_spender_must_be_string
+bt.verifyTx("0a0286ec220805d9f8c360a410c440d0d78ad1e4315a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15418380d3e5288ecab17c89827a4dd17652d13e7264121541ee0a85ee960f6da8c50292d3dd07ea291c133ed1180170859087d1e431", "tron", [], [], , "", false, )
+// throws tron_use_tronVerifyTx
 ```
 
 ## `version`

@@ -132,8 +132,8 @@ pub const CHAINS: &[Chain] = &[
     Chain { name: "atom", ticker: "ATOM", title: "Cosmos Hub", coin: 118, enc: Enc::Cosmos { hrp: "cosmos", eth: false }, default_count: 10, sign: Unknown, verified: true, source: "cosmjs Secp256k1HdWallet: m/44'/118'/0'/0/i, bech32 cosmos", sources: &[] },
     Chain { name: "algo", ticker: "ALGO", title: "Algorand", coin: 283, enc: Enc::Algo, default_count: 1, sign: Unknown, verified: true, source: "py-algorand-sdk: native 25-word mnemonic, sha512/256 checksum", sources: &[] },
     Chain { name: "dot", ticker: "DOT", title: "Polkadot", coin: 354, enc: Enc::Ss58 { prefix: 0 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey: mini-secret = PBKDF2(entropy), sr25519, SS58 prefix 0", sources: &[] },
-    Chain { name: "ksm", ticker: "KSM", title: "Kusama", coin: 434, enc: Enc::Ss58 { prefix: 2 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey key (as dot), SS58 prefix 2 (paritytech ss58-registry kusama); encoding checked against Trust Wallet Core tests/chains/Kusama", sources: &[] },
-    Chain { name: "polyx", ticker: "POLYX", title: "Polymesh", coin: 595, enc: Enc::Ss58 { prefix: 12 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey key (as dot), SS58 prefix 12 (paritytech ss58-registry polymesh); encoding checked against Trust Wallet Core tests/chains/Polymesh", sources: &[] },
+    Chain { name: "ksm", ticker: "KSM", title: "Kusama", coin: 434, enc: Enc::Ss58 { prefix: 2 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey key (as dot), SS58 prefix 2 (paritytech ss58-registry kusama); encoding checked against Trust Wallet Core tests/chains/Kusama; TWC also derives ed25519 SLIP-10 at m/44'/434'/0'/0'/0' (registry commit adf80f8)", sources: &[] },
+    Chain { name: "polyx", ticker: "POLYX", title: "Polymesh", coin: 595, enc: Enc::Ss58 { prefix: 12 }, default_count: 1, sign: Unknown, verified: true, source: "substrate subkey key (as dot), SS58 prefix 12 (paritytech ss58-registry polymesh); encoding checked against Trust Wallet Core tests/chains/Polymesh; TWC also derives ed25519 SLIP-10 at m/44'/595'/0'/0'/0' (registry commit adf80f8)", sources: &[] },
     Chain { name: "ada", ticker: "ADA", title: "Cardano", coin: 1815, enc: Enc::Ada, default_count: 5, sign: Unknown, verified: true, source: "CIP-1852/CIP-0019: Icarus master, BIP32-Ed25519, base address (Yoroi/Eternl/Daedalus Shelley)", sources: &[] },
     Chain { name: "ton", ticker: "TON", title: "TON", coin: 607, enc: Enc::Ton, default_count: 1, sign: Unknown, verified: true, source: "tonsdk/tonweb: TON mnemonic (HMAC-SHA512 + PBKDF2 \"TON default seed\"), wallet v4r2, workchain 0", sources: &[] },
     Chain { name: "xlm", ticker: "XLM", title: "Stellar", coin: 148, enc: Enc::Xlm, default_count: 10, sign: Unknown, verified: true, source: "SEP-0005: SLIP-0010 ed25519, m/44'/148'/i'", sources: &[] },
@@ -652,6 +652,13 @@ pub fn ss58_row(c: &Chain, path: &str, mini: &[u8; 32]) -> Row {
     let Enc::Ss58 { prefix } = c.enc else { panic!("not ss58") };
     let pk = schnorrkel::MiniSecretKey::from_bytes(mini).expect("32 bytes").expand_to_public(schnorrkel::ExpansionMode::Ed25519).to_bytes();
     Row { chain: c.name, kind: "sr25519", path: path.into(), address: ss58_address(prefix, &pk), secret_field: "private_key", secret: format!("0x{}", crate::hex_enc(mini)) }
+}
+/// Trust Wallet Core ed25519 row: 32-byte seed as SigningKey, SS58 of the 32-byte public key (kind `ed25519`).
+#[cfg(all(feature = "ed25519", feature = "secrets"))]
+pub fn ss58_ed25519_row(c: &Chain, path: &str, seed: &[u8; 32]) -> Row {
+    let Enc::Ss58 { prefix } = c.enc else { panic!("not ss58") };
+    let pubk = ed25519_dalek::SigningKey::from_bytes(seed).verifying_key().to_bytes();
+    Row { chain: c.name, kind: "ed25519", path: path.into(), address: ss58_address(prefix, &pubk), secret_field: "private_key", secret: format!("0x{}", crate::hex_enc(seed)) }
 }
 /// Stellar account id (G...) of a 32-byte ed25519 public key.
 pub fn xlm_address(pubkey: &[u8; 32]) -> String { strkey_encode(6 << 3, pubkey) }
