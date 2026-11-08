@@ -64,3 +64,41 @@ fn help_with(banner: &str, usage: &str) {
         std::process::exit(0)
     }
 }
+
+/// Remaining argv after dropping `--chain` and its value. A leading non-flag (the program
+/// name, as returned by `args_or_exit`) is also dropped so it is not forwarded as a positional.
+pub fn args_without_chain(args: &[String]) -> Vec<String> {
+    let mut i = if args.first().map(|s| !s.starts_with('-')).unwrap_or(false) { 1 } else { 0 };
+    let mut out = Vec::new();
+    while i < args.len() {
+        if args[i] == "--chain" {
+            i += 1;
+            if i < args.len() { i += 1; }
+            continue;
+        }
+        out.push(args[i].clone());
+        i += 1;
+    }
+    out
+}
+
+/// Run `tool` from the same directory as this executable. stdin/stdout/stderr are inherited.
+pub fn sibling_exit<S: AsRef<std::ffi::OsStr>>(tool: &str, args: &[S]) -> Result<i32, &'static str> {
+    let dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())).ok_or("delegate_missing")?;
+    match std::process::Command::new(dir.join(tool)).args(args).status() {
+        Ok(st) => Ok(st.code().unwrap_or(1)),
+        Err(_) => Err("delegate_missing"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn strips_chain_and_argv0() {
+        let a = vec!["/bin/tx-build".into(), "--chain".into(), "sol".into(), "--plan".into(), "p.json".into()];
+        assert_eq!(args_without_chain(&a), vec!["--plan".to_string(), "p.json".to_string()]);
+        let b = vec!["--chain".into(), "xrp".into(), "--account".into(), "rX".into()];
+        assert_eq!(args_without_chain(&b), vec!["--account".to_string(), "rX".to_string()]);
+    }
+}

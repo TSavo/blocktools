@@ -21,15 +21,33 @@
 //!   asserted and match lifts token_call_not_transfer / unknown_contract_call and its approve warning.
 //! EVM default fee cap: 0.01 ETH (same as tx-sign); UTXO: no cap unless --max-fee.
 //! Exit 0 and status "ok" only when every check passes; otherwise status "failed", exit 1.
+//! `--chain sol|tron` execs `sol-tron-tx verify` (pass that tool's `--expect JSON`).
+//! `--chain xrp` and account chains have no verify backend (`verify_not_available`).
+//! `--chain xmr` is refused (`xmr_requires_wallet_rpc`).
 use blocktools_tx::policy::{check, Policy};
 use serde_json::json;
 use std::io::Read;
 fn main() {
-    blocktools_io::help("tx-verify [--chain C] (--plan FILE | [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--expect-memo MEMO] [--policy FILE]) [--allow-warnings] [--allow-value-with-token] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < tx");
+    blocktools_io::help("tx-verify [--chain C] (--plan FILE | [--expect-to ADDR]... [--change ADDR]... [--chain-id N] [--max-fee N] [--expect-memo MEMO] [--policy FILE]) [--allow-warnings] [--allow-value-with-token] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < tx\n  sol|tron execs sol-tron-tx verify (pass --expect JSON); xrp and account chains: verify_not_available; xmr: xmr_requires_wallet_rpc.");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-verify");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { blocktools_io::outln!("{}", json!({"tool":"tx-verify","status":"bad_input","error":e})); std::process::exit(2) };
+    if let Some(c) = one("--chain") {
+        match c.as_str() {
+            "sol" | "tron" => {
+                let mut args = vec!["verify".into(), "--chain".into(), c.clone()];
+                args.extend(blocktools_io::args_without_chain(&a));
+                match blocktools_io::sibling_exit("sol-tron-tx", &args) {
+                    Ok(code) => std::process::exit(code),
+                    Err(e) => bad(e),
+                }
+            }
+            "xmr" => bad("xmr_requires_wallet_rpc"),
+            "xrp" | "xlm" | "algo" | "atom" | "ton" | "ada" | "dot" | "rune" => bad("verify_not_available"),
+            _ => {}
+        }
+    }
     // --plan FILE: the Plan (RFC #15) carries the assertions; `blocktools_plan::sign_guards` derives the
     // SAME policy::Policy the flags build (plus fail-closed findings), so a passing `tx-verify --plan` and a
     // `tx-sign --plan` enforce the identical assertions. Opt-in and exclusive with the manual assertion flags.

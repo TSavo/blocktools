@@ -15,6 +15,7 @@ its summary on the terminal and types a code. Irreversible.
 UTXO chains: POST {esplora}/tx; EVM: eth_sendRawTransaction. The id the server returns must
 equal the id computed locally, or status is "error". Defaults as utxo\-fetch.
 Bare signed UTXO hex (no input values, so no fee): a FEE UNKNOWN banner and you must type ACK FEE\-UNKNOWN first.
+`\-\-chain sol|tron|xrp|xmr` and account chains are refused (`broadcast_not_available`).
 .SH OPTIONS
 .nf
 \-\-chain

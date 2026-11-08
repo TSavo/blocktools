@@ -8,6 +8,7 @@ Numbers and security statements here are only those registered as measured in do
 ## [Unreleased]
 
 ### Added
+- `tx-build`, `tx-sign`, and `tx-verify` take `--chain sol|tron|xrp|xlm|algo|atom|ton|ada|dot|rune` and exec the existing backend (`sol-tron-tx`, `xrp-tx`, `acct-tx`) from the same directory (`blocktools_io::sibling_exit`). `tx-sign --chain sol|tron` fails closed (`signing_not_available`; those backends take no keys). `--chain xmr` fails closed (`xmr_requires_wallet_rpc`; signing stays on host `xmr-wallet`, never pulled into the sealed image). `--chain zec` is unchanged (transparent v5); `zec-sapling` is address derivation, not a tx backend. `tx-verify --chain sol|tron` execs `sol-tron-tx verify`; other delegated chains without a verify backend fail `verify_not_available`. `tx-broadcast` refuses those chains (`broadcast_not_available`). Coverage is listed in `docs/VERB-CHAIN.md` and checked by `scripts/verb-chain-check.py` and `scripts/e2e.d/verb-chain.sh`. No wasm export added.
 - Spender checks for signed permits (EIP-712 typed data), shared by `typed-data-verify` and the wasm
   `evmTypedDataVerify` (`permit::apply`): EIP-2612, DAI and Permit2 `PermitSingle`, `PermitBatch`,
   `PermitTransferFrom`, `PermitBatchTransferFrom`, recognised by primaryType and exact field set. New output

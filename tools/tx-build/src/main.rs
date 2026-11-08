@@ -20,6 +20,12 @@
 //! --account FILE is one JSON object with chain_id (required, must equal --chain-id) and any of nonce, balance, max_fee_per_gas, max_priority_fee_per_gas
 //! (utxo-fetch writes it); flags override it. ERC-20 sends need native gas at the old address:
 //! build the gas top-up first with --topup GAS_UNITS from a funded address.
+//!   tx-build --chain sol|tron --plan FILE  -> execs sol-tron-tx build (unsigned; takes no keys)
+//!   tx-build --chain xrp ...               -> execs xrp-tx build (same flags, without --chain)
+//!   tx-build --chain xlm|algo|atom|ton|ada|dot|rune ... -> execs acct-tx build --chain C
+//!   tx-build --chain xmr is refused (xmr_requires_wallet_rpc): there is no offline unsigned builder;
+//!    host-side monero-wallet-rpc signing stays on `xmr-wallet sweep`. zec-sapling is address
+//!    derivation only; transparent ZEC stays in this tool (`--chain zec --sweep`).
 use blocktools_tx::build;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -37,9 +43,39 @@ fn file(p: &str, max: u64) -> String {
     s
 }
 fn main() {
-    blocktools_io::help("tx-build --chain btc|ltc|doge|eth ... (see --help in source docs / recipes) -> unsigned PSBT or EVM tx");
+    blocktools_io::help("tx-build --chain btc|ltc|doge|eth|zec|sol|tron|xrp|xlm|algo|atom|ton|ada|dot|rune|xmr ... -> unsigned tx (sol/tron/xrp/account chains exec the existing backend; --chain xmr is refused: use host xmr-wallet; zec is transparent v5 here, not zec-sapling)");
     let a = A(blocktools_core::chain_spec::args_or_exit("tx-build"));
     let chain = a.get("--chain").unwrap_or("btc");
+    // One build verb: sol/tron/xrp/account chains exec the existing backend beside this binary.
+    // xmr has no offline unsigned builder. zec transparent stays here; do not route through zec-sapling.
+    match chain {
+        "sol" | "tron" => {
+            let mut args = vec!["build".into(), "--chain".into(), chain.to_string()];
+            args.extend(blocktools_io::args_without_chain(&a.0));
+            match blocktools_io::sibling_exit("sol-tron-tx", &args) {
+                Ok(c) => std::process::exit(c),
+                Err(e) => fail(e),
+            }
+        }
+        "xrp" => {
+            let mut args = vec!["build".into()];
+            args.extend(blocktools_io::args_without_chain(&a.0));
+            match blocktools_io::sibling_exit("xrp-tx", &args) {
+                Ok(c) => std::process::exit(c),
+                Err(e) => fail(e),
+            }
+        }
+        "xlm" | "algo" | "atom" | "ton" | "ada" | "dot" | "rune" => {
+            let mut args = vec!["build".into(), "--chain".into(), chain.to_string()];
+            args.extend(blocktools_io::args_without_chain(&a.0));
+            match blocktools_io::sibling_exit("acct-tx", &args) {
+                Ok(c) => std::process::exit(c),
+                Err(e) => fail(e),
+            }
+        }
+        "xmr" => fail("xmr_requires_wallet_rpc"),
+        _ => {}
+    }
     if chain == "eth" { return evm_build(&a) }
     if chain == "zec" { // transparent-only v5 sweep, P2PKH inputs, ZIP-244 (branch id is consensus-critical)
         if !a.has("--sweep") { fail("zec: only --sweep is supported") }

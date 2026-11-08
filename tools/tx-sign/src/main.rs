@@ -25,6 +25,10 @@
 //!   --allow-inner-call TO:SELECTOR (else inner_calls_not_asserted) and a Safe delegatecall target by
 //!   --allow-delegatecall TO (else delegatecall). Works with --plan too.
 //! Default fee cap: UTXO per chain (chain rate limit x vsize, never below 100000 sats; policy::default_fee_cap) / 0.01 ETH (EVM); raise it with --max-fee.
+//! `--chain sol|tron` is refused (`signing_not_available`): those backends take no keys.
+//! `--chain xrp` execs `xrp-tx sign`; `--chain xlm|algo|atom|ton|ada|dot|rune` execs `acct-tx sign`.
+//! `--chain xmr` is refused (`xmr_requires_wallet_rpc`); signing stays on host `xmr-wallet`.
+//! `--chain zec` stays transparent here; `zec-sapling` is address derivation, not a signer.
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::Secp256k1;
 use blocktools_tx::policy::{check, Policy};
@@ -37,11 +41,34 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
-    blocktools_io::help("tx-sign --tx FILE (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < keys   (asks for a code on the terminal)\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
+    blocktools_io::help("tx-sign --tx FILE [--chain C] (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < keys   (asks for a code on the terminal)\n  --chain sol|tron: refused (signing_not_available; sol-tron-tx builds and verifies only). --chain xrp -> xrp-tx sign. --chain xlm|algo|atom|ton|ada|dot|rune -> acct-tx sign. --chain xmr: refused (xmr_requires_wallet_rpc; use host xmr-wallet). --chain zec: transparent only (unchanged; zec-sapling does not sign).\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
     let one = |k: &str| all(k).pop();
     let bad = |e: &str| -> ! { out("bad_input", json!({"error":e})) };
+    if let Some(c) = one("--chain") {
+        match c.as_str() {
+            "sol" | "tron" => bad("signing_not_available"),
+            "xmr" => bad("xmr_requires_wallet_rpc"),
+            "xrp" => {
+                let mut args = vec!["sign".into()];
+                args.extend(blocktools_io::args_without_chain(&a));
+                match blocktools_io::sibling_exit("xrp-tx", &args) {
+                    Ok(code) => std::process::exit(code),
+                    Err(e) => bad(e),
+                }
+            }
+            "xlm" | "algo" | "atom" | "ton" | "ada" | "dot" | "rune" => {
+                let mut args = vec!["sign".into(), "--chain".into(), c.clone()];
+                args.extend(blocktools_io::args_without_chain(&a));
+                match blocktools_io::sibling_exit("acct-tx", &args) {
+                    Ok(code) => std::process::exit(code),
+                    Err(e) => bad(e),
+                }
+            }
+            _ => {}
+        }
+    }
     let mut txt = String::new();
     std::fs::File::open(one("--tx").unwrap_or_else(|| bad("--tx FILE required"))).and_then(|f| f.take(blocktools_tx::MAX_INPUT as u64).read_to_string(&mut txt)).unwrap_or_else(|_| bad("cannot read --tx file"));
     let chain = blocktools_tx::resolve_chain(&txt, one("--chain")).unwrap_or_else(|e| bad(e));
