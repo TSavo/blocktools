@@ -44,10 +44,10 @@ in the script's `NO_TX_VERB`; a new tool binary in neither list fails the gate. 
   on the bytes before the chain is checked. They also take `--chain` for delegation (`tx-verify --chain sol|tron`
   execs `sol-tron-tx verify`; `tx-sign --chain xrp` and the account chains exec the backend; sol|tron and xmr fail
   closed). coverage.py does not probe those rows, so those cells are not double-counted here.
-- `tron verify` exists only in sol-tron-tx; `tx-envelope` refuses it.
+- The `tron verify` backend is `sol-tron-tx` (also reached by `tx-verify --chain tron`); `tx-envelope` refuses it.
 - `broadcast` covers btc, ltc, doge, eth only (tx-broadcast --help); every other chain is decode/sign here and broadcast elsewhere.
 
-## Model-divergent chains: unify or keep separate (proposal only, not implemented)
+## Model-divergent chains: unify or keep separate (status per row)
 
 The rule "one verb per tool, chain as a parameter" fits chains that share a transaction model: UTXO (btc/ltc/doge/bch/zec
 transparent) and EVM. Where the model differs the inputs differ too, and one tool that takes every chain's flags only

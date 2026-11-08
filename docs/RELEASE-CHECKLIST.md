@@ -35,12 +35,12 @@ On `workflow_dispatch` (main): build, release-env, the arm64 dry-run jobs (`dryr
 `dryrun-linux-aarch64`: `gate.sh package`, artifacts only) and `repos-dry-run` (`REPOS_UNSIGNED=1`: builds the
 packages and repository layout, signs nothing, publishes nothing). publish and repos are skipped.
 
-## Never exercised
+## Release evidence and limits
 
-- The signed `repos` job has never run on a real tag (it was added after v0.1.1; v0.1.1's repositories were
-  built and signed by running the same scripts by hand on the host). Its first run is the release.
+- The signed `repos` job ran on the v0.4.0 tag; see [RELEASE-REPOS.md](RELEASE-REPOS.md).
+  That workflow success is not evidence that every published package was install-tested.
 - Whether GitHub Pages redeploys after the job's token push is not observed.
-- Vault signing inside the runner job (the dispatch dry run is unsigned by design).
+- The dispatch dry run is unsigned by design and does not exercise Vault signing.
 - A dispatch cannot run publish or repos; there is no dry run of `gh release create` or of the gh-pages push.
 
 ## Before the tag (each item: how it is checked)

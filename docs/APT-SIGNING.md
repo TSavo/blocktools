@@ -22,9 +22,12 @@ The key is trusted only for this one source (`signed-by=`); `apt-key` is not use
 
 ## Which systems
 
-The repository serves `blocktools 0.1.1-1`, built from the v0.1.1 release tarball's binaries, which link glibc.
-The package declares `Depends: libc6 (>= 2.34)`. Most of its tools need glibc 2.34; `sealed-run`
-needs glibc 2.39. Measured in containers (see Tests):
+The repository serves `blocktools 0.4.0-1`, built from the v0.4.0 release tarball's glibc-linked binaries
+(see [RELEASE-REPOS.md](RELEASE-REPOS.md)); that package's install and per-binary glibc floor have not been re-measured.
+The package declares `Depends: libc6 (>= 2.34)`; that dependency is not a per-binary compatibility measurement.
+
+The following container results are historical, for `0.1.1-1`, not v0.4.0 (see Tests).
+Most of that older package's tools need glibc 2.34; `sealed-run` needs glibc 2.39:
 
 | image | glibc | apt update/install | `--help` exit 0 (of every file in /usr/bin from the package) |
 |---|---|---|---|
@@ -61,7 +64,7 @@ lays out `pool/main/b/blocktools/` and `dists/stable/main/binary-amd64/Packages(
 `gpgv` against the committed keyring only. The output directory is copied to `apt/` on `gh-pages`.
 
 The published package is made by `scripts/release-repos.sh build` (see [RELEASE-REPOS.md](RELEASE-REPOS.md)):
-`BINDIR=<tarball>/bin DEB_DEPENDS="libc6 (>= 2.34)" scripts/package-native.sh deb` on the v0.1.1 release tarball.
+`BINDIR=<tarball>/bin DEB_DEPENDS="libc6 (>= 2.34)" scripts/package-native.sh deb` on the tagged release tarball.
 
 ## Tests
 

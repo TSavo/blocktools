@@ -29,7 +29,8 @@
 * Docker image verification on real hardware is done per release step only.
 * Terminal confirmation is NOT proof of a human: any process that can spawn a pty can type the
   code (see "Terminal confirmation: residual risk" below). Terminal pinning narrows it; it doesn't close it.
-* Signing / broadcasting tools are tested only against fixtures and a mock server.
+* Signing / broadcasting evidence is chain-specific; see [CHAINS.md](CHAINS.md) for real-node runs
+  and untested limits, and [CLAIMS.md](CLAIMS.md) for measured claims. Do not generalize a run to other chains.
 * A hostile endpoint can force the unknown-fee path. `rpc sendraw` looks up previous transactions at the
   endpoint it is about to broadcast to; each answer must hash to the txid the input names, so the endpoint
   can't fake an input value, but it can answer "not found". The summary then shows the FEE UNKNOWN banner
@@ -37,7 +38,8 @@
   elsewhere, or broadcast the tx-sign JSON with `tx-broadcast`, which carries the input values.
   `tx-broadcast` given bare signed UTXO hex (no input values) shows the same banner and wants the same ACK.
 * The macOS sealed path is unverified. The macos CI job runs the tools natively, not sealed (README).
-* Linux x86_64 only: release assets and every measured claim are Linux x86_64; other platforms build from source.
+* Release assets are Linux x86_64 only; other platforms build from source. Each measurement
+  in [CLAIMS.md](CLAIMS.md) names its platform; a native run does not validate a sealed run.
 * CI runners hold the host Docker socket (docs/CI.md). A job that runs on them can control the host's Docker,
   so a workflow change is trusted like host access. Fork pull requests run on GitHub-hosted runners instead.
 * `utxo-set` / `wallet-finder` answer "funded" only against the dump you give them. The dump's age and

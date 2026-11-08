@@ -994,7 +994,7 @@ command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
 cheap = false
 depends = ["scripts/e2e.d/evm-devnet.sh", "scripts/evm-pins/geth", "tools/tx-build/src/main.rs", "tools/tx-sign/src/main.rs", "tools/tx-broadcast/src/main.rs", "tools/contract-call/src/main.rs", "crates/tx/src/evm.rs"]
-doc = [{ file = "recipes/evm-contract-tx.md", text = "evm-devnet.sh" }]
+doc = [{ file = "recipes/evm-contract-tx.md", text = "evm-devnet.sh" }, { file = "recipes/README.md", text = "claim `evm-devnet-create-call`" }]
 
 [[claim]]
 id = "tarball-glibc-floor-v033"
@@ -1053,7 +1053,7 @@ command = "docker run --rm alpine:latest sh -euc 'wget -qO /etc/apk/keys/blockto
 expect = "56 of 58 executables run"
 cheap = false
 depends = []
-doc = [{ file = "README.md", text = "56 of 58 executables" }]
+doc = [{ file = "README.md", text = "56 of 58 executables" }, { file = "docs/APK-SIGNING.md", text = "56 of 58 executables" }]
 
 [[claim]]
 id = "approve-unlimited-threshold"

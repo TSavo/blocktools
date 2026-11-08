@@ -18,8 +18,11 @@ wasm build for JavaScript/TypeScript. MIT licensed.
 * **Contract tools (EVM)**: ABI encode/decode, selector and error lookup against your own
   candidate list, ABI inspection, log decoding, CREATE/CREATE2 addresses, bytecode inspection,
   EIP-712 verification, and a pre-sign check of contract calls. See below.
-* **Transactions**: `tx-build` → `tx-verify` → `tx-sign` → `tx-broadcast` for Bitcoin and
-  UTXO forks, EVM, and account chains (`acct-tx`, `sol-tron-tx`, `xrp-tx`); PSBT and multisig
+* **Transactions**: `tx-build` → `tx-verify` → `tx-sign` → `tx-broadcast` for Bitcoin,
+  UTXO forks and EVM. Other chains use `--chain` hand-offs to `acct-tx`, `sol-tron-tx`
+  or `xrp-tx`, with gaps: Solana/Tron have no signing or broadcast; XRP and account chains
+  have no verify or broadcast backend. See [verb × chain coverage](docs/VERB-CHAIN.md).
+  PSBT and multisig
   (`multisig`, `taproot-multisig`, `tx-combine`), `tx-decode`, `tx-plan`, message signing
   (`msg-sign`/`msg-verify`), Sign-In with Ethereum messages (`siwe`), BOLT11 invoices (`bolt11`). Signing is deny-by-default: `tx-verify`
   refuses what it cannot check unless you assert it explicitly. See [docs/POLICY.md](docs/POLICY.md)
