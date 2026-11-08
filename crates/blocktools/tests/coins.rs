@@ -180,3 +180,17 @@ fn utxo(c: &str) -> String {
         assert_ne!(trow["coin_type"], 0, "{name} must not report coin_type 0");
     }
 }
+
+/// Historical BCC vectors prove a wire layout, not permission to build or auto-detect.
+#[test] fn bcc_stays_deny_by_default() {
+    let row = chains::chain("bcc").unwrap();
+    assert!(matches!(row.enc, chains::Enc::Utxo { p2pkh: 18, p2sh: 85, wif: 146, hrp: None, taproot: false }));
+    assert!(matches!(row.sign, chains::Sign::PosTime));
+    assert!(!row.verified);
+    assert!(chains::supported("bcc").is_none());
+    assert_eq!(row.slip44(), None);
+    assert_eq!(row.tx_format(), ("pos-ntime", false));
+    assert!(address::detect("8VX7ER5ksnLH3iu5chm4yvJTgkMRy7SoKD").is_empty());
+    assert_eq!(build_unsigned_sweep_at("bcc", "", KAT.iter().find(|x| x.0 == "bcc").unwrap().1, 5, 1482561069).unwrap_err(),
+               "unsupported_tx_format:pos-ntime");
+}

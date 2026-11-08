@@ -76,3 +76,56 @@ pub fn check(chain: &str, txid: &str, spks: &str, raw: &str) {
         check(c, "-", &spks.join(","), &blocktools_core::hex_enc(tx.serialize()));
     }
 }
+
+/// BCC archival evidence only: borrow the PPC parser to test the observed layout without
+/// enabling BCC parsing, building or signing. Proven history is not a supported-chain flag.
+#[test] fn bitconnect_archive_ntime_and_signature() {
+    let vectors: Vec<serde_json::Value> = serde_json::from_str(include_str!("data/bcc_mainnet.json")).unwrap();
+    let row = blocktools_core::chains::chain("bcc").unwrap();
+    assert!(!row.verified);
+    assert_eq!(row.slip44(), None);
+    assert_eq!(row.tx_format(), ("pos-ntime", false));
+    assert!(blocktools_tx::pos::layout("bcc").is_none());
+    for v in &vectors {
+        let raw = hx(v["raw"].as_str().unwrap());
+        let tx = PosTx::parse("ppc", &raw).unwrap(); // same nTime-after-version layout
+        assert_eq!(tx.serialize(), raw);
+        assert_eq!(tx.txid_hex(), v["txid"].as_str().unwrap());
+        assert_eq!(tx.layout.version, 1);
+        assert_eq!(tx.time as u64, v["time"].as_u64().unwrap());
+        assert_eq!(u32::from_le_bytes(raw[4..8].try_into().unwrap()), tx.time);
+        if let Some(block) = v["block_raw"].as_str() {
+            let block = hx(block);
+            use bitcoin::hashes::{sha256d, Hash};
+            let txs: Vec<Vec<u8>> = v["block_txs"].as_array().unwrap().iter().map(|t| hx(t.as_str().unwrap())).collect();
+            assert_eq!(block[80] as usize, txs.len()); // all counts fit one CompactSize byte
+            assert!(txs.contains(&raw));
+            let body: Vec<u8> = txs.iter().flatten().copied().collect();
+            assert_eq!(&block[81..81 + body.len()], body);
+            let mut level: Vec<_> = txs.iter().map(|t| sha256d::Hash::hash(t).to_byte_array()).collect();
+            while level.len() > 1 {
+                if level.len() % 2 == 1 { level.push(*level.last().unwrap()); }
+                level = level.chunks(2).map(|p| sha256d::Hash::hash(&[p[0], p[1]].concat()).to_byte_array()).collect();
+            }
+            assert_eq!(&block[36..68], level[0]);
+        }
+        if v["label"] == "height1337" {
+            assert_eq!(blocktools_core::chains::script_to_address(row, &tx.outputs[0].1).unwrap().1,
+                       "8VX7ER5ksnLH3iu5chm4yvJTgkMRy7SoKD");
+        }
+    }
+    let spend = vectors.iter().find(|v| v["label"] == "spend").unwrap();
+    let prev = vectors.iter().find(|v| v["label"] == "prevout").unwrap();
+    let tx = PosTx::parse("ppc", &hx(spend["raw"].as_str().unwrap())).unwrap();
+    let p = PosTx::parse("ppc", &hx(prev["raw"].as_str().unwrap())).unwrap();
+    assert_eq!(tx.inputs.len(), 1);
+    let mut id = hx(prev["txid"].as_str().unwrap()); id.reverse();
+    assert_eq!(tx.inputs[0].txid.as_slice(), id);
+    let spk = &p.outputs[tx.inputs[0].vout as usize].1;
+    // Checks SIGHASH_ALL with nTime included, and rejects the same signature without nTime.
+    check("ppc", spend["txid"].as_str().unwrap(), &blocktools_core::hex_enc(spk), spend["raw"].as_str().unwrap());
+    let ss = &tx.inputs[0].script_sig;
+    let pk = &ss[2 + ss[0] as usize..];
+    use bitcoin::hashes::{hash160, Hash};
+    assert_eq!(&spk[3..23], hash160::Hash::hash(pk).as_byte_array());
+}
