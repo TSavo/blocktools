@@ -67,6 +67,7 @@ Minor release. Highlights:
 ### Known limitations
 - BitConnect (`bcc`) remains unverified: not a supported chain, auto-detect excludes it, and `tx-build --chain bcc` exits 2 (`unverified chain parameters: not supported`). Signing is not enabled.
 - macos-sealed, recovery-real-lost-wallet, macos-remote-context-empty-in, and chains-fee-figures (still quoting the October sample) remain untested.
+- image-size-readme, sealed-run-linux, and wrapper-remote-refusal are untested on this tree: the wrapper `BLOCKTOOLS_VERSION` bump to 0.5.0 changed a file they depend on. Last measurements were at 55d8cad1 (image-size and sealed-run) and f7b3937 (remote-refusal).
 
 ## [0.4.0] - 2026-11-02
 
