@@ -7,9 +7,20 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-08
+
+Minor release. Highlights:
+- wasm `tronVerifyTx` and 77 exports (was 76) [wasm-export-count], measured at 1572c714.
+- Kusama (`ksm`) and Polymesh (`polyx`) emit a Trust Wallet Core ed25519 row alongside the existing substrate sr25519 row; `dot` stays sr25519-only.
+- `tx-build`, `tx-sign`, and `tx-verify` take `--chain` and exec the existing backends (fail closed where signing or verify is unavailable).
+- Permit spender checks and Seaport order checks on `typed-data-verify` and the wasm `evmTypedDataVerify`.
+- **Behaviour change:** `rpc --allow-wallet-sign` refuses unasserted permits and Seaport orders.
+- BitConnect (`bcc`) archival evidence is preserved; `verified` stays false and signing is not enabled.
+
 ### Added
 - Kusama (`ksm`) and Polymesh (`polyx`) emit a Trust Wallet Core ed25519 row (kind `ed25519`) alongside the existing substrate sr25519 row. `key-to-addresses` treats a 32-byte seed as TWC does (tests/chains/{Kusama,Polymesh} FromPrivateKey and CoinAddressDerivationTests.cpp dummy key 0x46×32 at adf80f8). `derive --chain ksm|polyx` (presets `common`, `exhaustive`, `recovery`) walks registry paths `m/44'/434'/0'/0'/0'` and `m/44'/595'/0'/0'/0'` via SLIP-10. Existing sr25519 / subkey addresses are unchanged; `dot` is still sr25519-only.
 - wasm `tronVerifyTx(hex, expectJson)` — the existing `tron::verify_tx` policy (`sol-tron-tx verify --chain tron`). `decodeTx`/`verifyTx` with chain `tron` now route to `tronDecodeTx` / refuse with `tron_use_tronVerifyTx` (same pattern as Solana). 77 exports [wasm-export-count], measured at 1572c714.
+- BitConnect (`bcc`) archival verification of the existing unverified Bitcoin-style fork row (7355ff22, docs/BITCONNECT-VERIFICATION.md). Public mainnet evidence is checked in; `verified` stays false; auto-detect still excludes BCC; `tx-build --chain bcc` still exits 2 (`unverified chain parameters: not supported`). The tests do not add `bcc` to the decoder layout table, POS_SWEEP allowlist, or signer. Signing is not enabled.
 
 ### Fixed
 - `key-to-addresses` treated an all-digit 64-hex key as a JSON number and silently skipped it (no `unsupported` line). Only JSON objects are read as `{key|wif|private_key}` now, matching `keys::parse_key_line`.
@@ -51,6 +62,12 @@ Numbers and security statements here are only those registered as measured in do
 - `docs/COVERAGE.md` lists the `tx-build --chain` overlaps with `sol-tron-tx`, `xrp-tx`, and `acct-tx`.
 - The sealed image Dockerfile copies `fixtures/evm-mainnet`, which `crates/tx/tests/evm_decode.rs` reads.
 - The sealed image Dockerfile copies the `fixtures/` and `recipes/fixtures/` trees (`tools/rpc/tests/cli.rs` permit/seaport tests read `recipes/fixtures/evm`; copying subdirs one at a time kept breaking the image build).
+- docs: the Mac-to-Battleaxe `/in` hand check is no longer described as empty (1572c714). With `BLOCKTOOLS_ALLOW_REMOTE=ssh`, `./in` is streamed via tar-over-`docker exec` (hand check 2026-11-08, not re-run in CI). The macos-remote-context-empty-in claim stays untested (cannot satisfy K-macos).
+
+### Known limitations
+- BitConnect (`bcc`) remains unverified: not a supported chain, auto-detect excludes it, and `tx-build --chain bcc` exits 2 (`unverified chain parameters: not supported`). Signing is not enabled.
+- macos-sealed, recovery-real-lost-wallet, macos-remote-context-empty-in, and chains-fee-figures (still quoting the October sample) remain untested.
+- image-size-readme, sealed-run-linux, and wrapper-remote-refusal are untested on this tree: the wrapper `BLOCKTOOLS_VERSION` bump to 0.5.0 changed a file they depend on. Last measurements were at 55d8cad1 (image-size and sealed-run) and f7b3937 (remote-refusal).
 
 ## [0.4.0] - 2026-11-02
 
