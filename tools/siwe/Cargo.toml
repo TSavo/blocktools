@@ -10,7 +10,7 @@ path = "src/lib.rs"
 name = "siwe"
 path = "src/main.rs"
 [dependencies]
-blocktools-io = { version = "0.4.0", path = "../../crates/io" }
+blocktools-io = { version = "0.5.0", path = "../../crates/io" }
 # EIP-55 checksum (keccak) and hex only.
-blocktools-core = { version = "0.4.0", path = "../../crates/core", default-features = false }
+blocktools-core = { version = "0.5.0", path = "../../crates/core", default-features = false }
 serde_json.workspace = true

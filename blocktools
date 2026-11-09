@@ -7,7 +7,7 @@
 # Inputs: $BLOCKTOOLS_IN (default ./in), read-only at /in.
 # Secrets (passwords/passphrases) : $BLOCKTOOLS_SECRETS (default ./secrets), read-only at /secrets.
 set -eu
-BLOCKTOOLS_VERSION=0.4.0  # = Cargo.toml version, enforced by scripts/version-check.sh
+BLOCKTOOLS_VERSION=0.5.0  # = Cargo.toml version, enforced by scripts/version-check.sh
 case "${1:-}" in --version|version) echo "blocktools $BLOCKTOOLS_VERSION"; exit 0 ;; esac
 IMAGE="${BLOCKTOOLS_IMAGE:-blocktools:local}"; DOCKER="${BLOCKTOOLS_DOCKER:-docker}"
 IN="${BLOCKTOOLS_IN:-$PWD/in}"; SECRETS="${BLOCKTOOLS_SECRETS:-$PWD/secrets}"
