@@ -7,6 +7,12 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [Unreleased]
 
+### Fixed
+- The K-stale negatives plant for `image-size-readme` wrote duplicate `commit`/`date` keys after that claim was parked with last-measurement metadata (main CI run 42551290772, `gate (negatives)`). The plant now updates existing `commit` and `date` instead of inserting a second copy.
+
+### Changed
+- Install and package-repo docs now name the published v0.5.0 GitHub release and package indexes (alpine `0.5.0-r0`, apt and rpm `0.5.0-1`, read from the live indexes on 2026-11-08). The Alpine `0.4.0-r0` install measurement [alpine-apk-install-0.4.0] is unchanged; the live `0.5.0-r0` package was not install-tested.
+
 ## [0.5.0] - 2026-11-08
 
 Minor release. Highlights:

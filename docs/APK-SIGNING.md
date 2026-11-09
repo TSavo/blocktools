@@ -71,7 +71,7 @@ apk update && apk add blocktools
 ```
 
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
-(same SHA-256). Current package: `blocktools-0.4.0-r0`, from tag v0.4.0 (live APKINDEX `V:0.4.0-r0` fetched 2026-11-08; install measurement below). It replaced `0.1.1-r0`, which had replaced the pre-release
+(same SHA-256). Current package: `blocktools-0.5.0-r0`, from tag v0.5.0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; that package was not install-tested). It replaced `0.4.0-r0`, which had replaced `0.1.1-r0`, which had replaced the pre-release
 `0.1.1_pre20261026-r0` (apk orders that below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
@@ -82,16 +82,16 @@ the same tmpfs, read-only-bind, output-suppressed flow as `apk-sign-host.sh`, an
 trusts it with the repo key and flags it UNTRUSTED without. The published files were scanned for PEM
 private-key blocks before the push (none).
 
-### Current package: 0.4.0-r0
+### Install measurement: 0.4.0-r0
 
-Measured 2026-11-08 on Battleaxe in `alpine:latest` (Alpine 3.24.3, apk-tools 3.0.8-r0, x86_64):
+Measured 2026-11-08 on Battleaxe in `alpine:latest` (Alpine 3.24.3, apk-tools 3.0.8-r0, x86_64) against then-live `0.4.0-r0`, not the current `0.5.0-r0` package:
 - live Pages URL, repository key installed: `apk update` and `apk add blocktools` succeeded;
 - 56 of 58 executables ran `--help` with exit 0; `/usr/bin/blocktools` and `/usr/bin/recover.sh`
   printed wrapper usage and exited 2;
 - without the repository key, `apk update` and `apk add` exited 1 (`UNTRUSTED signature`).
 
 Evidence: [alpine-apk-install-0.4.0](CLAIMS.md), measured at `55d8cad1`.
-This does not re-measure the historical packages below or the tampered-package case.
+This does not re-measure the historical packages below, the tampered-package case, or the live `0.5.0-r0` package.
 
 ### Historical package measurements
 
@@ -109,8 +109,8 @@ prints usage and exits 2; `recover.sh` exits non-zero); a fetched copy with one 
 
 ## Limits (what is not there or not measured)
 
-- The repo holds one x86_64 package (`0.4.0-r0`); there is no arm64 build. release.yml's `repos`
-  job rebuilt and re-signed it on the v0.4.0 tag (GitHub Actions run 41572772693, conclusion success).
+- The repo holds one x86_64 package (`0.5.0-r0`); there is no arm64 build. release.yml's `repos`
+  job rebuilt and re-signed it on the v0.5.0 tag (GitHub Actions run 42551369106, conclusion success).
 - Signed APKs are not attached to the GitHub release (they are only in the Pages repo).
 - Measured: signing and `apk verify` in `alpine:3.20` containers on x86_64. `apk add` from a
   signed index measured in an Alpine 3.24 container (apk-tools v3, v2 package format). Not measured:
