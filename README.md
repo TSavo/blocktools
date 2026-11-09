@@ -69,15 +69,15 @@ simulation. Recipes ([index](recipes/evm-contract-data.md)): [decode calldata](r
 
 ## Install
 
-### From the v0.4.0 release (Linux x86_64 only)
+### From the v0.5.0 release (Linux x86_64 only)
 
 Releases are a Linux x86_64 tarball plus `SHA256SUMS`; the release itself is not signed. There is no macOS, Windows or ARM asset; on those, build from source.
 
 ```sh
-gh release download v0.4.0 -R TSavo/blocktools     # or download both files from the Releases page
-sha256sum -c SHA256SUMS                            # must print: blocktools-v0.4.0-linux-x86_64.tar.gz: OK
-tar xzf blocktools-v0.4.0-linux-x86_64.tar.gz
-cd blocktools-v0.4.0-linux-x86_64
+gh release download v0.5.0 -R TSavo/blocktools     # or download both files from the Releases page
+sha256sum -c SHA256SUMS                            # must print: blocktools-v0.5.0-linux-x86_64.tar.gz: OK
+tar xzf blocktools-v0.5.0-linux-x86_64.tar.gz
+cd blocktools-v0.5.0-linux-x86_64
 export PATH=$PWD/bin:$PATH MANPATH=$PWD/share/man:
 man blocktools
 ```
@@ -91,7 +91,7 @@ or newer; `sealed-run` and `tx-decode` need glibc 2.39 or newer (newest `GLIBC_`
 build` cannot work. Build the image from the same release:
 
 ```sh
-git clone --branch v0.4.0 https://github.com/TSavo/blocktools && cd blocktools
+git clone --branch v0.5.0 https://github.com/TSavo/blocktools && cd blocktools
 ./blocktools build                                 # image blocktools:local; then ./blocktools run '...'
 ```
 
@@ -109,7 +109,7 @@ echo "deb [signed-by=/etc/apt/keyrings/blocktools-archive-keyring.asc] https://t
 sudo apt update && sudo apt install blocktools
 ```
 
-The repo serves 0.4.0-1. Glibc floors from the v0.3.3 tarball binaries (see above): 53 of its 55 binaries need 2.34+,
+The repo serves 0.5.0-1. Glibc floors from the v0.3.3 tarball binaries (see above): 53 of its 55 binaries need 2.34+,
 `sealed-run` and `tx-decode` need 2.39+. By the distros' glibc versions (inferred, not run): Debian 12 (2.36) and
 Ubuntu 22.04 (2.35) run all but those two; Ubuntu 24.04 (2.39) runs all. Key fingerprint and the older container
 measurements (debian:12, ubuntu:22.04 and 24.04, 2026-10-26, 0.1.x package): [docs/APT-SIGNING.md](docs/APT-SIGNING.md).
@@ -123,7 +123,7 @@ echo https://tsavo.github.io/blocktools/alpine >> /etc/apk/repositories
 apk update && apk add blocktools
 ```
 
-Static musl binaries; the repo serves 0.4.0-r0. Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
+Static musl binaries; the repo serves 0.5.0-r0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; that 0.5.0 package was not install-tested). Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
 `alpine:latest` (3.24.3) container on 2026-10-26 (untested): install from the live URL, 43 of 43 executables run,
 refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md). Re-measured on 2026-11-08 against live `0.4.0-r0`
 in `alpine:latest` (3.24.3) with apk-tools 3.0.8-r0: 56 of 58 executables ran (`blocktools` and `recover.sh` wrappers

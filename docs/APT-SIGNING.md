@@ -22,11 +22,11 @@ The key is trusted only for this one source (`signed-by=`); `apt-key` is not use
 
 ## Which systems
 
-The repository serves `blocktools 0.4.0-1`, built from the v0.4.0 release tarball's glibc-linked binaries
+The repository serves `blocktools 0.5.0-1`, built from the v0.5.0 release tarball's glibc-linked binaries
 (see [RELEASE-REPOS.md](RELEASE-REPOS.md)); that package's install and per-binary glibc floor have not been re-measured.
 The package declares `Depends: libc6 (>= 2.34)`; that dependency is not a per-binary compatibility measurement.
 
-The following container results are historical, for `0.1.1-1`, not v0.4.0 (see Tests).
+The following container results are historical, for `0.1.1-1`, not v0.5.0 (see Tests).
 Most of that older package's tools need glibc 2.34; `sealed-run` needs glibc 2.39:
 
 | image | glibc | apt update/install | `--help` exit 0 (of every file in /usr/bin from the package) |
@@ -91,6 +91,6 @@ installed; an edited `InRelease` gives `BADSIG 607A66058B6C256E`.
 ## Limits (not measured or not there)
 
 - amd64 only; no arm64 package. Not tested on a real (non-container) Debian or Ubuntu host.
-- The repository holds the latest release only (`0.4.0-1`, from the live apt Packages file on 2026-11-08). release.yml's `repos`
-  job rebuilt and re-signed it on the v0.4.0 tag (GitHub Actions run 41572772693, conclusion success; see RELEASE-REPOS.md).
+- The repository holds the latest release only (`0.5.0-1`, from the live apt Packages file on 2026-11-08). release.yml's `repos`
+  job rebuilt and re-signed it on the v0.5.0 tag (GitHub Actions run 42551369106, conclusion success; see RELEASE-REPOS.md).
 - The key has no expiry. Rotation means a new keyring file here and a new Vault version.
