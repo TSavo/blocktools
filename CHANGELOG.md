@@ -8,6 +8,7 @@ Numbers and security statements here are only those registered as measured in do
 ## [Unreleased]
 
 ### Fixed
+- `./blocktools run` (sealed-run agent and human modes) exited 0 even when a stage failed, e.g. classify reporting `bad_input`. sealed-run now waits for every stage and exits with the code of the rightmost stage that failed, after the redact summary line; e2e `wrapper-seal` checks it.
 - The K-stale negatives plant for `image-size-readme` wrote duplicate `commit`/`date` keys after that claim was parked with last-measurement metadata (main CI run 42551290772, `gate (negatives)`). The plant now updates existing `commit` and `date` instead of inserting a second copy.
 
 ### Changed

@@ -60,7 +60,11 @@ nested" ] || f "sealed-run unpack content"
   [ "$(find "$U" "$U/sub" -prune -perm 555 | wc -l)" -eq 2 ] && [ -n "$(find "$U/m.txt" -perm 444)" ] || f "sealed-run unpack modes: $(ls -ld "$U" "$U/sub" "$U/m.txt")"
   "$B/sealed-run" unpack /etc </dev/null | grep -q bad_input || f "unpack outside /in,/secrets accepted"
   chmod -R u+w "$U"
-  echo "ok   wrapper-seal unpack: sealed-run unpack took the wrapper's tar (3 entries, nested file), files 0444, dirs 0555; other targets refused"
+  # a failing stage's exit code reaches the wrapper (docker start -a passes it on): bad_input is 2, not 0
+  rc=0; "$B/sealed-run" agent "classify --bogus-flag" </dev/null > "$T/sr-bad" || rc=$?
+  [ $rc = 2 ] && grep -q '"status":"bad_input"' "$T/sr-bad" && grep -q '"tool":"redact","status":"done"' "$T/sr-bad" || f "sealed-run agent bad_input rc=$rc $(cat "$T/sr-bad")"
+  printf '' | "$B/sealed-run" agent classify > /dev/null || f "sealed-run agent ok stage did not exit 0"
+  echo "ok   wrapper-seal unpack: sealed-run unpack took the wrapper's tar (3 entries, nested file), files 0444, dirs 0555; other targets refused; sealed-run agent exits with the failing stage's code (bad_input 2)"
 else
   echo "skip wrapper-seal unpack: no $B/sealed-run"
 fi
