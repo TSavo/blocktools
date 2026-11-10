@@ -197,11 +197,204 @@ doc = [{ file = "docs/CI.md", text = "e2e on macos-latest (arm64) is blocking" }
 
 [[claim]]
 id = "chains-fee-figures"
-statement = "Per-chain fee figures quoted in CHAINS/ROADMAP (from mainnet samples; no re-run command)"
+statement = "Fee figures in docs/CHAINS.md that scripts/fee-sample.py did not reproduce or cannot re-run: the doge median (60,463), dash 3.9 sat/B (no block window recorded), the zec rate median 49.7 sat/B, and the Monacoin relayfee conversion (= 1 sat/B)"
 kind = "number"
 platform = "linux"
 status = "untested"
-doc = [{ file = "docs/CHAINS.md", text = "100,312 sat" }, { file = "docs/CHAINS.md", text = "512 sat" }, { file = "docs/CHAINS.md", text = "1004 sat" }, { file = "docs/CHAINS.md", text = "700 sat" }, { file = "docs/CHAINS.md", text = "101 sat" }, { file = "docs/CHAINS.md", text = "60,463 sat" }, { file = "docs/CHAINS.md", text = "1,000 sat" }, { file = "docs/CHAINS.md", text = "2,000 sat" }, { file = "docs/CHAINS.md", text = "2.54 sat" }, { file = "docs/CHAINS.md", text = "102.8 sat" }, { file = "docs/CHAINS.md", text = "2.5 sat" }, { file = "docs/CHAINS.md", text = "100 sat" }, { file = "docs/CHAINS.md", text = "1 sat" }, { file = "docs/CHAINS.md", text = "3.9 sat" }, { file = "docs/CHAINS.md", text = "20.0 sat" }, { file = "docs/CHAINS.md", text = "5.4 sat" }, { file = "docs/CHAINS.md", text = "49.7 sat" }, { file = "docs/ROADMAP.md", text = "100,312 sat" }, { file = "recipes/chain-qtum.md", text = "700 sat" }]
+note = "Re-run 2026-11-10 with scripts/fee-sample.py at 58c61430: doge window 6429664- gave median 112,783.70 sat/B (100 txs, ending at block 6429668, p10 2,417.77 and p90 523,560.21 match the doc), not 60,463; zec window 3529835- gave median 41.67 sat/B (200 txs ending at 3529886, 75 zero-fee shielded txs), not 49.7; dash has no recorded block window (a fresh 60-tx sample from block 2560777 gave 5.21 sat/B, which is a different sample); Monacoin node getInfo (mona.insight.monaco-ex.org, 2026-11-10) reports relayfee 0.001 MONA/kB = 100 sat/B, so the doc's '0.001 MONA/kB = 1 sat/B' conversion does not hold. The other figures are registered as fee-sample-* and fee-policy-* claims. Fee caps in chains.rs are unchanged."
+doc = [{ file = "docs/CHAINS.md", text = "60,463 sat" }, { file = "docs/CHAINS.md", text = "3.9 sat" }, { file = "docs/CHAINS.md", text = "49.7 sat" }, { file = "docs/CHAINS.md", text = "= 1 sat/B" }]
+
+[[claim]]
+id = "fee-sample-dgb"
+statement = "docs/CHAINS.md dgb fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): dgb: 60 txs (21 segwit, 0 txid mismatches skipped), blocks 24444779-24445073; median 511.81 sat/vB; p10 110.98 p75 10,964.44 p90 39,215.69; max 70,921.99; zero-fee 0. Documented figure 512 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py dgb"
+expect = "dgb: 60 txs (21 segwit, 0 txid mismatches skipped), blocks 24444779-24445073; median 511.81 sat/vB"
+value = "512"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "512 sat" }]
+
+[[claim]]
+id = "fee-sample-rvn"
+statement = "docs/CHAINS.md rvn fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): rvn: 60 txs (0 segwit, 0 txid mismatches skipped), blocks 4596227-4596270; median 1,004.16 sat/vB; p10 1,000.00 p75 1,869.60 p90 2,121.99; max 2,212.39; zero-fee 0. Documented figure 1004 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py rvn"
+expect = "rvn: 60 txs (0 segwit, 0 txid mismatches skipped), blocks 4596227-4596270; median 1,004.16 sat/vB"
+value = "1004"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "1004 sat" }]
+
+[[claim]]
+id = "fee-sample-qtum"
+statement = "docs/CHAINS.md qtum fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): qtum: 100 txs (0 segwit, 0 txid mismatches skipped), blocks 6253698-6255768; median 700.00 sat/vB; p10 409.00 p75 833.33 p90 1,004.44; max 10,067.21; zero-fee 0. Documented figure 700 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py qtum"
+expect = "qtum: 100 txs (0 segwit, 0 txid mismatches skipped), blocks 6253698-6255768; median 700.00 sat/vB"
+value = "700"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "700 sat" }, { file = "recipes/chain-qtum.md", text = "700 sat" }]
+
+[[claim]]
+id = "fee-sample-xpm"
+statement = "docs/CHAINS.md xpm fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): xpm: 30 txs (0 segwit, 0 txid mismatches skipped), blocks 7064002-7064118; median 100,312.04 sat/B; p10 100,000.00 p75 100,444.44 p90 100,537.63; max 100,537.63; zero-fee 0. Documented figure 100,312 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py xpm"
+expect = "xpm: 30 txs (0 segwit, 0 txid mismatches skipped), blocks 7064002-7064118; median 100,312.04 sat/B"
+value = "100,312"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "100,312 sat" }, { file = "docs/ROADMAP.md", text = "100,312 sat" }]
+
+[[claim]]
+id = "fee-sample-vtc"
+statement = "docs/CHAINS.md vtc fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): vtc: 60 txs (33 segwit, 0 txid mismatches skipped), blocks 2703728-2703857; median 100.76 sat/vB; p10 100.76 p75 100.76 p90 100.77; max 216.39; zero-fee 0. Documented figure 101 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py vtc"
+expect = "vtc: 60 txs (33 segwit, 0 txid mismatches skipped), blocks 2703728-2703857; median 100.76 sat/vB"
+value = "101"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "101 sat" }]
+
+[[claim]]
+id = "fee-sample-ftc"
+statement = "docs/CHAINS.md ftc fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): ftc: 100 txs (21 segwit, 0 txid mismatches skipped), blocks 6407004-6408299; median 2,000.00 sat/vB; p10 1,004.17 p75 2,000.00 p90 2,000.00; max 2,008.52; zero-fee 0. Documented figure 2,000 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py ftc"
+expect = "ftc: 100 txs (21 segwit, 0 txid mismatches skipped), blocks 6407004-6408299; median 2,000.00 sat/vB"
+value = "2,000"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "2,000 sat" }]
+
+[[claim]]
+id = "fee-sample-mona"
+statement = "docs/CHAINS.md mona fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): mona: 100 txs (34 segwit, 0 txid mismatches skipped), blocks 4142748-4143090; median 2.54 sat/vB; p10 2.53 p75 100.00 p90 100.00; max 349.25; zero-fee 0. Documented figure 2.5 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py mona"
+expect = "mona: 100 txs (34 segwit, 0 txid mismatches skipped), blocks 4142748-4143090; median 2.54 sat/vB"
+value = "2.5"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "2.54 sat" }, { file = "docs/CHAINS.md", text = "2.5 sat" }]
+
+[[claim]]
+id = "fee-sample-aur"
+statement = "docs/CHAINS.md aur fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): aur: 30 txs (0 segwit, 0 txid mismatches skipped), blocks 5913204-5913347; median 102.82 sat/B; p10 102.81 p75 102.82 p90 102.82; max 102.96; zero-fee 0. Documented figure 102.8 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py aur"
+expect = "aur: 30 txs (0 segwit, 0 txid mismatches skipped), blocks 5913204-5913347; median 102.82 sat/B"
+value = "102.8"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "102.8 sat" }]
+
+[[claim]]
+id = "fee-sample-trc"
+statement = "docs/CHAINS.md trc fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): trc: 100 txs (0 segwit, 0 txid mismatches skipped), blocks 3325168-3327901; median 20.00 sat/B; p10 1.32 p75 20.04 p90 20.09; max 33.39; zero-fee 4. Documented figure 20.0 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py trc"
+expect = "trc: 100 txs (0 segwit, 0 txid mismatches skipped), blocks 3325168-3327901; median 20.00 sat/B"
+value = "20.0"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "20.0 sat" }]
+
+[[claim]]
+id = "fee-sample-wdc"
+statement = "docs/CHAINS.md wdc fee-rate sample re-measured from the public explorer with scripts/fee-sample.py (walk up from the first block of the documented window, coinbase and coinstake skipped; size from the raw tx, or from explorer weight on qtum.info): wdc: 4 txs (0 segwit, 0 txid mismatches skipped), blocks 11881187-11881187; median 5.43 sat/B; p10 5.43 p75 9.50 p90 9.50; max 9.50; zero-fee 0. Documented figure 5.4 sat"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "python3 scripts/fee-sample.py wdc"
+expect = "wdc: 4 txs (0 segwit, 0 txid mismatches skipped), blocks 11881187-11881187; median 5.43 sat/B"
+value = "5.4"
+env = "box (Linux x86_64) 2026-11-10, scripts/fee-sample.py as committed at 58c61430, network to the public explorer named in its ROWS table; mainnet history, so a re-run prints the same line"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = ["scripts/fee-sample.py"]
+doc = [{ file = "docs/CHAINS.md", text = "5.4 sat" }]
+
+[[claim]]
+id = "fee-policy-doge-min"
+statement = "Dogecoin Core RECOMMENDED_MIN_TX_FEE = COIN / 100 = 0.01 DOGE per kB = 1,000 sat/B (dogecoin/dogecoin default branch master, src/policy/policy.h, fetched 2026-11-10)"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "curl -fsS https://raw.githubusercontent.com/dogecoin/dogecoin/master/src/policy/policy.h | grep -F 'RECOMMENDED_MIN_TX_FEE = '"
+expect = "static const CAmount RECOMMENDED_MIN_TX_FEE = COIN / 100;"
+value = "1,000"
+env = "box 2026-11-10, raw.githubusercontent.com (dogecoin/dogecoin master)"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = []
+doc = [{ file = "docs/CHAINS.md", text = "1,000 sat" }]
+
+[[claim]]
+id = "fee-policy-mona-wallet-min"
+statement = "Monacoin Core DEFAULT_TRANSACTION_MINFEE = 100000 sat per kB = 100 sat/B (monacoinproject/monacoin default branch master-0.20.4, src/wallet/wallet.h, fetched 2026-11-10); in the fee-sample-mona window p75 and p90 are 100.00 sat/vB"
+kind = "number"
+platform = "linux"
+status = "measured"
+command = "curl -fsS https://raw.githubusercontent.com/monacoinproject/monacoin/master-0.20.4/src/wallet/wallet.h | grep -F 'DEFAULT_TRANSACTION_MINFEE = '"
+expect = "static const CAmount DEFAULT_TRANSACTION_MINFEE = 100000;"
+value = "100"
+env = "box 2026-11-10, raw.githubusercontent.com (monacoinproject/monacoin master-0.20.4)"
+commit = "58c61430"
+date = "2026-11-10"
+cheap = false
+depends = []
+doc = [{ file = "docs/CHAINS.md", text = "100 sat" }]
 
 [[claim]]
 id = "format-constants"
@@ -1106,18 +1299,18 @@ doc = [{ file = "README.md", text = "56 of 58 executables" }, { file = "docs/APK
 
 [[claim]]
 id = "pkg-install-0.5.0"
-note = "Hand measurement on 2026-11-09 on Battleaxe against the live 0.5.0 packages with /tmp/pkg-install-050.sh (not in the repo; a copy is kept on the agent box). Needs Docker and network, which the CI gate does not run, so it cannot be stamped from CI; stamped once main CI on 2e6008ca was green (run 42780884992). The Alpine run did not print the installed package version (unmeasured). Separate from the historical alpine-apk-install-0.4.0 and alpine-apk-install-0.1.1pre pins."
-statement = "From the live signed repos, blocktools installed in alpine:latest (Alpine v3.24; installed apk version not printed, unmeasured), ubuntu:24.04 (24.04.5, apt blocktools 0.5.0-1) and fedora:latest (Fedora 45, blocktools-0.5.0-1.x86_64); in each, 56 of 58 executables ran --help with exit 0, and the blocktools wrapper and recover.sh exited 2 on Alpine (wrapper usage)"
+note = "Stamped from a re-run of the committed scripts/pkg-install.sh at 58c61430 on Battleaxe (2026-11-10 8:28am PT), after main CI on that commit was green. Needs Docker and network, which the CI gate does not run. The first hand run (2026-11-09, /tmp/pkg-install-050.sh, unpinned installs) did not print the Alpine installed version and reported wrong exit codes for the two failing apt/rpm executables; the committed script pins VERSION, prints the installed package and keeps the real exit codes. Separate from the historical alpine-apk-install-0.4.0 and alpine-apk-install-0.1.1pre pins."
+statement = "From the live signed repos, blocktools pinned to 0.5.0 installed in alpine:latest (Alpine v3.24, apk list: blocktools-0.5.0-r0), ubuntu:24.04 (24.04.5, dpkg-query: blocktools 0.5.0-1) and fedora:latest (Fedora 45, rpm -q: blocktools-0.5.0-1.x86_64); in each, 56 of 58 executables ran --help with exit 0, and the blocktools wrapper and recover.sh exited 2 (wrapper usage)"
 kind = "platform"
 platform = "linux"
 status = "measured"
-commit = "2e6008ca"
-env = "Battleaxe 2026-11-09, local docker engine via sudo docker; script /tmp/pkg-install-050.sh; alpine:latest (os Alpine Linux v3.24), ubuntu:24.04 (os Ubuntu 24.04.5 LTS, dpkg-query blocktools 0.5.0-1), fedora:latest (os Fedora Linux 45, rpm -q blocktools-0.5.0-1.x86_64); RESULT 56 of 58 executables run in each; ALPINE_EXIT=0 APT_EXIT=0 RPM_EXIT=0"
-date = "2026-11-09"
-command = "sh /tmp/pkg-install-050.sh (hand script, Battleaxe)"
-expect = "RESULT 56 of 58 executables run"
+commit = "58c61430"
+env = "Battleaxe 2026-11-10, clean detached checkout at 58c614300d2e21c0cf3fcab34bbd50c21850d061, docker server 29.8.2 (Docker Desktop 4.95.0) client 29.6.1 via sudo docker; printed per distro: os Alpine Linux v3.24 / pkg blocktools-0.5.0-r0 x86_64 {blocktools} (custom) [installed]; os Ubuntu 24.04.5 LTS / pkg blocktools 0.5.0-1; os Fedora Linux 45 (Container Image) / pkg blocktools-0.5.0-1.x86_64; each RESULT 56 of 58 executables run; blocktools=2 recover.sh=2; ALPINE_EXIT=0 APT_EXIT=0 RPM_EXIT=0; script rc=0"
+date = "2026-11-10"
+command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/pkg-install.sh 0.5.0 (on a Docker host with network)"
+expect = "RESULT 56 of 58 executables run; blocktools=2 recover.sh=2"
 cheap = false
-depends = []
+depends = ["scripts/pkg-install.sh"]
 doc = [{ file = "README.md", text = "0.5.0 packages were install-tested" }, { file = "docs/RELEASE-REPOS.md", text = "0.5.0 packages were install-tested" }]
 
 [[claim]]
