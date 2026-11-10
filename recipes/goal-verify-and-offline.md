@@ -6,7 +6,7 @@ The online machine has addresses only. The offline machine has the keys.
    `tx-build --chain btc --utxos utxos.jsonl --to DEST --sweep --fee-rate 5 > unsigned.json`.
 2. Copy `unsigned.json` to the offline machine (USB). Check it there:
 
-<!-- e2e: expect="status":"failed" ; expect=input_amounts_unknown -->
+<!-- e2e: expect="status":"failed" ; expect=input_amounts_unknown ; rc=1 -->
     ./blocktools run 'tx-verify --expect-to 1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3 --max-fee 10000 < /in/block170.hex'
 
    (Here the check correctly fails: a raw transaction has no input amounts, so the fee is unknown. A PSBT from
