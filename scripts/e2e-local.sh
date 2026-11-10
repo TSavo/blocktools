@@ -10,7 +10,8 @@ B="$PWD/target/release"; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 LEAK='"(wif|private_key|xprv|seed|mnemonic|passphrase|password|secret)":"[^[]|xprv[1-9A-Za-z]{20}|abandon|[0-9a-fA-F]{64}|"(5|K|L)[1-9A-HJ-NP-Za-km-z]{50,51}"|[1-9A-HJ-NP-Za-km-z]{60,}'
 # boundary <name> <expect-substring> <pipeline>   (stdin = data)
 boundary() {
-  "$B/sealed-run" agent "$3" > "$T/$1.jsonl"
+  # sealed-run exits with a failing stage's code; the expected-refusal cases (e.g. wrong_password) are checked by content
+  "$B/sealed-run" agent "$3" > "$T/$1.jsonl" || echo "$?" > "$T/$1.rc"
   grep -q -- "$2" "$T/$1.jsonl" || { echo "FAIL $1: missing $2"; cat "$T/$1.jsonl"; exit 1; }
   if grep -Eq "$LEAK" "$T/$1.jsonl"; then echo "LEAK in $1"; exit 1; fi
   echo "ok  $1: $(wc -l < "$T/$1.jsonl") public lines, no secrets"

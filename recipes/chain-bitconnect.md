@@ -39,7 +39,7 @@ check is evidence, not a signing authorization. Run directly, `tx-build` exits 2
 `"error":"unverified chain parameters: not supported"`; under `sealed-run agent` the error text is
 redacted and only the status reaches the agent:
 
-<!-- e2e: expect="status":"bad_input" ; expect="tool":"tx-build" -->
+<!-- e2e: expect="status":"bad_input" ; expect="tool":"tx-build" ; rc=2 -->
     ./blocktools run 'tx-build --chain bcc --utxos /in/u-bcc.json --to 8N9YB8om5U9b1PFkG56TUWuLJequvGmBDQ --sweep --fee-rate 5 --time 1792800000'
 
 That refusal is where this example stops. Keys and addresses are recovered offline; building,

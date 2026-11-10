@@ -66,5 +66,5 @@ NOT BUILT: `BIE2` files (password derived from a hardware wallet xpub); electrum
 
 A file that decrypts but has no keystore is refused:
 
-<!-- e2e: expect="status":"unsupported" -->
+<!-- e2e: expect="status":"unsupported" ; rc=1 -->
     ./blocktools run 'read-file /secrets/bie1.pw /in/electrum-bie1-nokeys | electrum-read'

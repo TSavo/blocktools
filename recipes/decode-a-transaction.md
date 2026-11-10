@@ -54,5 +54,5 @@ granting spending rights, not sending), `no_chain_id` (replayable on other chain
 
 `tx-verify` fails if something is off (here the input amounts are unknown, so the fee can't be checked):
 
-<!-- e2e: expect="status":"failed" -->
+<!-- e2e: expect="status":"failed" ; rc=1 -->
     ./blocktools run 'tx-verify --expect-to 1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3 < /in/block170.hex'
