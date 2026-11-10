@@ -186,8 +186,9 @@ is still `Dockerfile`; the two share nothing. Measured on Battleaxe (docker cont
 
 ## Platforms
 
-e2e on macos-latest (arm64) is blocking (untested) since FINDINGS R1-8 closed (ci run 40464301446 at 006d03b). It runs natively,
-not sealed, and skips wasm-check, paths evm-inspect/sol/tron, fork-regtest, utxo-real and recovery-real (Linux x86_64 pins).
+e2e on macos-latest (arm64) is blocking since FINDINGS R1-8 closed (last measured: ci run 42780884992 at 2e6008ca). It runs natively,
+not sealed, and skips wasm-check, paths evm-inspect/sol/tron, fork-regtest, utxo-real and recovery-real (Linux x86_64 pins),
+plus the real-engine part of wrapper-seal (no docker engine on the runner).
 Two more jobs run `gate.sh test` and `gate.sh package` on GitHub-hosted arm64 runners and upload the tarball as a CI
 artifact: `package-macos` (macOS arm64 tarball, 48 Mach-O arm64 binaries, minos 11.0) and `package-linux-arm`
 (Linux aarch64 tarball, glibc >= 2.39). Measured at 751299a (ci run 40547122895): both pass, the packaged derive reproduces the BIP84 vector.

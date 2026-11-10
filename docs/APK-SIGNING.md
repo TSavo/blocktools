@@ -71,7 +71,7 @@ apk update && apk add blocktools
 ```
 
 The same `.pub` is also at `https://tsavo.github.io/blocktools/alpine/blocktools@tsavo-2026.rsa.pub`
-(same SHA-256). Current package: `blocktools-0.5.0-r0`, from tag v0.5.0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; that package was not install-tested). It replaced `0.4.0-r0`, which had replaced `0.1.1-r0`, which had replaced the pre-release
+(same SHA-256). Current package: `blocktools-0.5.0-r0`, from tag v0.5.0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; install-tested 2026-11-09 in alpine:latest v3.24 with the installed version not printed (unmeasured); see RELEASE-REPOS.md). It replaced `0.4.0-r0`, which had replaced `0.1.1-r0`, which had replaced the pre-release
 `0.1.1_pre20261026-r0` (apk orders that below `0.1.1`, measured with `apk version -t`). Payload: every CLI in `package-native.sh` CLIS as static-pie musl binaries (`x86_64-unknown-linux-musl`, built
 in `rust:alpine`), plus `blocktools` and `recover.sh`; `arch=x86_64`, `depends="bash"` (for `recover.sh`).
 
@@ -91,7 +91,7 @@ Measured 2026-11-08 on Battleaxe in `alpine:latest` (Alpine 3.24.3, apk-tools 3.
 - without the repository key, `apk update` and `apk add` exited 1 (`UNTRUSTED signature`).
 
 Evidence: [alpine-apk-install-0.4.0](CLAIMS.md), measured at `55d8cad1`.
-This does not re-measure the historical packages below, the tampered-package case, or the live `0.5.0-r0` package.
+This does not re-measure the historical packages below or the tampered-package case. The live `0.5.0-r0` package was install-tested separately on 2026-11-09 ([pkg-install-0.5.0](CLAIMS.md)).
 
 ### Historical package measurements
 

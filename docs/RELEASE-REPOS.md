@@ -2,7 +2,7 @@
 
 Served from the `gh-pages` branch at `https://tsavo.github.io/blocktools/{alpine,apt,rpm}`, x86_64 only.
 Current version in all three: 0.5.0 (from tag v0.5.0; apt and rpm advertise `0.5.0-1`, alpine advertises `0.5.0-r0`, read from the published indexes on 2026-11-08). The index-version check did not test installs. Alpine `0.4.0-r0` was previously install-tested
-(see [APK-SIGNING.md](APK-SIGNING.md)); the live `0.5.0-r0` package was not. The apt/rpm installs remain unmeasured.
+(see [APK-SIGNING.md](APK-SIGNING.md)). The live 0.5.0 packages were install-tested on 2026-11-09 (Battleaxe hand run): alpine:latest (v3.24; installed apk version not printed (unmeasured)), ubuntu:24.04 (apt `0.5.0-1`) and fedora:latest (Fedora 45, rpm `0.5.0-1`), 56 of 58 executables ran `--help` in each.
 Signing keys live only in the maintainer's Vault;
 see [APK-SIGNING.md](APK-SIGNING.md) and [APT-SIGNING.md](APT-SIGNING.md).
 

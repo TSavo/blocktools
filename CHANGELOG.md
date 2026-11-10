@@ -14,6 +14,10 @@ Numbers and security statements here are only those registered as measured in do
 - The K-stale negatives plant for `image-size-readme` wrote duplicate `commit`/`date` keys after that claim was parked with last-measurement metadata (main CI run 42551290772, `gate (negatives)`). The plant now updates existing `commit` and `date` instead of inserting a second copy.
 
 ### Changed
+- Restamped macOS e2e [e2e-macos] from the macos job of green main CI 42780884992 at 2e6008ca; the real-engine part of wrapper-seal is now listed among its skips.
+- glibc floor re-measured on the v0.5.0 release tarball [tarball-glibc-floor-v050]; README, getting-started and troubleshooting now cite it. The v0.3.3 measurement [tarball-glibc-floor-v033] is kept as a historical pin.
+- Live 0.5.0 alpine, apt and rpm packages install-tested in containers [pkg-install-0.5.0]; the Alpine installed version was not printed (unmeasured). The Alpine 0.4.0 measurement [alpine-apk-install-0.4.0] stays historical.
+- Re-measured Linux sealed-run [sealed-run-linux] and sealed image size [image-size-readme] on Battleaxe at green main 2e6008ca (CI 42780884992); the image size figure is unchanged at one decimal.
 - Restamped sealed image size [image-size-readme], Linux sealed-run [sealed-run-linux], and wrapper remote-engine refusal [wrapper-remote-refusal] at green main f593b7e4 (CI 42555565925). Image and sealed-run measured on Battleaxe; wrapper-remote from the gate (e2e) log.
 - Install and package-repo docs now name the published v0.5.0 GitHub release and package indexes (alpine `0.5.0-r0`, apt and rpm `0.5.0-1`, read from the live indexes on 2026-11-08). The Alpine `0.4.0-r0` install measurement [alpine-apk-install-0.4.0] is unchanged; the live `0.5.0-r0` package was not install-tested.
 
