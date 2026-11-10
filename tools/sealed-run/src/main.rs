@@ -42,6 +42,13 @@ pub fn parse(pipeline: &str) -> Result<Vec<Stage>, &'static str> {
     Ok(stages)
 }
 
+// pipefail: the exit code of the rightmost stage that failed (1 if it was killed by a signal), else 0.
+fn wait_all(ch: Vec<Child>) -> i32 {
+    let mut rc = 0;
+    for mut c in ch { match c.wait() { Ok(s) if s.success() => {}, Ok(s) => rc = s.code().unwrap_or(1), Err(_) => rc = 1 } }
+    rc
+}
+
 fn spawn(stages: &[Stage], last_stdout: Stdio) -> Result<Vec<Child>, &'static str> {
     let dir = std::env::current_exe().map_err(|_| "error")?.parent().ok_or("error")?.to_path_buf();
     let mut children: Vec<Child> = Vec::new();
@@ -192,8 +199,10 @@ fn main() {
                     None => dropped += 1,
                 }
             }
-            for mut c in ch { let _ = c.wait(); }
+            let rc = wait_all(ch);
             let _ = writeln!(o, r#"{{"tool":"redact","status":"done","count":{kept},"index":{dropped}}}"#);
+            drop(o);
+            if rc != 0 { std::process::exit(rc) }
         }
         "human" => {
             if let Err(e) = blocktools_tty::pin_check() { out(e) }
@@ -204,8 +213,9 @@ fn main() {
             let _ = BufReader::new(tty.try_clone().unwrap()).take(64).read_line(&mut ans);
             if ans.trim() != code { let _ = writeln!(tty, "aborted"); out("error"); }
             let ch = spawn(&stages, Stdio::from(tty)).unwrap_or_else(|e| out(e));
-            for mut c in ch { let _ = c.wait(); }
+            let rc = wait_all(ch);
             blocktools_io::outln!(r#"{{"tool":"sealed-run","status":"done"}}"#);
+            if rc != 0 { std::process::exit(rc) }
         }
         _ => out("bad_input"),
     }
