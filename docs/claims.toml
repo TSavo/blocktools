@@ -180,10 +180,11 @@ doc = [{ file = "DESIGN.md", text = "2 MiB" }]
 
 [[claim]]
 id = "e2e-macos"
+note = "Last measured 2026-10-27 on macos-latest at 006d03b (main CI 40464301446 success). Parked 2026-11-09: e2e boundary cases now expect the real exit code from sealed-run, which changed scripts/e2e-local.sh (a depends file). The macos job passed on 986c9fb3 (run 42772681973) but that run is red on this claim, so restamp from a green main."
 statement = "scripts/e2e-local.sh passes on GitHub's macos-latest (arm64) in the blocking macos CI job, pin-tty steps included; skipped there: wasm-check, paths evm-inspect/sol/tron, fork-regtest, utxo-real, recovery-real"
 kind = "platform"
 platform = "macos"
-status = "measured"
+status = "untested"
 command = "sh scripts/gate.sh e2e (CI job macos)"
 expect = "ok   pinned terminal: code from another pty session refused"
 cheap = false
