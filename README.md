@@ -148,8 +148,8 @@ leak check, so the output is safe to paste or to hand to an agent. `./blocktools
 human-only variant: it needs a real terminal and a typed code, then prints keys.
 `scripts/sealed-check.sh` checks these flags on a real container (Linux Docker only).
 **macOS sealed path is unverified (untested).** The macos CI job runs the tools natively, not sealed. One hand check on a Mac
-(macOS 26.3.1 x86_64 at 2efe6ae2; Docker Desktop not running, so `docker` pointed at `ssh://battleaxe`): `./blocktools run`
-refused the remote engine (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`, `classify /in/probe.txt` returned ok and the container saw the Mac's `./in` file via the tar-over-`docker exec` path (hand check 2026-11-08, not re-run in CI) (untested).
+(macOS 26.3.1 x86_64 at 639c95c2, re-run 2026-11-10; Docker Desktop not running, so `docker` pointed at `ssh://battleaxe`): `./blocktools run`
+refused the remote engine (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`, `classify /in/probe.txt` returned ok and the container saw the Mac's `./in` file via the tar-over-`docker exec` path; a missing `/in` file returned `bad_input` (exit 2). Hand check, not run in CI (the macos job has no Docker).
 The wrapper bind-mounts nothing and creates no volume: `./in` and `./secrets` are streamed as tar on stdin
 (`docker exec -i -u 0 <container> sealed-run unpack /in|/secrets`) into tmpfs mounts of the sealed container itself,
 as root-owned 0444 files that uid 10001 can read but not change, and the container (with its tmpfs) is removed on exit,
