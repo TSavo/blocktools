@@ -84,8 +84,8 @@ man blocktools
 
 Do not skip the checksum step: an archive that fails `sha256sum -c` must not be run. The binaries are
 dynamically linked against glibc; only the sealed Docker image is built from static musl binaries.
-Measured on the v0.3.3 tarball (2026-10-31, `sh scripts/tarball-glibc.sh v0.3.3`): 53 of its 55 binaries need glibc 2.34
-or newer; `sealed-run` and `tx-decode` need glibc 2.39 or newer (newest `GLIBC_` symbol per binary via `objdump -T`).
+Measured on the v0.5.0 tarball (2026-11-10, `sh scripts/tarball-glibc.sh v0.5.0`): 51 of its 56 binaries need glibc 2.34
+or newer; `sealed-run`, `tx-build`, `tx-decode`, `tx-sign` and `tx-verify` need glibc 2.39 or newer (newest `GLIBC_` symbol per binary via `objdump -T`).
 
 **Sealed mode from a tarball.** The tarball has no Dockerfile or sources, so its `./blocktools
 build` cannot work. Build the image from the same release:
@@ -109,9 +109,9 @@ echo "deb [signed-by=/etc/apt/keyrings/blocktools-archive-keyring.asc] https://t
 sudo apt update && sudo apt install blocktools
 ```
 
-The repo serves 0.5.0-1. Glibc floors from the v0.3.3 tarball binaries (see above): 53 of its 55 binaries need 2.34+,
-`sealed-run` and `tx-decode` need 2.39+. By the distros' glibc versions (inferred, not run): Debian 12 (2.36) and
-Ubuntu 22.04 (2.35) run all but those two; Ubuntu 24.04 (2.39) runs all. Key fingerprint and the older container
+The repo serves 0.5.0-1. Glibc floors from the v0.5.0 tarball binaries (see above): 51 of its 56 binaries need 2.34+,
+`sealed-run`, `tx-build`, `tx-decode`, `tx-sign` and `tx-verify` need 2.39+. By the distros' glibc versions (inferred, not run): Debian 12 (2.36) and
+Ubuntu 22.04 (2.35) run all but those five; Ubuntu 24.04 (2.39) runs all. The live 0.5.0 packages were install-tested on 2026-11-09 in ubuntu:24.04 (apt `0.5.0-1`), fedora:latest (Fedora 45, rpm `0.5.0-1`) and alpine:latest (v3.24): 56 of 58 executables ran `--help` in each. Key fingerprint and the older container
 measurements (debian:12, ubuntu:22.04 and 24.04, 2026-10-26, 0.1.x package): [docs/APT-SIGNING.md](docs/APT-SIGNING.md).
 
 ### Alpine (apk, x86_64)
@@ -123,7 +123,7 @@ echo https://tsavo.github.io/blocktools/alpine >> /etc/apk/repositories
 apk update && apk add blocktools
 ```
 
-Static musl binaries; the repo serves 0.5.0-r0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; that 0.5.0 package was not install-tested). Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
+Static musl binaries; the repo serves 0.5.0-r0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; install-tested 2026-11-09, see the apt section above). Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
 `alpine:latest` (3.24.3) container on 2026-10-26 (untested): install from the live URL, 43 of 43 executables run,
 refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md). Re-measured on 2026-11-08 against live `0.4.0-r0`
 in `alpine:latest` (3.24.3) with apk-tools 3.0.8-r0: 56 of 58 executables ran (`blocktools` and `recover.sh` wrappers
@@ -265,7 +265,7 @@ picks the pipeline for you:
 
 ## Status
 
-Status: the sealed image builds on Linux docker (52.1 MB of uncompressed layers via `docker save` on a containerd image store at f593b7e4, 43 binaries: the 42 entries of `crates/io/sealed-tools.txt` plus sealed-run; the file now lists 42 entries (measured at 9c48627); host tools such as contract-call are not in the image; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container (untested): network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
+Status: the sealed image builds on Linux docker (52.1 MB of uncompressed layers via `docker save` on a containerd image store at 2e6008ca, 43 binaries: the 42 entries of `crates/io/sealed-tools.txt` plus sealed-run; the file now lists 42 entries (measured at 9c48627); host tools such as contract-call are not in the image; `scripts/image-size.sh` prints the instrument and the docker version/storage driver, because `docker image inspect` differs between image stores). `scripts/sealed-check.sh` checks the sealed run on a real container: network none, read-only rootfs, all capabilities dropped, read-only /in, and no secret material in agent output (Linux docker only). Phase-2 tools (tx-build, tx-verify, tx-sign, tx-broadcast, account and XRP signers) are covered by unit/KAT tests and `scripts/e2e-local.sh`; `sealed-run human` (what `reveal` runs inside the container) is driven through a pty in e2e. Not yet tested: `./blocktools reveal` itself under Docker on a real terminal. See DESIGN.md "Verified status".
 
 Host-side network tools (`utxo-fetch`, `tx-broadcast`, `rpc`) never enter the sealed image, and `sealed-run` refuses them (status `unsupported`, exit 2, measured 2026-10-26): run them on the host, after the sealed steps. `rpc` is a pipe filter for node and wallet RPC endpoints (EVM, bitcoind and forks, Solana, Tron, Cosmos LCD, Esplora, Blockbook) that refuses key-export, unlock and wallet-signing methods by default; see `docs/RPC.md` (mock-tested; one measured public read).
 

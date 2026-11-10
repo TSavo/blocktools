@@ -8,7 +8,7 @@ fixtures below and on mock chains before you touch a real key.
 Pick one.
 
 **Release tarball (Linux x86_64 only, glibc-linked, not static).** The current GitHub release is v0.5.0 and ships `blocktools-v0.5.0-linux-x86_64.tar.gz` and
-`SHA256SUMS`. Measured on the earlier v0.3.3 tarball: 53 of the v0.3.3 tarball's 55 binaries need glibc 2.34 or newer, `sealed-run` and `tx-decode` need 2.39 or newer; see the README. A v0.5.0 glibc floor has not been re-measured. Verify before you unpack:
+`SHA256SUMS`. Measured on the v0.5.0 tarball: 51 of the v0.5.0 tarball's 56 binaries need glibc 2.34 or newer; `sealed-run`, `tx-build`, `tx-decode`, `tx-sign` and `tx-verify` need 2.39 or newer; see the README. Verify before you unpack:
 
 ```sh
 gh release download v0.5.0 -R TSavo/blocktools
