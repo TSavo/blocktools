@@ -7,6 +7,9 @@ Numbers and security statements here are only those registered as measured in do
 
 ## [Unreleased]
 
+### Added
+- `scripts/fee-sample.py CHAIN` re-measures a docs/CHAINS.md fee-rate sample from its public explorer; `scripts/pkg-install.sh VERSION` install-tests the live apk/apt/rpm repos in containers. Neither runs in the CI gate (network, Docker).
+
 ### Fixed
 - `./blocktools run` (sealed-run agent and human modes) exited 0 even when a stage failed, e.g. classify reporting `bad_input`. sealed-run now waits for every stage and exits with the code of the rightmost stage that failed, after the redact summary line; e2e `wrapper-seal` checks it.
 - e2e now expects the real exit code from refusals run through sealed-run, so the macOS e2e claim [e2e-macos] is parked as untested; it will be restamped from a green main.
@@ -14,6 +17,7 @@ Numbers and security statements here are only those registered as measured in do
 - The K-stale negatives plant for `image-size-readme` wrote duplicate `commit`/`date` keys after that claim was parked with last-measurement metadata (main CI run 42551290772, `gate (negatives)`). The plant now updates existing `commit` and `date` instead of inserting a second copy.
 
 ### Changed
+- Restamped the Mac-to-Battleaxe ssh:// engine check [macos-remote-context-empty-in] from a hand run on the Mac at 639c95c2 (green main CI 42839229774).
 - Restamped macOS e2e [e2e-macos] from the macos job of green main CI 42780884992 at 2e6008ca; the real-engine part of wrapper-seal is now listed among its skips.
 - glibc floor re-measured on the v0.5.0 release tarball [tarball-glibc-floor-v050]; README, getting-started and troubleshooting now cite it. The v0.3.3 measurement [tarball-glibc-floor-v033] is kept as a historical pin.
 - Live 0.5.0 alpine, apt and rpm packages install-tested in containers [pkg-install-0.5.0]; the Alpine installed version was not printed (unmeasured). The Alpine 0.4.0 measurement [alpine-apk-install-0.4.0] stays historical.

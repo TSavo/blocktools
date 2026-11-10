@@ -548,6 +548,7 @@ date = "2026-10-26"
 [[claim]]
 id = "recovery-real-lost-wallet"
 statement = "No recovery tool has been tested against a real lost or corrupted wallet"
+note = "Still untested 2026-11-10: needs a real lost or corrupted wallet file (with its owner's consent) run through the readers inside the sealed no-network container; none has been provided, and wallet files are not searched for on T's machines."
 kind = "security"
 platform = "any"
 status = "untested"
@@ -556,6 +557,7 @@ doc = [{ file = "README.md", text = "not been tested against any real lost walle
 [[claim]]
 id = "macos-sealed"
 statement = "Sealed on macOS (docs/MACOS.md: a local unix:// engine on the Mac, scripts/macos-sealed-check.sh) has never been run on a Mac; GitHub macOS runners have no Docker"
+note = "Checked 2026-11-10 (read-only) on T's Mac (macOS 26.3.1 x86_64): docker contexts default (unix:///var/run/docker.sock) and desktop-linux (the Docker Desktop socket under ~/.docker/run) both fail to connect (socket absent), no colima or OrbStack installed; Docker Desktop is not to be started on that Mac. Needs a running local engine, then sh scripts/macos-sealed-check.sh --build at a green main commit (docs/MACOS.md)."
 kind = "platform"
 platform = "macos"
 status = "untested"
@@ -563,11 +565,19 @@ doc = [{ file = "README.md", text = "macOS sealed path is unverified" }, { file 
 
 [[claim]]
 id = "macos-remote-context-empty-in"
-statement = "On macOS 26.3.1 x86_64 at 2efe6ae2, ssh://battleaxe (Docker Desktop 29.8.2 linux/x86_64): ./blocktools run refuses without override (exit 4); with BLOCKTOOLS_ALLOW_REMOTE=ssh, classify /in/probe.txt returns status ok and the container sees the Mac's ./in file. Hand check 2026-11-08, not re-runnable in CI"
+statement = "On macOS 26.3.1 x86_64 at 639c95c2, docker context battleaxe (ssh://battleaxe, Docker Desktop 29.8.2 linux/amd64, image blocktools:local built there at 2e6008ca): ./blocktools run 'classify /in/probe.txt' refuses without override (exit 4); with BLOCKTOOLS_ALLOW_REMOTE=ssh it returns classify status ok (exit 0), and the same run on a missing /in/missing.txt returns bad_input (exit 2), so the container sees the Mac's ./in file. Hand check 2026-11-10 in a fresh clone; the macos CI job does not exercise it (no Docker on GitHub macOS runners)"
 kind = "platform"
 platform = "macos"
-status = "untested"
-note = "Replaces the 2026-10-26 empty-/in observation. The wrapper streams ./in over docker exec stdin into tmpfs; the container read the Mac's probe file. Left untested because a measured macos claim needs a GitHub macos CI job, and GitHub macos runners have no Docker."
+status = "measured"
+note = "Hand-measured on T's Mac (no local engine; Docker Desktop not started). ci_run is the green main run at the stamped commit whose macos job passed (K-macos); that job does not run this check. First measured 2026-11-08 at 2efe6ae2. Probe file content was a public one-line string; no secrets involved."
+command = "BLOCKTOOLS_ALLOW_REMOTE=ssh sh ./blocktools run 'classify /in/probe.txt' (hand check on the Mac, docker context battleaxe)"
+expect = "{\"class\":\"unknown\",\"line\":1,\"status\":\"ok\",\"tool\":\"classify\"}"
+env = "macOS 26.3.1 (25D771280a) x86_64, docker client 29.3.1, context battleaxe ssh://battleaxe -> server linux/amd64 29.8.2; clone /tmp/bt-remote-639c at 639c95c2bd54b8f82b2ebae34163194234370d9a; image sha256:a9d9bbcba978 created 2026-11-10T14:46:44Z (6:46am PT); without override: 'blocktools: docker engine is remote (ssh://battleaxe)...' rc=4; with BLOCKTOOLS_ALLOW_REMOTE=ssh: classify status ok rc=0; missing file: {\"status\":\"bad_input\",\"tool\":\"classify\"} rc=2"
+ci_run = "42839229774"
+commit = "639c95c2"
+date = "2026-11-10"
+cheap = false
+depends = ["blocktools"]
 doc = [
   { file = "README.md", text = "the container saw the Mac's `./in` file" },
   { file = "docs/MACOS.md", text = "classify read `./in/probe.txt`" },

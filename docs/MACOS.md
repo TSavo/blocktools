@@ -24,9 +24,9 @@ A remote engine is not "sealed on macOS". With an `ssh://` context (for example 
 `./blocktools run`/`reveal` refuse such an engine unless `BLOCKTOOLS_ALLOW_REMOTE=ssh` (only `ssh://`)
 or `BLOCKTOOLS_ALLOW_REMOTE=1` (any remote engine). The wrapper streams `./in` and `./secrets` over
 `docker exec` stdin into tmpfs of the sealed container on that host instead of bind-mounting. A hand
-check on 2026-11-08 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2 linux/x86_64,
-commit 2efe6ae2) saw that: without the override the wrapper refused (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
-classify read `./in/probe.txt` (untested). `macos-sealed-check.sh` refuses a remote engine outright. That refusal runs in the
+check on 2026-11-10 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2 linux/amd64,
+commit 639c95c2) saw that: without the override the wrapper refused (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
+classify read `./in/probe.txt` (status ok; a missing file gave bad_input, exit 2). `macos-sealed-check.sh` refuses a remote engine outright. That refusal runs in the
 macos job with a fake docker (`scripts/e2e.d/wrapper-remote.sh`, `scripts/e2e.d/macos-sealed-refuse.sh`).
 With the override, sealing is the Linux host's, which the Linux gate measures (claim sealed-run-linux).
 
@@ -41,9 +41,9 @@ BLOCKTOOLS_ALLOW_REMOTE=ssh ./blocktools run '<pipeline>'
 `./in` and `./secrets` go over `docker exec` stdin (tar) inside the ssh connection into tmpfs mounts of the
 sealed container on Battleaxe (Docker Desktop on Windows): no host bind mounts, no volumes, nothing written to
 the engine's disk (tmpfs can still be swapped by the engine VM). `=ssh` refuses a `tcp://`/`http(s)://`
-engine with exit 4. Measured once on 2026-11-08 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2
-linux/x86_64, commit 2efe6ae2): refused without the override (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
-classify read `./in/probe.txt` (untested). Also checked with a fake docker (`scripts/e2e.d/wrapper-remote.sh`).
+engine with exit 4. Measured on 2026-11-10 (macOS 26.3.1 x86_64 → `ssh://battleaxe`, Docker Desktop 29.8.2
+linux/amd64, commit 639c95c2; first measured 2026-11-08 at 2efe6ae2): refused without the override (exit 4); with `BLOCKTOOLS_ALLOW_REMOTE=ssh`,
+classify read `./in/probe.txt` (status ok). Also checked with a fake docker (`scripts/e2e.d/wrapper-remote.sh`).
 
 ## What is needed from a Mac
 
