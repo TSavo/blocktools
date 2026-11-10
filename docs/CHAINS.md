@@ -176,15 +176,15 @@ Since 2026-10-25: (1) the `fee` limit is per started 1,000 vB of the tx (`FeeWar
 
 | chain | fee limit | rate limit | measured median | sample |
 |---|---|---|---|---|
-| dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io (unmeasured) |
-| rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596270, blockbook.rvn.zelcore.io (unmeasured) |
-| qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info (unmeasured) |
-| xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) (unmeasured) |
-| vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703857, blockbook.vtc.zelcore.io (unmeasured) |
-| doge | 1,200,000,000 | 1,200,000 | 112,783.7 sat/B (p10 2,418, p90 523,560) | 100 txs, blocks 6429664-6429668, blockbook.doge.zelcore.io, sha256d-checked. Policy minimum 1,000 sat/B (RECOMMENDED_MIN_TX_FEE 0.01 DOGE/kB). Wallets pay far more. The limits were set as 20 x an earlier median figure that this window does not reproduce; they are unchanged (unmeasured) |
-| ftc | 40,000,000 | 40,000 | 2,000 sat/vB (p10 1,004) | 100 txs (21 segwit), blocks 6407004-6408299, blockbook.feathercoin.com (unmeasured) |
-| mona | 2,000,000 | 2,000 | 2.54 sat/vB; p75 and p90 = 100 | 100 txs, blocks 4142748-4143090, mona.insight.monaco-ex.org, exact vsize (witness stripped), 100/100 txids checked. Bimodal: ~2.5 (relay-minimum wallets) and 100 (Monacoin Core DEFAULT_TRANSACTION_MINFEE 100,000/kB); the limit is 20 x the 100 mode (unmeasured) |
-| aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) (unmeasured) |
+| dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io |
+| rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596270, blockbook.rvn.zelcore.io |
+| qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info |
+| xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) |
+| vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703857, blockbook.vtc.zelcore.io |
+| doge | 1,200,000,000 | 1,200,000 | 112,783.7 sat/B (p10 2,418, p90 523,560) | 100 txs, blocks 6429664-6429668, blockbook.doge.zelcore.io, sha256d-checked. Policy minimum 1,000 sat/B (RECOMMENDED_MIN_TX_FEE 0.01 DOGE/kB). Wallets pay far more. The limits were set as 20 x an earlier median figure that this window does not reproduce; they are unchanged |
+| ftc | 40,000,000 | 40,000 | 2,000 sat/vB (p10 1,004) | 100 txs (21 segwit), blocks 6407004-6408299, blockbook.feathercoin.com |
+| mona | 2,000,000 | 2,000 | 2.54 sat/vB; p75 and p90 = 100 | 100 txs, blocks 4142748-4143090, mona.insight.monaco-ex.org, exact vsize (witness stripped), 100/100 txids checked. Bimodal: ~2.5 (relay-minimum wallets) and 100 (Monacoin Core DEFAULT_TRANSACTION_MINFEE 100,000/kB); the limit is 20 x the 100 mode |
+| aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) |
 
 **MONA rate (SwapChan uses 220):** the chain data says 2.5 sat/vB is the median and 100 sat/vB the common wallet default; no sampled tx paid 220 (max 349, one outlier). 2.5 is right as "what the chain accepts": Monacoin Core 0.20.4 has DEFAULT_MIN_RELAY_TX_FEE 1000 per kB = 1 sat/B, while the mona.insight.monaco-ex.org node (version 130202) reports relayfee 0.001 MONA/kB = 100 sat/B, so that node is stricter than current Core (this line used to read 0.001 MONA/kB as 1 sat/B, which was wrong). 100 matches Monacoin Core's default minimum tx fee. 220 is not supported by the data: it overpays ~2x the wallet default and ~90x the median. Suggest 100 (wallet-compatible) or a floor of 3. (unmeasured)
 
