@@ -11,6 +11,7 @@ Numbers and security statements here are only those registered as measured in do
 - The K-stale negatives plant for `image-size-readme` wrote duplicate `commit`/`date` keys after that claim was parked with last-measurement metadata (main CI run 42551290772, `gate (negatives)`). The plant now updates existing `commit` and `date` instead of inserting a second copy.
 
 ### Changed
+- Restamped sealed image size [image-size-readme], Linux sealed-run [sealed-run-linux], and wrapper remote-engine refusal [wrapper-remote-refusal] at green main f593b7e4 (CI 42555565925). Image and sealed-run measured on Battleaxe; wrapper-remote from the gate (e2e) log.
 - Install and package-repo docs now name the published v0.5.0 GitHub release and package indexes (alpine `0.5.0-r0`, apt and rpm `0.5.0-1`, read from the live indexes on 2026-11-08). The Alpine `0.4.0-r0` install measurement [alpine-apk-install-0.4.0] is unchanged; the live `0.5.0-r0` package was not install-tested.
 
 ## [0.5.0] - 2026-11-08
