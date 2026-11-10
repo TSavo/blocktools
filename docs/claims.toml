@@ -221,11 +221,11 @@ doc = [{ file = "docs/prior-art-crypto-plugins.md", text = "20 bytes" }, { file 
 
 [[claim]]
 id = "sealed-run-linux"
-note = "Re-measured 2026-11-09 on Battleaxe at f593b7e4 (main CI 42555565925 success). Previously parked 2026-11-08 after the 0.5.0 wrapper BLOCKTOOLS_VERSION bump."
+note = "Last measured 2026-11-09 on Battleaxe at f593b7e4 (main CI 42555565925 success). Parked 2026-11-09: sealed-run now exits with the failing stage's code, which changed tools/sealed-run/src/main.rs and scripts/e2e.d/wrapper-seal.sh (depends files). Restamp from a green main."
 statement = "./blocktools run creates a container with network none, read-only rootfs, all capabilities dropped, /in and /secrets as tmpfs filled over stdin, read-only to uid 10001 (no host bind mounts, no volumes), and its agent output carries addresses and no secret material (Docker Desktop on Windows, Battleaxe)"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
 command = "BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh"
 expect = "sealed-check ok"
 env = "Battleaxe hand measurement 2026-11-09 after image build at f593b7e4; docker 29.8.2 (Docker Desktop 4.95.0), containerd image store, overlayfs; BLOCKTOOLS_DOCKER='sudo docker' sh scripts/sealed-check.sh printed sealed-check ok"
