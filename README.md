@@ -111,7 +111,7 @@ sudo apt update && sudo apt install blocktools
 
 The repo serves 0.5.0-1. Glibc floors from the v0.5.0 tarball binaries (see above): 51 of its 56 binaries need 2.34+,
 `sealed-run`, `tx-build`, `tx-decode`, `tx-sign` and `tx-verify` need 2.39+. By the distros' glibc versions (inferred, not run): Debian 12 (2.36) and
-Ubuntu 22.04 (2.35) run all but those five; Ubuntu 24.04 (2.39) runs all. The live 0.5.0 packages were install-tested on 2026-11-09 in ubuntu:24.04 (apt `0.5.0-1`), fedora:latest (Fedora 45, rpm `0.5.0-1`) and alpine:latest (v3.24): 56 of 58 executables ran `--help` in each. Key fingerprint and the older container
+Ubuntu 22.04 (2.35) run all but those five; Ubuntu 24.04 (2.39) runs all. The live 0.5.0 packages were install-tested on 2026-11-10 with `scripts/pkg-install.sh 0.5.0` in ubuntu:24.04 (apt `0.5.0-1`), fedora:latest (Fedora 45, rpm `0.5.0-1`) and alpine:latest (v3.24, apk `0.5.0-r0`): 56 of 58 executables ran `--help` in each (`blocktools` and `recover.sh` exit 2, wrapper usage). Key fingerprint and the older container
 measurements (debian:12, ubuntu:22.04 and 24.04, 2026-10-26, 0.1.x package): [docs/APT-SIGNING.md](docs/APT-SIGNING.md).
 
 ### Alpine (apk, x86_64)
@@ -123,7 +123,7 @@ echo https://tsavo.github.io/blocktools/alpine >> /etc/apk/repositories
 apk update && apk add blocktools
 ```
 
-Static musl binaries; the repo serves 0.5.0-r0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; install-tested 2026-11-09, see the apt section above). Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
+Static musl binaries; the repo serves 0.5.0-r0 (live APKINDEX `V:0.5.0-r0` fetched 2026-11-08; install-tested 2026-11-10, see the apt section above). Hand-measured once, on the earlier `0.1.1_pre20261026` package, in an
 `alpine:latest` (3.24.3) container on 2026-10-26 (untested): install from the live URL, 43 of 43 executables run,
 refused without the key: [docs/APK-SIGNING.md](docs/APK-SIGNING.md). Re-measured on 2026-11-08 against live `0.4.0-r0`
 in `alpine:latest` (3.24.3) with apk-tools 3.0.8-r0: 56 of 58 executables ran (`blocktools` and `recover.sh` wrappers

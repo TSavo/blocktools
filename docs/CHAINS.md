@@ -176,19 +176,19 @@ Since 2026-10-25: (1) the `fee` limit is per started 1,000 vB of the tx (`FeeWar
 
 | chain | fee limit | rate limit | measured median | sample |
 |---|---|---|---|---|
-| dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io (unmeasured) |
-| rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596275, blockbook.rvn.zelcore.io (unmeasured) |
-| qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info (unmeasured) |
-| xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) (unmeasured) |
-| vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703858, blockbook.vtc.zelcore.io (unmeasured) |
-| doge | 1,200,000,000 | 1,200,000 | 60,463 sat/B (p10 2,418, p90 523,560) | 100 txs, blocks 6429664-6429671, blockbook.doge.zelcore.io, sha256d-checked. Policy minimum 1,000 sat/B (RECOMMENDED_MIN_TX_FEE 0.01 DOGE/kB) is far below what wallets pay (unmeasured) |
-| ftc | 40,000,000 | 40,000 | 2,000 sat/vB (p10 600) | 100 txs (21 segwit), blocks 6407004-6408299, blockbook.feathercoin.com (unmeasured) |
-| mona | 2,000,000 | 2,000 | 2.54 sat/vB; p75 and p90 = 100 | 100 txs, blocks 4142748-4143093, mona.insight.monaco-ex.org, exact vsize (witness stripped), 100/100 txids checked. Bimodal: ~2.5 (relay-minimum wallets) and 100 (Monacoin Core DEFAULT_TRANSACTION_MINFEE 100,000/kB); the limit is 20 x the 100 mode (unmeasured) |
-| aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) (unmeasured) |
+| dgb | 10,000,000 | 10,000 | 512 sat/vB | 60 txs, blocks 24444779-24445073, blockbook.dgb.zelcore.io |
+| rvn | 20,000,000 | 20,000 | 1004 sat/vB | 60 txs, blocks 4596227-4596270, blockbook.rvn.zelcore.io |
+| qtum | 14,000,000 | 14,000 | 700 sat/vB | 100 txs, blocks 6253698-6255768, qtum.info |
+| xpm | 2,000,000,000 | 2,000,000 | 100,312 sat/B | 30 txs, blocks 7064002-7064118, chainz.cryptoid.info (raw rebuilt from explorer JSON, sha256d = txid, exact size) |
+| vtc | 2,000,000 | 2,000 | 101 sat/vB | 60 txs, blocks 2703728-2703857, blockbook.vtc.zelcore.io |
+| doge | 1,200,000,000 | 1,200,000 | 60,463 sat/B (p10 2,418, p90 523,560) | 100 txs, blocks 6429664-6429671, blockbook.doge.zelcore.io, sha256d-checked. Policy minimum 1,000 sat/B (RECOMMENDED_MIN_TX_FEE 0.01 DOGE/kB). Wallets pay far more. A 2026-11-10 re-run of this window with `scripts/fee-sample.py doge` reproduced the p10 and p90 but not this median (unmeasured) |
+| ftc | 40,000,000 | 40,000 | 2,000 sat/vB (p10 1,004) | 100 txs (21 segwit), blocks 6407004-6408299, blockbook.feathercoin.com |
+| mona | 2,000,000 | 2,000 | 2.54 sat/vB; p75 and p90 = 100 | 100 txs, blocks 4142748-4143090, mona.insight.monaco-ex.org, exact vsize (witness stripped), 100/100 txids checked. Bimodal: ~2.5 (relay-minimum wallets) and 100 (Monacoin Core DEFAULT_TRANSACTION_MINFEE 100,000/kB); the limit is 20 x the 100 mode |
+| aur | 2,000,000 | 2,000 | 102.8 sat/B | 30 txs, blocks 5913204-5913347, chainz.cryptoid.info (raw rebuilt, sha256d = txid, exact size) |
 
 **MONA rate (SwapChan uses 220):** the chain data says 2.5 sat/vB is the median and 100 sat/vB the common wallet default; no sampled tx paid 220 (max 349, one outlier). 2.5 is right as "what the chain accepts" (node relayfee 0.001 MONA/kB = 1 sat/B); 100 matches Monacoin Core's default minimum tx fee. 220 is not supported by the data: it overpays ~2x the wallet default and ~90x the median. Suggest 100 (wallet-compatible) or a floor of 3. (unmeasured)
 
-Measured and left at the default: dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (re-measured 2026-10-25: median 20.0 sat/B, p10 1.32, p90 20.1, 100 txs in 2,743 blocks 3325168-3327910, insight.terracoin.io, txid-checked 100/100; replaces the earlier 14-tx 14.8 figure), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). Also measured: wdc 5.4 sat/B (4 txs, block 11881187; default kept). Not measured (default applies): every other row, including nmc, mec, nvc, clam, blk, pot, qrk, grs, bch, bsv, btg, ltc. (unmeasured)
+Measured and left at the default: dash (3.9 sat/B, 60 txs, blockbook.dash.zelcore.io), trc (re-measured 2026-10-25: median 20.0 sat/B, p10 1.32, p90 20.1, 100 txs in 2,734 blocks 3325168-3327901, insight.terracoin.io, txid-checked 100/100; replaces the earlier 14-tx 14.8 figure), ppc (blockbook reports fee 0 for most txs; fees are burned), via (4 txs in 400 blocks, all fee 0). Also measured: wdc 5.4 sat/B (4 txs, block 11881187; default kept). Not measured (default applies): every other row, including nmc, mec, nvc, clam, blk, pot, qrk, grs, bch, bsv, btg, ltc. (unmeasured)
 
 **RDD (not measured):** source found, rddblockexplorer.com (blockbook). Nearly every tx is a PoSV stake (outputs > inputs); a scan of ~9,000 blocks (6002715-6011409) found only 32 fee-paying txs, and the run was stopped before fees were computed. RDD keeps the default limits (now size-scaled); its own row still needs measuring.
 
