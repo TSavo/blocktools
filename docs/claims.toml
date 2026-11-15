@@ -601,11 +601,10 @@ id = "twc-evm-vectors"
 statement = "All 13 Trust Wallet Core EVM signer vectors (7 legacy EIP-155, 6 EIP-1559) parse, recover to their key and re-sign byte for byte"
 kind = "security"
 platform = "linux"
-status = "measured"
+status = "untested"
+note = "Parked 2026-11-15 as untested (K-stale): crates/tx/src/evm.rs gained Zora Network display names in #105 (4ff3383d); last measured at 1f1fa71. The name mapping does not change signing. Restamp from cargo test -p blocktools-tx --features secrets --test twc_evm after main CI is green."
 command = "cargo test -q --release -p blocktools-tx --features secrets --test twc_evm"
 expect = "test result: ok. 2 passed"
-commit = "1f1fa71"
-date = "2026-10-26"
 cheap = false
 depends = ["crates/tx/src/evm.rs", "crates/tx/tests/twc_evm.rs", "crates/tx/tests/vectors/twc-evm.json"]
 doc = [{ file = "docs/CHAINS.md", text = "7 legacy + 6 EIP-1559" }]
@@ -1283,14 +1282,11 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
-note = "Restamped 2026-11-08 from main CI 42504158970 at 55d8cad1 after --chain delegation in 5e973a7b parked the previous 9c48627 stamp."
+note = "Parked 2026-11-15 as untested (K-stale): crates/tx/src/evm.rs gained Zora Network display names in #105 (4ff3383d). Last measured at 55d8cad1 from main CI 42504158970 after --chain delegation in 5e973a7b parked the previous 9c48627 stamp. Restamp from scripts/e2e.d/evm-devnet.sh after main CI is green."
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "measured"
-commit = "55d8cad1"
-env = "main ci run 42504158970 at 55d8cad1 (success), gate (e2e) log: \"ok   amsterdam: recipe's old --gas 100000 -> status 0x0\""
-date = "2026-11-08"
+status = "untested"
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
 cheap = false
