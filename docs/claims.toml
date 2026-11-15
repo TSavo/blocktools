@@ -1518,3 +1518,16 @@ expect = "evmTypedDataVerify seaport ok"
 cheap = false
 depends = ["crates/evm/src/seaport.rs", "bindings/wasm/src/lib.rs", "bindings/wasm/test.mjs", "tools/typed-data-verify/src/main.rs", "tools/rpc/src/lib.rs"]
 doc = []
+
+[[claim]]
+id = "evm-zora-live"
+statement = "rpc --protocol evm against the official Zora Network public RPC (https://rpc.zora.energy, chain id 7777777) returns chainid 7777777, a block height and a fee quote; --chain-id 7777777 height succeeds and --chain-id 1 height is refused as chain_id_mismatch; tx-decode --chain eth --text of a live mainnet user transaction (legacy EIP-155 or type 1/2, raw bytes from eth_getRawTransactionByHash; OP-Stack deposit type 0x7e is skipped) shows chain id 7777777 and the name Zora Network. Read-only: no keys, no signing, no broadcast"
+kind = "platform"
+platform = "linux"
+status = "untested"
+note = "Added 2026-11-15 with the display-name mapping. Parked untested in this PR; restamp from a run of scripts/zora-check.sh after main CI on the merge commit is green (K-ci)."
+command = "sh scripts/zora-check.sh"
+expect = "ok   tx-decode --chain eth --text shows 7777777 (Zora Network)"
+cheap = false
+depends = ["crates/tx/src/evm.rs", "crates/tx/src/lib.rs", "tools/tx-decode/src/main.rs", "tools/rpc/src/main.rs", "scripts/zora-check.sh"]
+doc = [{ file = "CHANGELOG.md", text = "[evm-zora-live]" }]

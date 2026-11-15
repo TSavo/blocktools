@@ -164,9 +164,12 @@ pub fn dec(be: &[u8]) -> String {
 }
 /// Native coin symbol for a chain id ("native" when unknown).
 pub fn native_symbol(id: Option<u64>) -> &'static str {
-    match id { Some(1 | 10 | 8453 | 42161 | 11155111 | 17000) => "ETH", Some(56) => "BNB", Some(137) => "POL", Some(43114) => "AVAX", _ => "native" }
+    match id { Some(1 | 10 | 8453 | 42161 | 11155111 | 17000 | 7777777 | 999999999) => "ETH", Some(56) => "BNB", Some(137) => "POL", Some(43114) => "AVAX", _ => "native" }
 }
 pub fn chain_name(id: u64) -> &'static str {
+    // Display names only. 7777777 / 999999999 are Zora Network and Zora Sepolia (official
+    // network table: https://nft-docs.zora.co/zora-network/network). Signing policy is unchanged.
     match id { 1 => "Ethereum mainnet", 10 => "Optimism", 56 => "BNB Smart Chain", 137 => "Polygon", 8453 => "Base",
-        42161 => "Arbitrum One", 43114 => "Avalanche C-Chain", 11155111 => "Sepolia testnet", 17000 => "Holesky testnet", _ => "unknown chain" }
+        42161 => "Arbitrum One", 43114 => "Avalanche C-Chain", 7777777 => "Zora Network",
+        11155111 => "Sepolia testnet", 17000 => "Holesky testnet", 999999999 => "Zora Sepolia testnet", _ => "unknown chain" }
 }
