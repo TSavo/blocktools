@@ -8,6 +8,7 @@ Numbers and security statements here are only those registered as measured in do
 ## [Unreleased]
 
 ### Added
+- tx-decode and the signing summary name EVM chain id 7777777 as Zora Network and 999999999 as Zora Sepolia testnet [evm-zora-live] (untested). `scripts/zora-check.sh` is the live read of the official public RPC (not run by the CI gate).
 - `scripts/fee-sample.py CHAIN` re-measures a docs/CHAINS.md fee-rate sample from its public explorer; `scripts/pkg-install.sh VERSION` install-tests the live apk/apt/rpm repos in containers. Neither runs in the CI gate (network, Docker).
 
 ### Fixed
