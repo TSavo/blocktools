@@ -80,7 +80,7 @@ and see addresses and signed transactions only.
 | Tx hash → decoded call, logs and revert, end to end | [evm-tx-end-to-end.md](evm-tx-end-to-end.md) | run in CI against a mock RPC; live node untested; tracing a mined tx NOT BUILT |
 | What a Permit2 signing request commits to, verified offline | [evm-permit2-signing-request.md](evm-permit2-signing-request.md) | run in CI on a real mainnet permit |
 | Check an EIP-1167 proxy or EIP-7702 delegation before interacting (`bytecode-inspect`) | [evm-check-proxy-delegation.md](evm-check-proxy-delegation.md) | run in CI; storage-slot proxies NOT BUILT |
-| Build, verify, sign and broadcast a contract call or a deployment (`tx-build --data/--create` → `tx-verify` → `tx-sign`) | [evm-contract-tx.md](evm-contract-tx.md) | build, verify, sign and broadcast covered by mock e2e and the measured real-geth devnet (`scripts/e2e.d/evm-devnet.sh`; claim `evm-devnet-create-call`), not a mainnet hand-off test |
+| Build, verify, sign and broadcast a contract call or a deployment (`tx-build --data/--create` → `tx-verify` → `tx-sign`) | [evm-contract-tx.md](evm-contract-tx.md) | build, verify, sign and broadcast covered by mock e2e and the real-geth devnet (`scripts/e2e.d/evm-devnet.sh`; claim `evm-devnet-create-call`) (untested), not a mainnet hand-off test |
 
 ## Cross-chain swaps (THORChain)
 
