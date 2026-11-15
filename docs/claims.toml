@@ -601,10 +601,13 @@ id = "twc-evm-vectors"
 statement = "All 13 Trust Wallet Core EVM signer vectors (7 legacy EIP-155, 6 EIP-1559) parse, recover to their key and re-sign byte for byte"
 kind = "security"
 platform = "linux"
-status = "untested"
-note = "Parked 2026-11-15 as untested (K-stale): crates/tx/src/evm.rs gained Zora Network display names in #105 (4ff3383d); last measured at 1f1fa71. The name mapping does not change signing. Restamp from cargo test -p blocktools-tx --features secrets --test twc_evm after main CI is green."
+status = "measured"
+note = "Restamped 2026-11-15 from a re-run of the claim command at 0786caab after main CI 43747455024 was green. Parked untested in #106 because #105's Zora display names in evm.rs made the previous 1f1fa71 stamp K-stale."
 command = "cargo test -q --release -p blocktools-tx --features secrets --test twc_evm"
 expect = "test result: ok. 2 passed"
+commit = "0786caab"
+date = "2026-11-15"
+env = "re-run of the claim command on the Linux box at 0786caab after main CI 43747455024 (success); output: test result: ok. 2 passed"
 cheap = false
 depends = ["crates/tx/src/evm.rs", "crates/tx/tests/twc_evm.rs", "crates/tx/tests/vectors/twc-evm.json"]
 doc = [{ file = "docs/CHAINS.md", text = "7 legacy + 6 EIP-1559" }]
@@ -1282,13 +1285,16 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
-note = "Parked 2026-11-15 as untested (K-stale): crates/tx/src/evm.rs gained Zora Network display names in #105 (4ff3383d). Last measured at 55d8cad1 from main CI 42504158970 after --chain delegation in 5e973a7b parked the previous 9c48627 stamp. Restamp from scripts/e2e.d/evm-devnet.sh after main CI is green."
+note = "Restamped 2026-11-15 from main CI 43747455024 at 0786caab after #105's Zora display names in evm.rs parked the previous 55d8cad1 stamp in #106 (K-stale)."
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "untested"
+status = "measured"
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
+commit = "0786caab"
+date = "2026-11-15"
+env = "main ci run 43747455024 at 0786caab (success), gate (e2e) log: \"ok   amsterdam: recipe's old --gas 100000 -> status 0x0\""
 cheap = false
 depends = ["scripts/e2e.d/evm-devnet.sh", "scripts/evm-pins/geth", "tools/tx-build/src/main.rs", "tools/tx-sign/src/main.rs", "tools/tx-broadcast/src/main.rs", "tools/contract-call/src/main.rs", "crates/tx/src/evm.rs"]
 doc = [{ file = "recipes/evm-contract-tx.md", text = "evm-devnet.sh" }, { file = "recipes/README.md", text = "claim `evm-devnet-create-call`" }]
@@ -1520,10 +1526,13 @@ id = "evm-zora-live"
 statement = "rpc --protocol evm against the official Zora Network public RPC (https://rpc.zora.energy, chain id 7777777) returns chainid 7777777, a block height and a fee quote; --chain-id 7777777 height succeeds and --chain-id 1 height is refused as chain_id_mismatch; tx-decode --chain eth --text of a live mainnet user transaction (legacy EIP-155 or type 1/2, raw bytes from eth_getRawTransactionByHash; OP-Stack deposit type 0x7e is skipped) shows chain id 7777777 and the name Zora Network. Read-only: no keys, no signing, no broadcast"
 kind = "platform"
 platform = "linux"
-status = "untested"
-note = "Added 2026-11-15 with the display-name mapping. Parked untested in this PR; restamp from a run of scripts/zora-check.sh after main CI on the merge commit is green (K-ci)."
+status = "measured"
+note = "Stamped 2026-11-15 from a re-run of scripts/zora-check.sh at 0786caab after main CI 43747455024 was green. Added untested in #105; signing policy and fee caps were unchanged."
 command = "sh scripts/zora-check.sh"
 expect = "ok   tx-decode --chain eth --text shows 7777777 (Zora Network)"
+commit = "0786caab"
+date = "2026-11-15"
+env = "Linux box re-run of scripts/zora-check.sh at 0786caab after main CI 43747455024 (success): chainid 7777777, height 54037894, fee {gas_price 1000252, max_fee_per_gas 3000504, max_priority_fee_per_gas 1000000, unit wei}, --chain-id 7777777 height ok, --chain-id 1 refused chain_id_mismatch (endpoint eth_chainId 7777777, --chain-id 1); user tx 0x0e58bba103a16cf95cd5817cf73914e73cb03a381fb13065e58ee957f04b4399 at block 54037829 (type 0x0, chainId 0x76adf1) decoded with 7777777 = ZORA NETWORK / 7777777 (Zora Network)"
 cheap = false
 depends = ["crates/tx/src/evm.rs", "crates/tx/src/lib.rs", "tools/tx-decode/src/main.rs", "tools/rpc/src/main.rs", "scripts/zora-check.sh"]
 doc = [{ file = "CHANGELOG.md", text = "[evm-zora-live]" }]
