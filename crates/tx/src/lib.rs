@@ -10,6 +10,8 @@ macro_rules! code { ($s:literal) => {{ const _: () = assert!($crate::__schema::i
 pub mod __schema { include!("../../schema/src/tx_failures.rs"); }
 pub mod build;
 pub mod evm;
+pub mod delegation;
+pub mod user_operation;
 pub mod evm_decode;
 pub mod policy;
 pub mod policy_file;
