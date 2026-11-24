@@ -151,13 +151,11 @@ id = "tx-input-4mib"
 statement = "Transaction input limited to 4 MiB: MAX_INPUT + 1 bytes is too_large, exactly 4 MiB is accepted"
 kind = "number"
 platform = "linux"
-status = "measured"
-commit = "a3af7f2"
-date = "2026-11-02"
+status = "untested"
+note = "The claim command passed on Linux at 0787783 on 2026-11-24. Restamp after main CI verifies the merged signer changes."
 value = "4"
 command = "cargo test -q -p blocktools-tx --test input_cap"
 expect = "test result: ok. 1 passed"
-env = "main ci run 41518081756 at a3af7f2 (success), gate (test) runs the workspace tests: boundary test, no timing; msgchain mod added to crates/tx/src/lib.rs in #49 behind a feature, the 4 MiB cap unchanged"
 cheap = true
 depends = ["crates/tx/src/lib.rs", "crates/tx/tests/input_cap.rs"]
 doc = [{ file = "DESIGN.md", text = "limited to 4 MiB" }]
@@ -1273,10 +1271,8 @@ id = "tx-decode-evm-mainnet"
 statement = "tx-decode --chain eth decodes one real Ethereum mainnet tx of each type (legacy EIP-155, 2930, 1559, 4844, 7702; committed raw bytes from eth_getRawTransactionByHash) and every field the node returns from eth_getTransactionByHash (hash, from, to, nonce, gas, value, input, chainId, v/r/s, fees, accessList, blob fields, authorizationList) equals the decode; a node field the check does not compare fails it"
 kind = "security"
 platform = "any"
-status = "measured"
-commit = "a3af7f2"
-env = "main ci run 41518081756 at a3af7f2 (success); its log prints 'ok   tx-decode --chain eth on a non-EVM input -> not_evm'"
-date = "2026-11-02"
+status = "untested"
+note = "The claim command passed on Linux at 0787783 on 2026-11-24. Restamp after main CI verifies the merged signer changes."
 command = "sh scripts/e2e.d/evm-decode.sh"
 expect = "ok   tx-decode --chain eth on a non-EVM input -> not_evm"
 cheap = true
@@ -1285,16 +1281,13 @@ doc = []
 
 [[claim]]
 id = "evm-devnet-create-call"
-note = "Restamped 2026-11-15 from main CI 43747455024 at 0786caab after #105's Zora display names in evm.rs parked the previous 55d8cad1 stamp in #106 (K-stale)."
 statement = "On a real geth --dev node (geth 1.17.9, sha256-pinned in scripts/evm-pins/geth), under the default dev schedule and Amsterdam: tx-build --create of the recipe's 23-byte init code with gas from eth_estimateGas (56132 default, 226175 Amsterdam) gets receipt status 0x1, eth_getCode equals the runtime and contract-call reads 42; a setValue(7) call gets status 0x1 and reads back 7; a plain value transfer gets status 0x1; gas below the estimate gets status 0x0; on Amsterdam the recipe's old --gas 100000 gets status 0x0 with gasUsed equal to the limit (the Sepolia failure of issue #9)"
 kind = "platform"
 platform = "linux"
-status = "measured"
+status = "untested"
+note = "The claim command passed on Linux at 0787783 on 2026-11-24. Restamp after main CI verifies the merged signer changes."
 command = "sh scripts/e2e.d/evm-devnet.sh"
 expect = "ok   amsterdam: recipe's old --gas 100000 -> status 0x0"
-commit = "0786caab"
-date = "2026-11-15"
-env = "main ci run 43747455024 at 0786caab (success), gate (e2e) log: \"ok   amsterdam: recipe's old --gas 100000 -> status 0x0\""
 cheap = false
 depends = ["scripts/e2e.d/evm-devnet.sh", "scripts/evm-pins/geth", "tools/tx-build/src/main.rs", "tools/tx-sign/src/main.rs", "tools/tx-broadcast/src/main.rs", "tools/contract-call/src/main.rs", "crates/tx/src/evm.rs"]
 doc = [{ file = "recipes/evm-contract-tx.md", text = "evm-devnet.sh" }, { file = "recipes/README.md", text = "claim `evm-devnet-create-call`" }]
@@ -1472,16 +1465,13 @@ doc = [{ file = "docs/CHAINS.md", text = "msg-chains-sign.sh` (msg-chains-sign-e
 
 [[claim]]
 id = "tx-sign-presign-checks"
-note = "Restamped 2026-11-08 from main CI 42504158970 at 55d8cad1 after --chain delegation in 5e973a7b parked the previous 9c48627 stamp."
 statement = "tx-sign runs the tx-verify approval/transfer/batch checks (shared presign::apply) before reading a key and again on the signed bytes, deny by default: an unlimited approve fails unlimited_approval, a multicall hiding one fails inner_calls_not_asserted, a Safe delegatecall fails delegatecall, also with --plan; with --expect-spender --expect-unlimited the approve is signed and the signed bytes pass tx-verify with the same assertions"
 kind = "security"
 platform = "linux"
-status = "measured"
-commit = "55d8cad1"
-env = "main ci run 42504158970 at 55d8cad1 (success), gate (e2e) and macos logs: \"ok   tx-sign --plan with --expect-spender --expect-unlimited signs\""
+status = "untested"
+note = "The claim command passed on Linux at 0787783 on 2026-11-24. Restamp after main CI verifies the merged signer changes."
 command = "sh scripts/e2e.d/tx-sign-presign.sh"
 expect = "ok   tx-sign --plan with --expect-spender --expect-unlimited signs"
-date = "2026-11-08"
 cheap = false
 depends = ["crates/evm/src/presign.rs", "tools/tx-sign/src/main.rs", "scripts/e2e.d/tx-sign-presign.sh"]
 doc = []
@@ -1526,13 +1516,10 @@ id = "evm-zora-live"
 statement = "rpc --protocol evm against the official Zora Network public RPC (https://rpc.zora.energy, chain id 7777777) returns chainid 7777777, a block height and a fee quote; --chain-id 7777777 height succeeds and --chain-id 1 height is refused as chain_id_mismatch; tx-decode --chain eth --text of a live mainnet user transaction (legacy EIP-155 or type 1/2, raw bytes from eth_getRawTransactionByHash; OP-Stack deposit type 0x7e is skipped) shows chain id 7777777 and the name Zora Network. Read-only: no keys, no signing, no broadcast"
 kind = "platform"
 platform = "linux"
-status = "measured"
-note = "Stamped 2026-11-15 from a re-run of scripts/zora-check.sh at 0786caab after main CI 43747455024 was green. Added untested in #105; signing policy and fee caps were unchanged."
+status = "untested"
+note = "The claim command passed on Linux at 0787783 on 2026-11-24. Restamp after main CI verifies the merged signer changes."
 command = "sh scripts/zora-check.sh"
 expect = "ok   tx-decode --chain eth --text shows 7777777 (Zora Network)"
-commit = "0786caab"
-date = "2026-11-15"
-env = "Linux box re-run of scripts/zora-check.sh at 0786caab after main CI 43747455024 (success): chainid 7777777, height 54037894, fee {gas_price 1000252, max_fee_per_gas 3000504, max_priority_fee_per_gas 1000000, unit wei}, --chain-id 7777777 height ok, --chain-id 1 refused chain_id_mismatch (endpoint eth_chainId 7777777, --chain-id 1); user tx 0x0e58bba103a16cf95cd5817cf73914e73cb03a381fb13065e58ee957f04b4399 at block 54037829 (type 0x0, chainId 0x76adf1) decoded with 7777777 = ZORA NETWORK / 7777777 (Zora Network)"
 cheap = false
 depends = ["crates/tx/src/evm.rs", "crates/tx/src/lib.rs", "tools/tx-decode/src/main.rs", "tools/rpc/src/main.rs", "scripts/zora-check.sh"]
 doc = [{ file = "CHANGELOG.md", text = "[evm-zora-live]" }]

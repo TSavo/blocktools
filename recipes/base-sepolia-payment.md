@@ -8,7 +8,12 @@ maximum gas charge in micro-USDC. One micro-USDC is 0.000001 USDC.
 
     tx-sign base-sepolia-payment build.json SENDER RECIPIENT PAYOUT MAX_WETH MAX_GAS --inspect
 
-Inspection requires no key. The command reconstructs the Simple7702Account
+The recipient payment inside the batch is an ERC-20 transfer. To identify its selector when reading the batch calldata, run:
+
+<!-- e2e: expect=0xa9059cbb -->
+    sig-hash 'transfer(address,uint256)'
+
+The inspection step also checks the decoded recipient and amount. Inspection requires no key. The command reconstructs the Simple7702Account
 batch, checks the Uniswap router and Pimlico paymaster, and computes the
 EntryPoint v0.8 UserOperation digest. A direct USDC payment has a WETH
 spend cap of zero. The quote must still be valid when signing.
