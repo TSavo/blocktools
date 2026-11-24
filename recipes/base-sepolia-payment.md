@@ -24,6 +24,8 @@ Send only the returned signature, quote ID, and operation hash to
 `POST /payments/submit`. Look up the hash at `GET /payments/status/:hash`
 to check the verified payout and gas charge.
 
+The signer permits new delegations only to the listed Base Sepolia Simple7702Account. The zero-address revocation remains available for any explicit nonzero chain ID.
+
 For first-time account setup, use the account nonce from the fresh quote:
 
     tx-sign authorize-delegate 84532 NONCE SENDER 0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9
