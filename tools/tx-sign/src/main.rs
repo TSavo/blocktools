@@ -41,6 +41,15 @@ fn out(status: &str, extra: serde_json::Value) -> ! {
     blocktools_io::outln!("{v}"); std::process::exit(if status == "ok" { 0 } else if status == "bad_input" { 2 } else { 1 })
 }
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("base-sepolia-payment") {
+        match payment::run() {
+            Ok(()) => return,
+            Err(e) => out("bad_input",json!({"error":e})),
+        }
+    }
+    if std::env::args().nth(1).as_deref() == Some("authorize-delegate") {
+        delegation::run();
+    }
     blocktools_io::help("tx-sign --tx FILE [--chain C] (--plan FILE | --expect-to ADDR [...] [--max-fee N] [--policy FILE]) [--partial] [--call SIGNATURE]... [--abi FILE] [--create-hash KECCAK] [--expect-spender ADDR] [--expect-amount N | --expect-unlimited] [--expect-recipient ADDR] [--expect-value WEI] [--allow-inner-call TO:SELECTOR]... [--allow-delegatecall TO]... < keys   (asks for a code on the terminal)\n  --chain sol|tron: refused (signing_not_available; sol-tron-tx builds and verifies only). --chain xrp -> xrp-tx sign. --chain xlm|algo|atom|ton|ada|dot|rune -> acct-tx sign. --chain xmr: refused (xmr_requires_wallet_rpc; use host xmr-wallet). --chain zec: transparent only (unchanged; zec-sapling does not sign).\n  --partial: m-of-n multisig. Add this cosigner's signature to the PSBT's partial_sigs (P2WSH) and print the unsigned PSBT; combine a quorum with tx-combine. No finalize, no signed tx.");
     let a: Vec<String> = blocktools_core::chain_spec::args_or_exit("tx-sign");
     let all = |k: &str| a.windows(2).filter(|w| w[0] == k).map(|w| w[1].clone()).collect::<Vec<_>>();
@@ -253,6 +262,8 @@ fn main() {
     else if d2.evm.is_none() { o["psbt"] = json!(blocktools_core::b64::encode(&recheck)) }
     out("ok", o)
 }
+mod delegation;
+mod payment;
 
 /// The data push of a single OP_RETURN output in a serialized PSBT, for the tty summary. None when the
 /// bytes are not a PSBT (EVM / pos-ntime / zec) or when there is not exactly one OP_RETURN output.
