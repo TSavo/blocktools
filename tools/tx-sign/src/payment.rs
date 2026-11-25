@@ -75,12 +75,76 @@ fn verify_delegation(auth: &Value, quote: &Value, sender: [u8; 20]) -> Result<()
     }
     Ok(())
 }
+const MESSENGER: &str = "0x8745D906D67C346E5eb1aEEED38Eb87F34DF0C0A";
+const BURN: &str = "depositForBurnWithFees(uint256,uint32,bytes32,address,bytes32,(bytes,address))";
+
+fn checked_burn(
+    circle: &Value,
+    sender: &str,
+    recipient: &str,
+    payout: u128,
+    cap: u128,
+    expected_hash: &str,
+) -> Result<String, &'static str> {
+    use blocktools_evm::{abi, api, sig::Sig};
+    let burn = circle["burnData"].as_str().ok_or("missing Circle burn")?;
+    if cap < payout
+        || circle["maxInputMicroUsdc"] != cap.to_string()
+        || circle["destinationChainId"] != 11155420
+        || circle["burnDataHash"] != expected_hash
+        || api::keccak256_hex(burn).map_err(|_| "invalid Circle data")? != expected_hash
+    {
+        return Err("Circle terms differ from review");
+    }
+    let signature = Sig::parse(BURN).map_err(|_| "invalid burn signature")?;
+    let bytes = blocktools_evm::unhex(burn).map_err(|_| "invalid Circle burn")?;
+    let args = abi::decode(&signature.inputs, bytes.get(4..).ok_or("short burn")?)
+        .map_err(|_| "invalid Circle fields")?;
+    let signed_quote = args[5][0]
+        .as_str()
+        .filter(|v| v.len() > 2)
+        .ok_or("missing forwarding quote")?;
+    let mint_recipient = format!("0x{:024}{}", 0, hex_enc(validate::eth(recipient)?));
+    let expected = call(
+        BURN,
+        json!([
+            payout.to_string(),
+            "2",
+            mint_recipient,
+            USDC,
+            format!("0x{:064}", 0),
+            [signed_quote, sender]
+        ]),
+    )?;
+    if !expected.eq_ignore_ascii_case(burn) {
+        return Err("Circle burn differs from intended payment");
+    }
+    Ok(expected)
+}
+
 pub(super) fn run() -> Result<(), &'static str> {
     let args: Vec<_> = std::env::args().skip(2).collect();
     let inspect = args.last().is_some_and(|s| s == "--inspect");
     let args = &args[..args.len() - usize::from(inspect)];
-    let [path, sender, recipient, payout, spend, reserve] = args else {
-        return Err("usage: base-sepolia-payment BUILD.json SENDER RECIPIENT PAYOUT_MICRO_USDC MAX_WETH_WEI MAX_GAS_MICRO_USDC [--inspect]");
+    let [path, sender, recipient, payout, spend, reserve, options @ ..] = args else {
+        return Err("usage: base-sepolia-payment BUILD.json SENDER RECIPIENT PAYOUT_MICRO_USDC MAX_WETH_WEI MAX_GAS_MICRO_USDC [--circle MAX_BRIDGE_MICRO_USDC REVIEWED_BURN_HASH] [--wrap NATIVE_WEI] [--inspect]");
+    };
+    let (bridge, options) = match options {
+        [flag, cap, hash, rest @ ..] if flag == "--circle" => (
+            Some((
+                cap.parse::<u128>().map_err(|_| "invalid bridge cap")?,
+                hash.as_str(),
+            )),
+            rest,
+        ),
+        _ => (None, options),
+    };
+    let wrap = match options {
+        [] => 0,
+        [flag, amount] if flag == "--wrap" => {
+            amount.parse::<u128>().map_err(|_| "invalid native wrap")?
+        }
+        _ => return Err("unexpected payment options"),
     };
     let account = validate::eth(sender)?;
     validate::eth(recipient)?;
@@ -131,17 +195,49 @@ pub(super) fn run() -> Result<(), &'static str> {
         .as_str()
         .and_then(|s| s.parse::<u128>().ok())
         .ok_or("invalid swap output")?;
+    let burn = match (bridge, q.get("circle")) {
+        (Some((cap, hash)), Some(circle)) => {
+            Some(checked_burn(circle, sender, recipient, payout, cap, hash)?)
+        }
+        (None, None) => None,
+        _ => return Err("unexpected payment destination"),
+    };
+    if wrap > spend
+        || q.get("wrapNativeWei").map_or(Some("0"), Value::as_str)
+            != Some(wrap.to_string().as_str())
+    {
+        return Err("native wrap differs from review");
+    }
+    let bridge_cap = bridge.map_or(payout, |(cap, _)| cap);
     if (spend == 0) != (output == 0)
-        || output > payout.checked_add(reserve).ok_or("payment overflow")?
+        || output > bridge_cap.checked_add(reserve).ok_or("payment overflow")?
     {
         return Err("invalid swap bounds");
     }
     let op = &build["userOperation"];
-    let direct = q["requiresDelegation"] == false && spend == 0;
+    let direct = bridge.is_none() && q["requiresDelegation"] == false && spend == 0;
     for (field, limit) in [
-        ("callGasLimit", if direct { 80000 } else { 450000 }),
+        (
+            "callGasLimit",
+            if bridge.is_some() {
+                700000
+            } else if direct {
+                80000
+            } else {
+                450000
+            },
+        ),
         ("verificationGasLimit", if direct { 70000 } else { 140000 }),
-        ("preVerificationGas", if direct { 90000 } else { 145000 }),
+        (
+            "preVerificationGas",
+            if bridge.is_some() {
+                2400000
+            } else if direct {
+                90000
+            } else {
+                145000
+            },
+        ),
         (
             "paymasterVerificationGasLimit",
             if direct { 85000 } else { 120000 },
@@ -165,6 +261,13 @@ pub(super) fn run() -> Result<(), &'static str> {
     let approve =
         |who: &str, n: u128| call("approve(address,uint256)", json!([who, n.to_string()]));
     let mut calls = Vec::new();
+    if wrap > 0 {
+        calls.push(json!([
+            WETH,
+            wrap.to_string(),
+            call("deposit()", json!([]))?
+        ]));
+    }
     if spend > 0 {
         let swap = call(
             "exactOutputSingle((address,address,uint24,address,uint256,uint256,uint160))",
@@ -184,14 +287,20 @@ pub(super) fn run() -> Result<(), &'static str> {
             json!([WETH, "0", approve(ROUTER, 0)?]),
         ]);
     }
-    let transfer = call(
-        "transfer(address,uint256)",
-        json!([recipient, payout.to_string()]),
-    )?;
-    calls.extend([
-        json!([USDC, "0", transfer]),
-        json!([USDC, "0", approve(PM, reserve)?]),
-    ]);
+    if let Some(data) = burn {
+        calls.push(json!([USDC, "0", approve(MESSENGER, bridge_cap)?]));
+        calls.push(json!([MESSENGER, "0", data]));
+    } else {
+        calls.push(json!([
+            USDC,
+            "0",
+            call(
+                "transfer(address,uint256)",
+                json!([recipient, payout.to_string()])
+            )?
+        ]));
+    }
+    calls.push(json!([USDC, "0", approve(PM, reserve)?]));
     let batch = call("executeBatch((address,uint256,bytes)[])", json!([calls]))?;
     if !op["callData"]
         .as_str()
@@ -244,7 +353,14 @@ pub(super) fn run() -> Result<(), &'static str> {
     if build["userOpHash"] != digest {
         return Err("hash differs from simulated operation");
     }
-    let summary=format!("Base Sepolia (84532), Simple7702Account payment\nSender: {sender}\nRecipient: {recipient}\nExact payout: {payout} micro-USDC\nMaximum WETH spend: {spend} wei\nPimlico gas approval: {reserve} micro-USDC\nUserOperation hash: {digest}");
+    let destination = if bridge.is_some() {
+        format!(
+            "Optimism Sepolia (11155420) via Circle. Maximum bridge spend {bridge_cap} micro-USDC"
+        )
+    } else {
+        "Base Sepolia (84532)".to_owned()
+    };
+    let summary=format!("Base Sepolia (84532), Simple7702Account payment\nSender: {sender}\nRecipient: {recipient}\nDestination: {destination}\nNative ETH to wrap: {wrap} wei\nExact payout: {payout} micro-USDC\nMaximum WETH spend: {spend} wei\nPimlico gas approval: {reserve} micro-USDC\nUserOperation hash: {digest}");
     if inspect {
         super::out("ok", json!({"userOpHash":digest,"summary":summary}));
     }
@@ -264,6 +380,30 @@ pub(super) fn run() -> Result<(), &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn circle_burn_binds_destination_recipient_and_bridge_cap() {
+        let recipient = USDC;
+        let padded = format!("0x{:024}{}", 0, hex_enc(validate::eth(recipient).unwrap()));
+        let data = call(
+            BURN,
+            json!([
+                "1",
+                "2",
+                padded,
+                USDC,
+                format!("0x{:064}", 0),
+                ["0x1234", WETH]
+            ]),
+        )
+        .unwrap();
+        let hash = blocktools_evm::api::keccak256_hex(&data).unwrap();
+        let mut quote = json!({"burnData":data, "burnDataHash":hash, "destinationChainId":11155420, "maxInputMicroUsdc":"9"});
+        assert!(checked_burn(&quote, WETH, recipient, 1, 9, &hash).is_ok());
+        assert!(checked_burn(&quote, WETH, recipient, 1, 10, &hash).is_err());
+        assert!(checked_burn(&quote, WETH, ROUTER, 1, 9, &hash).is_err());
+        quote["destinationChainId"] = json!(10);
+        assert!(checked_burn(&quote, WETH, recipient, 1, 9, &hash).is_err());
+    }
     #[test]
     fn checks_the_settled_sepolia_delegation_against_the_reviewed_sender() {
         let sender = validate::eth("0x18eE1D19Ab2030e5dd6f52c6be152ffeA0d08c0D").unwrap();
